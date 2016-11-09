@@ -1,6 +1,10 @@
 
 %% 
+
 dir_input = '/om/project/boyden/ExSeqSlice/output';
+
+%Get the puncat coords from getPuncta.m function 
+load(fullfile(dir_input,'puncta_coords.mat'));
 
 files = dir(fullfile(dir_input,'*.tif'));
 
