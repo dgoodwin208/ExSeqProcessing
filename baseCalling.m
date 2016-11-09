@@ -116,5 +116,5 @@ clear data_cols, clear data
 
 good_puncta_indices = setdiff(1:num_puncta,bad_puncta_indices);
 
-save(fullfile(dir_input,'roi_parameters_and_punctaset.mat'));
+save(fullfile(dir_input,'roi_parameters_and_punctaset.mat'),'-v7.3');
 
