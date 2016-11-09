@@ -1,27 +1,7 @@
 
-    
-    
-tools = improc2.launchImageObjectTools;
-out = [];
-while tools.iterator.continueIteration
-    if (~tools.annotations.getValue('isGood'))
-        tools.iterator.goToNextObject;
-        continue;
-    end
-    
-    objNum = tools.navigator.currentArrayNum();
-    [Y X Z] = tools.objectHandle.getData('alexa').getSpotCoordinates();
-    out = [out; Y X Z ones(length(X),1)*objNum];
-    tools.iterator.goToNextObject()
-end
-
-save('puncta_coords.mat','X','Y','Z');
 %% 
-dir_input = './cropOutput/';%'/om/user/dgoodwin/ExSeq/';
+dir_input = '/om/project/boyden/ExSeqSlice/output';
 
-% TOP_LEFT = [381,147];
-% BOTTOM_RIGHT = [390,156];
-% Z_RANGE = 49-5+1:49+5;
 files = dir(fullfile(dir_input,'*.tif'));
 
 NUM_ROUNDS = 12;
@@ -41,7 +21,6 @@ datavols = [];
 organized_data_files = cell(NUM_ROUNDS,NUM_CHANNELS);
 
 for file_index = 1:length(files)
-%     newdatavol = datavol; %initialize an 
     
     %Only load the chan datasets
     if findstr(files(file_index).name,'summed')
@@ -49,7 +28,7 @@ for file_index = 1:length(files)
     end
     
     %Need to crop out round number and channel
-    %CROPTPSsa0916dncv_round7_chan1.tif
+    %FULLTPSsa0916dncv_round7_chan1.tif
     %Get the latter part of the string, then use sscanf to extract the two
     %ints
     string_parts = split(files(file_index).name,'_round');
@@ -131,45 +110,7 @@ end
 %%
 clear data_cols, clear data
 
-save('roi_parameters_and_punctaset.mat');
-subplot(NUM_ROUNDS,NUM_CHANNELS,1)
-
-
-%%
 good_puncta_indices = setdiff(1:num_puncta,bad_puncta_indices);
-filename = 'non-normalized.gif';
-%Setting the figure shape so it comes out well in the gif
-set(0, 'DefaultFigurePaperPosition', [425   980   576   876]);
-figure(1);
-for puncta_idx = good_puncta_indices(1:100)
-    subplot_idx = 1;
-    for exp_idx = 1:NUM_ROUNDS
-        
-        punctaset_perround = squeeze(puncta_set(:,:,:,exp_idx,:,puncta_idx));
 
-        max_intensity = max(max(max(max(punctaset_perround))))+1;
-        min_intensity = min(min(min(min(punctaset_perround))));
-        values = zeros(4,1);
-        for c_idx = 1:NUM_CHANNELS
+save(fullfile(dir_input,'roi_parameters_and_punctaset.mat'));
 
-            clims = [min_intensity,max_intensity];
-            subplot(NUM_ROUNDS,NUM_CHANNELS,subplot_idx)
-            data = squeeze(punctaset_perround(:,:,:,c_idx));
-            imagesc(max(data,[],3),clims);
-
-            axis off; colormap gray
-            subplot_idx = subplot_idx+1;
-        end
-    end
-%     pause
-    
-    drawnow
-    frame = getframe(1);
-    im = frame2im(frame);
-    [imind,cm] = rgb2ind(im,256);
-    if puncta_idx == 1
-        imwrite(imind,cm,filename,'gif', 'Loopcount',inf);
-    else
-        imwrite(imind,cm,filename,'gif','WriteMode','append');
-    end
-end
