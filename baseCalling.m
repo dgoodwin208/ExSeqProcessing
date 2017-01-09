@@ -2,10 +2,10 @@
 %% 
 
 dir_input = '/om/project/boyden/ExSeqSlice/output';
-puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/';
+%puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/';
 
 %Get the filtered puncta coords from analyze.m script
-load(fullfile(puncta_directory,'puncta_filtered.mat'));
+load(fullfile(dir_input,'puncta_filtered.mat'));
 
 files = dir(fullfile(dir_input,'*Norm.tif'));
 
@@ -14,7 +14,6 @@ NUM_CHANNELS = 4;
 
 %load a sample dataset to get the dimensions
 data = load3DTif(fullfile(dir_input,files(1).name));
-
 
 %The convertMicroscope files currently takes the alphabetical order
 %Which is not the right ordering of actual experiments
@@ -64,6 +63,12 @@ data_width = size(data,2);
 data_depth = size(data,3);
 
 PUNCTA_SIZE = 10;
+
+%unpack the filtered coords into X,Y,Z vectors
+Y = puncta_filtered(:,1);
+X = puncta_filtered(:,2);
+Z = puncta_filtered(:,3);
+
 num_puncta = length(X); %from the RajLab coordinates 
 
 puncta_set = zeros(PUNCTA_SIZE,PUNCTA_SIZE,PUNCTA_SIZE,NUM_ROUNDS,NUM_CHANNELS,num_puncta);
