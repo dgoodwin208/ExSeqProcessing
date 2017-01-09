@@ -5,6 +5,7 @@ function [ chanmax,confidence ] = chooseChannel(punctaset_perround, num_channels
 if nargin <3
     max_distance = 100;
 end
+
 DISTANCE_BLOWUP = 1000;
 region_size = size(punctaset_perround,1);
 center_point = [(region_size+1)/2, (region_size+1)/2];
@@ -65,6 +66,7 @@ end
 chanmax = I(1);
 max_val = vote_value(I(1));
 max_2nd_val = vote_value(I(2));
+
 if max_2nd_val == 0
     max_2nd_val = 1;
 end

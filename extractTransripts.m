@@ -7,7 +7,7 @@
 % load('puncta_set_normalized.mat'); 
 dir_input = '/om/project/boyden/ExSeqSlice/output';
 
-load(fullfile(dir_input,':qroi_parameters_and_punctaset.mat'))
+load(fullfile(dir_input,'roi_parameters_and_punctaset.mat'))
 
 %% Loop through, producing visual "base calls" per puncta 
 
