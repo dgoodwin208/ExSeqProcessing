@@ -1,9 +1,10 @@
 %Produce the set of puncta using the getPuncta.m file
-puncta_filename = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/puncta_allexp.mat';
-load(puncta_filename);
+
+puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/';
+load(fullfile(puncta_directory,'puncta_allexp.mat'));
 
 %load sample image for reference
-img = load3DTif('/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/alexa001.tiff');
+img = load3DTif(fullfile(puncta_directory,'alexa001.tiff'));
 
 %% make a quick scatter plot
 figure; hold on;
@@ -119,7 +120,7 @@ end
 xlabel('Number of rounds within epsilon');
 ylabel(sprintf('Number of puncta (%i original candidates)',size(puncta_ref,1)));
 legend('1','2','3','4','5','6','7','8','9','10','Location','northwest');
-title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',puncta_filename));
+title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',puncta_directory));
 
 %% Finally, get a list of all puncta that we would use for later analysis
 
@@ -185,3 +186,7 @@ scatter(locs(:,1),locs(:,2),'r.');
 locs = puncta_ref(puncta_votes>=THRESHOLD,:);
 scatter(locs(:,1),locs(:,2),'g.');
 hold off;
+
+%% Save the puncta and the parameters they were made at
+puncta_filtered = puncta_ref(puncta_votes>=THRESHOLD,:);
+save(fullfile(puncta_directory,'puncta_filtered.mat'),'puncta_filtered','EPSILON_TARGET','THRESHOLD');

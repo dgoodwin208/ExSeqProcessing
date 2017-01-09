@@ -2,11 +2,12 @@
 %% 
 
 dir_input = '/om/project/boyden/ExSeqSlice/output';
+puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/';
 
-%Get the puncat coords from getPuncta.m function 
-load(fullfile(dir_input,'puncta_coords.mat'));
+%Get the filtered puncta coords from analyze.m script
+load(fullfile(puncta_directory,'puncta_filtered.mat'));
 
-files = dir(fullfile(dir_input,'*.tif'));
+files = dir(fullfile(dir_input,'*Norm.tif'));
 
 NUM_ROUNDS = 12;
 NUM_CHANNELS = 4;
@@ -54,7 +55,7 @@ for file_index = 1:length(files)
 end
 
 %% 
-%For each experiment, load the four channels of data, normalize them, then
+%For each experiment, load the four channels of data, then
 %start getting the subregions
 
 data = load3DTif(organized_data_files{1,1});
@@ -80,8 +81,8 @@ for exp_idx = 1:NUM_ROUNDS
        data_cols(:,c_idx) = reshape(experiment_set(:,:,:,c_idx),[],1);
     end
 
-%     %Normalize the data
-    data_cols = quantilenorm(data_cols);
+%     %Normalize the data (now done on the global scale for *Norm.tif)
+%    data_cols = quantilenorm(data_cols);
     
     %Reinsert the data
     for c_idx = 1:NUM_CHANNELS
