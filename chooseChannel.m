@@ -5,7 +5,6 @@ function [ chanmax,confidence ] = chooseChannel(punctaset_perround, num_channels
 if nargin <3
     max_distance = 100;
 end
-
 DISTANCE_BLOWUP = 1000;
 region_size = size(punctaset_perround,1);
 center_point = [(region_size+1)/2, (region_size+1)/2];
@@ -19,14 +18,22 @@ for c_idx = 1:num_channels
     
     img = max(data,[],3);
     
-    if sum(img(:))==0
+    %IF it's a uniform color, ignore it
+    if sum( img(:) - mean(img(:)) )==0
         vote_value(c_idx) = 0;
         disp('Empty puncta region');
         continue
     end
-    
+   
+    try 
     [xymax,imax,xymin,imin] = extrema2(img);
-    %If no peaks, just give it a zero for that chan peak value
+    catch
+        vote_value(c_idx) = 0;
+        disp('Extrema2 crashed');
+        continue
+    end    
+
+%If no peaks, just give it a zero for that chan peak value
     if length(imax)<1
         vote_value(c_idx) = 0;
         continue
@@ -66,7 +73,6 @@ end
 chanmax = I(1);
 max_val = vote_value(I(1));
 max_2nd_val = vote_value(I(2));
-
 if max_2nd_val == 0
     max_2nd_val = 1;
 end

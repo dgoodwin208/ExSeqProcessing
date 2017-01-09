@@ -1,10 +1,22 @@
+%This script will load the TPS outputs (tiff sequence) and output 3d tif images
+%It can also crop if you specify it
 
 
+%Where is the registration code outputing the TPS* directories?
+dir_input = '/om/user/dgoodwin/ExSeq/slice/output/';
+%Where is the the folder that we can write files on the cluster?  
+dir_rootoutput = '/om/project/boyden/ExSeqSlice/output/';
 
-dir_input = './output/';%'/om/user/dgoodwin/ExSeq/';
-dir_rootoutput = './output/';
-experiment_string = 'sa0916dncv';
-PREPEND = 'CROP';
+experiment_string = 'sa0916slicedncv';
+
+DO_CROP = 0;
+
+if DO_CROP
+    PREPEND= 'CROP';
+else
+    PREPEND = 'FULL';
+end
+
 TOP_LEFT = [1125,291];
 BOTTOM_RIGHT = [1699,687];
 
@@ -27,8 +39,10 @@ for file_index = 1:length(files)
    
     %load
     data = loadTifSequence(fullfile(dir_input,files(file_index).name));
-    %crop
-    data = data(TOP_LEFT(1):BOTTOM_RIGHT(1),TOP_LEFT(2):BOTTOM_RIGHT(2),:);
+    %crop?
+    if DO_CROP
+        data = data(TOP_LEFT(1):BOTTOM_RIGHT(1),TOP_LEFT(2):BOTTOM_RIGHT(2),:);
+    end
     %save
     save3DTif(data,fullfile(dir_rootoutput,[PREPEND files(file_index).name '.tif']));
 end
