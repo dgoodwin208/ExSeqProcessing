@@ -1,6 +1,5 @@
 %% This is more a protocol document than a run script
-rajlab_inputdir = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceRegged/';
-% rajlab_inputdir = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqCulture/';
+rajlab_inputdir = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqCultureNormedRegged/';
 cd(rajlab_inputdir);
 
 %% have to do these one at a time, as they are nonblocking GUIS

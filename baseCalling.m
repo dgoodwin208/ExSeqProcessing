@@ -1,7 +1,7 @@
 
 %% 
 
-dir_input = '/om/project/boyden/ExSeqSlice/output';
+dir_input = '/om/project/boyden/ExSeqCulture/output';
 %puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/';
 
 %Get the filtered puncta coords from analyze.m script

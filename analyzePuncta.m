@@ -1,6 +1,6 @@
 %Produce the set of puncta using the getPuncta.m file
 
-puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedRegged/';
+puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqCultureNormedRegged/';
 load(fullfile(puncta_directory,'puncta_allexp.mat'));
 
 %load sample image for reference
