@@ -42,7 +42,8 @@ for file_index = 1:length(files)
     newdatavol.name = string_parts{1}; 
     
     string_parts = split(string_parts{2},'.');
-    chan_num = str2num(string_parts{1});
+    chanparts = split(string_parts{1},'Norm');
+    chan_num = str2num(chanparts{1});
     
     
     corrected_round_num = round_correction_indices(round_num);
@@ -65,9 +66,9 @@ data_depth = size(data,3);
 PUNCTA_SIZE = 10;
 
 %unpack the filtered coords into X,Y,Z vectors
-Y = puncta_filtered(:,1);
-X = puncta_filtered(:,2);
-Z = puncta_filtered(:,3);
+Y = round(puncta_filtered(:,1));
+X = round(puncta_filtered(:,2));
+Z = round(puncta_filtered(:,3));
 
 num_puncta = length(X); %from the RajLab coordinates 
 
@@ -122,5 +123,5 @@ clear data_cols, clear data
 
 good_puncta_indices = setdiff(1:num_puncta,bad_puncta_indices);
 
-save(fullfile(dir_input,'roi_parameters_and_punctaset.mat'),'-v7.3');
+save(fullfile(dir_input,'rois_votedandglobalnormalized.mat'),'-v7.3');
 

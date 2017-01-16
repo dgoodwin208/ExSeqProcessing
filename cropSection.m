@@ -3,11 +3,11 @@
 
 
 %Where is the registration code outputing the TPS* directories?
-dir_input = '/om/user/dgoodwin/ExSeq/slice/output/';
+dir_input = '/om/user/dgoodwin/ExSeq/culture/output/';
 %Where is the the folder that we can write files on the cluster?  
-dir_rootoutput = '/om/project/boyden/ExSeqSlice/output/';
+dir_rootoutput = '/om/project/boyden/ExSeqCulture/output/';
 
-experiment_string = 'sa0916slicedncv';
+experiment_string = 'sa0916dncv';
 
 DO_CROP = 0;
 
