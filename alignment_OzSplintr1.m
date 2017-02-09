@@ -20,7 +20,7 @@ for roundnum = 1:3
     end
     
     %Save the fourth channel as a corrected
-    save3DTif(summed_norm,sprintf('/om/project/boyden/%s/input/%s_round%i_ch03corr.tif',FOLDER_NAME,FILEROOT_NAME, roundnum));
+    save3DTif(chan4_corr,sprintf('/om/project/boyden/%s/input/%s_round%i_ch03corr.tif',FOLDER_NAME,FILEROOT_NAME, roundnum));
     
     %Note the sum of the channel
     summed = chan1+chan2+chan4_corr;
