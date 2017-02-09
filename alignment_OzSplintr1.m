@@ -8,9 +8,10 @@ for roundnum = 1:3
     chan2 = load3DTif(sprintf('/om/project/boyden/%s/input/%s_round%i_ch01.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));
     chan4 = load3DTif(sprintf('/om/project/boyden/%s/input/%s_round%i_ch03.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));
     
-    d1_max = max(chan1,[],3);
-    d4_max = max(chan4,[],3);
-    [ corr_y,corr_x ] = getXYCorrection( d1_max,d4_max );
+    %These numbers were calculated using the beads dataset from Shahar 
+    %given to Dan in January 2017
+    corr_y = 2;
+    corr_x = 4;
     
     %make the corrected Chan4 dataset
     chan4_corr = zeros(size(chan4));
