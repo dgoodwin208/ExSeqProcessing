@@ -15,6 +15,7 @@ for exp_idx = 1:12
 end
 xlim([1,size(img,2)]);
 ylim([1,size(img,1)]);
+title('Raw, unfiltered RajLab puncta candidates (displayed in redundant color)');
 hold off;
 
 %% Remove any redundant points from the rajlab code

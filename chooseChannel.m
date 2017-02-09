@@ -21,7 +21,7 @@ for c_idx = 1:num_channels
     %IF it's a uniform color, ignore it
     if sum( img(:) - mean(img(:)) )==0
         vote_value(c_idx) = 0;
-        disp('Empty puncta region');
+        fprintf('Chan %i: Empty puncta region\n',c_idx);
         continue
     end
    
@@ -33,9 +33,14 @@ for c_idx = 1:num_channels
         continue
     end    
 
-%If no peaks, just give it a zero for that chan peak value
+    %V1: If no peaks, just give it a zero for that chan peak value
+    %V2 (1/16/17): If no peaks, take the average pix value for the region
     if length(imax)<1
-        vote_value(c_idx) = 0;
+%         vote_value(c_idx) = 0; V1
+        center_region = img(size(img,1)/2-round(max_distance)+1:size(img,1)/2+round(max_distance), ...
+                            size(img,2)/2-round(max_distance)+1:size(img,2)/2+round(max_distance));
+        vote_value(c_idx) = mean(center_region(:));
+                            
         continue
     end
     [x,y] = ind2sub(size(img),imax);

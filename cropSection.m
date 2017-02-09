@@ -7,18 +7,21 @@ dir_input = '/om/user/dgoodwin/ExSeq/culture/output/';
 %Where is the the folder that we can write files on the cluster?  
 dir_rootoutput = '/om/project/boyden/ExSeqCulture/output/';
 
-experiment_string = 'sa0916dncv';
+experiment_string = 'splintr1';
 
-DO_CROP = 0;
+DO_CROP = 0; %Are we cropping?
 
 if DO_CROP
     PREPEND= 'CROP';
+    TOP_LEFT = [1125,291];
+    BOTTOM_RIGHT = [1699,687];
 else
     PREPEND = 'FULL';
 end
 
-TOP_LEFT = [1125,291];
-BOTTOM_RIGHT = [1699,687];
+
+
+
 
 if ~exist(dir_rootoutput, 'dir')
     mkdir(dir_rootoutput);
