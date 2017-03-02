@@ -36,7 +36,7 @@ files(1:2) = []; %ignore . and ..
 
 for file_index = 1:length(files)
     %Don't recrop the same fil
-    if ~findstr(files(file_index).name,'TPS') %Make sure it's an image output
+    if length(findstr(files(file_index).name,'TPS'))==0 %Make sure it's an image output
         continue;
     end
    

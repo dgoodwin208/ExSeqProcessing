@@ -23,6 +23,7 @@ for file_index = 1:length(files)
     
     %Need to crop out round number and channel
     %FULLTPSsa0916dncv_round7_chan1.tif
+    %TODO: this part still has a bit of finnicking manual
     string_parts = split(files(file_index).name,'_round');
     string_parts = split(string_parts{2},'_16bch');
     round_num = str2num(string_parts{1});
@@ -97,5 +98,17 @@ clear data_cols, clear data
 
 good_puncta_indices = setdiff(1:num_puncta,bad_puncta_indices);
 
-save(fullfile(dir_input,'rois_votedandglobalnormalized.mat'),'-v7.3');
+
+%Remove all puncta from the set that are too close to the boundary of the
+%image
+puncta_set = puncta_set(:,:,:,:,:,good_puncta_indices);
+
+%Also keep track of the location of each puncta
+Y = Y(good_puncta_indices);
+X = X(good_puncta_indices);
+Z = Z(good_puncta_indices);
+
+%just save puncta_set
+save(fullfile(dir_input,'puncta_rois.mat'),...
+    'puncta_set','Y','X','Z','-v7.3');
 

@@ -1,4 +1,4 @@
-function [ chanmax,confidence ] = chooseChannel(punctaset_perround, channels_indices, max_distance)
+function [ chanmax,confidence,vote_value ] = chooseChannel(punctaset_perround, channels_indices, max_distance)
 %CHOOSECHANNEL Basic method: get max value of peak closest to center
 %   Detailed explanation goes here
 
@@ -18,6 +18,12 @@ for c_idx = channels_indices
     data = squeeze(punctaset_perround(:,:,:,c_idx));
     
     img = max(data,[],3);
+
+    % QUICK DEBUG for 02/18/17
+     center_region = img(size(img,1)/2:size(img,1)/2+1, ...
+                            size(img,2)/2:size(img,2)/2+1);
+    vote_value(c_idx) = mean(center_region(:));
+    continue
     
     %IF it's a uniform color, ignore it
     if sum( img(:) - mean(img(:)) )==0

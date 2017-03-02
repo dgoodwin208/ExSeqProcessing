@@ -1,15 +1,16 @@
 %Produce the set of puncta using the getPuncta.m file
-
-puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqCultureNormedRegged/';
-load(fullfile(puncta_directory,'puncta_allexp.mat'));
+loadParameters;
+% puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
+load(fullfile(params.rajlabDirectory ,'puncta_allexp.mat'));
 
 %load sample image for reference
-img = load3DTif(fullfile(puncta_directory,'alexa001.tiff'));
+img = load3DTif(fullfile(params.rajlabDirectory ,'alexa001.tiff'));
 
+% NUM_ROUNDS = 3;
 %% make a quick scatter plot
 figure; hold on;
 
-for exp_idx = 1:12
+for exp_idx = 1:params.NUM_ROUNDS
    locs = puncta{exp_idx};
    scatter(locs(:,1),locs(:,2),'.');
 end
@@ -20,7 +21,7 @@ hold off;
 
 %% Remove any redundant points from the rajlab code
 
-for exp_idx = 1:12
+for exp_idx = 1:NUM_ROUNDS
    deduped = removeRedundantPuncta(puncta{exp_idx});
    fprintf('Round #%i, Removed %i redundant puncta of %i candidates\n',...
        exp_idx,...
@@ -40,7 +41,7 @@ epsilon = 1:10;
 puncta_ref = puncta{REF_ROUND};
 %The buckets of are of dimension
 %[length(reference number), number of rounds -1, number of neighbors]
-buckets = zeros(size(puncta{1},1),12-1,length(epsilon));
+buckets = zeros(size(puncta{1},1),NUM_ROUNDS-1,length(epsilon));
 
 
 for puncta_idx = 1:size(puncta_ref,1)
@@ -58,7 +59,7 @@ for puncta_idx = 1:size(puncta_ref,1)
     z_max = puncta_location(3) + max(epsilon);
     
     candidate_puncta_neighbors = [];
-    for other_rd_idx = 2:12
+    for other_rd_idx = 2:NUM_ROUNDS
         otherpuncta_locations = puncta{other_rd_idx};
         
         y_candidates = otherpuncta_locations(:,1);
@@ -98,10 +99,10 @@ end
 
 %test one epsilon
 
-rounds_counts = zeros(size(buckets,3),11);
+rounds_counts = zeros(size(buckets,3),NUM_ROUNDS-1);
 
 %For a specific
-for r=1:11
+for r=1:NUM_ROUNDS-1
     for e = 1:length(epsilon)
         t = squeeze(buckets(:,:,e));
         rounds_counts(e,r) = sum(sum(t,2)==r);
@@ -127,7 +128,7 @@ title(sprintf('Number of puncta that are within an epsilon across number of roun
 
 %Only use puncta that are present in THRESHOLD number of rounds at specific 
 %epsilon
-THRESHOLD = 7; 
+THRESHOLD = 2; 
 EPSILON_TARGET = 4;
 puncta_votes = zeros(1,size(puncta_ref,1));
 
@@ -147,7 +148,7 @@ for puncta_idx = 1:size(puncta_ref,1)
     
     candidate_puncta_neighbors = [];
     
-    for other_rd_idx = 2:12
+    for other_rd_idx = 2:NUM_ROUNDS
         otherpuncta_locations = puncta{other_rd_idx};
         
         y_candidates = otherpuncta_locations(:,1);
@@ -181,7 +182,7 @@ xlim([1,size(img,2)]);
 ylim([1,size(img,1)]);
 hold on;
 %Plot all the puncta that had very few votes
-locs = puncta_ref(puncta_votes<3,:);
+locs = puncta_ref(puncta_votes<THRESHOLD/2,:);
 scatter(locs(:,1),locs(:,2),'r.');
 %plot all the puncta that satisfy the voting threshold
 locs = puncta_ref(puncta_votes>=THRESHOLD,:);
