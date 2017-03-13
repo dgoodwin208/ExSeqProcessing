@@ -22,27 +22,18 @@ Z = Z(good_puncta_indices);
 
 puncta_set_normed = zeros(size(puncta_set));
 
+%The normalization method is now: 
+%For each color in each expeirmental round,
+%subtract the minimum pixel value, 
+%then calculate + divide by the mean
 for exp_idx = 1:params.NUM_ROUNDS
     clear chan_col
     chan_col(:,1) = reshape(puncta_set(:,:,:,exp_idx,1,:),[],1);
     chan_col(:,2) = reshape(puncta_set(:,:,:,exp_idx,2,:),[],1);
     chan_col(:,3) = reshape(puncta_set(:,:,:,exp_idx,4,:),[],1);
-    
-    % Do we remove outliers (ONLY FOR PLOTTING PURPOSES - don't keep for analysis)
-%     mean_val = mean(chan_col(:,1));
-%     std_val = std(chan_col(:,1));
-%     chan_col(chan_col(:,1)>mean_val+3*std_val,1) = mean_val+3*std_val;
-%     
-%     mean_val = mean(chan_col(:,2));
-%     std_val = std(chan_col(:,2));
-%     chan_col(chan_col(:,2)>mean_val+3*std_val,2) = mean_val+3*std_val;
-%     
-%     mean_val = mean(chan_col(:,3));
-%     std_val = std(chan_col(:,3));
-%     chan_col(chan_col(:,3)>mean_val+3*std_val,3) = mean_val+3*std_val;
-    
-    
-    %How many unique values do we see per channel?
+      
+    %How many unique values do we see per channel? (only useful to check
+    %for unintentional 8-bit data)
     
     figure;
     subplot(3,1,1)
@@ -65,6 +56,8 @@ for exp_idx = 1:params.NUM_ROUNDS
     %V6 was quantilenorm
 %     cols_normed = quantilenorm(chan_col);
     %v7 is mean normed
+    %v8 is subtracting the mean before dividing by the norm
+    chan_col = chan_col - repmat(min(chan_col,[],1),size(chan_col,1),1);
     mean_vec = mean(chan_col,1);
     cols_normed = chan_col ./ repmat(mean_vec,size(chan_col,1),1);
 
@@ -153,4 +146,4 @@ for puncta_idx = 1:size(puncta_set_normed,6)
     
 end
 
-save(fullfile(params.punctaSubvolumeDir,'transcriptsv7_punctameannormed.mat'),'transcripts','transcripts_confidence','pos');
+save(fullfile(params.punctaSubvolumeDir,'transcriptsv8_punctameannormed.mat'),'transcripts','transcripts_confidence','pos');

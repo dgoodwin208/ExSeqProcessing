@@ -54,6 +54,13 @@ Z = round(puncta_filtered(:,3));
 
 num_puncta = length(X); %from the RajLab coordinates 
 
+%Keep track of all x,y,z indices that we use to create the puncta
+%subvolumes: We will use all the other locations to create a distribution
+%of background values per channel per round
+x_total_indices = [];
+y_total_indices = [];
+z_total_indices = [];
+
 %Create the whole size of the puncta_set vector optimistically: not all the
 %puncta will be within PUNCTA_SIZE of a boundary, in which we case we will
 %not use that puncta. That means there will be some empty puncta which we
@@ -78,15 +85,17 @@ for exp_idx = 1:params.NUM_ROUNDS
             x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
             z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
             if any([x_indices y_indices z_indices]<1)
-                %disp('Skipping an out of bounds index');
                 bad_puncta_indices = union(bad_puncta_indices,puncta_idx);
                 continue
             end
             if any(x_indices>data_width) || any(y_indices>data_height) || any(z_indices>data_depth)
-                %disp('Skipping an out of bounds index');
                 bad_puncta_indices = union(bad_puncta_indices,puncta_idx);
                 continue
             end
+            
+            x_total_indices = [x_total_indices; x_indices'];
+            y_total_indices = [y_total_indices; y_indices'];
+            z_total_indices = [z_total_indices; z_indices'];
             
             puncta_set(:,:,:,exp_idx,c_idx,puncta_idx) = experiment_set(y_indices,x_indices,z_indices,c_idx);
         end
@@ -109,6 +118,9 @@ X = X(good_puncta_indices);
 Z = Z(good_puncta_indices);
 
 %just save puncta_set
-save(fullfile(dir_input,'puncta_rois.mat'),...
+save(fullfile(params.punctaSubvolumeDir,'puncta_rois.mat'),...
     'puncta_set','Y','X','Z','-v7.3');
 
+%save all the used location values
+save(fullfile(params.punctaSubvolumeDir,'pixels_used_for_puncta.mat'),...
+    'x_total_indices','y_total_indices','z_total_indices','-v7.3');

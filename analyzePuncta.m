@@ -21,7 +21,7 @@ hold off;
 
 %% Remove any redundant points from the rajlab code
 
-for exp_idx = 1:NUM_ROUNDS
+for exp_idx = 1:params.NUM_ROUNDS
    deduped = removeRedundantPuncta(puncta{exp_idx});
    fprintf('Round #%i, Removed %i redundant puncta of %i candidates\n',...
        exp_idx,...
@@ -41,7 +41,7 @@ epsilon = 1:10;
 puncta_ref = puncta{REF_ROUND};
 %The buckets of are of dimension
 %[length(reference number), number of rounds -1, number of neighbors]
-buckets = zeros(size(puncta{1},1),NUM_ROUNDS-1,length(epsilon));
+buckets = zeros(size(puncta{1},1),params.NUM_ROUNDS-1,length(epsilon));
 
 
 for puncta_idx = 1:size(puncta_ref,1)
@@ -59,7 +59,7 @@ for puncta_idx = 1:size(puncta_ref,1)
     z_max = puncta_location(3) + max(epsilon);
     
     candidate_puncta_neighbors = [];
-    for other_rd_idx = 2:NUM_ROUNDS
+    for other_rd_idx = 2:params.NUM_ROUNDS
         otherpuncta_locations = puncta{other_rd_idx};
         
         y_candidates = otherpuncta_locations(:,1);
@@ -99,10 +99,10 @@ end
 
 %test one epsilon
 
-rounds_counts = zeros(size(buckets,3),NUM_ROUNDS-1);
+rounds_counts = zeros(size(buckets,3),params.NUM_ROUNDS-1);
 
 %For a specific
-for r=1:NUM_ROUNDS-1
+for r=1:params.NUM_ROUNDS-1
     for e = 1:length(epsilon)
         t = squeeze(buckets(:,:,e));
         rounds_counts(e,r) = sum(sum(t,2)==r);
@@ -122,14 +122,13 @@ end
 xlabel('Number of rounds within epsilon');
 ylabel(sprintf('Number of puncta (%i original candidates)',size(puncta_ref,1)));
 legend('1','2','3','4','5','6','7','8','9','10','Location','northwest');
-title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',puncta_directory));
+title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',params.rajlabDirectory ));
 
 %% Finally, get a list of all puncta that we would use for later analysis
 
 %Only use puncta that are present in THRESHOLD number of rounds at specific 
 %epsilon
-THRESHOLD = 2; 
-EPSILON_TARGET = 4;
+
 puncta_votes = zeros(1,size(puncta_ref,1));
 
 for puncta_idx = 1:size(puncta_ref,1)
@@ -139,16 +138,16 @@ for puncta_idx = 1:size(puncta_ref,1)
     puncta_location = puncta_ref(puncta_idx,:);
     
     %generate a 2*max(epsilon)+1 size window around the puncta of interest
-    y_min = puncta_location(1) - EPSILON_TARGET;
-    y_max = puncta_location(1) + EPSILON_TARGET;
-    x_min = puncta_location(2) - EPSILON_TARGET;
-    x_max = puncta_location(2) + EPSILON_TARGET;
-    z_min = puncta_location(3) - EPSILON_TARGET;
-    z_max = puncta_location(3) + EPSILON_TARGET;
+    y_min = puncta_location(1) - params.EPSILON_TARGET;
+    y_max = puncta_location(1) + params.EPSILON_TARGET;
+    x_min = puncta_location(2) - params.EPSILON_TARGET;
+    x_max = puncta_location(2) + params.EPSILON_TARGET;
+    z_min = puncta_location(3) - params.EPSILON_TARGET;
+    z_max = puncta_location(3) + params.EPSILON_TARGET;
     
     candidate_puncta_neighbors = [];
     
-    for other_rd_idx = 2:NUM_ROUNDS
+    for other_rd_idx = 2:params.NUM_ROUNDS
         otherpuncta_locations = puncta{other_rd_idx};
         
         y_candidates = otherpuncta_locations(:,1);
@@ -182,13 +181,14 @@ xlim([1,size(img,2)]);
 ylim([1,size(img,1)]);
 hold on;
 %Plot all the puncta that had very few votes
-locs = puncta_ref(puncta_votes<THRESHOLD/2,:);
+locs = puncta_ref(puncta_votes<params.THRESHOLD/2,:);
 scatter(locs(:,1),locs(:,2),'r.');
 %plot all the puncta that satisfy the voting threshold
-locs = puncta_ref(puncta_votes>=THRESHOLD,:);
+locs = puncta_ref(puncta_votes>=params.THRESHOLD,:);
 scatter(locs(:,1),locs(:,2),'g.');
+legend('Reference rnd puncta','Too few','Passed');
 hold off;
 
 %% Save the puncta and the parameters they were made at
-puncta_filtered = puncta_ref(puncta_votes>=THRESHOLD,:);
-save(fullfile(puncta_directory,'puncta_filtered.mat'),'puncta_filtered','EPSILON_TARGET','THRESHOLD');
+puncta_filtered = puncta_ref(puncta_votes>=params.THRESHOLD,:);
+save(fullfile(params.rajlabDirectory ,'puncta_filtered.mat'),'puncta_filtered');

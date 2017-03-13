@@ -1,4 +1,6 @@
 %Run this as a cell from the rajLabTools directory containing the data
+loadParameters;
+cd(params.rajlabDirectory);
 tools = improc2.launchImageObjectTools;
 % out = [];
 puncta = {}; exp_idx = 1;

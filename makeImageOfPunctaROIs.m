@@ -3,45 +3,34 @@
 
 %The transcripts are loaded from v3transcripts.mat
 
-
-NUM_ROUNDS = 3;
-NUM_CHANNELS = 4;
-subplot(NUM_ROUNDS,NUM_CHANNELS,1)
+loadParameters;
+subplot(params.NUM_ROUNDS,params.NUM_CHANNELS,1)
 filename = 'splintr_normalized.gif';
 %Setting the figure shape so it comes out well in the gif
 % set(0, 'DefaultFigurePaperPosition', [425   980   576   876]);
 
-puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
+% puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
 %load sample image for reference
 img = load3DTif(fullfile(puncta_directory,'alexa001.tiff'));
-% img = load3DTif('/Users/Goody/Neuro/ExSeq/rajlab/splintr1/FULLTPSsplintr1_round3_ch00Norm.tif');
-
-%% To visualize, we have to re-remove the puncta that are on the edge
-% (of the space)
-load(fullfile(puncta_directory,'rois_votednonnormed.mat'));
-load(fullfile(puncta_directory,'transcriptsv4_punctanormed.mat'));
-keep_indices = zeros(size(puncta_set,6),1);
-keep_indices(good_puncta_indices)=1;
-keep_indices = logical(keep_indices);
-puncta_set = puncta_set(:,:,:,:,:,keep_indices);
-
-%Similarly, load the puncta_filtered.mat file and filter those positions as
-%well
-
-puncta_filtered = puncta_filtered(keep_indices,:);
-%unpack the filtered coords into X,Y,Z vectors
-Y = round(puncta_filtered(:,1));
-X = round(puncta_filtered(:,2));
-Z = round(puncta_filtered(:,3));
 
 maxProj = max(img,[],3);
+%% To visualize, we have to re-remove the puncta that are on the edge
+% (of the space)
+load(fullfile(params.rajlabDirectory,'rois_votednonnormed16b.mat'));
+load(fullfile(params.rajlabDirectory,'transcriptsv8_punctameannormed.mat'));
+
 
 %% 
 figure;
 imagesc(maxProj);
 hold on;
-for x = 1:size(puncta_filtered,1)
-    plot(X(x),Y(x),'r.');
+for x = 1:size(X,1)
+    if indices_interAndIntraAgreements(x)
+        plot(X(x),Y(x),'g.');
+    else
+        plot(X(x),Y(x),'r.');
+    end
+    
 end
 hold off;
 
@@ -50,8 +39,8 @@ confidence_mean = mean(transcripts_confidence,1);
 confidence_std = std(transcripts_confidence);
 
 figure
-hold on
 bar(1:NUM_ROUNDS,confidence_mean)
+hold on
 errorbar(1:NUM_ROUNDS,confidence_mean,confidence_std/sqrt(size(transcripts_confidence,1)),'.')
 hold off;
 xlim([0,NUM_ROUNDS+1])
@@ -76,8 +65,14 @@ imagesc(maxProj);
 
 hasInitGif = 0;
 
-possibles = 1:size(accepted_locations);
-possibles =possibles(accepted_locations); 
+%Shahar's code
+% possibles = 1:size(accepted_locations);
+% possibles =possibles(accepted_locations); 
+
+%Combing inter and intra color comparisons
+possibles = 1:size(indices_interAndIntraAgreements);
+possibles =possibles(indices_interAndIntraAgreements); 
+
 to_vizualize = possibles(1:100);
 
 for puncta_idx = to_vizualize
