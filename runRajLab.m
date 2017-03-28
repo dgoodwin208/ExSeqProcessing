@@ -1,6 +1,6 @@
 %% This is more a protocol document than a run script
-rajlab_inputdir = '/Users/Goody/Neuro/ExSeq/rajlab/splintr16bNonNormed/';
-cd(rajlab_inputdir);
+loadParameters;
+cd(params.rajlabDirectory);
 
 %% have to do these one at a time, as they are nonblocking GUIS
 % ie, DON'T run this as a cell

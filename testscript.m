@@ -31,3 +31,15 @@ vec(outlierIndex_bg) = [];
 plot(binedges(1:params.NUM_BUCKETS),values);
 title(sprintf('Experiment 3 for %s',params.rajlabDirectory))
 
+%% Making ground truth from a cell array of strings
+BARCODE_LENGTH = 5;
+groundtruth_codes = zeros(length(All_Barcodes_colors),BARCODE_LENGTH);
+
+for i = 1:size(groundtruth_codes,1)
+    str = All_Barcodes_colors{i};
+    for j = 1:BARCODE_LENGTH
+        groundtruth_codes(i,j) = str2num(str(j));
+    end
+
+end
+

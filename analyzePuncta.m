@@ -33,13 +33,14 @@ end
 
 %% Make histogram of neighbors around the reference, currently set as #1
 
-%Note: REF_ROUND as a variable is not fully implemented in the code
-%Specifically in the nested for loops below in the 2:12 hardcodes
 REF_ROUND = 1;
 epsilon = 1:10;
 
 puncta_ref = puncta{REF_ROUND};
+other_exp_rounds = 1:params.NUM_ROUNDS;
+other_exp_rounds(REF_ROUND) = [];
 %The buckets of are of dimension
+
 %[length(reference number), number of rounds -1, number of neighbors]
 buckets = zeros(size(puncta{1},1),params.NUM_ROUNDS-1,length(epsilon));
 
@@ -59,7 +60,7 @@ for puncta_idx = 1:size(puncta_ref,1)
     z_max = puncta_location(3) + max(epsilon);
     
     candidate_puncta_neighbors = [];
-    for other_rd_idx = 2:params.NUM_ROUNDS
+    for other_rd_idx = other_exp_rounds
         otherpuncta_locations = puncta{other_rd_idx};
         
         y_candidates = otherpuncta_locations(:,1);

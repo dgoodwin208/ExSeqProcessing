@@ -31,11 +31,11 @@ for file_index = 1:length(files)
     
     string_parts = split(string_parts{2},'.');
 %     chanparts = split(string_parts{1},'');
-    chan_num = str2num(string_parts{1});
+    chan_num = str2num(string_parts{1})+1;
      
     corrected_round_num = params.round_correction_indices(round_num);
     
-    organized_data_files{corrected_round_num,chan_num} = fullfile(dir_input,files(file_index).name);
+    organized_data_files{corrected_round_num,chan_num} = fullfile(params.registeredImagesDir,files(file_index).name);
 end
 
 %% 
@@ -73,14 +73,14 @@ for exp_idx = 1:params.NUM_ROUNDS
 
     %Load all channels of data into memory for one experiment
     experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
-    for c_idx = 1:params.NUM_CHANNELS
+    for c_idx = params.COLOR_VEC
        experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
     end
     
     %For each puncta in each channel in each round, get the volume
     %PROVIDING that the puncta is not within PUNCTASIZE/2 of a boundary
     for puncta_idx = 1:num_puncta
-        for c_idx = 1:params.NUM_CHANNELS
+        for c_idx = 1:params.CHANNEL_VEC
             y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
             x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
             z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;

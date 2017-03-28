@@ -4,14 +4,14 @@
 %The transcripts are loaded from v3transcripts.mat
 
 loadParameters;
-subplot(params.NUM_ROUNDS,params.NUM_CHANNELS,1)
-filename = 'splintr_normalized.gif';
+
+filename = 'splintr_100samples.gif';
 %Setting the figure shape so it comes out well in the gif
 % set(0, 'DefaultFigurePaperPosition', [425   980   576   876]);
 
 % puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
 %load sample image for reference
-img = load3DTif(fullfile(puncta_directory,'alexa001.tiff'));
+img = load3DTif(fullfile(params.rajlabDirectory,'alexa001.tiff'));
 
 maxProj = max(img,[],3);
 %% To visualize, we have to re-remove the puncta that are on the edge
@@ -24,37 +24,42 @@ load(fullfile(params.rajlabDirectory,'transcriptsv8_punctameannormed.mat'));
 figure;
 imagesc(maxProj);
 hold on;
+%Loop over every puncta that passed the spatial filtering step
 for x = 1:size(X,1)
+    %If successfully agreed on both inter and intra 
     if indices_interAndIntraAgreements(x)
         plot(X(x),Y(x),'g.');
     else
+    %If otherwise filtered
         plot(X(x),Y(x),'r.');
     end
     
 end
+axis off;
 hold off;
 
 %% How does our calculation of confidence vary across the rounds?
-confidence_mean = mean(transcripts_confidence,1);
-confidence_std = std(transcripts_confidence);
+confidence_mean = mean(transcripts_probfiltered_confidence,1);
+confidence_std = std(transcripts_probfiltered_confidence);
 
 figure
-bar(1:NUM_ROUNDS,confidence_mean)
+subplot(1,2,1);
+bar(1:params.NUM_ROUNDS,confidence_mean)
 hold on
-errorbar(1:NUM_ROUNDS,confidence_mean,confidence_std/sqrt(size(transcripts_confidence,1)),'.')
+errorbar(1:params.NUM_ROUNDS,confidence_mean,confidence_std/sqrt(size(transcripts_probfiltered_confidence,1)),'.')
 hold off;
-xlim([0,NUM_ROUNDS+1])
+xlim([0,params.NUM_ROUNDS+1])
 xlabel('Sequencing Round');
-ylabel(sprintf('Mean confidence measure across %i puncta with SE bars',size(transcripts_confidence,1)))
+ylabel(sprintf('Mean confidence measure across %i puncta with SE bars',size(transcripts_probfiltered_confidence,1)))
 title('Mean confidence measure across ExSeq rounds');
 
 %Get the median too
-figure
-
-bar(1:NUM_ROUNDS,median(transcripts_confidence,1))
-xlim([0,NUM_ROUNDS+1])
+% figure
+subplot(1,2,2);
+bar(1:params.NUM_ROUNDS,median(transcripts_probfiltered_confidence,1))
+xlim([0,params.NUM_ROUNDS+1])
 xlabel('Sequencing Round');
-ylabel(sprintf('Median confidence measure across %i puncta',size(transcripts_confidence,1)))
+ylabel(sprintf('Median confidence measure across %i puncta',size(transcripts_probfiltered_confidence,1)))
 title('Median of confidence measure across ExSeq rounds');
 
 %% Generate a list of puncta for visualization
@@ -69,32 +74,35 @@ hasInitGif = 0;
 % possibles = 1:size(accepted_locations);
 % possibles =possibles(accepted_locations); 
 
-%Combing inter and intra color comparisons
-possibles = 1:size(indices_interAndIntraAgreements);
-possibles =possibles(indices_interAndIntraAgreements); 
+%The indices to the puncta have been noted in puncta_indices_probfiltered
+possibles = puncta_indices_probfiltered;
+% possibles =possibles(indices_interAndIntraAgreements); 
 
-to_vizualize = possibles(1:100);
-
-for puncta_idx = to_vizualize
+% to_vizualize = possibles(1:100);
+% transcript_indices = 1:100
+to_visualize = 1:100;
+for transcript_idx = to_visualize
+    puncta_idx = puncta_indices_probfiltered(transcript_idx);
+    
     figure(1);
-    fprintf('Original idx: %i\n',possibles(puncta_idx));
-    transcript_puncta = transcripts(puncta_idx,:);
-    transcriptconfidence_puncta = transcripts_confidence(puncta_idx,:);
+    fprintf('Original idx: %i\n',possibles(transcript_idx));
+    transcript_puncta = transcripts_probfiltered(transcript_idx,:);
+    transcriptconfidence_puncta = transcripts_probfiltered_confidence(transcript_idx,:);
     
     
     subplot_idx = 1;
     
-    for exp_idx = 1:NUM_ROUNDS
+    for exp_idx = 1:params.NUM_ROUNDS
         
         punctaset_perround = squeeze(puncta_set(:,:,:,exp_idx,:,puncta_idx));
 
         max_intensity = max(max(max(max(punctaset_perround))))+1;
         min_intensity = min(min(min(min(punctaset_perround))));
         values = zeros(4,1);
-        for c_idx = 1:NUM_CHANNELS
+        for c_idx = 1:params.NUM_CHANNELS
 
             clims = [min_intensity,max_intensity];
-            subplot(NUM_ROUNDS,NUM_CHANNELS,subplot_idx)
+            subplot(params.NUM_ROUNDS,params.NUM_CHANNELS,subplot_idx)
             data = squeeze(punctaset_perround(:,:,:,c_idx));
             imagesc(max(data,[],3),clims);
 
