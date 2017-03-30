@@ -1,8 +1,8 @@
 %Written for the first splintr barcode dataset from Oz
-FOLDER_NAME = 'Splintr';
-FILEROOT_NAME = 'splintr1';
+FOLDER_NAME = 'ExSeqAutoSlice';
+FILEROOT_NAME = 'exseqauto';
 
-for roundnum = 1:3
+for roundnum = 1:30
     %Load three of the channels, ignoring ch02
     chan1 = load3DTif(sprintf('/om/project/boyden/%s/input/%s_round%i_ch00.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));
     chan2 = load3DTif(sprintf('/om/project/boyden/%s/input/%s_round%i_ch01.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));

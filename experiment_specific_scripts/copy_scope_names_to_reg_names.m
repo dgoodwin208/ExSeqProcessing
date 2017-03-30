@@ -14,7 +14,7 @@ EXPERIMENT_NAME  = 'exseqauto';
 % N_P will be round 4
 % ...
 
-for file_indx = 1:1 %length(files)
+for file_indx = 1:length(files)
 
     %Sample filename for this script: 'N-4_P_ch03.tif'
     parts = split(files(file_indx).name,'_');
@@ -36,7 +36,7 @@ for file_indx = 1:1 %length(files)
     
     %Get the channel number from 'chXX.tif'
     string_color_parts = split(string_color,'.');
-    color_chan_name = string_color_parts{2}; 
+    color_chan_name = string_color_parts{1}; 
     
     %round number (add one to start at 1)
     round_number = multiplier_ligation*5 + offset_primer+1;
@@ -46,8 +46,8 @@ for file_indx = 1:1 %length(files)
     src_file = fullfile(INPUT_DIRECTORY,files(file_indx).name);
     dest_file = fullfile(OUTPUT_DIRECTORY, output_filename);
     
-    fprintf('Copying %s to %s\n',scr_file,dest_file);
-%     [status,message,messageId] = copyfile(src_file, dest_file)
+    fprintf('Copying %s to %s\n',src_file,dest_file);
+     %[status,message,messageId] = copyfile(src_file, dest_file)
     
 end
 
