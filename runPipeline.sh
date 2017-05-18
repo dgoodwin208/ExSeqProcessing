@@ -4,16 +4,19 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "  -N    # of rounds; 'auto' means # is calculated from files."
     echo "  -b    file basename"
-    echo "  -w    warp channels in registration; ex. 'summedNorm','chan1'"
+    echo "  -c    channel names; ex. 'chn01','ch02corr'"
     echo "  -d    deconvolution image directory"
     echo "  -n    normalization image directory"
     echo "  -r    registration image directory"
-    echo "  -R    Registration MATLAB directory"
+    echo "  -p    puncta extraction directory"
+    echo "  -t    transcript information directory"
+    echo "  -R    registration MATLAB directory"
     echo "  -V    vlfeat lib directory"
     echo "  -I    Raj lab image tools MATLAB directory"
     echo "  -L    log directory"
-    echo "  -s    skip stages;  normalization,registration,puncta-extraction"
+    echo "  -s    skip stages;  profile-check,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
+    echo "  -h    print help"
     exit 1
 }
 
@@ -25,6 +28,7 @@ DECONVOLUTION_DIR=1_deconvolution
 NORMALIZATION_DIR=2_normalization
 REGISTRATION_DIR=3_registration
 PUNCTA_DIR=4_puncta-extraction
+TRANSCRIPT_DIR=5_transcript
 
 REGISTRATION_PROJ_DIR=../Registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
@@ -32,13 +36,15 @@ RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
 LOG_DIR=./logs
 
 FILE_BASENAME=sa0916dncv
+CHANNELS="'chan1','chan2','chan3','chan4'"
+CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
-REGISTRATION_WARP_CHANNELS="'summedNorm','chan1','chan2','chan3','chan4'"
+REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 ###### getopts
 
-while getopts N:b:w:d:n:r:p:R:V:I:L:s:yh OPT
+while getopts N:b:c:d:n:r:p:t:R:V:I:L:s:yh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -55,7 +61,8 @@ do
         b)  FILE_BASENAME=$OPTARG
             REGISTRATION_SAMPLE=${FILE_BASENAME}_
             ;;
-        w)  REGISTRATION_WARP_CHANNELS=$OPTARG
+        c)  CHANNELS=$OPTARG
+            REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
             ;;
         d)  DECONVOLUTION_DIR=$OPTARG
             ;;
@@ -65,6 +72,8 @@ do
             ;;
         p)  PUNCTA_DIR=$OPTARG
             ;;
+        t)  TRANSCRIPT_DIR=$OPTARG
+            ;;
         R)  REGISTRATION_PROJ_DIR=$OPTARG
             ;;
         V)  VLFEAT_DIR=$OPTARG
@@ -73,7 +82,7 @@ do
             ;;
         L)  LOG_DIR=$OPTARG
             ;;
-        s)  SKIP_STAGES=$OPTARG
+        s)  ARG_SKIP_STAGES=$OPTARG
             ;;
         y)  QUESTION_ANSW='yes'
             ;;
@@ -165,6 +174,13 @@ then
     mkdir "${PUNCTA_DIR}"
 fi
 
+if [ ! -d "${TRANSCRIPT_DIR}" ]
+then
+    echo "No transcript information dir."
+    echo "mkdir ${TRANSCRIPT_DIR}"
+    mkdir "${TRANSCRIPT_DIR}"
+fi
+
 if [ ! -d "${LOG_DIR}" ]
 then
     echo "No log dir."
@@ -172,10 +188,12 @@ then
     mkdir "${LOG_DIR}"
 fi
 
+# exchange paths to absolute paths
 DECONVOLUTION_DIR=$(cd "${DECONVOLUTION_DIR}" && pwd)
 NORMALIZATION_DIR=$(cd "${NORMALIZATION_DIR}" && pwd)
 REGISTRATION_DIR=$(cd "${REGISTRATION_DIR}" && pwd)
 PUNCTA_DIR=$(cd "${PUNCTA_DIR}" && pwd)
+TRANSCRIPT_DIR=$(cd "${TRANSCRIPT_DIR}" && pwd)
 
 REGISTRATION_PROJ_DIR=$(cd "${REGISTRATION_PROJ_DIR}" && pwd)
 VLFEAT_DIR=$(cd "${VLFEAT_DIR}" && pwd)
@@ -185,14 +203,46 @@ LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
 if [ $ROUND_NUM = "auto" ]
 then
-    ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "${FILE_BASENAME}_round*_chan1.tif" -o -name "${FILE_BASENAME}_round*_ch00.tif" | wc -l)
+    ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "${FILE_BASENAME}_round*_${CHANNEL_ARRAY[0]}.tif" | wc -l)
 fi
+
+# check stage names to be skipped
+if [ ! "${ARG_SKIP_STAGES/profile-check}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[0]="profile-check"
+fi
+if [ ! "${ARG_SKIP_STAGES/normalization}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[1]="normalization"
+fi
+if [ ! "${ARG_SKIP_STAGES/registration}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[2]="registration"
+fi
+if [ ! "${ARG_SKIP_STAGES/calc-descriptors}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[3]="calc-descriptors"
+fi
+if [ ! "${ARG_SKIP_STAGES/register-with-descriptors}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[4]="register-with-descriptors"
+fi
+if [ ! "${ARG_SKIP_STAGES/puncta-extraction}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[5]="puncta-extraction"
+fi
+if [ ! "${ARG_SKIP_STAGES/transcripts}" = "${ARG_SKIP_STAGES}" ]
+then
+    TMP_STAGES[6]="transcripts"
+fi
+IFS=',' eval 'SKIP_STAGES="${TMP_STAGES[*]}"'
 
 
 echo "#########################################################################"
 echo "Parameters"
 echo "  # of rounds          :  ${ROUND_NUM}"
 echo "  file basename        :  ${FILE_BASENAME}"
+echo "  processing channels  :  ${CHANNELS}"
 echo "  registration channel :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels        :  ${REGISTRATION_WARP_CHANNELS}"
 echo "  skipped stages       :  ${SKIP_STAGES}"
@@ -222,15 +272,27 @@ then
         exit 0
     fi
 fi
+echo
+
+
+###### check a cluster profile
+echo "========================================================================="
+echo "Cluster-profile check"; date
+echo
+
+if [ "${SKIP_STAGES/profile-check/}" = "${SKIP_STAGES}" ]
+then
+    pushd "${REGISTRATION_PROJ_DIR}"
+    "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh
+    popd
+else
+    echo "Skip!"
+fi
 
 
 ###### setup MATLAB scripts
 
 # setup for Registration
-
-pushd "${REGISTRATION_PROJ_DIR}"
-"${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh
-popd
 
 sed -e "s#\(params.SAMPLE_NAME\) *= *'.*';#\1 = '${REGISTRATION_SAMPLE}';#" \
     -e "s#\(params.DATACHANNEL\) *= *'.*';#\1 = '${REGISTRATION_CHANNEL}';#" \
@@ -246,6 +308,7 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *'.*';#\1 = '${REGISTRATION_SAMPLE}';#" \
 sed -e "s#\(params.registeredImagesDir\) *= *'.*';#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(params.rajlabDirectory\) *= *'.*';#\1 = '.';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *'.*';#\1 = '.';#" \
+    -e "s#\(params.FILE_BASENAME\) *= *'.*';#\1 = '${FILE_BASENAME}';#" \
     -i.back \
     ./loadParameters.m
 
@@ -267,7 +330,7 @@ echo
 
 if [ "${SKIP_STAGES/normalization/}" = "${SKIP_STAGES}" ]
 then
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "normalization('${DECONVOLUTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',${ROUND_NUM}); exit"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "normalization('${DECONVOLUTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); exit"
 else
     echo "Skip!"
 fi
@@ -284,44 +347,76 @@ then
     echo "Registration - calculateDescriptors"; date
     echo
 
-    for((i=1; i<=${ROUND_NUM}; i+=2))
-    do
-        if [ $i -eq ${ROUND_NUM} ]
-        then
-            rounds=$i
-        else
-            rounds="$i $(( $i + 1 ))"
-        fi
-        ### calculateDescriptors for two groups of rounds in parallel
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "calculateDescriptorsInParallel([$rounds]); exit"
-
-        if ls *.log > /dev/null 2>&1
-        then
-            mv matlab-calcDesc-*.log ${LOG_DIR}/
-        else
-            echo "No log files."
-        fi
-    done
+    if [ "${SKIP_STAGES/calc-descriptors/}" = "${SKIP_STAGES}" ]
+    then
+        for((i=1; i<=${ROUND_NUM}; i+=2))
+        do
+            if [ $i -eq ${ROUND_NUM} ]
+            then
+                rounds=$i
+            else
+                rounds="$i $(( $i + 1 ))"
+            fi
+            # calculateDescriptors for two groups of rounds in parallel
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "calculateDescriptorsInParallel([$rounds]); exit"
+    
+            if ls *.log > /dev/null 2>&1
+            then
+                mv matlab-calcDesc-*.log ${LOG_DIR}/
+            else
+                echo "No log files."
+            fi
+        done
+    else
+        echo "Skip!"
+    fi
 
     echo "-------------------------------------------------------------------------"
     echo "Registration - registerWithDescriptors"; date
     echo
 
-    for f in $(\ls ${DECONVOLUTION_DIR}/*_ch*[0-9][0-9].tif)
-    do
-        if [ ! -f ${NORMALIZATION_DIR}/$(basename $f) ]
-        then
-            ln -s $f ${NORMALIZATION_DIR}/$(basename $f)
-        fi
-    done
+    if [ "${SKIP_STAGES/register-with-descriptors/}" = "${SKIP_STAGES}" ]
+    then
+        # prepare normalized channel images for warp
+        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
+        do
+            for f in $(\ls ${DECONVOLUTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
+            do
+                round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+                if [ $round_num -eq 0 ]
+                then
+                    echo "round number is wrong."
+                fi
 
+                normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
 
-    for((i=1; i<=${ROUND_NUM}; i++))
-    do
-        #### registerWithDescriptors for round 1 and i
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "registerWithDescriptors(${i}); exit"
+                if [ ! -f $normalized_ch_file ]
+                then
+                    ln -s $f $normalized_ch_file
+                fi
+            done
+        done
 
-    done
+        # make symbolic links of round-1 images because it is not necessary to warp them
+        for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
+        do
+            normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round001_${ch}.tif
+            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${ch}_registered.tif
+            if [ ! -f $registered_file ]
+            then
+                ln -s $normalized_file $registered_file
+            fi
+        done
+
+        for((i=2; i<=${ROUND_NUM}; i++))
+        do
+            # registerWithDescriptors for round 1 and i
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "registerWithDescriptors(${i}); exit"
+
+        done
+    else
+        echo "Skip!"
+    fi
 else
     echo "Skip!"
 fi
@@ -335,9 +430,15 @@ echo
 
 if [ "${SKIP_STAGES/puncta-extraction/}" = "${SKIP_STAGES}" ]
 then
-    for f in $(\ls ${REGISTRATION_DIR}/*_${REGISTRATION_CHANNEL}.tif)
+    for f in $(\ls ${REGISTRATION_DIR}/${FILE_BASENAME}_round*_${REGISTRATION_CHANNEL}_registered.tif)
     do
-        input_file=$(printf "alexa%03d.tiff" $(basename $f | sed -e 's/[^_]*_round\([0-9]*\)_\(.*\).tif/\1/'))
+        round_num=$(( $(basename $f | sed -ne 's/[^_]*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+        if [ $round_num -eq 0 ]
+        then
+            echo "round number is wrong."
+        fi
+
+        input_file=$(printf "alexa%03d.tiff" $round_num)
         if [ ! -f ${PUNCTA_DIR}/$input_file ]
         then
             ln -s $f ${PUNCTA_DIR}/$input_file
@@ -353,6 +454,22 @@ then
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
 
     popd
+else
+    echo "Skip!"
+fi
+echo
+
+
+# prepare base calling of transcripts
+echo "========================================================================="
+echo "base calling preparation"; date
+echo
+
+if [ "${SKIP_STAGES/transcripts}" = "${SKIP_STAGES}" ]
+then
+    cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
+    cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
+    ls -l ${TRANSCRIPT_DIR}
 else
     echo "Skip!"
 fi

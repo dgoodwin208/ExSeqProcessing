@@ -1,7 +1,7 @@
 %Produce the set of puncta using the getPuncta.m file
 loadParameters;
 % puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
-load(fullfile(params.rajlabDirectory ,'puncta_allexp.mat'));
+load(fullfile(params.rajlabDirectory ,sprintf('%s_puncta_allexp.mat',params.FILE_BASENAME)));
 
 %load sample image for reference
 img = load3DTif(fullfile(params.rajlabDirectory ,'alexa001.tiff'));
@@ -192,4 +192,4 @@ hold off;
 
 %% Save the puncta and the parameters they were made at
 puncta_filtered = puncta_ref(puncta_votes>=params.THRESHOLD,:);
-save(fullfile(params.rajlabDirectory ,'puncta_filtered.mat'),'puncta_filtered');
+save(fullfile(params.rajlabDirectory ,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)),'puncta_filtered');

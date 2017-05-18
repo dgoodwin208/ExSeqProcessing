@@ -3,7 +3,7 @@
 loadParameters;
 
 %Get the filtered puncta coords from analyzePuncta.m script
-load(fullfile(params.punctaSubvolumeDir,'puncta_filtered.mat'));
+load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)));
 
 %Get the list of all registred files
 files = dir(fullfile(params.registeredImagesDir,'*.tif'));
@@ -144,9 +144,9 @@ X = X(good_puncta_indices);
 Z = Z(good_puncta_indices);
 
 %just save puncta_set
-save(fullfile(params.punctaSubvolumeDir,'puncta_rois.mat'),...
+save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)),...
     'puncta_set','Y','X','Z','-v7.3');
 
 %save all the used location values
-save(fullfile(params.punctaSubvolumeDir,'pixels_used_for_puncta.mat'),...
+save(fullfile(params.punctaSubvolumeDir,sprintf('%s_pixels_used_for_puncta.mat',params.FILE_BASENAME)),...
     'x_total_indices','y_total_indices','z_total_indices','-v7.3');

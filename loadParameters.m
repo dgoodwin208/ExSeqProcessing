@@ -4,6 +4,8 @@ params.rajlabDirectory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedBefore
 params.punctaSubvolumeDir = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedBeforeReg/';
 params.transcriptResultsDir = '';
 
+params.FILE_BASENAME = 'sa0916slicedncv';
+
 %Experimental parameters
 params.NUM_ROUNDS = 12;
 params.NUM_CHANNELS = 4;

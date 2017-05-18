@@ -1,6 +1,11 @@
 % normalization
 
-function normalization(src_folder_name,dst_folder_name,fileroot_name,total_round_num)
+function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,total_round_num)
+
+    if length(channels) ~= 4
+        disp('# of channels is not 4.')
+        return
+    end
 
     cluster = parcluster('local_96workers');
 
@@ -18,7 +23,7 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,total_round
         if (roundnum <= total_round_num) && (sum(running_jobs) < max_running_jobs)
             disp(['create batch (',num2str(roundnum),')'])
             running_jobs(roundnum) = 1;
-            jobs{roundnum} = batch(cluster,@normalizeImage,0,{src_folder_name,dst_folder_name,fileroot_name,roundnum});
+            jobs{roundnum} = batch(cluster,@normalizeImage,0,{src_folder_name,dst_folder_name,fileroot_name,channels,roundnum});
             roundnum = roundnum+1;
         else
             for job_id = find(running_jobs==1)
@@ -43,22 +48,21 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,total_round
 
 end
 
-function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,roundnum)
+function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum)
 
-    if exist(sprintf('%s/%s_round%i_ch00.tif',src_folder_name,fileroot_name,roundnum))
-        chan1 = load3DTif(sprintf('%s/%s_round%i_ch00.tif',src_folder_name,fileroot_name,roundnum));
-        chan2 = load3DTif(sprintf('%s/%s_round%i_ch01.tif',src_folder_name,fileroot_name,roundnum));
-        chan3 = load3DTif(sprintf('%s/%s_round%i_ch02.tif',src_folder_name,fileroot_name,roundnum));
-        chan4 = load3DTif(sprintf('%s/%s_round%i_ch03.tif',src_folder_name,fileroot_name,roundnum));
-    elseif exist(sprintf('%s/%s_round%i_chan1.tif',src_folder_name,fileroot_name,roundnum))
-        chan1 = load3DTif(sprintf('%s/%s_round%i_chan1.tif',src_folder_name,fileroot_name,roundnum));
-        chan2 = load3DTif(sprintf('%s/%s_round%i_chan2.tif',src_folder_name,fileroot_name,roundnum));
-        chan3 = load3DTif(sprintf('%s/%s_round%i_chan3.tif',src_folder_name,fileroot_name,roundnum));
-        chan4 = load3DTif(sprintf('%s/%s_round%i_chan4.tif',src_folder_name,fileroot_name,roundnum));
+    if (exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{1})) || ...
+        exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{2})) || ...
+        exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{3})) || ...
+        exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{4})))
     else
         disp('no channel files.')
-        exit 1
+        return
     end
+
+    chan1 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{1}));
+    chan2 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{2}));
+    chan3 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{3}));
+    chan4 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{4}));
 
     data_cols(:,1) = reshape(chan1,[],1);
     data_cols(:,2) = reshape(chan2,[],1);
@@ -77,7 +81,7 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,roundnum)
 
     summed_norm = chan1_norm+chan2_norm+chan3_norm+chan4_norm;
 
-    save3DTif(summed_norm,sprintf('%s/%s_round%i_summedNorm.tif',dst_folder_name,fileroot_name,roundnum));
+    save3DTif(summed_norm,sprintf('%s/%s_round%03i_summedNorm.tif',dst_folder_name,fileroot_name,roundnum));
 
 end
 

@@ -20,4 +20,4 @@ while tools.iterator.continueIteration
 end
 
 % save('puncta_coords.mat','X','Y','Z');
-save('puncta_allexp.mat','puncta');
+save(sprintf('%s_puncta_allexp.mat',params.FILE_BASENAME),'puncta');
