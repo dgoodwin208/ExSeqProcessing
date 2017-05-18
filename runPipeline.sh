@@ -62,6 +62,7 @@ do
             REGISTRATION_SAMPLE=${FILE_BASENAME}_
             ;;
         c)  CHANNELS=$OPTARG
+            CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
             REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
             ;;
         d)  DECONVOLUTION_DIR=$OPTARG
