@@ -5,6 +5,7 @@ usage() {
     echo "  -N    # of rounds; 'auto' means # is calculated from files."
     echo "  -b    file basename"
     echo "  -c    channel names; ex. 'chn01','ch02corr'"
+    echo "  -C    corrected rounds # list; ex. 10,11,12,1,2,3,4,5,6,7,8,9"
     echo "  -d    deconvolution image directory"
     echo "  -n    normalization image directory"
     echo "  -r    registration image directory"
@@ -41,10 +42,11 @@ CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
+CORRECTED_ROUND_NUM=10,11,12,1,2,3,4,5,6,7,8,9
 
 ###### getopts
 
-while getopts N:b:c:d:n:r:p:t:R:V:I:L:s:yh OPT
+while getopts N:b:c:C:d:n:r:p:t:R:V:I:L:s:yh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -64,6 +66,8 @@ do
         c)  CHANNELS=$OPTARG
             CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
             REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
+            ;;
+        C)  CORRECTED_ROUND_NUM=$OPTARG
             ;;
         d)  DECONVOLUTION_DIR=$OPTARG
             ;;
@@ -241,24 +245,25 @@ IFS=',' eval 'SKIP_STAGES="${TMP_STAGES[*]}"'
 
 echo "#########################################################################"
 echo "Parameters"
-echo "  # of rounds          :  ${ROUND_NUM}"
-echo "  file basename        :  ${FILE_BASENAME}"
-echo "  processing channels  :  ${CHANNELS}"
-echo "  registration channel :  ${REGISTRATION_CHANNEL}"
-echo "  warp channels        :  ${REGISTRATION_WARP_CHANNELS}"
-echo "  skipped stages       :  ${SKIP_STAGES}"
+echo "  # of rounds            :  ${ROUND_NUM}"
+echo "  file basename          :  ${FILE_BASENAME}"
+echo "  processing channels    :  ${CHANNELS}"
+echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
+echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
+echo "  corrected round # list :  ${CORRECTED_ROUND_NUM}"
+echo "  skipped stages         :  ${SKIP_STAGES}"
 echo
 echo "Directories"
-echo "  deconvolution images :  ${DECONVOLUTION_DIR}"
-echo "  normalization images :  ${NORMALIZATION_DIR}"
-echo "  registration images  :  ${REGISTRATION_DIR}"
-echo "  puncta               :  ${PUNCTA_DIR}"
+echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
+echo "  normalization images   :  ${NORMALIZATION_DIR}"
+echo "  registration images    :  ${REGISTRATION_DIR}"
+echo "  puncta                 :  ${PUNCTA_DIR}"
 echo
-echo "  Registration project :  ${REGISTRATION_PROJ_DIR}"
-echo "  vlfeat lib           :  ${VLFEAT_DIR}"
-echo "  Raj lab image tools  :  ${RAJLABTOOLS_DIR}"
+echo "  Registration project   :  ${REGISTRATION_PROJ_DIR}"
+echo "  vlfeat lib             :  ${VLFEAT_DIR}"
+echo "  Raj lab image tools    :  ${RAJLABTOOLS_DIR}"
 echo
-echo "  Log                  :  ${LOG_DIR}"
+echo "  Log                    :  ${LOG_DIR}"
 echo "#########################################################################"
 echo
 
@@ -310,6 +315,8 @@ sed -e "s#\(params.registeredImagesDir\) *= *'.*';#\1 = '${REGISTRATION_DIR}';#"
     -e "s#\(params.rajlabDirectory\) *= *'.*';#\1 = '.';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *'.*';#\1 = '.';#" \
     -e "s#\(params.FILE_BASENAME\) *= *'.*';#\1 = '${FILE_BASENAME}';#" \
+    -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
+    -e "s#\(params.round_correction_indices\) *= *\[.*\];#\1 = [${CORRECTED_ROUND_NUM}];#" \
     -i.back \
     ./loadParameters.m
 
