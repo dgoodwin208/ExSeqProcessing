@@ -26,11 +26,12 @@ for file_index = 1:length(files)
 
     m = regexp(files(file_index).name,'.+_round(\d+)_\w+(\d+)\w*.tif','tokens');
     round_num = str2num(m{1}{1});
-    chan_num = str2num(m{1}{2});
+    %TODO: Need to handle ch00 to properly index this chan nums
+    chan_num = str2num(m{1}{2})+1;
      
-    corrected_round_num = params.round_correction_indices(round_num);
+    %corrected_round_num = params.round_correction_indices(round_num);
     
-    organized_data_files{corrected_round_num,chan_num} = fullfile(params.registeredImagesDir,files(file_index).name);
+    organized_data_files{round_num,chan_num} = fullfile(params.registeredImagesDir,files(file_index).name);
 end
 
 %% 
@@ -90,7 +91,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     %PROVIDING that the puncta is not within PUNCTASIZE/2 of a boundary
     for puncta_idx = 1:num_puncta
         %for c_idx = 1:params.CHANNEL_VEC
-        for c_idx = 1:params.COLOR_VEC
+        for c_idx = params.COLOR_VEC
             y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
             x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
             z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
@@ -118,7 +119,7 @@ clear data_cols, clear data
 % reduction of parfor
 for exp_idx = 1:params.NUM_ROUNDS
     for puncta_idx = 1:num_puncta
-        for c_idx = 1:params.COLOR_VEC
+        for c_idx = params.COLOR_VEC
             bad_puncta_indices = union(bad_puncta_indices,bad_puncta_indices_cell{exp_idx}{c_idx,puncta_idx});
             x_total_indices = [x_total_indices; x_total_indices_cell{exp_idx}{c_idx,puncta_idx}];
             y_total_indices = [y_total_indices; y_total_indices_cell{exp_idx}{c_idx,puncta_idx}];

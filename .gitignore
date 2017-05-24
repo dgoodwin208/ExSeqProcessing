@@ -1,2 +1,7 @@
 *.m~
 *.mat
+logs/
+*.log
+1_deconvolution
+startup.m
+loadParameters.m.back

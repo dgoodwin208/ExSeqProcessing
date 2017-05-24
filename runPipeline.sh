@@ -459,8 +459,8 @@ then
         ln -s ../startup.m
     fi
 
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
-
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
     popd
 else
     echo "Skip!"

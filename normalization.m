@@ -50,19 +50,19 @@ end
 
 function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum)
 
-    if (exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{1})) || ...
-        exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{2})) || ...
-        exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{3})) || ...
-        exist(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{4})))
+    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1}))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2}))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3}))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4}))))
     else
         disp('no channel files.')
         return
     end
 
-    chan1 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{1}));
-    chan2 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{2}));
-    chan3 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{3}));
-    chan4 = load3DTif(sprintf('%s/%s_round%i_%s.tif',src_folder_name,fileroot_name,roundnum,channels{4}));
+    chan1 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})));
+    chan2 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})));
+    chan3 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})));
+    chan4 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
 
     data_cols(:,1) = reshape(chan1,[],1);
     data_cols(:,2) = reshape(chan2,[],1);

@@ -1,13 +1,13 @@
 % Data loading a storage parameteres
-params.registeredImagesDir = '/om/project/boyden/ExSeqSlice/output';
-params.rajlabDirectory = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedBeforeReg/';
-params.punctaSubvolumeDir = '/Users/Goody/Neuro/ExSeq/rajlab/ExSeqSliceNormedBeforeReg/';
+params.registeredImagesDir = '/home/dgoodwin/ExSeqProcessing/3_registration';
+params.rajlabDirectory = '.';
+params.punctaSubvolumeDir = '.';
 params.transcriptResultsDir = '';
 
-params.FILE_BASENAME = 'sa0916slicedncv';
+params.FILE_BASENAME = 'splintrseqroi1';
 
 %Experimental parameters
-params.NUM_ROUNDS = 12;
+params.NUM_ROUNDS = 4;
 params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 %For the case in ExSeq when Dan saved the round number incorrectly
@@ -16,7 +16,7 @@ params.round_correction_indices = [10,11,12,1,2,3,4,5,6,7,8,9];
 % params.round_correction_indices = 1:params.NUM_ROUNDS;
 
 %RajLab filtering parameters:
-params.THRESHOLD = 7; %Number of rouds to agree on 
+params.THRESHOLD = 2; %Number of rouds to agree on 
 params.EPSILON_TARGET = 4; %Radius of neighborhood for puncta to agree across rounds
 
 
