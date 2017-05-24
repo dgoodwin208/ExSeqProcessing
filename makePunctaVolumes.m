@@ -14,6 +14,7 @@ files = dir(fullfile(params.registeredImagesDir,'*.tif'));
 
 organized_data_files = cell(params.NUM_ROUNDS,params.NUM_CHANNELS);
 
+chan_list = {};
 for file_index = 1:length(files)
     
     %Only load the chan datasets, can ignore the summed for now
@@ -24,13 +25,17 @@ for file_index = 1:length(files)
     %Need to crop out round number and channel
     %FULLTPSsa0916dncv_round7_chan1.tif
 
-    m = regexp(files(file_index).name,'.+_round(\d+)_\w+(\d+)\w*.tif','tokens');
+    m = regexp(files(file_index).name,'.+_round(\d+)_(\w+).tif','tokens');
     round_num = str2num(m{1}{1});
-    chan_num = str2num(m{1}{2});
-     
-    corrected_round_num = params.round_correction_indices(round_num);
-    
-    organized_data_files{corrected_round_num,chan_num} = fullfile(params.registeredImagesDir,files(file_index).name);
+    chan_name = m{1}{2};
+    if sum(ismember(chan_list,chan_name)) == 0
+        chan_num = length(chan_list)+1;
+        chan_list{chan_num} = chan_name;
+    else
+        chan_num = find(ismember(chan_list,chan_name));
+    end
+
+    organized_data_files{round_num,chan_num} = fullfile(params.registeredImagesDir,files(file_index).name);
 end
 
 %% 
@@ -76,36 +81,38 @@ parfor exp_idx = 1:params.NUM_ROUNDS
 
     %Load all channels of data into memory for one experiment
     experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
+    disp(['[',num2str(exp_idx),'] loading files'])
     for c_idx = params.COLOR_VEC
        experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
     end
     
-    x_total_indices_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
-    y_total_indices_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
-    z_total_indices_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
+    disp(['[',num2str(exp_idx),'] processing puncta in parallel')
+    x_total_indices_cell{exp_idx} = [];
+    y_total_indices_cell{exp_idx} = [];
+    z_total_indices_cell{exp_idx} = [];
     puncta_set_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
-    bad_puncta_indices_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
+    bad_puncta_indices_cell{exp_idx} = [];
+
 
     %For each puncta in each channel in each round, get the volume
     %PROVIDING that the puncta is not within PUNCTASIZE/2 of a boundary
     for puncta_idx = 1:num_puncta
-        %for c_idx = 1:params.CHANNEL_VEC
-        for c_idx = 1:params.COLOR_VEC
+        for c_idx = params.COLOR_VEC
             y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
             x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
             z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
             if any([x_indices y_indices z_indices]<1)
-                bad_puncta_indices_cell{exp_idx}{c_idx,puncta_idx} = puncta_idx;
+                bad_puncta_indices_cell{exp_idx} = union(bad_puncta_indices_cell{exp_idx},puncta_idx);
                 continue
             end
             if any(x_indices>data_width) || any(y_indices>data_height) || any(z_indices>data_depth)
-                bad_puncta_indices_cell{exp_idx}{c_idx,puncta_idx} = puncta_idx;
+                bad_puncta_indices_cell{exp_idx} = union(bad_puncta_indices_cell{exp_idx},puncta_idx);
                 continue
             end
             
-            x_total_indices_cell{exp_idx}{c_idx,puncta_idx} = [x_indices'];
-            y_total_indices_cell{exp_idx}{c_idx,puncta_idx} = [y_indices'];
-            z_total_indices_cell{exp_idx}{c_idx,puncta_idx} = [z_indices'];
+            x_total_indices_cell{exp_idx} = [x_total_indices_cell{exp_idx}; x_indices'];
+            y_total_indices_cell{exp_idx} = [y_total_indices_cell{exp_idx}; y_indices'];
+            z_total_indices_cell{exp_idx} = [z_total_indices_cell{exp_idx}; z_indices'];
             
             puncta_set_cell{exp_idx}{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
         end
@@ -115,15 +122,16 @@ end
 %%
 clear data_cols, clear data
 
+disp('reducing processed puncta')
 % reduction of parfor
 for exp_idx = 1:params.NUM_ROUNDS
-    for puncta_idx = 1:num_puncta
-        for c_idx = 1:params.COLOR_VEC
-            bad_puncta_indices = union(bad_puncta_indices,bad_puncta_indices_cell{exp_idx}{c_idx,puncta_idx});
-            x_total_indices = [x_total_indices; x_total_indices_cell{exp_idx}{c_idx,puncta_idx}];
-            y_total_indices = [y_total_indices; y_total_indices_cell{exp_idx}{c_idx,puncta_idx}];
-            z_total_indices = [z_total_indices; z_total_indices_cell{exp_idx}{c_idx,puncta_idx}];
+    x_total_indices = [x_total_indices; x_total_indices_cell{exp_idx}];
+    y_total_indices = [y_total_indices; y_total_indices_cell{exp_idx}];
+    z_total_indices = [z_total_indices; z_total_indices_cell{exp_idx}];
+    bad_puncta_indices = union(bad_puncta_indices,bad_puncta_indices_cell{exp_idx});
 
+    for puncta_idx = 1:num_puncta
+        for c_idx = params.COLOR_VEC
             if ~isequal(size(puncta_set_cell{exp_idx}{c_idx,puncta_idx}), [0 0])
                 puncta_set(:,:,:,exp_idx,c_idx,puncta_idx) = puncta_set_cell{exp_idx}{c_idx,puncta_idx};
             end
@@ -143,6 +151,7 @@ Y = Y(good_puncta_indices);
 X = X(good_puncta_indices);
 Z = Z(good_puncta_indices);
 
+disp('saving files')
 %just save puncta_set
 save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)),...
     'puncta_set','Y','X','Z','-v7.3');
