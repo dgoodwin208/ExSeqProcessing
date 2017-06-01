@@ -1,5 +1,4 @@
 %The ROIs are loaded from rois_votedandglobalnormalized.mat
-% load('rajlab/ExSeqCulture/roi_parameters_and_punctaset.mat')
 
 %The transcripts are loaded from v3transcripts.mat
 
@@ -9,15 +8,14 @@ filename = 'splintr_100samples.gif';
 %Setting the figure shape so it comes out well in the gif
 % set(0, 'DefaultFigurePaperPosition', [425   980   576   876]);
 
-% puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
 %load sample image for reference
-img = load3DTif(fullfile(params.rajlabDirectory,'alexa001.tiff'));
+img = load3DTif(fullfile(params.punctaSubvolumeDir,'alexa001.tiff'));
 
 maxProj = max(img,[],3);
 %% To visualize, we have to re-remove the puncta that are on the edge
 % (of the space)
-load(fullfile(params.rajlabDirectory,'rois_votednonnormed16b.mat'));
-load(fullfile(params.rajlabDirectory,'transcriptsv8_punctameannormed.mat'));
+load(fullfile(params.punctaSubvolumeDir,'rois_votednonnormed16b.mat'));
+load(fullfile(params.punctaSubvolumeDir,'transcriptsv8_punctameannormed.mat'));
 
 
 %% 

@@ -1,8 +1,7 @@
 % Data loading a storage parameteres
 params.registeredImagesDir = '/home/dgoodwin/ExSeqProcessing/3_registration';
-params.rajlabDirectory = '.';
-params.punctaSubvolumeDir = '.';
-params.transcriptResultsDir = '';
+params.punctaSubvolumeDir = '/home/dgoodwin/ExSeqProcessing/4_puncta-extraction';
+params.transcriptResultsDir = '/home/dgoodwin/ExSeqProcessing/5_transcripts';
 
 params.FILE_BASENAME = 'splintrseqroi1';
 
@@ -16,7 +15,7 @@ params.round_correction_indices = [10,11,12,1,2,3,4,5,6,7,8,9];
 % params.round_correction_indices = 1:params.NUM_ROUNDS;
 
 %RajLab filtering parameters:
-params.THRESHOLD = 2; %Number of rouds to agree on 
+params.THRESHOLD = 3; %Number of rouds to agree on 
 params.EPSILON_TARGET = 4; %Radius of neighborhood for puncta to agree across rounds
 
 

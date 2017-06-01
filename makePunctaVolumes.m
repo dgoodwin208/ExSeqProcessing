@@ -86,7 +86,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
        experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
     end
     
-    disp(['[',num2str(exp_idx),'] processing puncta in parallel')
+    disp(['[',num2str(exp_idx),'] processing puncta in parallel'])
     x_total_indices_cell{exp_idx} = [];
     y_total_indices_cell{exp_idx} = [];
     z_total_indices_cell{exp_idx} = [];

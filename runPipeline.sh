@@ -29,7 +29,7 @@ DECONVOLUTION_DIR=1_deconvolution
 NORMALIZATION_DIR=2_normalization
 REGISTRATION_DIR=3_registration
 PUNCTA_DIR=4_puncta-extraction
-TRANSCRIPT_DIR=5_transcript
+TRANSCRIPT_DIR=5_transcripts
 
 REGISTRATION_PROJ_DIR=../Registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
@@ -293,6 +293,7 @@ echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
 echo "  normalization images   :  ${NORMALIZATION_DIR}"
 echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
+echo "  transcripts            :  ${TRANSCRIPT_DIR}"
 echo
 echo "  Registration project   :  ${REGISTRATION_PROJ_DIR}"
 echo "  vlfeat lib             :  ${VLFEAT_DIR}"
@@ -348,10 +349,10 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
     "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m
 
 # setup for segmentation using Raj lab image tools
+set -g mouse-select-window on
 
 sed -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
-    -e "s#\(params.rajlabDirectory\) *= *.*;#\1 = '.';#" \
-    -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '.';#" \
+    -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
     -i.back \
@@ -506,6 +507,7 @@ then
     fi
 
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
     popd
 else
     echo "Skip!"
@@ -525,12 +527,16 @@ then
     cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
     cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
     ls -l ${TRANSCRIPT_DIR}
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "normalizePunctaVector; refineBaseCalling; exit"
+
 else
     echo "Skip!"
 fi
 echo
 
 stage_idx=$(( $stage_idx + 1 ))
+
+
 
 
 echo "========================================================================="

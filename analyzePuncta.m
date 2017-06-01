@@ -1,10 +1,9 @@
 %Produce the set of puncta using the getPuncta.m file
 loadParameters;
-% puncta_directory = '/Users/Goody/Neuro/ExSeq/rajlab/splintr1/';
-load(fullfile(params.rajlabDirectory ,sprintf('%s_puncta_allexp.mat',params.FILE_BASENAME)));
+load(fullfile(params.punctaSubvolumeDir ,sprintf('%s_puncta_allexp.mat',params.FILE_BASENAME)));
 
 %load sample image for reference
-img = load3DTif(fullfile(params.rajlabDirectory ,'alexa001.tiff'));
+img = load3DTif(fullfile(params.punctaSubvolumeDir ,'alexa001.tiff'));
 
 % NUM_ROUNDS = 3;
 %% make a quick scatter plot
@@ -123,7 +122,7 @@ end
 xlabel('Number of rounds within epsilon');
 ylabel(sprintf('Number of puncta (%i original candidates)',size(puncta_ref,1)));
 legend('1','2','3','4','5','6','7','8','9','10','Location','northwest');
-title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',params.rajlabDirectory ));
+title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',params.punctaSubvolumeDir ));
 
 %% Finally, get a list of all puncta that we would use for later analysis
 
@@ -192,4 +191,4 @@ hold off;
 
 %% Save the puncta and the parameters they were made at
 puncta_filtered = puncta_ref(puncta_votes>=params.THRESHOLD,:);
-save(fullfile(params.rajlabDirectory ,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)),'puncta_filtered');
+save(fullfile(params.punctaSubvolumeDir ,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)),'puncta_filtered');
