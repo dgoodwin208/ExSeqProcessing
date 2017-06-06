@@ -5,7 +5,11 @@ function [puncta_deduped] = removeRedundantPuncta(puncta_candidates,DOPLOT,imgDi
     elseif nargin == 2
         disp('Please suppy image dimensions as a parameter');
     end
-            
+
+    %First, remove any of the EXACT same position
+    [unique_puncta, ~, ~] = unique(puncta_candidates,'rows');
+    fprintf('Exact duplicates removed: %i\n',size(puncta_candidates,1) - size(unique_puncta,1));
+    puncta_candidates = unique_puncta; clear unique_puncta;            
 
     nbd = 2; %The neighborhood parameter to cluster puncta
 

@@ -1,5 +1,5 @@
-load(fullfile(params.rajlabDirectory,'transcriptsv9_punctameannormed.mat'));
-load(fullfile(params.rajlabDirectory,'groundtruth_codes.mat'));
+load(fullfile(params.transcriptResultsDir,'transcriptsv9_punctameannormed.mat'));
+load(fullfile(params.transcriptResultsDir,'groundtruth_codes.mat'));
 
 %% Load ground truth codes
 

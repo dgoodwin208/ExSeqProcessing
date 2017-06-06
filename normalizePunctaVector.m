@@ -1,6 +1,6 @@
 loadParameters;
 % load('/Users/Goody/Neuro/ExSeq/rajlab/splintr1/transcriptsv3.mat');
-load(fullfile(params.punctaSubvolumeDir,'puncta_rois.mat'));
+load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
 
 %TODO: the punctaset collection contains that are too close to the boundary
 %so we filter those out in the extract_transcripts file using the
@@ -152,4 +152,6 @@ for puncta_idx = 1:size(puncta_set_normed,6)
     
 end
 
-save(fullfile(params.punctaSubvolumeDir,'transcriptsv9_punctameannormed.mat'),'transcripts','transcripts_confidence','pos');
+save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv9.mat',params.FILE_BASENAME)),'transcripts','transcripts_confidence','pos');
+
+disp('Completed normalizePuncta.m and saved the transcriptsv9 mat file in the transcripts folder');

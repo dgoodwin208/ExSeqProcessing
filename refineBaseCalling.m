@@ -1,16 +1,12 @@
-% Load transcriptsv7 and rois_votednonnormed16b
-
-%If it's an old .mat file, be sure to refine the puncta indices
-% if size(puncta_set,6)==num_puncta
-%     puncta_set = puncta_set(:,:,:,:,:,good_puncta_indices);
-%     Y = Y(good_puncta_indices);
-%     X = X(good_puncta_indices);
-%     Z = Z(good_puncta_indices);
-% end
-%Transcriptsv6 has been called on quantile normalized puncta per round
-%The puncta_set_normed data is not stored  and puncta_set
+% Load transcriptsv9 and rois_votednonnormed16b
 loadParameters;
+load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv9.mat',params.FILE_BASENAME)));
 
+if ~exist('puncta_set','var')
+    load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
+end
+
+%%
 %Create vectors in a cell array that will take all raw pixels from which we
 %will create the distributions
 raw_pixels = cell(params.NUM_ROUNDS,params.NUM_CHANNELS,2);
@@ -36,9 +32,7 @@ for exp_idx = 1:params.NUM_ROUNDS
     for c = params.COLOR_VEC
         chan_col(:,c) = reshape(puncta_set(:,:,:,exp_idx,c,:),[],1);
     end
-%     chan_col(:,2) = reshape(puncta_set(:,:,:,exp_idx,2,:),[],1);
-%     chan_col(:,4) = reshape(puncta_set(:,:,:,exp_idx,4,:),[],1);
-%     
+  
     min_values(exp_idx,:) = min(chan_col,[],1);
     %Take the mean after subtracting the min
     mean_values(exp_idx,:) = mean(chan_col - repmat(min_values(exp_idx,:),size(chan_col,1),1),1);
@@ -57,7 +51,7 @@ for puncta_idx = 1:size(puncta_set,6)
         winning_index = transcripts(puncta_idx,exp_idx);
         background_indices = setdiff(params.COLOR_VEC,winning_index);
         
-        % For the winner, get the central 6x6x6 volume, linearize it
+        % For the winner, get the central 2x2x2 volume, linearize it
         % and add into the vector
         subvolume = puncta_set(central_puncta_indices,...
             central_puncta_indices,...
@@ -66,7 +60,8 @@ for puncta_idx = 1:size(puncta_set,6)
             winning_index, puncta_idx);
         %process the subvolume to subtract the mean and divi
         subvolume = (subvolume(:) - min_values(exp_idx,winning_index))...
-            /mean_values(exp_idx,winning_index);
+           /mean_values(exp_idx,winning_index);
+%         subvolume = subvolume(:); %testing without normalization 
         raw_pixels{exp_idx,winning_index,IDX_SIGNAL} = ...
             [raw_pixels{exp_idx,winning_index,IDX_SIGNAL}; subvolume];
         
@@ -79,7 +74,9 @@ for puncta_idx = 1:size(puncta_set,6)
                 exp_idx,...
                 other_index, puncta_idx);
             subvolume = (subvolume(:) - min_values(exp_idx,other_index))...
-                /mean_values(exp_idx,other_index);
+               /mean_values(exp_idx,other_index);
+%             subvolume = subvolume(:); %testing without normalization 
+            
             raw_pixels{exp_idx,other_index,IDX_BACKGROUND} = ...
                 [raw_pixels{exp_idx,other_index,IDX_BACKGROUND}; subvolume];
         end
@@ -145,7 +142,7 @@ IDX_HIST_VALUES = 1;
 IDX_HIST_BINS = 2;
 for exp_idx = 1:params.NUM_ROUNDS
     
-    for chan_idx = params.COLOR_VEC 
+    for chan_idx = params.COLOR_VEC
         %Load all the raw pixels
         chanvec_bg = raw_pixels{exp_idx,chan_idx,IDX_BACKGROUND};
         chanvec_sig = raw_pixels{exp_idx,chan_idx,IDX_SIGNAL};
@@ -167,63 +164,20 @@ end
 
 %% Plot all probabilities for a sanity check
 figure;
-subplot(params.NUM_ROUNDS,length(params.COLOR_VEC),1);
+subplot(5,length(params.COLOR_VEC),1);
 ctr = 1;
 for exp_idx = 1:params.NUM_ROUNDS
     for chan_idx = params.COLOR_VEC
-        subplot(params.NUM_ROUNDS,length(params.COLOR_VEC),ctr);
-        plot(squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_BINS)),squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_VALUES)));
+        subplot(5,length(params.COLOR_VEC),ctr);
+        plot(squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_BINS)),squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_VALUES)),'LineWidth',2);
         hold on;
-        plot(squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_BINS)),squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_VALUES)))
+        plot(squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_BINS)),squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_VALUES)),'LineWidth',2)
         hold off;
         ctr = ctr +1;
         
         title(sprintf('Exp%i, Chan%i',exp_idx,chan_idx))
     end
 end
-%% Now with the probabilities matrix, every puncta in every color in every
-% round can have a probability calculated of the log likelihood that the
-% puncta is drawn from the signal or the background distribution
-% 
-% central_puncta_indices= 5:6;
-% 
-% %Do this for one experiment
-% prob_transcripts = zeros(size(puncta_set,6),params.NUM_ROUNDS, params.NUM_CHANNELS);
-% for puncta_idx = 1:size(puncta_set,6)
-%     for exp_idx = 1:params.NUM_ROUNDS
-%         for chan_idx = params.COLOR_VEC
-%             
-%             
-%             % Get the central pixels to query the joint distribution of their
-%             % occurance
-%             subvolume = puncta_set(central_puncta_indices,...
-%                 central_puncta_indices,...
-%                 central_puncta_indices,...
-%                 exp_idx,...
-%                 chan_idx, puncta_idx);
-%             
-%             % Use the pre-calcualated min and mean values to normalize the
-%             % puncta
-%             subvolume = (subvolume(:) - min_values(exp_idx,chan_idx))...
-%                 /mean_values(exp_idx,chan_idx);
-%             
-%             p_sig = squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_VALUES));
-%             p_bg = squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_VALUES));
-%             
-%             b_sig = squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_BINS));
-%             b_bg = squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_BINS));
-%             
-%             
-%             jprob_sig = calculateJointProbability(subvolume,p_sig,b_sig);
-%             jprob_bg = calculateJointProbability(subvolume,p_bg,b_bg);
-%             prob_transcripts(puncta_idx,exp_idx,chan_idx) = jprob_bg/jprob_sig;
-%         end
-%     end
-%     
-%     if mod(puncta_idx,100)==0
-%         fprintf('Processed %i \n',puncta_idx)
-%     end
-% end
 
 %% Correct way of calculating probabilistic transcripts
 % Need the comparative transcripts too for this
@@ -238,10 +192,10 @@ for exp_idx = 1:params.NUM_ROUNDS
         color_prior(chan_idx) = sum(transcripts(:,exp_idx)==chan_idx)/...
             size(transcripts,1);
     end
-    
-    for puncta_idx = 1:size(puncta_set,6)        
+    fprintf('Color prior for round%i %.2f %.2f %.2f %.2f\n',exp_idx,color_prior)
+    for puncta_idx = 1:size(puncta_set,6)
         for chan_idx = params.COLOR_VEC
-
+            
             % Get the central pixels to query the joint distribution of their
             % occurance
             subvolume = puncta_set(central_puncta_indices,...
@@ -273,7 +227,7 @@ for exp_idx = 1:params.NUM_ROUNDS
                 % puncta
                 subvolume = (subvolume(:) - min_values(exp_idx,other_index))...
                     /mean_values(exp_idx,other_index);
-            
+                
                 p_bg = squeeze(probabilities(exp_idx,other_index,:,IDX_BACKGROUND,IDX_HIST_VALUES));
                 b_bg = squeeze(probabilities(exp_idx,other_index,:,IDX_BACKGROUND,IDX_HIST_BINS));
                 
@@ -286,86 +240,117 @@ for exp_idx = 1:params.NUM_ROUNDS
                 + sum(jprob_sig);
         end
         
-        if mod(puncta_idx,300)==0
+        if mod(puncta_idx,100)==0
             fprintf('Processed puncta %i for exp %i \n',puncta_idx, exp_idx)
         end
     end
-
+    
 end
 
 %Just for now, make all of channel 3 -Inf
 % prob_transcripts(:,:,3) = -Inf;
 
-%%
-
-for exp_idx = 1:params.NUM_ROUNDS
-    figure;
-    plot3(squeeze(prob_transcripts(:,exp_idx,1)),...
-        squeeze(prob_transcripts(:,exp_idx,2)),...
-        squeeze(prob_transcripts(:,exp_idx,4)),'.');
-    title(sprintf('Scatter plot of probalistic base calling', exp_idx));
-    grid on;
-    title(sprintf('Exp%i Comparison of 3 color channels internal probabilities',exp_idx));
-end
-
 %% Comparing to other transcript
 %prob_transcripts is just for experiment 1, so transcripts(:,1)
 agreements = zeros(size(puncta_set,6),params.NUM_ROUNDS);
-for exp_idx = 1:params.NUM_ROUNDS
-    [~,prob_calls] = max(squeeze(prob_transcripts(:,exp_idx,:)),[],2);
+
+%Looping over all minimum numbers of agreements between the probabilty and
+%intensity methods to get a sense of agreement level
+for THRESHOLD_AGREEMENT = 1:params.NUM_ROUNDS
+    calls_total_prob = zeros(params.NUM_ROUNDS,params.NUM_CHANNELS);
+    calls_total_intensity = zeros(params.NUM_ROUNDS,params.NUM_CHANNELS);
     
-    agreements(:,exp_idx) = prob_calls == transcripts(:,exp_idx);
-    sum(agreements(:,exp_idx))
-    transcripts_probsolo(:,exp_idx) = prob_calls;
-    
-    %Confidence here will simply be the raw probability value
-    for puncta_idx = 1:size(puncta_set,6)
-        transcripts_probsolo_confidence(puncta_idx,exp_idx) = ...
-            squeeze(prob_transcripts(puncta_idx,exp_idx,prob_calls(puncta_idx))); 
+    for exp_idx = 1:params.NUM_ROUNDS
+        [~,prob_calls] = max(squeeze(prob_transcripts(:,exp_idx,:)),[],2);
+        
+        %Agreements is the number of roundagreements between the probability
+        %and intensity methods
+        agreements(:,exp_idx) = prob_calls == transcripts(:,exp_idx);
+        
+        transcripts_probsolo(:,exp_idx) = prob_calls;
+        
+        %Confidence here will simply be the raw probability value
+        for puncta_idx = 1:size(puncta_set,6)
+            transcripts_probsolo_confidence(puncta_idx,exp_idx) = ...
+                squeeze(prob_transcripts(puncta_idx,exp_idx,prob_calls(puncta_idx)));
+        end
+        
+        for c = params.COLOR_VEC
+            calls_total_prob(exp_idx,c) = sum(prob_calls==c);
+            calls_total_intensity(exp_idx,c) = sum(transcripts(:,exp_idx)==c);
+        end
     end
     
+    %How many puncta agree on ALL ROUNDS?
+    indices_interAndIntraAgreements = sum(agreements,2)>=THRESHOLD_AGREEMENT;
+    threshold_scores(THRESHOLD_AGREEMENT) = sum(indices_interAndIntraAgreements);
 end
 
-%How many puncta agree on ALL THREE?
-indices_interAndIntraAgreements = all(agreements,2);
-sum(indices_interAndIntraAgreements)
+figure; plot(threshold_scores); title('Agreements as a function of threshold');
+
+
+indices_interAndIntraAgreements = sum(agreements,2)>=params.THRESHOLD_AGREEMENT_CHOSEN;
+
+fprintf('Removed %i transcripts that were under params.THRESHOLD_AGREEMENT_CHOSEN=%i\n',...
+        size(agreements,1)-length(indices_interAndIntraAgreements),...
+        params.THRESHOLD_AGREEMENT_CHOSEN);
+
+% figure;
+% imagesc([calls_total_prob,calls_total_intensity])
+% title('Quick vis of base prevalance by round: prob on left, intensity on right');
+
 
 transcripts_probfiltered = transcripts(indices_interAndIntraAgreements,:);
 transcripts_probfiltered_confidence = transcripts_confidence(indices_interAndIntraAgreements,:);
-transcripts_probfiltered_probconfidence = exp(transcripts_probsolo_confidence(indices_interAndIntraAgreements,:));
+transcripts_probfiltered_probconfidence = transcripts_probsolo_confidence(indices_interAndIntraAgreements,:);
 
-%Create a list of indices back to the original puncta indices 
+%Create a list of indices back to the original puncta indices
 %Used for later visualization
 puncta_indices_probfiltered = 1:length(indices_interAndIntraAgreements);
 puncta_indices_probfiltered = puncta_indices_probfiltered(indices_interAndIntraAgreements);
 
+puncta_set_filtered = puncta_set(:,:,:,:,:,puncta_indices_probfiltered);
 
 %TODO: Add in a future flag
-BARCODE_SIZE = 5;
+BARCODE_SIZE = 4;
+KEEP_CODE = [1,4,2];
 if 1
     
     %Finally, remove any transcripts that appear fewer than a threshold number
     %of times: (using Shahar's code)
     [unique_transcripts, ia, ic] = unique(transcripts_probfiltered(:,1:BARCODE_SIZE),'rows');
-
+    
     number_of_unique_transcripts=length(unique_transcripts);
-
+    
     expression_level=zeros(length(transcripts_probfiltered),1);
     for i=1:length(transcripts_probfiltered)
-        expression_level(i)=sum(ic(i)==ic);
+        
+%         %If the first three bases are NOT read correctly from the primer
+%         if ~all(transcripts_probfiltered(i,1:3)==KEEP_CODE)
+%             expression_level(i)=-1;
+%         else
+            %If it's a legitimate barcode, note the expression level
+            expression_level(i)=sum(ic(i)==ic);
+%         end
+        
     end
     filtered_due_to_expression=expression_level<params.THRESHOLD_EXPRESSION;
-    fprintf('Removed %i transcripts that were under params.THRESHOLD_EXPRESSION\n',...
-        sum(filtered_due_to_expression));
-
+    fprintf('Removed %i transcripts that were under params.THRESHOLD_EXPRESSION=%i\n',...
+        sum(filtered_due_to_expression),...
+        params.THRESHOLD_EXPRESSION);
+    
     transcripts_probfiltered(filtered_due_to_expression,:) = [];
     transcripts_probfiltered_confidence(filtered_due_to_expression,:) = [];
     transcripts_probfiltered_probconfidence(filtered_due_to_expression,:) = [];
     puncta_indices_probfiltered(filtered_due_to_expression) = [];
 end
 
-save(fullfile(params.rajlabDirectory,'transcripts_probfiltered.mat'),...
+save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.mat',params.FILE_BASENAME)),...
+    'prob_transcripts',...
     'transcripts_probfiltered',...
     'transcripts_probfiltered_confidence',...
     'transcripts_probfiltered_probconfidence',...
-    'puncta_indices_probfiltered');
+    'puncta_indices_probfiltered',...
+    'puncta_set_filtered','-v7.3');
+
+disp('Saved the file in the transcripts directory');

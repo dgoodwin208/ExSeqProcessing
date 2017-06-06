@@ -62,9 +62,14 @@ function adjustThresholds(varargin)
             ns = (ps-min(ps))./(max(ps)-min(ps));
             k = LineCurvature2D(ns);
 
+            x_k = 0;
+            k_first = 1;
             k_mid = ceil(length(k)/2);
-            [max_k,idx_k] = max(k(1:k_mid));
-            x_k = ps(idx_k,1);
+            while x_k == 0
+                [max_k,idx_k] = max(k(k_first:k_mid));
+                x_k = ps(idx_k,1);
+                k_first = idx_k+1;
+            end
 
             rnaProcessorDataHolder.processorData.threshold = x_k;
             numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
