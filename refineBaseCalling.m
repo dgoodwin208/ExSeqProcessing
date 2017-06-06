@@ -1,6 +1,6 @@
 % Load transcriptsv9 and rois_votednonnormed16b
 loadParameters;
-load(fullfile(params.punctaSubvolumeDir,sprintf('%s_transcriptsv9.mat',params.FILE_BASENAME)));
+load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv9.mat',params.FILE_BASENAME)));
 
 if ~exist('puncta_set','var')
     load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
@@ -289,8 +289,7 @@ end
 figure; plot(threshold_scores); title('Agreements as a function of threshold');
 
 
-THRESHOLD_AGREEMENT_CHOSEN = 4;
-indices_interAndIntraAgreements = sum(agreements,2)>=THRESHOLD_AGREEMENT_CHOSEN;
+indices_interAndIntraAgreements = sum(agreements,2)>=params.THRESHOLD_AGREEMENT_CHOSEN;
 
 fprintf('Removed %i transcripts that were under params.THRESHOLD_AGREEMENT_CHOSEN=%i\n',...
         size(agreements,1)-length(indices_interAndIntraAgreements),...
@@ -346,10 +345,12 @@ if 1
     puncta_indices_probfiltered(filtered_due_to_expression) = [];
 end
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.mat'),params.FILE_BASENAME),...
+save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.mat',params.FILE_BASENAME)),...
     'prob_transcripts',...
     'transcripts_probfiltered',...
     'transcripts_probfiltered_confidence',...
     'transcripts_probfiltered_probconfidence',...
     'puncta_indices_probfiltered',...
     'puncta_set_filtered','-v7.3');
+
+disp('Saved the file in the transcripts directory');

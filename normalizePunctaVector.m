@@ -153,3 +153,5 @@ for puncta_idx = 1:size(puncta_set_normed,6)
 end
 
 save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv9.mat',params.FILE_BASENAME)),'transcripts','transcripts_confidence','pos');
+
+disp('Completed normalizePuncta.m and saved the transcriptsv9 mat file in the transcripts folder');

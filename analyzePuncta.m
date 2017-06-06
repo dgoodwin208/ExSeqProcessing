@@ -20,15 +20,22 @@ hold off;
 
 %% Remove any redundant points from the rajlab code
 
-for exp_idx = 1:params.NUM_ROUNDS
-   deduped = removeRedundantPuncta(puncta{exp_idx});
-   fprintf('Round #%i, Removed %i redundant puncta of %i candidates\n',...
-       exp_idx,...
-       size(puncta{exp_idx},1)-size(deduped,1),...
-       size(puncta{exp_idx},1));
-   puncta{exp_idx} = deduped;
-end
+%Emperically speaking, after 3-4 runs of the removeRedundantPuncta call,
+%the amount of removed points go to zero.
+%TODO: This is a short term hack that could surely be improved
 
+NUM_DEDUPE_ITERATIONS= 4;
+fprintf('Running removeRedundantPuncta() %i times\n',NUM_DEDUPE_ITERATIONS);
+for itr = 1:NUM_DEDUPE_ITERATIONS
+    for exp_idx = 1:params.NUM_ROUNDS
+        deduped = removeRedundantPuncta(puncta{exp_idx});
+            fprintf('Round #%i, Removed %i redundant puncta of %i candidates\n',...
+            exp_idx,...
+            size(puncta{exp_idx},1)-size(deduped,1),...
+            size(puncta{exp_idx},1));
+        puncta{exp_idx} = deduped;
+    end
+end
 
 %% Make histogram of neighbors around the reference, currently set as #1
 

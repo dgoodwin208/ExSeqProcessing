@@ -506,8 +506,8 @@ then
         ln -s ../startup.m
     fi
 
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
     popd
 else
     echo "Skip!"
@@ -526,9 +526,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
     cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
     cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
-    ls -l ${TRANSCRIPT_DIR}
+    #ls -l ${TRANSCRIPT_DIR}
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "normalizePunctaVector; refineBaseCalling; exit"
-
 else
     echo "Skip!"
 fi
