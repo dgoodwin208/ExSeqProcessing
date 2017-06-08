@@ -1,6 +1,6 @@
 %% This is more a protocol document than a run script
 loadParameters;
-cd(params.rajlabDirectory);
+cd(params.punctaSubvolumeDir);
 
 %% have to do these one at a time, as they are nonblocking GUIS
 % ie, DON'T run this as a cell
