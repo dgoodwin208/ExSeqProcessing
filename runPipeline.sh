@@ -220,7 +220,13 @@ STAGES=("profile-check" "normalization" "registration" "puncta-extraction" "tran
 REG_STAGES=("calc-descriptors" "register-with-descriptors")
 
 # check stages to be skipped and executed
-if [ ! "${ARG_EXEC_STAGES}" = "" -a "${ARG_SKIP_STAGES}" = "" ]
+if [ ! "${ARG_EXEC_STAGES}" = "" -a ! "${ARG_SKIP_STAGES}" = "" ]
+then
+    echo "cannot use both -e and -s"
+    exit 1
+fi
+
+if [ ! "${ARG_EXEC_STAGES}" = "" ]
 then
     for((i=0; i<${#STAGES[*]}; i++))
     do
@@ -234,22 +240,24 @@ then
         if [ "${ARG_EXEC_STAGES/registration}" = "${ARG_EXEC_STAGES}" -a "${ARG_EXEC_STAGES/${REG_STAGES[i]}}" = "${ARG_EXEC_STAGES}" ]
         then
             SKIP_REG_STAGES[i]="skip"
+        else
+            SKIP_STAGES[2]=
         fi
     done
 else
     for((i=0; i<${#STAGES[*]}; i++))
     do
-        if [ "${ARG_EXEC_STAGES/${STAGES[i]}}" = "${ARG_EXEC_STAGES}" -a ! "${ARG_SKIP_STAGES/${STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
+        if [ ! "${ARG_SKIP_STAGES/${STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
         then
             SKIP_STAGES[i]="skip"
         fi
     done
     for((i=0; i<${#REG_STAGES[*]}; i++))
     do
-        if [ "${ARG_SKIP_STAGES/registration}" = "${ARG_SKIP_STAGES}" ]
+        if [ ! "${ARG_SKIP_STAGES/registration}" = "${ARG_SKIP_STAGES}" ]
         then
             SKIP_REG_STAGES[i]="skip"
-        elif [ "${ARG_EXEC_STAGES/${REG_STAGES[i]}}" = "${ARG_EXEC_STAGES}" -a ! "${ARG_SKIP_STAGES/${REG_STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
+        elif [ ! "${ARG_SKIP_STAGES/${REG_STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
         then
             SKIP_REG_STAGES[i]="skip"
         fi
@@ -293,6 +301,7 @@ echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
 echo "  normalization images   :  ${NORMALIZATION_DIR}"
 echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
+echo "  transcript             :  ${TRANSCRIPT_DIR}"
 echo
 echo "  Registration project   :  ${REGISTRATION_PROJ_DIR}"
 echo "  vlfeat lib             :  ${VLFEAT_DIR}"
