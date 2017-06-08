@@ -15,7 +15,7 @@ function makeROIs(varargin)
     % to get images and the segmentation ROIs. 
     %---------------------------------------------------------
     Hs.dirPath = pwd;
-    [Hs.dataFiles,Hs.dataNums] = getDataFiles(Hs.dirPath);
+    %[Hs.dataFiles,Hs.dataNums] = getDataFiles(Hs.dirPath);
 
     % Look for image files in the current working directory. If we
     % don't find any, ask the user to navigate to the image files
@@ -32,11 +32,20 @@ function makeROIs(varargin)
     % scheme makes some sense. For example, if we have 'data001-data010.mat'
     % files then there should also be 'tmr001-tmr010.tif' and not less.
     %------------------------------------------------------------------------
-    if numel(Hs.dataFiles) > numel(Hs.fileNums)
-        msg = sprintf(['There are more data*.mat files than image files\n'...
-                       'This should not happen']);
-        error(msg);
+    %if numel(Hs.dataFiles) > numel(Hs.fileNums)
+    %    msg = sprintf(['There are more data*.mat files than image files\n'...
+    %                   'This should not happen']);
+    %    error(msg);
+    %end
+
+    % check if data**mat files already exist, if so remove
+    dataFiles = dir([Hs.dirPath filesep 'data*.mat']);
+    for i = 1:numel(dataFiles)
+        delete(fullfile(Hs.dirPath,dataFiles(i).name));
     end
+    Hs.dataFiles = [];
+    Hs.dataNums = [];
+
 
     % remove dapi & trans from Hs.foundChannels and imgExts to get the 
     % RNA channels only

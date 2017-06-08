@@ -38,12 +38,12 @@ function adjustThresholds(varargin)
     
 
 
-    % adjust threshold using Secant method
-
     % from improc2.utils.NumSpotsTextBox
-    maxOfCount = 10;
-    x_epsilon = 0.01;
-    deriv_epsilon = 1e-14;
+    maxOfCount = 100;
+    targetNumSpots = 0;
+    d_threshold = 0.05;
+    nearly_zero = 0.001;
+
     for i=1:browsingTools.navigator.numberOfArrays
         for channelName = rnaChannelSwitch.channelNames
             disp(['[',num2str(i),'] ##### channel=',channelName{1}])
@@ -53,27 +53,104 @@ function adjustThresholds(varargin)
             proc = rnaProcessorDataHolder.processorData;
             ranksOfRegionalMaxima = log(numel(proc.regionalMaxValues):-1:1);
 
-            x = proc.regionalMaxValues;
-            y = ranksOfRegionalMaxima';
-            disp(['size(x)=',num2str(length(x)),',size(y)=',num2str(length(y))])
-            dx = (x(end)-x(1))/100;
+            if (i == 1)
+                % adjust threshold using maximum of curvature in x-y curves
+                disp('adjustment by max of curvature')
+                x = proc.regionalMaxValues;
+                y = ranksOfRegionalMaxima';
+                disp(['size(x)=',num2str(length(x)),',size(y)=',num2str(length(y))])
+                dx = (x(end)-x(1))/100;
 
-            ps = dpsimplify([x,y],0.1);
-            ns = (ps-min(ps))./(max(ps)-min(ps));
-            k = LineCurvature2D(ns);
+                ps = dpsimplify([x,y],0.1);
+                ns = (ps-min(ps))./(max(ps)-min(ps));
+                k = LineCurvature2D(ns);
 
-            x_k = 0;
-            k_first = 1;
-            k_mid = ceil(length(k)/2);
-            while x_k == 0
-                [max_k,idx_k] = max(k(k_first:k_mid));
-                x_k = ps(idx_k,1);
-                k_first = idx_k+1;
+                x_k = 0;
+                k_first = 1;
+                k_mid = ceil(length(k)/2);
+                while x_k == 0
+                    [max_k,idx_k] = max(k(k_first:k_mid));
+                    x_k = ps(idx_k,1);
+                    k_first = idx_k+1;
+                end
+
+                rnaProcessorDataHolder.processorData.threshold = x_k;
+                numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
+                disp(['[',num2str(i),'] numSpots=',num2str(numSpots), ',threshold=',num2str(x_k)])
+
+                targetNumSpots = numSpots;
+            else
+                % adjust threshold using Secant method
+                disp('adjustment by # of spots')
+
+                numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
+                threshold = rnaProcessorDataHolder.processorData.threshold;
+                disp(['[',num2str(i),'] (0) numSpots=',num2str(numSpots), ',threshold=',num2str(threshold)])
+
+                if (numSpots == targetNumSpots)
+                    disp(['[',num2str(i),'] found target!'])
+                    continue
+                end
+
+                count = 1;
+                threshold0 = threshold;
+                if (targetNumSpots < numSpots)
+                    threshold1 = threshold*(1.0+d_threshold);
+                else
+                    threshold1 = threshold*(1.0-d_threshold);
+                    if (threshold1 < 0)
+                        threshold1 = nearly_zero;
+                    end
+                end
+                numSpots0 = numSpots;
+                while (count <= maxOfCount)
+                    rnaProcessorDataHolder.processorData.threshold = threshold1;
+                    numSpots1 = rnaProcessorDataHolder.processorData.getNumSpots();
+                    disp(sprintf('[%i] loop=%3i;  numSpots,threshold=(%6i,%14.3f) -> (%6i,%14.3f)',...
+                          i,count,numSpots0,threshold0,numSpots1,threshold1))
+
+                    if (numSpots == targetNumSpots)
+                        disp(['[',num2str(i),'] found target!'])
+                        break
+                    end
+                    if (numSpots0 == numSpots1)
+                        if (targetNumSpots ~= numSpots1)
+                            %disp(['[',num2str(i),'] f'' becomes zero, but numSpots is different from the target.'])
+			    if (targetNumSpots < numSpots1)
+			        threshold = threshold1*(1.0+d_threshold);
+			    else
+			        threshold = threshold1*(1.0-d_threshold);
+                                if (threshold < 0)
+                                    threshold = nearly_zero;
+                                end
+			    end
+
+                            threshold0 = threshold1;
+                            threshold1 = threshold;
+                            numSpots0 = numSpots1;
+
+                            count = count+1;
+                            continue;
+                        else
+                            disp(['[',num2str(i),'] f'' becomes zero, so iteration is finished.'])
+                            break
+                        end
+                    end
+
+                    threshold = threshold1-(numSpots1-targetNumSpots)*(threshold1-threshold0)/(numSpots1-numSpots0);
+                    if (threshold < 0)
+                        threshold = nearly_zero;
+                    end
+
+                    threshold0 = threshold1;
+                    threshold1 = threshold;
+                    numSpots0 = numSpots1;
+
+                    count = count+1;
+                end
+
+                disp(['[',num2str(i),'] numSpots=',num2str(numSpots1), ',threshold=',num2str(threshold1)])
             end
-
-            rnaProcessorDataHolder.processorData.threshold = x_k;
-            numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
-            disp(['[',num2str(i),'] numSpots=',num2str(numSpots), ',threshold=',num2str(x_k)])
 
             thresholdReviewFlagger.flagThresholdAsReviewed();
         end
