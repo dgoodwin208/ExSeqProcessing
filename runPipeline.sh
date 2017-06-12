@@ -220,7 +220,13 @@ STAGES=("profile-check" "normalization" "registration" "puncta-extraction" "tran
 REG_STAGES=("calc-descriptors" "register-with-descriptors")
 
 # check stages to be skipped and executed
-if [ ! "${ARG_EXEC_STAGES}" = "" -a "${ARG_SKIP_STAGES}" = "" ]
+if [ ! "${ARG_EXEC_STAGES}" = "" -a ! "${ARG_SKIP_STAGES}" = "" ]
+then
+    echo "cannot use both -e and -s"
+    exit 1
+fi
+
+if [ ! "${ARG_EXEC_STAGES}" = "" ]
 then
     for((i=0; i<${#STAGES[*]}; i++))
     do
@@ -234,22 +240,24 @@ then
         if [ "${ARG_EXEC_STAGES/registration}" = "${ARG_EXEC_STAGES}" -a "${ARG_EXEC_STAGES/${REG_STAGES[i]}}" = "${ARG_EXEC_STAGES}" ]
         then
             SKIP_REG_STAGES[i]="skip"
+        else
+            SKIP_STAGES[2]=
         fi
     done
 else
     for((i=0; i<${#STAGES[*]}; i++))
     do
-        if [ "${ARG_EXEC_STAGES/${STAGES[i]}}" = "${ARG_EXEC_STAGES}" -a ! "${ARG_SKIP_STAGES/${STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
+        if [ ! "${ARG_SKIP_STAGES/${STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
         then
             SKIP_STAGES[i]="skip"
         fi
     done
     for((i=0; i<${#REG_STAGES[*]}; i++))
     do
-        if [ "${ARG_SKIP_STAGES/registration}" = "${ARG_SKIP_STAGES}" ]
+        if [ ! "${ARG_SKIP_STAGES/registration}" = "${ARG_SKIP_STAGES}" ]
         then
             SKIP_REG_STAGES[i]="skip"
-        elif [ "${ARG_EXEC_STAGES/${REG_STAGES[i]}}" = "${ARG_EXEC_STAGES}" -a ! "${ARG_SKIP_STAGES/${REG_STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
+        elif [ ! "${ARG_SKIP_STAGES/${REG_STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]
         then
             SKIP_REG_STAGES[i]="skip"
         fi
@@ -349,10 +357,13 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
     "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m
 
 # setup for segmentation using Raj lab image tools
-set -g mouse-select-window on
+
+# tmux command?
+#set -g mouse-select-window on
 
 sed -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
+    -e "s#\(params.transcriptResultsDir\) *= *.*;#\1 = '${TRANSCRIPT_DIR}';#" \
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
     -i.back \
@@ -506,8 +517,8 @@ then
         ln -s ../startup.m
     fi
 
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
     popd
 else
     echo "Skip!"
@@ -526,8 +537,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
     cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
     cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
-    #ls -l ${TRANSCRIPT_DIR}
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "normalizePunctaVector; refineBaseCalling; exit"
+    ls -l ${TRANSCRIPT_DIR}
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "normalizePunctaVector; refineBaseCalling; exit"
 else
     echo "Skip!"
 fi
