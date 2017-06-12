@@ -13,6 +13,7 @@ function [puncta_deduped] = removeRedundantPuncta(puncta_candidates,DOPLOT,imgDi
 
     nbd = 2; %The neighborhood parameter to cluster puncta
 
+    %A vector to ascribe each puncta to a cluster of puncta within a neighborhood
     cluster_ids = zeros(1,size(puncta_candidates,1));
 
     cluster_ctr = 1;
@@ -59,7 +60,7 @@ function [puncta_deduped] = removeRedundantPuncta(puncta_candidates,DOPLOT,imgDi
                 cluster_ids(otherpuncta_indices) = cluster_ctr;
                 cluster_ids(puncta_idx) = cluster_ctr;
                 cluster_ctr = cluster_ctr+1;
-                %if the puncta in question is part of an existing cluster
+            %if the puncta in question is part of an existing cluster
             else
                 cluster_ids(otherpuncta_indices) = cluster_ids(puncta_idx);
             end
