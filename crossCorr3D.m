@@ -24,7 +24,7 @@ for z = -1*offsets(3):offsets(3)
             xcorr_scores(x+offsets(1)+1,y+offsets(2)+1,z+offsets(3)+1) = ...
                 sum(data1(:).*data2_shift(:));
             
-            fprintf('Calculated z=%i y=%i x=%i: %f\n',z,y,x,xcorr_scores(x+offsets(1)+1,y+offsets(2)+1,z+offsets(3)+1));
+            %fprintf('Calculated z=%i y=%i x=%i: %f\n',z,y,x,xcorr_scores(x+offsets(1)+1,y+offsets(2)+1,z+offsets(3)+1));
         end
     end
 end
