@@ -109,7 +109,7 @@ function adjustThresholds(varargin)
                     disp(sprintf('[%i] loop=%3i;  numSpots,threshold=(%6i,%14.3f) -> (%6i,%14.3f)',...
                           i,count,numSpots0,threshold0,numSpots1,threshold1))
 
-                    if (numSpots == targetNumSpots)
+                    if (numSpots1 == targetNumSpots)
                         disp(['[',num2str(i),'] found target!'])
                         break
                     end

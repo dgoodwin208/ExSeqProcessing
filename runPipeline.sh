@@ -380,6 +380,9 @@ EOF
 
 ###### run pipeline
 
+ERR_HDL_PRECODE='try;'
+ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
+
 # normalization
 echo "========================================================================="
 echo "Normalization"; date
@@ -387,7 +390,7 @@ echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "normalization('${DECONVOLUTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); exit"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${DECONVOLUTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
 else
     echo "Skip!"
 fi
@@ -419,7 +422,7 @@ then
                 rounds="$i $(( $i + 1 ))"
             fi
             # calculateDescriptors for two groups of rounds in parallel
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "calculateDescriptorsInParallel([$rounds]); exit"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
     
             if ls *.log > /dev/null 2>&1
             then
@@ -473,7 +476,7 @@ then
         for((i=2; i<=${ROUND_NUM}; i++))
         do
             # registerWithDescriptors for round 1 and i
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "registerWithDescriptors(${i}); exit"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} registerWithDescriptors(${i}); ${ERR_HDL_POSTCODE}"
 
         done
     else
@@ -517,8 +520,8 @@ then
         ln -s ../startup.m
     fi
 
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; exit"
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "analyzePuncta;makePunctaVolumes; exit"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
     popd
 else
     echo "Skip!"
@@ -537,8 +540,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
     cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
     cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
-    ls -l ${TRANSCRIPT_DIR}
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "normalizePunctaVector; refineBaseCalling; exit"
+    #ls -l ${TRANSCRIPT_DIR}
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} normalizePunctaVector; refineBaseCalling; ${ERR_HDL_POSTCODE}"
 else
     echo "Skip!"
 fi
