@@ -123,7 +123,7 @@ end
 
 transcripts = zeros(size(puncta_set_normed,6),params.NUM_ROUNDS);
 transcripts_confidence = zeros(size(puncta_set_normed,6),params.NUM_ROUNDS);
-pos = zeros(size(puncta_set_normed,6),params.NUM_ROUNDS);
+pos = zeros(size(puncta_set_normed,6),3);
 puncta_ctr = 1;
 
 
