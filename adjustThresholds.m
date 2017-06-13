@@ -1,6 +1,6 @@
 % adjust Threshold instead of using launchThresholdGUI
 
-function adjustThresholds(varargin)
+function adjustThresholds(skip_first,varargin)
 
     browsingTools = improc2.launchImageObjectBrowsingTools(varargin{:});
 
@@ -39,10 +39,10 @@ function adjustThresholds(varargin)
 
 
     % from improc2.utils.NumSpotsTextBox
-    maxOfCount = 100;
+    maxOfCount = 5000;
     targetNumSpots = 0;
+    targetThreshold = 0;
     d_threshold = 0.05;
-    nearly_zero = 0.001;
 
     for i=1:browsingTools.navigator.numberOfArrays
         for channelName = rnaChannelSwitch.channelNames
@@ -54,31 +54,38 @@ function adjustThresholds(varargin)
             ranksOfRegionalMaxima = log(numel(proc.regionalMaxValues):-1:1);
 
             if (i == 1)
-                % adjust threshold using maximum of curvature in x-y curves
-                disp('adjustment by max of curvature')
-                x = proc.regionalMaxValues;
-                y = ranksOfRegionalMaxima';
-                disp(['size(x)=',num2str(length(x)),',size(y)=',num2str(length(y))])
-                dx = (x(end)-x(1))/100;
+                if skip_first == true
+                    disp('use predefined numSpots')
 
-                ps = dpsimplify([x,y],0.1);
-                ns = (ps-min(ps))./(max(ps)-min(ps));
-                k = LineCurvature2D(ns);
+                    x_k = rnaProcessorDataHolder.processorData.threshold;
+                else
+                    % adjust threshold using maximum of curvature in x-y curves
+                    disp('adjustment by max of curvature')
+                    x = proc.regionalMaxValues;
+                    y = ranksOfRegionalMaxima';
+                    disp(['size(x)=',num2str(length(x)),',size(y)=',num2str(length(y))])
+                    dx = (x(end)-x(1))/100;
 
-                x_k = 0;
-                k_first = 1;
-                k_mid = ceil(length(k)/2);
-                while x_k == 0
-                    [max_k,idx_k] = max(k(k_first:k_mid));
-                    x_k = ps(idx_k,1);
-                    k_first = idx_k+1;
+                    ps = dpsimplify([x,y],0.1);
+                    ns = (ps-min(ps))./(max(ps)-min(ps));
+                    k = LineCurvature2D(ns);
+
+                    x_k = 0;
+                    k_first = 1;
+                    k_mid = ceil(length(k)/2);
+                    while x_k == 0
+                        [max_k,idx_k] = max(k(k_first:k_mid));
+                        x_k = ps(idx_k,1);
+                        k_first = idx_k+1;
+                    end
+
+                    rnaProcessorDataHolder.processorData.threshold = x_k;
                 end
-
-                rnaProcessorDataHolder.processorData.threshold = x_k;
                 numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
                 disp(['[',num2str(i),'] numSpots=',num2str(numSpots), ',threshold=',num2str(x_k)])
 
                 targetNumSpots = numSpots;
+                targetThreshold = x_k;
             else
                 % adjust threshold using Secant method
                 disp('adjustment by # of spots')
@@ -94,15 +101,8 @@ function adjustThresholds(varargin)
 
                 count = 1;
                 threshold0 = threshold;
-                if (targetNumSpots < numSpots)
-                    threshold1 = threshold*(1.0+d_threshold);
-                else
-                    threshold1 = threshold*(1.0-d_threshold);
-                    if (threshold1 < 0)
-                        threshold1 = nearly_zero;
-                    end
-                end
                 numSpots0 = numSpots;
+                threshold1 = targetThreshold;
                 while (count <= maxOfCount)
                     rnaProcessorDataHolder.processorData.threshold = threshold1;
                     numSpots1 = rnaProcessorDataHolder.processorData.getNumSpots();
@@ -120,9 +120,6 @@ function adjustThresholds(varargin)
 			        threshold = threshold1*(1.0+d_threshold);
 			    else
 			        threshold = threshold1*(1.0-d_threshold);
-                                if (threshold < 0)
-                                    threshold = nearly_zero;
-                                end
 			    end
 
                             threshold0 = threshold1;
@@ -138,9 +135,6 @@ function adjustThresholds(varargin)
                     end
 
                     threshold = threshold1-(numSpots1-targetNumSpots)*(threshold1-threshold0)/(numSpots1-numSpots0);
-                    if (threshold < 0)
-                        threshold = nearly_zero;
-                    end
 
                     threshold0 = threshold1;
                     threshold1 = threshold;

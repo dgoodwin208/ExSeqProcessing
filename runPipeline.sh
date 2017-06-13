@@ -16,6 +16,7 @@ usage() {
     echo "  -L    log directory"
     echo "  -e    execution stages which are higher priority than skip stages"
     echo "  -s    skip stages;  profile-check,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
+    echo "  -m    decide a threshold of round-1 manually"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
     exit 1
@@ -42,10 +43,11 @@ CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
+THRESHOLD_DECISION='auto'
 
 ###### getopts
 
-while getopts N:b:c:d:n:r:p:t:R:V:I:L:e:s:yh OPT
+while getopts N:b:c:d:n:r:p:t:R:V:I:L:e:s:myh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -87,6 +89,8 @@ do
         e)  ARG_EXEC_STAGES=$OPTARG
             ;;
         s)  ARG_SKIP_STAGES=$OPTARG
+            ;;
+        m)  THRESHOLD_DECISION='manual'
             ;;
         y)  QUESTION_ANSW='yes'
             ;;
@@ -272,6 +276,7 @@ echo "  file basename          :  ${FILE_BASENAME}"
 echo "  processing channels    :  ${CHANNELS}"
 echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
+echo "  r-1 threshold decision :  ${THRESHOLD_DECISION}"
 echo
 echo "Stages"
 for((i=0; i<${#STAGES[*]}; i++))
@@ -413,6 +418,17 @@ then
     reg_stage_idx=0
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]
     then
+        #rounds=$(seq -s' ' 1 ${ROUND_NUM})
+        ## calculateDescriptors for all rounds in parallel
+        #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+    
+        #if ls *.log > /dev/null 2>&1
+        #then
+        #    mv matlab-calcDesc-*.log ${LOG_DIR}/
+        #else
+        #    echo "No log files."
+        #fi
+
         for((i=1; i<=${ROUND_NUM}; i+=2))
         do
             if [ $i -eq ${ROUND_NUM} ]
@@ -520,8 +536,16 @@ then
         ln -s ../startup.m
     fi
 
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();adjustThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    if [ $THRESHOLD_DECISION = auto ]
+    then
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();adjustThresholds(false);getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+        #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} adjustThresholds(false);getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    else
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction-1.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects(); ${ERR_HDL_POSTCODE}"
+        matlab -logfile ${LOG_DIR}/matlab-puncta-extraction-2.log -r "improc2.launchThresholdGUI()"
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction-3.log -r "${ERR_HDL_PRECODE} skip_first=true;adjustThresholds(skip_first);getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    fi
+
     popd
 else
     echo "Skip!"
@@ -540,7 +564,6 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
     cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
     cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
-    #ls -l ${TRANSCRIPT_DIR}
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} normalizePunctaVector; refineBaseCalling; ${ERR_HDL_POSTCODE}"
 else
     echo "Skip!"
