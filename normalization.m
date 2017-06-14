@@ -12,7 +12,7 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,to
     tic;
     disp('===== create batch jobs')
 
-    max_running_jobs = 12;
+    max_running_jobs = 5;
     waiting_sec = 10;
 
     jobs = cell(1,total_round_num);
@@ -59,6 +59,11 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
         return
     end
 
+    outputfile= sprintf('%s/%s_round%03i_summedNorm.tif',dst_folder_name,fileroot_name,roundnum);
+    if exist(outputfile,'file')
+        fprintf('%s already exists, skipping\n',outputfile);
+        return
+    end
     chan1 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})));
     chan2 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})));
     chan3 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})));
@@ -89,7 +94,7 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
     summed_norm = chan1_norm+chan2_norm+chan3_norm+chan4_norm;
     clearvars chan1_norm chan2_norm chan3_norm chan4_norm;
 
-    save3DTif(summed_norm,sprintf('%s/%s_round%03i_summedNorm.tif',dst_folder_name,fileroot_name,roundnum));
+    save3DTif(summed_norm,outputfile);
 
 end
 

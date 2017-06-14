@@ -3,10 +3,10 @@ params.registeredImagesDir = '/home/dgoodwin/ExSeqProcessing/3_registration';
 params.punctaSubvolumeDir = '/home/dgoodwin/ExSeqProcessing/4_puncta-extraction';
 params.transcriptResultsDir = '/home/dgoodwin/ExSeqProcessing/5_transcripts';
 
-params.FILE_BASENAME = 'splintrseqroi1';
+params.FILE_BASENAME = 'exseqautoframe7';
 
 %Experimental parameters
-params.NUM_ROUNDS = 4;
+params.NUM_ROUNDS = 20;
 params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 

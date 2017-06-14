@@ -9,14 +9,25 @@ end
 
 for roundnum = 1:params.NUM_ROUNDS
     
-    for channel_idx = 1:params.NUM_CHANNELS
+    for channel_idx = 1:length(channels)
         channel_suffix = channels{channel_idx};
         filename = fullfile(directory_images,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix));
-        fprintf('%s\n',filename);
-        chanel_data = load3DTif(filename);
+        if ~exist(filename)
+             fprintf('%s is not found, skipping\n',filename);
+             continue;
+        end
+
+       filename_output = fullfile(params.reportingDir,sprintf('MAXPROJ_%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix));
+       if exist(filename_output)
+             fprintf('%s is already there!, skipping\n',filename);
+             continue;
+        end 
+        
+        fprintf('Making max projetion %s\n', filename_output);
+        channel_data = load3DTif(filename);
         
         channel_max = max(channel_data,[],3);
-        save3DTif(channel_max,fullfile(params.reportingDir,sprintf('MAXPROJ_%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix)));
+        save3DTif(channel_max,filename_output);
     end
 
 end
