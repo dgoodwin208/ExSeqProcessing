@@ -1,6 +1,6 @@
 % Quick script to get a maxProjection of all images to show
 % the difference between pre/post registration and color correction
-function getMaxProjections(channels)
+function getMaxProjections(directory_images, channels)
 loadParameters;
 
 if ~exist(params.reportingDir,'dir')
@@ -11,7 +11,7 @@ for roundnum = 1:params.NUM_ROUNDS
     
     for channel_idx = 1:params.NUM_CHANNELS
         channel_suffix = channels{channel_idx};
-        filename = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix));
+        filename = fullfile(directory_images,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix));
         fprintf('%s\n',filename);
         chanel_data = load3DTif(filename);
         
