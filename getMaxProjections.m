@@ -1,15 +1,23 @@
 % Quick script to get a maxProjection of all images to show
-% the difference between pre/post registration
+% the difference between pre/post registration and color correction
+function getMaxProjections(channels)
+loadParameters;
 
-FOLDER_NAME = 'ExSeqSlice';
-FILEROOT_NAME = 'sa0916slicedncv';
-for roundnum = 1:12
-        pre_reg_summed = load3DTif(sprintf('/om/project/boyden/%s/input/%s_round%i_summedNorm.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));
-        post_reg_summed = load3DTif(sprintf('/om/project/boyden/%s/output/FULLTPS%s_round%i_summedNorm.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));
+if ~exist(params.reportingDir,'dir')
+    mkdir(params.reportingDir);
+end
+
+for roundnum = 1:params.NUM_ROUNDS
+    
+    for channel_idx = 1:params.NUM_CHANNELS
+        channel_suffix = channels{channel_idx};
+        filename = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix));
+        fprintf('%s\n',filename);
+        chanel_data = load3DTif(filename);
         
-        max_pre_reg_summed = max(pre_reg_summed,[],3);
-        max_post_reg_summed = max(post_reg_summed,[],3);
-        
-        save3DTif(max_pre_reg_summed,sprintf('/om/project/boyden/%s/output/MAXPROJ%s_round%i_summedNorm.tif',FOLDER_NAME,FILEROOT_NAME, roundnum));
-        save3DTif(max_post_reg_summed, sprintf('/om/project/boyden/%s/output/MAXPROJFULLTPS%s_round%i_summedNorm.tif',FOLDER_NAME,FILEROOT_NAME,roundnum));
+        channel_max = max(channel_data,[],3);
+        save3DTif(channel_max,fullfile(params.reportingDir,sprintf('MAXPROJ_%s_round%.03i_%s.tif',params.FILE_BASENAME,roundnum,channel_suffix)));
+    end
+
+end
 end
