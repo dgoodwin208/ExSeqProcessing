@@ -6,6 +6,8 @@ params.transcriptResultsDir = '/home/dgoodwin/ExSeqProcessing/5_transcripts';
 params.FILE_BASENAME = 'exseqautoframe7';
 
 %Experimental parameters
+params.REFERENCE_ROUND_WARP=5;
+params.REFERENCE_ROUND_PUNCTA=5;
 params.NUM_ROUNDS = 20;
 params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta

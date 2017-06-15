@@ -39,12 +39,11 @@ end
 
 %% Make histogram of neighbors around the reference, currently set as #1
 
-REF_ROUND = 1;
 epsilon = 1:10;
 
-puncta_ref = puncta{REF_ROUND};
+puncta_ref = puncta{params.REFERENCE_ROUND_PUNCTA};
 other_exp_rounds = 1:params.NUM_ROUNDS;
-other_exp_rounds(REF_ROUND) = [];
+other_exp_rounds(params.REFERENCE_ROUND_PUNCTA) = [];
 %The buckets of are of dimension
 
 %[length(reference number), number of rounds -1, number of neighbors]
