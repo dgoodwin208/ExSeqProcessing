@@ -23,7 +23,7 @@ for roundnum = 1:params.NUM_ROUNDS
              continue;
         end 
         
-        fprintf('Making max projetion %s\n', filename_output);
+        fprintf('Making max projection %s\n', filename_output);
         channel_data = load3DTif(filename);
         
         channel_max = max(channel_data,[],3);

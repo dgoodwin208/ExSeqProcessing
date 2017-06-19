@@ -1,13 +1,14 @@
 %Produce the set of puncta using the getPuncta.m file
 loadParameters;
+save_types = {'fig','jpg'};
 load(fullfile(params.punctaSubvolumeDir ,sprintf('%s_puncta_allexp.mat',params.FILE_BASENAME)));
 
 %load sample image for reference
 img = load3DTif(fullfile(params.punctaSubvolumeDir ,'alexa001.tiff'));
 
-% NUM_ROUNDS = 3;
 %% make a quick scatter plot
-figure; hold on;
+figure('Visible','off')
+hold on;
 
 for exp_idx = 1:params.NUM_ROUNDS
    locs = puncta{exp_idx};
@@ -17,7 +18,15 @@ xlim([1,size(img,2)]);
 ylim([1,size(img,1)]);
 title('Raw, unfiltered RajLab puncta candidates (displayed in redundant color)');
 hold off;
-
+for idx = 1:length(save_types)
+save_type = save_types{idx};
+figfilename = fullfile(params.reportingDir,...
+		sprintf('%s_%s.%s',...
+			'puncta-extraction',...
+			'unfilteredPuncta',...
+			save_type));
+saveas(gcf,figfilename,save_type)
+end
 %% Remove any redundant points from the rajlab code
 
 %Emperically speaking, after 3-4 runs of the removeRedundantPuncta call,
@@ -118,7 +127,7 @@ figure; imagesc(rounds_counts)
 
 %%
 
-figure; 
+figure('Visible','off'); 
 hold on;
 colors = {'ro-','go-','bo-','co-','mo-','ro--','go--','bo--','co--','mo--'};
 for e = 1:length(epsilon)
@@ -129,6 +138,16 @@ xlabel('Number of rounds within epsilon');
 ylabel(sprintf('Number of puncta (%i original candidates)',size(puncta_ref,1)));
 legend('1','2','3','4','5','6','7','8','9','10','Location','northwest');
 title(sprintf('Number of puncta that are within an epsilon across number of rounds\n%s',params.punctaSubvolumeDir ));
+
+for idx = 1:length(save_types)
+save_type = save_types{idx};
+figfilename = fullfile(params.reportingDir,...
+                sprintf('%s_%s.%s',...
+                        'puncta-extraction',...
+                        'filtergraph',...
+                        save_type));
+saveas(gcf,figfilename,save_type)
+end
 
 %% Finally, get a list of all puncta that we would use for later analysis
 
@@ -180,7 +199,7 @@ for puncta_idx = 1:size(puncta_ref,1)
     end
 end
 %% 
-figure;
+figure('Visible','off')
 % Plot all the puncta in blue for the reference channel (currently #1)
 scatter(puncta_ref(:,1),puncta_ref(:,2),'b.');
 xlim([1,size(img,2)]);
@@ -194,6 +213,17 @@ locs = puncta_ref(puncta_votes>=params.THRESHOLD,:);
 scatter(locs(:,1),locs(:,2),'g.');
 legend('Reference rnd puncta','Too few','Passed');
 hold off;
+
+for idx = 1:length(save_types)
+save_type = save_types{idx};
+figfilename = fullfile(params.reportingDir,...
+                sprintf('%s_%s.%s',...
+                        'puncta-extraction',...
+                        'filteredPunctaMap',...
+                        save_type));
+saveas(gcf,figfilename,save_type)
+end
+
 
 %% Save the puncta and the parameters they were made at
 puncta_filtered = puncta_ref(puncta_votes>=params.THRESHOLD,:);
