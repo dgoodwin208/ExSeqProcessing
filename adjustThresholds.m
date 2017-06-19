@@ -44,7 +44,13 @@ function adjustThresholds(skip_first,varargin)
     targetThreshold = 0;
     d_threshold = 0.05;
 
-    for i=1:browsingTools.navigator.numberOfArrays
+    %Make a permutation for the loop on the i vector:
+    %Whichever round will be the refence for the rajlab must be done first
+    loadParameters;
+    narrays = 1:browsingTools.navigator.numberOfArrays;
+    narrays([1,params.REFERENCE_ROUND_PUNCTA])=[narrays(params.REFERENCE_ROUND_PUNCTA) narrays(1)];
+
+    for i=narrays
         for channelName = rnaChannelSwitch.channelNames
             disp(['[',num2str(i),'] ##### channel=',channelName{1}])
             rnaChannelSwitch.setChannelName(channelName{1});
@@ -53,7 +59,7 @@ function adjustThresholds(skip_first,varargin)
             proc = rnaProcessorDataHolder.processorData;
             ranksOfRegionalMaxima = log(numel(proc.regionalMaxValues):-1:1);
 
-            if (i == 1)
+            if (i == params.REFERENCE_ROUND_PUNCTA)
                 if skip_first == true
                     disp('use predefined numSpots')
 

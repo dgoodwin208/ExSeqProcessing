@@ -22,7 +22,7 @@ params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol
 
 params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise 
 params.NUM_BUCKETS = 500; %For stastical analysis
-params.THRESHOLD_AGREEMENT_CHOSEN = 4; %how many rounds should the intensity method agree with the probabilistic cleanup?
+params.THRESHOLD_AGREEMENT_CHOSEN = 10; %how many rounds should the intensity method agree with the probabilistic cleanup?
 
 %Reporting directories
 params.reportingDir = '/home/dgoodwin/ExSeqProcessing/logs/imgs/';
