@@ -1,5 +1,7 @@
-% Load transcriptsv9 and rois_votednonnormed16b
+% Load transcripts and ROIs
 loadParameters;
+save_type = 'fig';
+
 load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv9.mat',params.FILE_BASENAME)));
 
 if ~exist('puncta_set','var')
@@ -89,28 +91,27 @@ end
 %% Let's look at some histograms!
 
 for exp_idx = 1:params.NUM_ROUNDS
-    figure;
+    figure('Visible','off');
     
-    subplot(params.NUM_CHANNELS,1,params.NUM_CHANNELS);
-    for chan_idx = params.COLOR_VEC %[1,2,4]
+    subplot(params.NUM_CHANNELS,1,1);
+    for chan_idx = params.COLOR_VEC
         subplot(params.NUM_CHANNELS,1,chan_idx);
         %Load all the raw pixels
         chanvec_bg = raw_pixels{exp_idx,chan_idx,IDX_BACKGROUND};
         chanvec_sig = raw_pixels{exp_idx,chan_idx,IDX_SIGNAL};
         
         %Remove the top 1% of data so we can visualize cleaner histograms
-        %         percentiles_bg  = prctile(chanvec_bg,[0,99]);
-        %         percentiles_sig = prctile(chanvec_sig,[0,99]);
-        %         %Instead of deleting we'll instead just cap the value to the 99%
-        %         outlierIndex_bg = chanvec_bg > percentiles_bg(2);
-        %         chanvec_bg(outlierIndex_bg) = percentiles_bg(2);
-        %         outlierIndex_sig = chanvec_sig > percentiles_sig(2);
-        %         chanvec_sig(outlierIndex_sig) = percentiles_sig(2);
-        %
-        %         fprintf('Removed %.03f and %.03f outliers for bg and sig, respectively\n',...
-        %             sum(outlierIndex_bg)/length(raw_pixels{exp_idx,chan_idx,IDX_BACKGROUND}),...
-        %             sum(outlierIndex_sig)/length(raw_pixels{exp_idx,chan_idx,IDX_SIGNAL}));
+        percentiles_bg  = prctile(chanvec_bg,[0,99]);
+        percentiles_sig = prctile(chanvec_sig,[0,99]);
+        %Instead of deleting we'll instead just cap the value to the 99%
+        outlierIndex_bg = chanvec_bg > percentiles_bg(2);
+        chanvec_bg(outlierIndex_bg) = percentiles_bg(2);
+        outlierIndex_sig = chanvec_sig > percentiles_sig(2);
+        chanvec_sig(outlierIndex_sig) = percentiles_sig(2);
         
+        fprintf('Removed %.03f and %.03f outliers for bg and sig, respectively\n',...
+               sum(outlierIndex_bg)/length(raw_pixels{exp_idx,chan_idx,IDX_BACKGROUND}),...
+               sum(outlierIndex_sig)/length(raw_pixels{exp_idx,chan_idx,IDX_SIGNAL}));
         
         
         %Concatenate the two so we can get proper bucket edges
@@ -128,9 +129,13 @@ for exp_idx = 1:params.NUM_ROUNDS
         hold off;
         title(sprintf('Experiment %i, Color %i',exp_idx, chan_idx));
         legend('Background','Signal');
+       
+        figfilename = fullfile(params.reportingDir,...
+             sprintf('%s-distributionsOfSigVsBg-round%i.%s','basecalling',exp_idx,save_type)); 
+        saveas(gcf,figfilename,save_type)
     end
 end
-hold off;
+
 
 %% Making a distribution for every color, round
 
@@ -163,12 +168,12 @@ for exp_idx = 1:params.NUM_ROUNDS
 end
 
 %% Plot all probabilities for a sanity check
-figure;
-subplot(5,length(params.COLOR_VEC),1);
+figure('Visible','off');
+subplot(params.NUM_ROUNDS,length(params.COLOR_VEC),1);
 ctr = 1;
 for exp_idx = 1:params.NUM_ROUNDS
     for chan_idx = params.COLOR_VEC
-        subplot(5,length(params.COLOR_VEC),ctr);
+        subplot(params.NUM_ROUNDS,length(params.COLOR_VEC),ctr);
         plot(squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_BINS)),squeeze(probabilities(exp_idx,chan_idx,:,IDX_BACKGROUND,IDX_HIST_VALUES)),'LineWidth',2);
         hold on;
         plot(squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_BINS)),squeeze(probabilities(exp_idx,chan_idx,:,IDX_SIGNAL,IDX_HIST_VALUES)),'LineWidth',2)
@@ -179,6 +184,9 @@ for exp_idx = 1:params.NUM_ROUNDS
     end
 end
 
+figfilename = fullfile(params.reportingDir,...
+sprintf('%s-probabilities.%s','basecalling',save_type));
+saveas(gcf,figfilename,save_type)
 %% Correct way of calculating probabilistic transcripts
 % Need the comparative transcripts too for this
 central_puncta_indices= 5:6;
@@ -247,9 +255,6 @@ for exp_idx = 1:params.NUM_ROUNDS
     
 end
 
-%Just for now, make all of channel 3 -Inf
-% prob_transcripts(:,:,3) = -Inf;
-
 %% Comparing to other transcript
 %prob_transcripts is just for experiment 1, so transcripts(:,1)
 agreements = zeros(size(puncta_set,6),params.NUM_ROUNDS);
@@ -286,7 +291,12 @@ for THRESHOLD_AGREEMENT = 1:params.NUM_ROUNDS
     threshold_scores(THRESHOLD_AGREEMENT) = sum(indices_interAndIntraAgreements);
 end
 
-figure; plot(threshold_scores); title('Agreements as a function of threshold');
+figure('Visible','off'); 
+plot(threshold_scores); 
+title('Agreements as a function of threshold');
+figfilename = fullfile(params.reportingDir,...
+sprintf('%s-agreementsBetweenMethods.%s','basecalling',save_type));
+saveas(gcf,figfilename,save_type)
 
 
 indices_interAndIntraAgreements = sum(agreements,2)>=params.THRESHOLD_AGREEMENT_CHOSEN;
@@ -309,41 +319,8 @@ transcripts_probfiltered_probconfidence = transcripts_probsolo_confidence(indice
 puncta_indices_probfiltered = 1:length(indices_interAndIntraAgreements);
 puncta_indices_probfiltered = puncta_indices_probfiltered(indices_interAndIntraAgreements);
 
-puncta_set_filtered = puncta_set(:,:,:,:,:,puncta_indices_probfiltered);
-
-%TODO: Add in a future flag
-BARCODE_SIZE = 4;
-KEEP_CODE = [1,4,2];
-if 1
-    
-    %Finally, remove any transcripts that appear fewer than a threshold number
-    %of times: (using Shahar's code)
-    [unique_transcripts, ia, ic] = unique(transcripts_probfiltered(:,1:BARCODE_SIZE),'rows');
-    
-    number_of_unique_transcripts=length(unique_transcripts);
-    
-    expression_level=zeros(length(transcripts_probfiltered),1);
-    for i=1:length(transcripts_probfiltered)
-        
-%         %If the first three bases are NOT read correctly from the primer
-%         if ~all(transcripts_probfiltered(i,1:3)==KEEP_CODE)
-%             expression_level(i)=-1;
-%         else
-            %If it's a legitimate barcode, note the expression level
-            expression_level(i)=sum(ic(i)==ic);
-%         end
-        
-    end
-    filtered_due_to_expression=expression_level<params.THRESHOLD_EXPRESSION;
-    fprintf('Removed %i transcripts that were under params.THRESHOLD_EXPRESSION=%i\n',...
-        sum(filtered_due_to_expression),...
-        params.THRESHOLD_EXPRESSION);
-    
-    transcripts_probfiltered(filtered_due_to_expression,:) = [];
-    transcripts_probfiltered_confidence(filtered_due_to_expression,:) = [];
-    transcripts_probfiltered_probconfidence(filtered_due_to_expression,:) = [];
-    puncta_indices_probfiltered(filtered_due_to_expression) = [];
-end
+%puncta_set_filtered = puncta_set(:,:,:,:,:,puncta_indices_probfiltered);
+%Moving puncta_set_filtered out of the mat file because it makes the mat file very big and it's highly redundant with just loading it from the puncta_rois file
 
 save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.mat',params.FILE_BASENAME)),...
     'prob_transcripts',...
@@ -351,6 +328,6 @@ save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.m
     'transcripts_probfiltered_confidence',...
     'transcripts_probfiltered_probconfidence',...
     'puncta_indices_probfiltered',...
-    'puncta_set_filtered','-v7.3');
+    '-v7.3');
 
 disp('Saved the file in the transcripts directory');
