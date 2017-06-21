@@ -50,7 +50,7 @@ oneTimeTearDown() {
         rm ./rajlabimagetools
     fi
 
-    for d in [2-5]_* test[2-5]_*
+    for d in [2-5]_* test[2-5]_* test_report
     do
         [ -e "$d" ] || continue
         rm -r "$d"
@@ -83,9 +83,11 @@ tearDown() {
 get_values_and_keys() {
     Value[ 1]=$(get_value_by_key "$Log" "# of rounds")
     Value[ 2]=$(get_value_by_key "$Log" "file basename")
+    Value[16]=$(get_value_by_key "$Log" "reference round")
     Value[ 3]=$(get_value_by_key "$Log" "processing channels")
     Value[ 4]=$(get_value_by_key "$Log" "registration channel")
     Value[ 5]=$(get_value_by_key "$Log" "warp channels")
+    Value[15]=$(get_value_by_key "$Log" "r-1 threshold decision")
     Value[ 6]=$(get_value_by_key "$Log" "deconvolution images")
     Value[ 7]=$(get_value_by_key "$Log" "normalization images")
     Value[ 8]=$(get_value_by_key "$Log" "registration images")
@@ -94,6 +96,7 @@ get_values_and_keys() {
     Value[11]=$(get_value_by_key "$Log" "Registration project")
     Value[12]=$(get_value_by_key "$Log" "vlfeat lib")
     Value[13]=$(get_value_by_key "$Log" "Raj lab image tools")
+    Value[17]=$(get_value_by_key "$Log" "Reporting")
     Value[14]=$(get_value_by_key "$Log" "Log")
 
     Key[1]=$(get_key_by_value "$Log" "profile-check")
@@ -151,20 +154,30 @@ assert_all_default_values() {
         assertEquals "$PWD/5_transcripts" "${Value[10]}"
     fi
     if [ ! "${skips[11]}" = "skip" ]; then
-    reg_proj_dir=$(cd ../Registration && pwd)
+        reg_proj_dir=$(cd ../Registration && pwd)
         assertEquals "$reg_proj_dir" "${Value[11]}"
     fi
     if [ ! "${skips[12]}" = "skip" ]; then
-    vlfeat_dir=$(cd ~/lib/matlab/vlfeat-0.9.20 && pwd)
+        vlfeat_dir=$(cd ~/lib/matlab/vlfeat-0.9.20 && pwd)
         assertEquals "$vlfeat_dir" "${Value[12]}"
     fi
     if [ ! "${skips[13]}" = "skip" ]; then
-    raj_lab_dir=$(cd ~/lib/matlab/rajlabimagetools && pwd)
+        raj_lab_dir=$(cd ~/lib/matlab/rajlabimagetools && pwd)
         assertEquals "$raj_lab_dir" "${Value[13]}"
     fi
     if [ ! "${skips[14]}" = "skip" ]; then
-    log_dir=$(cd ./logs && pwd)
+        log_dir=$(cd ./logs && pwd)
         assertEquals "$log_dir" "${Value[14]}"
+    fi
+    if [ ! "${skips[15]}" = "skip" ]; then
+        assertEquals "auto" ${Value[15]}
+    fi
+    if [ ! "${skips[16]}" = "skip" ]; then
+        assertEquals 1 ${Value[16]}
+    fi
+    if [ ! "${skips[17]}" = "skip" ]; then
+        reporting_dir=$(cd ./logs/imgs && pwd)
+        assertEquals "$reporting_dir" "${Value[17]}"
     fi
 }
 
@@ -447,8 +460,63 @@ testArgument014_set_log_dir() {
     assert_all_default_keys
 }
 
+testArgument015_set_threshold_manual_decision_in_round_1() {
+    local curfunc=${FUNCNAME[0]}
+    mkdir ${Result_dir}/${curfunc}
+    Log=$Result_dir/$curfunc/output.log
+
+    echo 'n' | ./runPipeline.sh -m > $Log 2>&1
+    local status=$?
+    assertEquals 0 $status
+
+    get_values_and_keys
+
+    assertEquals "manual" ${Value[15]}
+
+    # others are default values
+    assert_all_default_values skip 15
+    assert_all_default_keys
+}
+
+testArgument016_set_reference_round() {
+    local curfunc=${FUNCNAME[0]}
+    mkdir ${Result_dir}/${curfunc}
+    Log=$Result_dir/$curfunc/output.log
+
+    echo 'n' | ./runPipeline.sh -B 2 > $Log 2>&1
+    local status=$?
+    assertEquals 0 $status
+
+    get_values_and_keys
+
+    assertEquals 2 ${Value[16]}
+
+    # others are default values
+    assert_all_default_values skip 16
+    assert_all_default_keys
+}
+
+testArgument017_set_reporting_dir() {
+    local curfunc=${FUNCNAME[0]}
+    mkdir ${Result_dir}/${curfunc}
+    Log=$Result_dir/$curfunc/output.log
+
+    echo 'n' | ./runPipeline.sh -i test_report > $Log 2>&1
+    local status=$?
+    assertEquals 0 $status
+
+    get_values_and_keys
+
+    reporting_dir=$(cd ./test_report && pwd)
+    assertEquals "$reporting_dir" "${Value[17]}"
+
+    # others are default values
+    assert_all_default_values skip 17
+    assert_all_default_keys
+}
+
 # -------------------------------------------------------------------------------------------------
-testArgument015_skip_stage_profile_check() {
+testArgument100_skip_stage_profile_check() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -466,7 +534,7 @@ testArgument015_skip_stage_profile_check() {
     assert_all_default_keys skip 1
 }
 
-testArgument016_skip_stage_normalization() {
+testArgument101_skip_stage_normalization() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -484,7 +552,7 @@ testArgument016_skip_stage_normalization() {
     assert_all_default_keys skip 2
 }
 
-testArgument017_skip_stage_registration() {
+testArgument102_skip_stage_registration() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -504,7 +572,7 @@ testArgument017_skip_stage_registration() {
     assert_all_default_keys skip 3 6 7
 }
 
-testArgument018_skip_stage_puncta_extraction() {
+testArgument103_skip_stage_puncta_extraction() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -522,7 +590,7 @@ testArgument018_skip_stage_puncta_extraction() {
     assert_all_default_keys skip 4
 }
 
-testArgument019_skip_stage_transcripts() {
+testArgument104_skip_stage_transcripts() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -540,7 +608,7 @@ testArgument019_skip_stage_transcripts() {
     assert_all_default_keys skip 5
 }
 
-testArgument020_skip_substage_calc_descriptors() {
+testArgument105_skip_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -558,7 +626,7 @@ testArgument020_skip_substage_calc_descriptors() {
     assert_all_default_keys skip 6
 }
 
-testArgument021_skip_substage_register_with_descriptors() {
+testArgument106_skip_substage_register_with_descriptors() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -576,7 +644,7 @@ testArgument021_skip_substage_register_with_descriptors() {
     assert_all_default_keys skip 7
 }
 
-testArgument022_skip_all_stages() {
+testArgument107_skip_all_stages() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -599,7 +667,7 @@ testArgument022_skip_all_stages() {
     assert_all_default_values
 }
 
-testArgument023_skip_stage_normalization_and_substage_calc_descriptors() {
+testArgument108_skip_stage_normalization_and_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -618,7 +686,7 @@ testArgument023_skip_stage_normalization_and_substage_calc_descriptors() {
     assert_all_default_keys skip 2 6
 }
 
-testArgument024_skip_stage_registration_and_substage_calc_descriptors() {
+testArgument109_skip_stage_registration_and_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -640,7 +708,7 @@ testArgument024_skip_stage_registration_and_substage_calc_descriptors() {
 
 
 # -------------------------------------------------------------------------------------------------
-testArgument025_exec_stage_profile_check() {
+testArgument110_exec_stage_profile_check() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -663,7 +731,7 @@ testArgument025_exec_stage_profile_check() {
     assert_all_default_values
 }
 
-testArgument026_exec_stage_normalization() {
+testArgument111_exec_stage_normalization() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -686,7 +754,7 @@ testArgument026_exec_stage_normalization() {
     assert_all_default_values
 }
 
-testArgument027_exec_stage_registration() {
+testArgument112_exec_stage_registration() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -709,7 +777,7 @@ testArgument027_exec_stage_registration() {
     assert_all_default_values
 }
 
-testArgument028_exec_stage_puncta_extraction() {
+testArgument113_exec_stage_puncta_extraction() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -732,7 +800,7 @@ testArgument028_exec_stage_puncta_extraction() {
     assert_all_default_values
 }
 
-testArgument029_exec_stage_transcripts() {
+testArgument114_exec_stage_transcripts() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -755,7 +823,7 @@ testArgument029_exec_stage_transcripts() {
     assert_all_default_values
 }
 
-testArgument030_exec_substage_calc_descriptors() {
+testArgument115_exec_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -778,7 +846,7 @@ testArgument030_exec_substage_calc_descriptors() {
     assert_all_default_values
 }
 
-testArgument031_exec_substage_register_with_descriptors() {
+testArgument116_exec_substage_register_with_descriptors() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -801,7 +869,7 @@ testArgument031_exec_substage_register_with_descriptors() {
     assert_all_default_values
 }
 
-testArgument032_exec_stage_normalization_and_registration() {
+testArgument117_exec_stage_normalization_and_registration() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -825,7 +893,7 @@ testArgument032_exec_stage_normalization_and_registration() {
 }
 
 # -------------------------------------------------------------------------------------------------
-testArgument033_Error_set_roundnum() {
+testArgument200_Error_set_roundnum() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -838,7 +906,7 @@ testArgument033_Error_set_roundnum() {
     assertEquals 1 $message
 }
 
-testArgument034_Error_no_deconvolution_dir() {
+testArgument201_Error_no_deconvolution_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -855,7 +923,7 @@ testArgument034_Error_no_deconvolution_dir() {
     ln -s $INPUT_IMAGE_DIR $DECONVOLUTION_DIR
 }
 
-testArgument035_Error_no_ragistration_proj_dir() {
+testArgument202_Error_no_ragistration_proj_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -868,7 +936,7 @@ testArgument035_Error_no_ragistration_proj_dir() {
     assertEquals 1 $message
 }
 
-testArgument036_Error_no_ragistration_proj_matlab_dir() {
+testArgument203_Error_no_ragistration_proj_matlab_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -881,7 +949,7 @@ testArgument036_Error_no_ragistration_proj_matlab_dir() {
     assertEquals 1 $message
 }
 
-testArgument037_Error_no_ragistration_proj_scripts_dir() {
+testArgument204_Error_no_ragistration_proj_scripts_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -898,7 +966,7 @@ testArgument037_Error_no_ragistration_proj_scripts_dir() {
     rm -r dummy_proj
 }
 
-testArgument038_Error_no_rajlabtools_dir() {
+testArgument205_Error_no_rajlabtools_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -911,7 +979,7 @@ testArgument038_Error_no_rajlabtools_dir() {
     assertEquals 1 $message
 }
 
-testArgument039_Error_no_vlfeat_dir() {
+testArgument206_Error_no_vlfeat_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -924,7 +992,7 @@ testArgument039_Error_no_vlfeat_dir() {
     assertEquals 1 $message
 }
 
-testArgument040_Error_no_import_cluster_profiles_sh() {
+testArgument207_Error_no_import_cluster_profiles_sh() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -941,7 +1009,7 @@ testArgument040_Error_no_import_cluster_profiles_sh() {
     rm -r dummy_proj
 }
 
-testArgument041_Error_no_load_experiment_params_m() {
+testArgument208_Error_no_load_experiment_params_m() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -959,7 +1027,7 @@ testArgument041_Error_no_load_experiment_params_m() {
     rm -r dummy_proj
 }
 
-testArgument042_Error_no_load_params_m() {
+testArgument209_Error_no_load_params_m() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -976,7 +1044,7 @@ testArgument042_Error_no_load_params_m() {
     mv loadParameters.m{-orig,}
 }
 
-testArgument043_Error_unacceptable_both_e_and_s_args() {
+testArgument210_Error_unacceptable_both_e_and_s_args() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -995,7 +1063,7 @@ testRun001_replace_parameters_and_skip_all() {
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
 
-    ./runPipeline.sh -y -e ' ' -N 8 -b sa0916slicedncv -c "'ch00','ch01','ch02','ch03'" -n test2_norm -r test3_reg -V ./vlfeat-0.9.20 -I ./rajlabimagetools > $Log 2>&1
+    ./runPipeline.sh -y -e ' ' -N 8 -b sa0916slicedncv -B 2 -c "'ch00','ch01','ch02','ch03'" -n test2_norm -r test3_reg -p test4_puncta -t test5_trans -V ./vlfeat-0.9.20 -I ./rajlabimagetools -i test_report > $Log 2>&1
     local status=$?
     assertEquals 0 $status
 
@@ -1031,11 +1099,23 @@ testRun001_replace_parameters_and_skip_all() {
     local param=$(sed -ne 's#params.registeredImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[8]}'" "$param"
 
+    local param=$(sed -ne 's#params.punctaSubvolumeDir = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "'${Value[9]}'" "$param"
+
+    local param=$(sed -ne 's#params.transcriptResultsDir = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "'${Value[10]}'" "$param"
+
+    local param=$(sed -ne 's#params.reportingDir = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "'${Value[17]}'" "$param"
+
     local param=$(sed -ne 's#params.FILE_BASENAME = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[2]}'" "$param"
 
     local param=$(sed -ne 's#params.NUM_ROUNDS = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "${Value[1]}" "$param"
+
+    local param=$(sed -ne 's#params.REFERENCE_ROUND_PUNCTA = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "${Value[16]}" "$param"
 
     local param=$(sed -ne "s#run('\(.*\)/toolbox.*#\1#p" ./startup.m)
     assertEquals "${Value[12]}" "$param"
@@ -1054,6 +1134,7 @@ testRun001_replace_parameters_and_skip_all() {
 
 # -------------------------------------------------------------------------------------------------
 testRun002_run_pipeline_to_small_data() {
+    return
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log

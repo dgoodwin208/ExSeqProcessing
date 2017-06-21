@@ -5,6 +5,7 @@ usage() {
     echo "  -N    # of rounds; 'auto' means # is calculated from files."
     echo "  -b    file basename"
     echo "  -c    channel names; ex. 'chn01','ch02corr'"
+    echo "  -B    reference round puncta"
     echo "  -d    deconvolution image directory"
     echo "  -n    normalization image directory"
     echo "  -r    registration image directory"
@@ -13,6 +14,7 @@ usage() {
     echo "  -R    registration MATLAB directory"
     echo "  -V    vlfeat lib directory"
     echo "  -I    Raj lab image tools MATLAB directory"
+    echo "  -i    reporting directory"
     echo "  -L    log directory"
     echo "  -e    execution stages which are higher priority than skip stages"
     echo "  -s    skip stages;  profile-check,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
@@ -25,6 +27,7 @@ usage() {
 export TZ=America/New_York
 
 ROUND_NUM=12
+REFERENCE_ROUND=1
 
 DECONVOLUTION_DIR=1_deconvolution
 NORMALIZATION_DIR=2_normalization
@@ -35,6 +38,7 @@ TRANSCRIPT_DIR=5_transcripts
 REGISTRATION_PROJ_DIR=../Registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
 RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
+REPORTING_DIR=./logs/imgs
 LOG_DIR=./logs
 
 FILE_BASENAME=sa0916dncv
@@ -47,7 +51,7 @@ THRESHOLD_DECISION='auto'
 
 ###### getopts
 
-while getopts N:b:c:d:n:r:p:t:R:V:I:L:e:s:myh OPT
+while getopts N:b:c:B:d:n:r:p:t:R:V:I:i:L:e:s:myh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -68,6 +72,14 @@ do
             CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
             REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
             ;;
+        B)  REFERENCE_ROUND=$OPTARG
+                expr $REFERENCE_ROUND + 1 > /dev/null 2>&1
+                if [ $? -ge 2 ]
+                then
+                    echo "reference round is not number; ${REFERENCE_ROUND}"
+                    exit 1
+                fi
+            ;;
         d)  DECONVOLUTION_DIR=$OPTARG
             ;;
         n)  NORMALIZATION_DIR=$OPTARG
@@ -83,6 +95,8 @@ do
         V)  VLFEAT_DIR=$OPTARG
             ;;
         I)  RAJLABTOOLS_DIR=$OPTARG
+            ;;
+        i)  REPORTING_DIR=$OPTARG
             ;;
         L)  LOG_DIR=$OPTARG
             ;;
@@ -195,6 +209,13 @@ then
     mkdir "${TRANSCRIPT_DIR}"
 fi
 
+if [ ! -d "${REPORTING_DIR}" ]
+then
+    echo "No reporting dir."
+    echo "mkdir -p ${REPORTING_DIR}"
+    mkdir -p "${REPORTING_DIR}"
+fi
+
 if [ ! -d "${LOG_DIR}" ]
 then
     echo "No log dir."
@@ -213,6 +234,7 @@ REGISTRATION_PROJ_DIR=$(cd "${REGISTRATION_PROJ_DIR}" && pwd)
 VLFEAT_DIR=$(cd "${VLFEAT_DIR}" && pwd)
 RAJLABTOOLS_DIR=$(cd "${RAJLABTOOLS_DIR}" && pwd)
 
+REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
 if [ $ROUND_NUM = "auto" ]
@@ -273,6 +295,7 @@ echo "#########################################################################"
 echo "Parameters"
 echo "  # of rounds            :  ${ROUND_NUM}"
 echo "  file basename          :  ${FILE_BASENAME}"
+echo "  reference round        :  ${REFERENCE_ROUND}"
 echo "  processing channels    :  ${CHANNELS}"
 echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
@@ -312,6 +335,7 @@ echo "  Registration project   :  ${REGISTRATION_PROJ_DIR}"
 echo "  vlfeat lib             :  ${VLFEAT_DIR}"
 echo "  Raj lab image tools    :  ${RAJLABTOOLS_DIR}"
 echo
+echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
 echo "#########################################################################"
 echo
@@ -369,8 +393,10 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
 sed -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
     -e "s#\(params.transcriptResultsDir\) *= *.*;#\1 = '${TRANSCRIPT_DIR}';#" \
+    -e "s#\(params.reportingDir\) *= *.*;#\1 = '${REPORTING_DIR}';#" \
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
+    -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -i.back \
     ./loadParameters.m
 
