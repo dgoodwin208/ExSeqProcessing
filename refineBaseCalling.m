@@ -127,7 +127,7 @@ for exp_idx = 1:params.NUM_ROUNDS
         b = bar(binedges(1:params.NUM_BUCKETS),values_sig,'r');
         b.FaceAlpha = 0.3;
         hold off;
-        title(sprintf('Experiment %i, Color %i',exp_idx, chan_idx));
+        title(sprintf('Non-normalized histograms of puncta intensities. Experiment %i, Color %i',exp_idx, chan_idx));
         legend('Background','Signal');
        
         figfilename = fullfile(params.reportingDir,...
@@ -305,10 +305,6 @@ fprintf('Removed %i transcripts that were under params.THRESHOLD_AGREEMENT_CHOSE
         size(agreements,1)-length(indices_interAndIntraAgreements),...
         params.THRESHOLD_AGREEMENT_CHOSEN);
 
-% figure;
-% imagesc([calls_total_prob,calls_total_intensity])
-% title('Quick vis of base prevalance by round: prob on left, intensity on right');
-
 
 transcripts_probfiltered = transcripts(indices_interAndIntraAgreements,:);
 transcripts_probfiltered_confidence = transcripts_confidence(indices_interAndIntraAgreements,:);
@@ -319,8 +315,8 @@ transcripts_probfiltered_probconfidence = transcripts_probsolo_confidence(indice
 puncta_indices_probfiltered = 1:length(indices_interAndIntraAgreements);
 puncta_indices_probfiltered = puncta_indices_probfiltered(indices_interAndIntraAgreements);
 
-%puncta_set_filtered = puncta_set(:,:,:,:,:,puncta_indices_probfiltered);
-%Moving puncta_set_filtered out of the mat file because it makes the mat file very big and it's highly redundant with just loading it from the puncta_rois file
+%filter the puncta_set here - it takes a surprising amount of memory to apply the boolean list to the 6D array. On my computer a 4GB puncta_set swells to 30GB, not sure why
+puncta_set_filtered = puncta_set(:,:,:,:,:,puncta_indices_probfiltered);
 
 save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.mat',params.FILE_BASENAME)),...
     'prob_transcripts',...
@@ -328,6 +324,10 @@ save(fullfile(params.transcriptResultsDir,sprintf('%s_transcripts_probfiltered.m
     'transcripts_probfiltered_confidence',...
     'transcripts_probfiltered_probconfidence',...
     'puncta_indices_probfiltered',...
+    '-v7.3');
+
+save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_rois_filtered.mat',params.FILE_BASENAME)),...
+    'puncta_set_filtered',...
     '-v7.3');
 
 disp('Saved the file in the transcripts directory');
