@@ -69,6 +69,7 @@ puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE, ...
 % Because the images are registered at this point and the puncta locations
 % are taken from the params.REFERENCE_ROUND_PUNCTA
 bad_puncta_indices = [];
+ctr = 1;
 for puncta_idx = 1:num_puncta
     y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
     x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
@@ -83,15 +84,21 @@ for puncta_idx = 1:num_puncta
     %use the meshgrid command to get all the pixels
     [y_grid,x_grid,z_grid] = meshgrid(y_indices,x_indices,z_indices);
     
-    x_total_indices = [x_total_indices; x_grid(:)];
-    y_total_indices = [y_total_indices; y_grid(:)];
-    z_total_indices = [z_total_indices; z_grid(:)];
+    x_total_indices_cell(ctr) = {x_grid(:)};
+    y_total_indices_cell(ctr) = {y_grid(:)};
+    z_total_indices_cell(ctr) = {z_grid(:)};
     
+    ctr = ctr +1;
     if mod(puncta_idx,1000)==0
         fprintf('Analyzed %i/%i puncta for spatial constraints\n',...
             puncta_idx,num_puncta);
     end
 end
+
+%Use the cell2mat trick to avoid growing the array in the for loop
+x_total_indices = cell2mat(x_total_indices_cell);
+y_total_indices = cell2mat(y_total_indices_cell);
+z_total_indices = cell2mat(z_total_indices_cell);
 
 %If we want to do any other spatial filtering, do it now.
 % X_MIN = 1; X_MAX = data_width;
