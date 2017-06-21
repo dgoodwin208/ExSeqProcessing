@@ -29,11 +29,11 @@ for file_index = 1:length(files)
     else
         chan_num = find(ismember(chan_list,chan_name));
     end
-
+    
     organized_data_files{round_num,chan_num} = fullfile(params.registeredImagesDir,files(file_index).name);
 end
 
-%% 
+%%
 %For each experiment, load the four channels of data, then
 %start getting the subregions
 
@@ -47,7 +47,7 @@ Y = round(puncta_filtered(:,1));
 X = round(puncta_filtered(:,2));
 Z = round(puncta_filtered(:,3));
 
-num_puncta = length(X); %from the RajLab coordinates 
+num_puncta = length(X); %from the RajLab coordinates
 
 %Keep track of all x,y,z indices that we use to create the puncta
 %subvolumes: We will use all the other locations to create a distribution
@@ -59,35 +59,37 @@ z_total_indices = [];
 %Create the whole size of the puncta_set vector optimistically: not all the
 %puncta will be within PUNCTA_SIZE of a boundary, in which we case we will
 %not use that puncta. That means there will be some empty puncta which we
-%need to remove 
+%need to remove
 puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE, ...
     params.NUM_ROUNDS,params.NUM_CHANNELS,num_puncta);
 
 
 
-% We first filter all puncta that are within PUNCTASIZE/2 of a boundary    
+% We first filter all puncta that are within PUNCTASIZE/2 of a boundary
 % Because the images are registered at this point and the puncta locations
 % are taken from the params.REFERENCE_ROUND_PUNCTA
 bad_puncta_indices = [];
 for puncta_idx = 1:num_puncta
-    for c_idx = params.COLOR_VEC
-        y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
-        x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
-        z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
-        
-        if any([x_indices y_indices z_indices]<1) || ...
-           any(x_indices>data_width) || any(y_indices>data_height) || any(z_indices>data_depth)
-            bad_puncta_indices = union(bad_puncta_indices,puncta_idx);
-            continue
-        end
-        
-        %use the meshgrid command to get all the pixels
-        [y_grid,x_grid,z_grid] = meshgrid(y_indices,x_indices,z_indices);
-        
-        x_total_indices = [x_total_indices; x_grid(:)];
-        y_total_indices = [y_total_indices; y_grid(:)];
-        z_total_indices = [z_total_indices; z_grid(:)];
-        
+    y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
+    x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
+    z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
+    
+    if any([x_indices y_indices z_indices]<1) || ...
+            any(x_indices>data_width) || any(y_indices>data_height) || any(z_indices>data_depth)
+        bad_puncta_indices = union(bad_puncta_indices,puncta_idx);
+        continue
+    end
+    
+    %use the meshgrid command to get all the pixels
+    [y_grid,x_grid,z_grid] = meshgrid(y_indices,x_indices,z_indices);
+    
+    x_total_indices = [x_total_indices; x_grid(:)];
+    y_total_indices = [y_total_indices; y_grid(:)];
+    z_total_indices = [z_total_indices; z_grid(:)];
+    
+    if mod(puncta_idx,1000)==0
+        fprintf('Analyzed %i/%i puncta for spatial constraints\n',...
+            puncta_idx,num_puncta);
     end
 end
 
@@ -112,18 +114,18 @@ Z = Z(good_puncta_indices);
 num_puncta_filtered = length(X);
 fprintf('Filtered %i/%i puncta that were too close to the boundaries\n',...
     num_puncta-num_puncta_filtered,num_puncta);
-clearvars num_puncta; 
+clearvars num_puncta;
 
 %Define a puncta_set object that can be parallelized
 puncta_set_cell = cell(params.NUM_ROUNDS);
 parfor exp_idx = 1:params.NUM_ROUNDS
     disp(['round=',num2str(exp_idx)])
-
+    
     %Load all channels of data into memory for one experiment
     experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
     disp(['[',num2str(exp_idx),'] loading files'])
     for c_idx = params.COLOR_VEC
-       experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
+        experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
     end
     
     disp(['[',num2str(exp_idx),'] processing puncta in parallel'])
@@ -168,13 +170,13 @@ save(fullfile(params.punctaSubvolumeDir,sprintf('%s_pixels_used_for_puncta.mat',
     'x_total_indices','y_total_indices','z_total_indices','-v7.3');
 
 
-%For reporting, create an image that shows all the windows 
+%For reporting, create an image that shows all the windows
 figfilename = fullfile(params.reportingDir,sprintf('%s_punctasubvolumemaxproj.fig',params.FILE_BASENAME));
 fprintf('generating output file %s\n',figfilename);
 figure('Visible','off');
 mask = zeros(size(data));
 indices_punctamask = [y_total_indices x_total_indices z_total_indices];
-%We could remove redundant puncta for speed, but I actually think that it 
+%We could remove redundant puncta for speed, but I actually think that it
 %is slower than simply linearly indexing across all 3D image
 %[indices_unique, ia, ic] = unique(indices_punctamask,'rows');
 indices_linear = sub2ind(img_dim,indices_punctamask(:,1),indices_punctamask(:,2),indices_punctamask(:,3));
