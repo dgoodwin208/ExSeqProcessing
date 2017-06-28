@@ -87,6 +87,12 @@ function adjustThresholds(skip_first,varargin)
 
                     rnaProcessorDataHolder.processorData.threshold = x_k;
                 end
+
+                if params.THRESHOLD_MARGIN > 0
+                    x_k = x_k+params.THRESHOLD_MARGIN;
+                    rnaProcessorDataHolder.processorData.threshold = x_k;
+                end
+
                 numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
                 disp(['[',num2str(i),'] numSpots=',num2str(numSpots), ',threshold=',num2str(x_k)])
 
@@ -98,7 +104,7 @@ function adjustThresholds(skip_first,varargin)
 
                 numSpots = rnaProcessorDataHolder.processorData.getNumSpots();
                 threshold = rnaProcessorDataHolder.processorData.threshold;
-                disp(['[',num2str(i),'] (0) numSpots=',num2str(numSpots), ',threshold=',num2str(threshold)])
+                disp(sprintf('[%i] (%3i) numSpot=%6i,threshold=%14.3f',i,0,numSpots,threshold))
 
                 if (numSpots == targetNumSpots)
                     disp(['[',num2str(i),'] found target!'])
@@ -112,8 +118,7 @@ function adjustThresholds(skip_first,varargin)
                 while (count <= maxOfCount)
                     rnaProcessorDataHolder.processorData.threshold = threshold1;
                     numSpots1 = rnaProcessorDataHolder.processorData.getNumSpots();
-                    disp(sprintf('[%i] loop=%3i;  numSpots,threshold=(%6i,%14.3f) -> (%6i,%14.3f)',...
-                          i,count,numSpots0,threshold0,numSpots1,threshold1))
+                    disp(sprintf('[%i] (%3i) numSpot=%6i,threshold=%14.3f',i,count,numSpots1,threshold1))
 
                     if (numSpots1 == targetNumSpots)
                         disp(['[',num2str(i),'] found target!'])
