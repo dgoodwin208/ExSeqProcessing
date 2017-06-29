@@ -90,14 +90,15 @@ function [puncta_deduped] = removeRedundantPuncta(puncta_candidates,DOPLOT,imgDi
     puncta_deduped = puncta_candidates;
 
     %add the merged duplicates to the output
-    for c_id = 1:cluster_ctr-1
-        duplicates = puncta_candidates(cluster_ids==c_id,:);
-        centroid = mean(duplicates,1);
-        puncta_deduped(end+1,:) = centroid;
-        if DOPLOT
-        scatter(centroid(1),centroid(2),'g*');
-        end
-    end
+    %removed June 28, 2017 
+%     for c_id = 1:cluster_ctr-1
+%         duplicates = puncta_candidates(cluster_ids==c_id,:);
+%         centroid = mean(duplicates,1);
+%         puncta_deduped(end+1,:) = centroid;
+%         if DOPLOT
+%         scatter(centroid(1),centroid(2),'g*');
+%         end
+%     end
 
     %remove the original redundant points
     puncta_deduped(cluster_indices,:) = [];
