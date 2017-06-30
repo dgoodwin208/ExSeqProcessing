@@ -99,6 +99,10 @@ end
 x_total_indices = cell2mat(x_total_indices_cell);
 y_total_indices = cell2mat(y_total_indices_cell);
 z_total_indices = cell2mat(z_total_indices_cell);
+%just have to linearize it:
+x_total_indices = x_total_indices(:);
+y_total_indices = y_total_indices(:);
+z_total_indices = z_total_indices(:);
 
 %If we want to do any other spatial filtering, do it now.
 % X_MIN = 1; X_MAX = data_width;
@@ -186,9 +190,36 @@ indices_punctamask = [y_total_indices x_total_indices z_total_indices];
 %We could remove redundant puncta for speed, but I actually think that it
 %is slower than simply linearly indexing across all 3D image
 %[indices_unique, ia, ic] = unique(indices_punctamask,'rows');
-indices_linear = sub2ind(img_dim,indices_punctamask(:,1),indices_punctamask(:,2),indices_punctamask(:,3));
+indices_linear = sub2ind(size(data),indices_punctamask(:,1),indices_punctamask(:,2),indices_punctamask(:,3));
+
 mask(indices_linear)=1;
+mask = ~mask; %flip to 1=background, 0=puncta subvolme
 
 imagesc(max(mask,[],3));
 title('Max Z projection of all puncta subvolumes');
 saveas(gcf,figfilename,'fig')
+
+
+bgdistros_cell = cell(params.NUM_ROUNDS,params.COLOR_VEC);
+parfor exp_idx = 1:params.NUM_ROUNDS
+    disp(['round=',num2str(exp_idx)])
+       
+    for c_idx = params.COLOR_VEC
+        
+        total_data = load3DTif(organized_data_files{exp_idx,c_idx});
+        masked_data = total_data(mask(:));
+        
+        [values,binedges] = histcounts(masked_data(:),params.NUM_BUCKETS);
+        
+        %Then use our createEmpDistributionFromVector function to make the
+        %distributions
+        [p,b] = createEmpDistributionFromVector(masked_data(:),binedges);
+        
+        bgdistros_cell(exp_idx,c_idx) = [p,b];
+    end
+    
+end
+
+save(fullfile(params.punctaSubvolumeDir,sprintf('%s_background_distributions.mat',params.FILE_BASENAME)),...
+            'bgdistros_cell','-v7.3');
+
