@@ -1,4 +1,4 @@
-function [ xcorr_scores ] = crossCorr3D(data1,data2,offsets )
+function [ xcorr_scores,shifts ] = crossCorr3D(data1,data2,offsets )
 %CROSSCORR3D Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -29,6 +29,10 @@ for z = -1*offsets(3):offsets(3)
     end
 end
 
+mval = max(xcorr_scores(:));
+idx = find(mval==xcorr_scores(:));
+[x_max,y_max,z_max] = ind2sub(size(xcorr_scores),idx);
+shifts = [x_max,y_max,z_max] - (offsets+1);
 end
 
 
