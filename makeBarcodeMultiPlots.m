@@ -50,6 +50,7 @@ function makeBarcodeMultiPlots(registrationDir,transcriptsDir,numRounds,channels
 
             disp('plotting puncta');
             tic;
+            axis([0 size(img,1)*1.1 0 size(img,2)*1.1 0 size(img,3)*1.1]);
             scatter3(x(fore), y(fore), z(fore), 1, img(fore) * [1, 1, 1] .* 10);
             toc;
 
