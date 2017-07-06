@@ -7,6 +7,7 @@ usage() {
     echo "  -c    channel names; ex. 'chn01','ch02corr'"
     echo "  -B    reference round puncta"
     echo "  -d    deconvolution image directory"
+    echo "  -C    color correction image directory"
     echo "  -n    normalization image directory"
     echo "  -r    registration image directory"
     echo "  -p    puncta extraction directory"
@@ -16,8 +17,8 @@ usage() {
     echo "  -I    Raj lab image tools MATLAB directory"
     echo "  -i    reporting directory"
     echo "  -L    log directory"
-    echo "  -e    execution stages which are higher priority than skip stages"
-    echo "  -s    skip stages;  profile-check,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
+    echo "  -e    execution stages;  exclusively use for skip stages"
+    echo "  -s    skip stages;  profile-check,color-correction,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
     echo "  -m    decide a threshold of round-1 manually"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
@@ -30,10 +31,11 @@ ROUND_NUM=12
 REFERENCE_ROUND=1
 
 DECONVOLUTION_DIR=1_deconvolution
-NORMALIZATION_DIR=2_normalization
-REGISTRATION_DIR=3_registration
-PUNCTA_DIR=4_puncta-extraction
-TRANSCRIPT_DIR=5_transcripts
+COLOR_CORRECTION_DIR=2_color-correction
+NORMALIZATION_DIR=3_normalization
+REGISTRATION_DIR=4_registration
+PUNCTA_DIR=5_puncta-extraction
+TRANSCRIPT_DIR=6_transcripts
 
 REGISTRATION_PROJ_DIR=../Registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
@@ -51,7 +53,7 @@ THRESHOLD_DECISION='auto'
 
 ###### getopts
 
-while getopts N:b:c:B:d:n:r:p:t:R:V:I:i:L:e:s:myh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:i:L:e:s:myh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -81,6 +83,8 @@ do
                 fi
             ;;
         d)  DECONVOLUTION_DIR=$OPTARG
+            ;;
+        C)  COLOR_CORRECTION_DIR=$OPTARG
             ;;
         n)  NORMALIZATION_DIR=$OPTARG
             ;;
@@ -181,6 +185,13 @@ fi
 
 ###### setup directories
 
+if [ ! -d "${COLOR_CORRECTION_DIR}" ]
+then
+    echo "No color correction dir."
+    echo "mkdir ${COLOR_CORRECTION_DIR}"
+    mkdir "${COLOR_CORRECTION_DIR}"
+fi
+
 if [ ! -d "${NORMALIZATION_DIR}" ]
 then
     echo "No normalization dir."
@@ -225,6 +236,7 @@ fi
 
 # exchange paths to absolute paths
 DECONVOLUTION_DIR=$(cd "${DECONVOLUTION_DIR}" && pwd)
+COLOR_CORRECTION_DIR=$(cd "${COLOR_CORRECTION_DIR}" && pwd)
 NORMALIZATION_DIR=$(cd "${NORMALIZATION_DIR}" && pwd)
 REGISTRATION_DIR=$(cd "${REGISTRATION_DIR}" && pwd)
 PUNCTA_DIR=$(cd "${PUNCTA_DIR}" && pwd)
@@ -239,10 +251,10 @@ LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
 if [ $ROUND_NUM = "auto" ]
 then
-    ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "${FILE_BASENAME}_round*_${CHANNEL_ARRAY[0]}.tif" | wc -l)
+    ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "*_${CHANNEL_ARRAY[0]}.tif" | wc -l)
 fi
 
-STAGES=("profile-check" "normalization" "registration" "puncta-extraction" "transcripts")
+STAGES=("profile-check" "color-correction" "normalization" "registration" "puncta-extraction" "transcripts")
 REG_STAGES=("calc-descriptors" "register-with-descriptors")
 
 # check stages to be skipped and executed
@@ -267,7 +279,7 @@ then
         then
             SKIP_REG_STAGES[i]="skip"
         else
-            SKIP_STAGES[2]=
+            SKIP_STAGES[3]=
         fi
     done
 else
@@ -326,6 +338,7 @@ done
 echo
 echo "Directories"
 echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
+echo "  color correction images:  ${COLOR_CORRECTION_DIR}"
 echo "  normalization images   :  ${NORMALIZATION_DIR}"
 echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
@@ -368,6 +381,7 @@ then
 else
     echo "Skip!"
 fi
+echo
 
 stage_idx=$(( $stage_idx + 1 ))
 
@@ -382,6 +396,7 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
     -e "s#\(params.CHANNELS\) *= *.*;#\1 = {${REGISTRATION_WARP_CHANNELS}};#" \
     -e "s#\(params.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
+    -e "s#\(params.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -i.back \
     "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m
 
@@ -390,7 +405,9 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
 # tmux command?
 #set -g mouse-select-window on
 
-sed -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
+sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
+    -e "s#\(params.colorCorrectionImagesDir\) *= *.*;#\1 = '${COLOR_CORRECTION_DIR}';#" \
+    -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
     -e "s#\(params.transcriptResultsDir\) *= *.*;#\1 = '${TRANSCRIPT_DIR}';#" \
     -e "s#\(params.reportingDir\) *= *.*;#\1 = '${REPORTING_DIR}';#" \
@@ -414,6 +431,22 @@ EOF
 ERR_HDL_PRECODE='try;'
 ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
 
+# color correction
+echo "========================================================================="
+echo "Color correction"; date
+echo
+
+if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
+then
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
+else
+    echo "Skip!"
+fi
+echo
+
+stage_idx=$(( $stage_idx + 1 ))
+
 # normalization
 echo "========================================================================="
 echo "Normalization"; date
@@ -421,7 +454,14 @@ echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${DECONVOLUTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+
+    if ls matlab-normalization-*.log > /dev/null 2>&1
+    then
+        mv matlab-normalization-*.log ${LOG_DIR}/
+    else
+        echo "No job log files."
+    fi
 else
     echo "Skip!"
 fi
@@ -466,7 +506,7 @@ then
             # calculateDescriptors for two groups of rounds in parallel
             matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
     
-            if ls *.log > /dev/null 2>&1
+            if ls matlab-calcDesc-*.log > /dev/null 2>&1
             then
                 mv matlab-calcDesc-*.log ${LOG_DIR}/
             else
@@ -487,7 +527,7 @@ then
         # prepare normalized channel images for warp
         for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
         do
-            for f in $(\ls ${DECONVOLUTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
+            for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
             do
                 round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
                 if [ $round_num -eq 0 ]
@@ -581,9 +621,9 @@ echo
 stage_idx=$(( $stage_idx + 1 ))
 
 
-# prepare base calling of transcripts
+# base calling of transcripts
 echo "========================================================================="
-echo "base calling preparation"; date
+echo "base calling"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]

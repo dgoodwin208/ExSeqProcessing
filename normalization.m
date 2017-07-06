@@ -23,7 +23,7 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,to
         if (roundnum <= total_round_num) && (sum(running_jobs) < max_running_jobs)
             disp(['create batch (',num2str(roundnum),')'])
             running_jobs(roundnum) = 1;
-            jobs{roundnum} = batch(cluster,@normalizeImage,0,{src_folder_name,dst_folder_name,fileroot_name,channels,roundnum});
+            jobs{roundnum} = batch(cluster,@normalizeImage,0,{src_folder_name,dst_folder_name,fileroot_name,channels,roundnum},'CaptureDiary',true);
             roundnum = roundnum+1;
         else
             for job_id = find(running_jobs==1)
@@ -31,6 +31,7 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,to
                 is_finished = 0;
                 if strcmp(job.State,'finished') || strcmp(job.State,'failed')
                     disp(['batch (',num2str(job_id),') has ',job.State,'.'])
+                    diary(job,['./matlab-normalization-',num2str(job_id),'.log']);
                     running_jobs(job_id) = 0;
                     delete(job)
                     is_finished = 1;
@@ -55,6 +56,10 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
         exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3}))) || ...
         exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4}))))
     else
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})))
         disp('no channel files.')
         return
     end

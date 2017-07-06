@@ -1,10 +1,12 @@
 
-INPUT_DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampus/';
-OUTPUT_DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampus_rename/';
+loadParameters;
+
+INPUT_DIRECTORY = params.deconvolutionImagesDir;
+OUTPUT_DIRECTORY = params.colorCorrectionImagesDir;
 
 files = dir(fullfile(INPUT_DIRECTORY,'*.tif'));
 
-EXPERIMENT_NAME  = 'exseqautoframe7';
+EXPERIMENT_NAME  = params.FILE_BASENAME;
 
 % sample pattern
 % N-4_P_ will be round 0
@@ -16,15 +18,16 @@ EXPERIMENT_NAME  = 'exseqautoframe7';
 fprintf('Source file\tDestination file\n')
 for file_indx = 1:length(files)
 
-    %Sample filename for this script: 'N-4_P_ch03.tif'
-    parts = split(files(file_indx).name,'_');
+    %Sample filename for this script: 'PrimerN-4_P_ch03.tif' or 'primer_n-4_p_ch03.tif'
+    filename = strrep(lower(files(file_indx).name),'primer_','primer');
+    parts = split(filename,'_');
     
     string_primer = parts{1};
     string_ligation= parts{2};
     string_color = parts{5};
     
 
-    primer_string_pieces = split(string_primer,'N');
+    primer_string_pieces = split(string_primer,'n');
     offset_primer = 4;
     %'N' case is primer_string_pieces{2} ==0 
     if length(primer_string_pieces{2})>0
@@ -32,7 +35,7 @@ for file_indx = 1:length(files)
     end
     
     %Count how many ligation rounds there have been
-    multiplier_ligation = length(strfind(string_ligation,'C'));
+    multiplier_ligation = length(strfind(string_ligation,'c'));
     
     %Get the channel number from 'chXX.tif'
     string_color_parts = split(string_color,'.');
@@ -48,7 +51,7 @@ for file_indx = 1:length(files)
     
     fprintf('%s\t%s\n',src_file,dest_file);
     if ~exist(dest_file,'file')
-        [status,message,messageId] = copyfile(src_file, dest_file);
+        status = system(sprintf('ln -s %s %s',src_file,dest_file));
     end
 end
 

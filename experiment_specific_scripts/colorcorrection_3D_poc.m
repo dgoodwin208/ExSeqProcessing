@@ -1,10 +1,13 @@
 function [offsets3D] = colorcorrection_3D_poc(roundnum)
+
+loadParameters;
+
 %Written for the first splintr barcode dataset from Oz
 % FOLDER_NAME = 'ExSeqAutoSlice';
-FILEROOT_NAME = 'exseqautoframe7';
-DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampus_rename';
-OUTPUTDIR = 'color_correction';
-NUM_ROUNDS = 20;
+FILEROOT_NAME = params.FILE_BASENAME;
+DIRECTORY = params.colorCorrectionImagesDir;
+OUTPUTDIR = params.colorCorrectionImagesDir;
+NUM_ROUNDS = params.NUM_ROUNDS;
 offsets3D = [6,6,5]; %X,Y,Z offsets for calcuating the difference
 BEAD_ZSTART = 120;
 
@@ -38,7 +41,7 @@ tic; disp('translate 4');
 chan4_shift = imtranslate3D(chan4,chan4_offsets);
 toc
 tic; disp('save file 4');
-%save3DTif(chan4_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DTif(chan4_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)));
 toc
 
 chan4_shift_beads = chan4_shift(:,:,BEAD_ZSTART:end);
@@ -51,7 +54,7 @@ tic; disp('translate 2');
 chan2_shift = imtranslate3D(chan2,chan2_offsets);
 toc
 tic; disp('save file 2');
-%save3DTif(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DTif(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME,roundnum)));
 toc
 
 data_cols = zeros(length(reshape(chan1,[],1)),4);
@@ -92,7 +95,7 @@ tic; disp('translate 3');
 chan3_shift = imtranslate3D(chan3,chan3_offsets);
 toc
 tic; disp('save file 3');
-%save3DTif(chan3_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DTif(chan3_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)));
 toc
 
 end
