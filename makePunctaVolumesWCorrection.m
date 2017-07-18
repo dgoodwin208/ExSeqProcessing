@@ -111,7 +111,7 @@ for c_idx = params.COLOR_VEC
     experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
 end
 
-for puncta_idx = 1:num_puncta_filtered
+for puncta_idx = 1:num_puncta
     for c_idx = params.COLOR_VEC
         y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
         x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
@@ -148,14 +148,14 @@ parfor exp_idx = experiement_indices_for_parallel_loop
     
     disp(['[',num2str(exp_idx),'] processing puncta in parallel'])
     
-    puncta_set_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta_filtered);
+    puncta_set_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
     
     
     % Loop over every puncta:
     % Compare this round's puncta with the reference round puncta
     % Adjust the indices according to the shift
     % Then store the shift for later analysis
-    for puncta_idx = 1:num_puncta_filtered
+    for puncta_idx = 1:num_puncta
         y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
         x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
         z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
