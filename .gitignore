@@ -1,5 +1,6 @@
 *.m~
 *.mat
+*.fig
 logs/
 *.log
 1_deconvolution
