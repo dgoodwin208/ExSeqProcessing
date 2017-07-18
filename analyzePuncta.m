@@ -172,7 +172,7 @@ for puncta_idx = 1:size(puncta_ref,1)
     
     candidate_puncta_neighbors = [];
     
-    for other_rd_idx = 2:params.NUM_ROUNDS
+    for other_rd_idx = other_exp_rounds
         otherpuncta_locations = puncta{other_rd_idx};
         
         y_candidates = otherpuncta_locations(:,1);
@@ -227,4 +227,31 @@ end
 
 %% Save the puncta and the parameters they were made at
 puncta_filtered = puncta_ref(puncta_votes>=params.THRESHOLD,:);
+
+% Do one last filtering to make sure we're not using any puncta that are
+% within 2*PUNCTA_SIZE of the border in X Y Z
+
+% TODO: This is probably over aggressive but it's fine for now 
+% DG 07/14/17
+
+indices_too_close_to_border = [];ctr = 1;
+for puncta_idx = 1:size(puncta_filtered,1)
+   pos = puncta_filtered(puncta_idx,:);
+   
+   if any((pos-2*params.PUNCTA_SIZE)<0)
+        indices_too_close_to_border(ctr) = puncta_idx;
+        ctr = ctr+1;
+   elseif any((pos+2*params.PUNCTA_SIZE)>size(img))
+       indices_too_close_to_border(ctr) = puncta_idx;
+       ctr = ctr+1;
+   end
+end
+fprintf('Removed %i/%i puncta that were within %i of the border',...
+    ctr-1,size(puncta_filtered,1),2*params.PUNCTA_SIZE);
+
+puncta_filtered(indices_too_close_to_border,:) = [];
+
+
+
+
 save(fullfile(params.punctaSubvolumeDir ,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)),'puncta_filtered');
