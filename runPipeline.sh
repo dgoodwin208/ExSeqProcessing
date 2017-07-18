@@ -590,7 +590,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]
 then
     cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
     cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} normalizePunctaVector; refineBaseCalling; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} normalizePunctaVector;  ${ERR_HDL_POSTCODE}"
 else
     echo "Skip!"
 fi
