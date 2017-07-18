@@ -46,7 +46,8 @@ for itr = 1:NUM_DEDUPE_ITERATIONS
     end
 end
 
-%% Make histogram of neighbors around the reference, currently set as #1
+%% Make histogram of neighbors around the reference, 
+%  currently set as params.REFERENCE_ROUND_PUNCTA
 
 epsilon = 1:10;
 
@@ -58,7 +59,7 @@ other_exp_rounds(params.REFERENCE_ROUND_PUNCTA) = [];
 %[length(reference number), number of rounds -1, number of neighbors]
 buckets = zeros(size(puncta{1},1),params.NUM_ROUNDS-1,length(epsilon));
 
-
+%Loop over all puncta from the reference round
 for puncta_idx = 1:size(puncta_ref,1)
     
     %first do a rough filtering of the dataset to get only the regions
@@ -156,6 +157,7 @@ end
 
 puncta_votes = zeros(1,size(puncta_ref,1));
 
+%Now get the votes for the specified epsilon
 for puncta_idx = 1:size(puncta_ref,1)
     
     %first do a rough filtering of the dataset to get only the regions

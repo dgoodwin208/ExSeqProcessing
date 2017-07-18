@@ -42,99 +42,106 @@ data_height = size(data,1);
 data_width = size(data,2);
 data_depth = size(data,3);
 
-%unpack the filtered coords into X,Y,Z vectors
+%unpack the filtered coords into Y,X,Z vectors
 Y = round(puncta_filtered(:,1));
 X = round(puncta_filtered(:,2));
 Z = round(puncta_filtered(:,3));
 
-num_puncta = length(X); %from the RajLab coordinates
+num_puncta = length(X); %from the filtered RajLab coordinates
 
 %Keep track of all x,y,z indices that we use to create the puncta
 %subvolumes: We will use all the other locations to create a distribution
 %of background values per channel per round
-x_total_indices = [];
-y_total_indices = [];
-z_total_indices = [];
-
-%Create the whole size of the puncta_set vector optimistically: not all the
-%puncta will be within PUNCTA_SIZE of a boundary, in which we case we will
-%not use that puncta. That means there will be some empty puncta which we
-%need to remove
-puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE, ...
-    params.NUM_ROUNDS,params.NUM_CHANNELS,num_puncta);
+% x_total_indices = [];
+% y_total_indices = [];
+% z_total_indices = [];
 
 
-
-% We first filter all puncta that are within PUNCTASIZE/2 of a boundary
-% Because the images are registered at this point and the puncta locations
-% are taken from the params.REFERENCE_ROUND_PUNCTA
-bad_puncta_indices = [];
-ctr = 1;
-for puncta_idx = 1:num_puncta
-    y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
-    x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
-    z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
-    
-    if any([x_indices y_indices z_indices]<1) || ...
-            any(x_indices>data_width) || any(y_indices>data_height) || any(z_indices>data_depth)
-        bad_puncta_indices = union(bad_puncta_indices,puncta_idx);
-        continue
-    end
-    
-    %use the meshgrid command to get all the pixels
-    [y_grid,x_grid,z_grid] = meshgrid(y_indices,x_indices,z_indices);
-    
-    x_total_indices_cell(ctr) = {x_grid(:)};
-    y_total_indices_cell(ctr) = {y_grid(:)};
-    z_total_indices_cell(ctr) = {z_grid(:)};
-    
-    ctr = ctr +1;
-    if mod(puncta_idx,1000)==0
-        fprintf('Analyzed %i/%i puncta for spatial constraints\n',...
-            puncta_idx,num_puncta);
-    end
-end
-
-%Use the cell2mat trick to avoid growing the array in the for loop
-x_total_indices = cell2mat(x_total_indices_cell);
-y_total_indices = cell2mat(y_total_indices_cell);
-z_total_indices = cell2mat(z_total_indices_cell);
-%just have to linearize it:
-x_total_indices = x_total_indices(:);
-y_total_indices = y_total_indices(:);
-z_total_indices = z_total_indices(:);
+% AnalyzePuncta now checks for closeness to a border, so we have removed
+% some of the logic in this next loop
+% for puncta_idx = 1:num_puncta
+%     y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
+%     x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
+%     z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
+%
+%     %use the meshgrid command to get all the pixels
+%     [y_grid,x_grid,z_grid] = meshgrid(y_indices,x_indices,z_indices);
+%
+%     x_total_indices_cell(puncta_idx) = {x_grid(:)};
+%     y_total_indices_cell(puncta_idx) = {y_grid(:)};
+%     z_total_indices_cell(puncta_idx) = {z_grid(:)};
+%
+%
+%     if mod(puncta_idx,1000)==0
+%         fprintf('Analyzed %i/%i puncta for spatial constraints\n',...
+%             puncta_idx,num_puncta);
+%     end
+% end
+%
+% %Use the cell2mat trick to avoid growing the array in the for loop
+% x_total_indices = cell2mat(x_total_indices_cell);
+% y_total_indices = cell2mat(y_total_indices_cell);
+% z_total_indices = cell2mat(z_total_indices_cell);
+% %just have to linearize it:
+% x_total_indices = x_total_indices(:);
+% y_total_indices = y_total_indices(:);
+% z_total_indices = z_total_indices(:);
 
 %If we want to do any other spatial filtering, do it now.
 % X_MIN = 1; X_MAX = data_width;
 % Y_MIN = 1; Y_MAX = data_height;
 % Z_MIN = 1; Z_MAX = data_depth;
 
-%Remove the indices of the bad puncta that are too close to the boundaries
-good_puncta_indices = setdiff(1:num_puncta,bad_puncta_indices);
-
-%Remove all puncta from the set that are too close to the boundary of the
-%image
-puncta_set = puncta_set(:,:,:,:,:,good_puncta_indices);
-
-%Also keep track of the location of each puncta
-Y = Y(good_puncta_indices);
-X = X(good_puncta_indices);
-Z = Z(good_puncta_indices);
-
-%update our number of puncta:
-num_puncta_filtered = length(X);
-fprintf('Filtered %i/%i puncta that were too close to the boundaries\n',...
-    num_puncta-num_puncta_filtered,num_puncta);
-clearvars num_puncta;
-
 %Define a puncta_set object that can be parallelized
 puncta_set_cell = cell(params.NUM_ROUNDS);
-parfor exp_idx = 1:params.NUM_ROUNDS
+badpuncta_cell = cell(params.NUM_ROUNDS);
+shifts_cell = cell(params.NUM_ROUNDS);
+%Before the parallelized loop, create the set of puncta volumes for the
+%reference volume, that will then be copied into the different workers for
+%calculting the fine adjustments for aligning the pixels
+%Load all channels of data into memory for one experiment
+exp_idx = params.REFERENCE_ROUND_PUNCTA;
+reference_puncta = cell(params.NUM_CHANNELS,num_puncta);
+experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
+
+fprintf('First loading the img volume params.REFERENCE_ROUND_PUNCTA=%i\n',...
+    params.REFERENCE_ROUND_PUNCTA);
+
+for c_idx = params.COLOR_VEC
+    experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
+end
+
+for puncta_idx = 1:num_puncta_filtered
+    for c_idx = params.COLOR_VEC
+        y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
+        x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
+        z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
+        
+        reference_puncta{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
+    end
+end
+
+%Then copy this result into the aggregator vairable puncta_set_cell
+%Which will be put back together after we loop over rounds colors and
+puncta_set_cell{exp_idx} = reference_puncta;
+clear experiment_set; %avoid any possible broadcasting of variables in the parfor
+
+%Now we're ready to loop over all puncta in all other rounds
+%And for each puncta in each round, doing the minor puncta adjustments
+experiement_indices_for_parallel_loop = 1:params.NUM_ROUNDS;
+% For now compare the reference to itself to confirm we get zeros
+% experiement_indices_for_parallel_loop(params.REFERENCE_ROUND_PUNCTA) = [];
+parfor exp_idx = experiement_indices_for_parallel_loop
+    
     disp(['round=',num2str(exp_idx)])
+    bad_puncta = [];
+    shifts = zeros(num_puncta,3);
+    offsetrange = [2,2,2];
     
     %Load all channels of data into memory for one experiment
     experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
     disp(['[',num2str(exp_idx),'] loading files'])
+    
     for c_idx = params.COLOR_VEC
         experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
     end
@@ -144,90 +151,112 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     puncta_set_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta_filtered);
     
     
+    % Loop over every puncta:
+    % Compare this round's puncta with the reference round puncta
+    % Adjust the indices according to the shift
+    % Then store the shift for later analysis
     for puncta_idx = 1:num_puncta_filtered
+        y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
+        x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
+        z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
+        
+        %Create the candidate puncta
+        candidate = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_CHANNELS);
+        %Extract out the reference puncta colors so we can sum them up
+        reference_puncta_in_colors = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_CHANNELS);
         for c_idx = params.COLOR_VEC
-            y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
-            x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
-            z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
-            
-            puncta_set_cell{exp_idx}{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
+            candidate(:,:,:,c_idx) = experiment_set(y_indices,x_indices,z_indices,c_idx);
+            reference_puncta_in_colors(:,:,:,c_idx) = reference_puncta{c_idx,puncta_idx}
         end
+        
+        candidate_sum = sum(candidate,4);
+        reference_sum = sum(reference_puncta_in_colors,4);
+        
+        [~,shifts] = crossCorr3D(reference_sum,candidate_sum,offsetrange);
+        if numel(shifts)>3
+            %A maximum point wasn't found for this round, likely indicating
+            %something weird with the round.
+            fprintf('Error in Round %i in Puncta %i\n', e_idx,puncta_idx);
+            
+            %Take note of this puncta for later - perhaps it makes most
+            %sense to discard these puncta preemptively
+            bad_puncta = [bad_puncta; puncta_idx];
+            
+            %Store the non-adjusted data as a placeholder
+            for c_idx = params.COLOR_VEC
+                puncta_set_cell{exp_idx}{c_idx,puncta_idx} = candidate(:,:,:,c_idx);
+            end
+            
+            continue;
+        end
+        
+        % Use the pixel adjustments:
+        y_indices = y_indices + shifts(1);
+        x_indices = x_indices + shifts(2);
+        z_indices = z_indices + shifts(3);
+        
+        %Recreate the candidate with the new fixes
+        for c_idx = params.COLOR_VEC
+            candidate(:,:,:,c_idx) = experiment_set(y_indices,x_indices,z_indices,c_idx);
+        end
+        
+        shifts(puncta_idx,:) = shifts;
+        puncta_set_cell{exp_idx}{c_idx,puncta_idx} = candidate;
     end
+    
+    shifts_cell{exp_idx} = shifts;
+    badpuncta_cell{exp_idx} = bad_puncta;
+    clear experiment_set
 end
+
+
+
 
 %%
 clear data_cols
 
 disp('reducing processed puncta')
+puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE, ...
+    params.NUM_ROUNDS,params.NUM_CHANNELS,num_puncta);
+
+%reduction of all the bad puncta
+total_bad_puncta_indices = [];
+for exp_idx = 1:params.NUM_ROUNDS
+    total_bad_puncta_indices = [total_bad_puncta_indices; badpuncta_cell{exp_idx}];
+end
+total_badpuncta = unique(total_bad_puncta_indices);
+
+%Create a list of all the puncta that legit
+total_good_puncta = 1:num_puncta;
+total_good_puncta(total_badpuncta) = [];
+fprintf('Color correction discarded %i puncta\n',length(total_badpuncta));
+
 % reduction of parfor
 for exp_idx = 1:params.NUM_ROUNDS
-    for puncta_idx = 1:num_puncta_filtered
+    for puncta_idx = total_good_puncta
+        
         for c_idx = params.COLOR_VEC
             if ~isequal(size(puncta_set_cell{exp_idx}{c_idx,puncta_idx}), [0 0])
-                puncta_set(:,:,:,exp_idx,c_idx,puncta_idx) = puncta_set_cell{exp_idx}{c_idx,puncta_idx};
+                fprintf('Error with exp_idx=%i c_idx=%i puncta_idx=%i\n',exp_idx,c_idx,puncta_idx);
             end
+                puncta_set(:,:,:,exp_idx,c_idx,puncta_idx) = puncta_set_cell{exp_idx}{c_idx,puncta_idx};
         end
     end
 end
-clear puncta_set_cell
-%%% DOING MINOR ADJUSTMENTS TO PUNCTA LOCATIONS WHILE 
-bad_puncta = [];
-puncta_fix_cell = cell(size(puncta_set,6),1);
-all_shifts = cell(size(puncta_set,6),1);
 
-parfor p_idx = 1:size(puncta_set,6)
-
-    puncta = puncta_set(:,:,:,:,:,p_idx);
-    shifts_per_exp = zeros(params.NUM_ROUNDS,3);
-    %sum of channels (that have now been quantile normalized)
-    puncta_roundref = sum(squeeze(puncta(:,:,:,params.REFERENCE_ROUND_PUNCTA,:)),4);
-    offsetrange = [2,2,2];
-    %Assuming the first round is reference round for puncta finding
-    %Todo: take this out of prototype
-    moving_exp_indices = 1:params.NUM_ROUNDS; moving_exp_indices(params.REFERENCE_ROUND_PUNCTA) = [];
-
-
-    for e_idx = moving_exp_indices
-        %Get the sum of the colors for the moving channel
-        puncta_roundmove = sum(squeeze(puncta(:,:,:,e_idx,:)),4);
-        [~,shifts] = crossCorr3D(puncta_roundref,puncta_roundmove,offsetrange);
-        shifts_per_exp(e_idx,:) = shifts;
-        if numel(shifts)>3
-            %A maximum point wasn't found for this round, likely indicating
-            %something weird with the round. Skip this whole puncta
-            fprintf('Error in Round %i in Puncta %i\n', e_idx,p_idx);
-            bad_puncta = [bad_puncta p_idx];
-            puncta_fix_cell{p_idx} = puncta;
-            continue;
-        end
-        
-       for c_idx = 1:params.NUM_CHANNELS
-            %puncta(:,:,:,e_idx,c_idx) = ...
-            %    imtranslate3D(squeeze(puncta(:,:,:,e_idx,c_idx)),shifts);
-       
-            %calculate a new centroid of the puncta as determined by the offset
-            Yctr=Y(p_idx)+shifts(1);
-	    Xctr=X(p_idx)+shifts(2);
-	    Zctr=Z(p_idx)+shifts(3);
-             
-            y_indices = Yctr - params.PUNCTA_SIZE/2 + 1: Yctr + params.PUNCTA_SIZE/2;
-            x_indices = Xctr - params.PUNCTA_SIZE/2 + 1: Xctr + params.PUNCTA_SIZE/2;
-            z_indices = Zctr - params.PUNCTA_SIZE/2 + 1: Zctr + params.PUNCTA_SIZE/2;
-
-            puncta_set_cell{exp_idx}{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
-            
-      end
-    
+%reduction of shifts per puncta
+shifts = zeros(num_puncta,3,params.NUM_ROUNDS);
+for exp_idx = 1:params.NUM_ROUNDS
+    shifts(:,:,exp_idx) = shifts_cell{exp_idx};
 end
 
-   all_shifts{p_idx}= shifts_per_exp
-   puncta_fix_cell{p_idx} = puncta;
+Y = Y(total_good_puncta);
+X = X(total_good_puncta);
+Z = Z(total_good_puncta);
 
-   if mod(p_idx,1000)==0
-       fprintf('3D crosscorr fix for puncta  %i/%i\n',p_idx,size(puncta_set,6));
-   end
-end
-%%% End new minor tweak
+
+clear puncta_set_cell shifts_cell badpuncta_cell
+
 disp('saving files from makePunctaVolumes')
 %just save puncta_set
 save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)),...
@@ -260,7 +289,7 @@ saveas(gcf,figfilename,'fig')
 bgdistros_cell = cell(params.NUM_ROUNDS,params.COLOR_VEC);
 parfor exp_idx = 1:params.NUM_ROUNDS
     disp(['round=',num2str(exp_idx)])
-       
+    
     for c_idx = params.COLOR_VEC
         
         total_data = load3DTif(organized_data_files{exp_idx,c_idx});
@@ -278,5 +307,5 @@ parfor exp_idx = 1:params.NUM_ROUNDS
 end
 
 save(fullfile(params.punctaSubvolumeDir,sprintf('%s_background_distributions.mat',params.FILE_BASENAME)),...
-            'bgdistros_cell','-v7.3');
+    'bgdistros_cell','-v7.3');
 
