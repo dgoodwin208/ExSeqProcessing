@@ -121,9 +121,9 @@ parfor exp_idx = experiement_indices_for_parallel_loop
         z_indices = Z(puncta_idx) - PSIZE/2 + 1: Z(puncta_idx) + PSIZE/2;
         
         %Create the candidate puncta
-        candidate = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_CHANNELS);
+        candidate = zeros(PSIZE,PSIZE,PSIZE,params.NUM_CHANNELS);
         %Extract out the reference puncta colors so we can sum them up
-        reference_puncta_in_colors = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_CHANNELS);
+        reference_puncta_in_colors = zeros(PSIZE,PSIZE,PSIZE,params.NUM_CHANNELS);
         for c_idx = params.COLOR_VEC
             candidate(:,:,:,c_idx) = experiment_set(y_indices,x_indices,z_indices,c_idx);
             reference_puncta_in_colors(:,:,:,c_idx) = reference_puncta{c_idx,puncta_idx}
@@ -132,28 +132,30 @@ parfor exp_idx = experiement_indices_for_parallel_loop
         candidate_sum = sum(candidate,4);
         reference_sum = sum(reference_puncta_in_colors,4);
         
-        [~,shifts] = crossCorr3D(reference_sum,candidate_sum,offsetrange);
-        if numel(shifts)>3
-            %A maximum point wasn't found for this round, likely indicating
-            %something weird with the round.
-            fprintf('Error in Round %i in Puncta %i\n', exp_idx,puncta_idx);
-            
-            %Take note of this puncta for later - perhaps it makes most
-            %sense to discard these puncta preemptively
-            bad_puncta = [bad_puncta; puncta_idx];
-            
-            %Store the non-adjusted data as a placeholder
-            for c_idx = params.COLOR_VEC
-                puncta_set_cell{exp_idx}{c_idx,puncta_idx} = candidate(:,:,:,c_idx);
-            end
-            
-            continue;
-        end
         
-        % Use the pixel adjustments:
-        y_indices = y_indices + shifts(1);
-        x_indices = x_indices + shifts(2);
-        z_indices = z_indices + shifts(3);
+        %WE SHOULDN'T DO THE SHIFTS UNTIL WE'VE DONE COLOR NORMALIZATION
+%         [~,shifts] = crossCorr3D(reference_sum,candidate_sum,offsetrange);
+%         if numel(shifts)>3
+%             %A maximum point wasn't found for this round, likely indicating
+%             %something weird with the round.
+%             fprintf('Error in Round %i in Puncta %i\n', exp_idx,puncta_idx);
+%             
+%             %Take note of this puncta for later - perhaps it makes most
+%             %sense to discard these puncta preemptively
+%             bad_puncta = [bad_puncta; puncta_idx];
+%             
+%             %Store the non-adjusted data as a placeholder
+%             for c_idx = params.COLOR_VEC
+%                 puncta_set_cell{exp_idx}{c_idx,puncta_idx} = candidate(:,:,:,c_idx);
+%             end
+%             
+%             continue;
+%         end
+%         
+%         % Use the pixel adjustments:
+%         y_indices = y_indices + shifts(1);
+%         x_indices = x_indices + shifts(2);
+%         z_indices = z_indices + shifts(3);
         
         %Recreate the candidate with the new fixes
         for c_idx = params.COLOR_VEC
@@ -175,7 +177,7 @@ end
 clear data_cols
 
 disp('reducing processed puncta')
-puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE, ...
+puncta_set = zeros(PSIZE,PSIZE,PSIZE, ...
     params.NUM_ROUNDS,params.NUM_CHANNELS,num_puncta);
 
 %reduction of all the bad puncta
@@ -204,11 +206,11 @@ for exp_idx = 1:params.NUM_ROUNDS
 end
 
 %reduction of shifts per puncta
-shifts = zeros(length(total_good_puncta),3,params.NUM_ROUNDS);
-for exp_idx = 1:params.NUM_ROUNDS
-    shifts_all_puncta= shifts_cell{exp_idx};
-    shifts(:,:,exp_idx) = shifts_all_puncta(total_good_puncta);
-end
+% shifts = zeros(length(total_good_puncta),3,params.NUM_ROUNDS);
+% for exp_idx = 1:params.NUM_ROUNDS
+%     shifts_all_puncta= shifts_cell{exp_idx};
+%     shifts(:,:,exp_idx) = shifts_all_puncta(total_good_puncta);
+% end
 
 Y = Y(total_good_puncta);
 X = X(total_good_puncta);
@@ -219,11 +221,11 @@ clear puncta_set_cell shifts_cell badpuncta_cell
 
 disp('saving files from makePunctaVolumes')
 %just save puncta_set
-save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)),...
+save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois_oversize.mat',params.FILE_BASENAME)),...
     'puncta_set','Y','X','Z','-v7.3');
 
-save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_shifts.mat',params.FILE_BASENAME)),...
-    'shifts','-v7.3');
+% save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_shifts.mat',params.FILE_BASENAME)),...
+%     'shifts','-v7.3');
 
 %save all the used location values
 save(fullfile(params.punctaSubvolumeDir,sprintf('%s_pixels_used_for_puncta.mat',params.FILE_BASENAME)),...
