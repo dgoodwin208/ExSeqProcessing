@@ -120,6 +120,6 @@ for puncta_idx = 1:size(puncta_set,6)
 end
 
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv11.mat',params.FILE_BASENAME)),'transcripts','transcripts_confidence','pos');
-save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedrois.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
+save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv12.mat',params.FILE_BASENAME)),'transcripts','transcripts_confidence','pos');
+save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
 disp('Completed normalizePuncta.m and saved the transcriptsv10 mat file in the transcripts folder');
