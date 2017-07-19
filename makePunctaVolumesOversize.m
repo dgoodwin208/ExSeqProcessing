@@ -49,48 +49,8 @@ Z = round(puncta_filtered(:,3));
 
 num_puncta = length(X); %from the filtered RajLab coordinates
 
-%Keep track of all x,y,z indices that we use to create the puncta
-%subvolumes: We will use all the other locations to create a distribution
-%of background values per channel per round
-% x_total_indices = [];
-% y_total_indices = [];
-% z_total_indices = [];
-
-
-% AnalyzePuncta now checks for closeness to a border, so we have removed
-% some of the logic in this next loop
-% for puncta_idx = 1:num_puncta
-%     y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
-%     x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
-%     z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
-%
-%     %use the meshgrid command to get all the pixels
-%     [y_grid,x_grid,z_grid] = meshgrid(y_indices,x_indices,z_indices);
-%
-%     x_total_indices_cell(puncta_idx) = {x_grid(:)};
-%     y_total_indices_cell(puncta_idx) = {y_grid(:)};
-%     z_total_indices_cell(puncta_idx) = {z_grid(:)};
-%
-%
-%     if mod(puncta_idx,1000)==0
-%         fprintf('Analyzed %i/%i puncta for spatial constraints\n',...
-%             puncta_idx,num_puncta);
-%     end
-% end
-%
-% %Use the cell2mat trick to avoid growing the array in the for loop
-% x_total_indices = cell2mat(x_total_indices_cell);
-% y_total_indices = cell2mat(y_total_indices_cell);
-% z_total_indices = cell2mat(z_total_indices_cell);
-% %just have to linearize it:
-% x_total_indices = x_total_indices(:);
-% y_total_indices = y_total_indices(:);
-% z_total_indices = z_total_indices(:);
-
-%If we want to do any other spatial filtering, do it now.
-% X_MIN = 1; X_MAX = data_width;
-% Y_MIN = 1; Y_MAX = data_height;
-% Z_MIN = 1; Z_MAX = data_depth;
+%Define the overly generous size of the puncta for these ROIS
+PSIZE = 2*params.PUNCTA_SIZE;
 
 %Define a puncta_set object that can be parallelized
 puncta_set_cell = cell(params.NUM_ROUNDS);
@@ -113,9 +73,9 @@ end
 
 for puncta_idx = 1:num_puncta
     for c_idx = params.COLOR_VEC
-        y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
-        x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
-        z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
+        y_indices = Y(puncta_idx) - PSIZE/2 + 1: Y(puncta_idx) + PSIZE/2;
+        x_indices = X(puncta_idx) - PSIZE/2 + 1: X(puncta_idx) + PSIZE/2;
+        z_indices = Z(puncta_idx) - PSIZE/2 + 1: Z(puncta_idx) + PSIZE/2;
         
         reference_puncta{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
     end
@@ -156,9 +116,9 @@ parfor exp_idx = experiement_indices_for_parallel_loop
     % Adjust the indices according to the shift
     % Then store the shift for later analysis
     for puncta_idx = 1:num_puncta
-        y_indices = Y(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Y(puncta_idx) + params.PUNCTA_SIZE/2;
-        x_indices = X(puncta_idx) - params.PUNCTA_SIZE/2 + 1: X(puncta_idx) + params.PUNCTA_SIZE/2;
-        z_indices = Z(puncta_idx) - params.PUNCTA_SIZE/2 + 1: Z(puncta_idx) + params.PUNCTA_SIZE/2;
+        y_indices = Y(puncta_idx) - PSIZE/2 + 1: Y(puncta_idx) + PSIZE/2;
+        x_indices = X(puncta_idx) - PSIZE/2 + 1: X(puncta_idx) + PSIZE/2;
+        z_indices = Z(puncta_idx) - PSIZE/2 + 1: Z(puncta_idx) + PSIZE/2;
         
         %Create the candidate puncta
         candidate = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_CHANNELS);
