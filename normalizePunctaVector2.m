@@ -2,12 +2,12 @@
 %calls
 
 loadParameters;
-load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
+load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois_oversize.mat',params.FILE_BASENAME)));
 
 %The puncta_set vector is of dimensions:
 %(PUNCTA_SIZE,PUNCTA_SIZE,PUNCTA_SIZE,NUM_ROUNDS,NUM_CHANNELS,num_puncta)
 
-
+PSIZE=size(puncta_set,1);
 %% Vectorize the entire set of puncta into one column per channel
 
 puncta_set_normed = zeros(size(puncta_set));
@@ -31,18 +31,21 @@ clearvars puncta_set_normed;
 bad_puncta = [];
 puncta_fix_cell = cell(size(puncta_set,6),1);
 
+shifts_cell = cell(params.NUM_ROUNDS);
 parfor p_idx = 1:size(puncta_set,6)
 
     puncta = puncta_set(:,:,:,:,:,p_idx);
 
     %sum of channels (that have now been quantile normalized)
     puncta_roundref = sum(squeeze(puncta(:,:,:,params.REFERENCE_ROUND_PUNCTA,:)),4);
-    offsetrange = [2,2,2];
-    %Assuming the first round is reference round for puncta finding
-    %Todo: take this out of prototype
-    moving_exp_indices = 1:params.NUM_ROUNDS; moving_exp_indices(params.REFERENCE_ROUND_PUNCTA) = [];
+    offsetrange = [3,3,3];
+    
+    moving_exp_indices = 1:params.NUM_ROUNDS; 
+    moving_exp_indices(params.REFERENCE_ROUND_PUNCTA) = [];
 
-
+    %initialize the vector of all shift
+    shifts = zeros(num_puncta,3);
+    
     for e_idx = moving_exp_indices
         %Get the sum of the colors for the moving channel
         puncta_roundmove = sum(squeeze(puncta(:,:,:,e_idx,:)),4);
@@ -74,52 +77,64 @@ for p_idx = 1:size(puncta_set,6)
     puncta_set(:,:,:,:,:,p_idx) = puncta_fix_cell{p_idx};
 end
 
+
+
+
 puncta_set(:,:,:,:,:,bad_puncta) = [];
 X(bad_puncta) = [];
 Y(bad_puncta) = [];
 Z(bad_puncta) = [];
+pos = [Y X Z];
+save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedrois_oversize.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
+
+%Hardcode the proper crop to get the subvolumes we're used to working with
+puncta_set_normal= puncta_set(6:15,6:15,6:15,:,:,:);
+puncta_set = puncta_set_normal; 
+save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
 
 % Rows are sequencing rounds, columns are channels, press enter to go to
 % next one
-transcripts = zeros(size(puncta_set,6),params.NUM_ROUNDS);
-transcripts_confidence = zeros(size(puncta_set,6),params.NUM_ROUNDS);
-pos = zeros(size(puncta_set,6),3);
+% transcripts = zeros(size(puncta_set,6),params.NUM_ROUNDS);
+% transcripts_confidence = zeros(size(puncta_set,6),params.NUM_ROUNDS);
+% pos = zeros(size(puncta_set,6),3);
+% 
+% cell_transcripts = cell(size(puncta_set,6),1);
+% cell_transcripts_confidence = cell(size(puncta_set,6),1);
+% cell_pos = cell(size(puncta_set,6),1);
+% parfor puncta_idx = 1:size(puncta_set,6)
+%     
+%     answer_vector = zeros(params.NUM_ROUNDS,1);
+%     confidence_vector = zeros(params.NUM_ROUNDS,1);
+%     for exp_idx = 1:params.NUM_ROUNDS
+%         
+%         punctaset_perround = squeeze(puncta_set(:,:,:,exp_idx,:,puncta_idx));
+%          
+%         [max_chan, confidence] = chooseChannel(punctaset_perround,params.COLOR_VEC,params.DISTANCE_FROM_CENTER);
+%         answer_vector(exp_idx) = max_chan;
+%         confidence_vector(exp_idx) = confidence;
+%     end
+%     
+%     %transcripts(puncta_idx,:) = answer_vector;
+%     %transcripts_confidence(puncta_idx,:) = confidence_vector;
+%     %pos(puncta_idx,:) = [Y(puncta_idx),X(puncta_idx),Z(puncta_idx)];
+%     cell_transcripts{puncta_idx} = answer_vector;
+%     cell_transcripts_confidence{puncta_idx} = confidence_vector;
+%     cell_pos{puncta_idx} = [Y(puncta_idx),X(puncta_idx),Z(puncta_idx)];    
+% 
+%     if mod(puncta_idx,1000)==0
+%         fprintf('Calling base puncta #%i out of %i \n',puncta_idx, size(puncta_set,6));
+%     end
+% end
+% 
+% for puncta_idx = 1:size(puncta_set,6)
+%     transcripts(puncta_idx,:) = cell_transcripts{puncta_idx};
+%     transcripts_confidence(puncta_idx,:) = cell_transcripts_confidence{puncta_idx};
+%     pos(puncta_idx,:) = cell_pos{puncta_idx};
+% end
+% 
+% 
+% save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv12.mat',params.FILE_BASENAME)),'transcripts','transcripts_confidence','pos');
+% save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
 
-cell_transcripts = cell(size(puncta_set,6),1);
-cell_transcripts_confidence = cell(size(puncta_set,6),1);
-cell_pos = cell(size(puncta_set,6),1);
-parfor puncta_idx = 1:size(puncta_set,6)
-    
-    answer_vector = zeros(params.NUM_ROUNDS,1);
-    confidence_vector = zeros(params.NUM_ROUNDS,1);
-    for exp_idx = 1:params.NUM_ROUNDS
-        
-        punctaset_perround = squeeze(puncta_set(:,:,:,exp_idx,:,puncta_idx));
-         
-        [max_chan, confidence] = chooseChannel(punctaset_perround,params.COLOR_VEC,params.DISTANCE_FROM_CENTER);
-        answer_vector(exp_idx) = max_chan;
-        confidence_vector(exp_idx) = confidence;
-    end
-    
-    %transcripts(puncta_idx,:) = answer_vector;
-    %transcripts_confidence(puncta_idx,:) = confidence_vector;
-    %pos(puncta_idx,:) = [Y(puncta_idx),X(puncta_idx),Z(puncta_idx)];
-    cell_transcripts{puncta_idx} = answer_vector;
-    cell_transcripts_confidence{puncta_idx} = confidence_vector;
-    cell_pos{puncta_idx} = [Y(puncta_idx),X(puncta_idx),Z(puncta_idx)];    
 
-    if mod(puncta_idx,1000)==0
-        fprintf('Calling base puncta #%i out of %i \n',puncta_idx, size(puncta_set,6));
-    end
-end
-
-for puncta_idx = 1:size(puncta_set,6)
-    transcripts(puncta_idx,:) = cell_transcripts{puncta_idx};
-    transcripts_confidence(puncta_idx,:) = cell_transcripts_confidence{puncta_idx};
-    pos(puncta_idx,:) = cell_pos{puncta_idx};
-end
-
-
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv12.mat',params.FILE_BASENAME)),'transcripts','transcripts_confidence','pos');
-save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
 disp('Completed normalizePuncta.m and saved the transcriptsv10 mat file in the transcripts folder');
