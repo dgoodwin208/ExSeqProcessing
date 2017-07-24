@@ -191,9 +191,9 @@ parfor exp_idx = experiement_indices_for_parallel_loop
         end
         
         % Use the pixel adjustments:
-        y_indices = y_indices + shifts(1);
-        x_indices = x_indices + shifts(2);
-        z_indices = z_indices + shifts(3);
+        y_indices = y_indices - shifts(1);
+        x_indices = x_indices - shifts(2);
+        z_indices = z_indices - shifts(3);
         
         %Recreate the candidate with the new fixes
         for c_idx = params.COLOR_VEC

@@ -50,41 +50,12 @@ Z = round(puncta_filtered(:,3));
 num_puncta = length(X); %from the filtered RajLab coordinates
 
 %Define the overly generous size of the puncta for these ROIS
-PSIZE = 2*params.PUNCTA_SIZE;
+PSIZE = 14; %2*params.PUNCTA_SIZE;
 
 %Define a puncta_set object that can be parallelized
-puncta_set_cell = cell(params.NUM_ROUNDS);
-badpuncta_cell = cell(params.NUM_ROUNDS);
-shifts_cell = cell(params.NUM_ROUNDS);
-%Before the parallelized loop, create the set of puncta volumes for the
-%reference volume, that will then be copied into the different workers for
-%calculting the fine adjustments for aligning the pixels
-%Load all channels of data into memory for one experiment
-exp_idx = params.REFERENCE_ROUND_PUNCTA;
-reference_puncta = cell(params.NUM_CHANNELS,num_puncta);
-experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
-
-fprintf('First loading the img volume params.REFERENCE_ROUND_PUNCTA=%i\n',...
-    params.REFERENCE_ROUND_PUNCTA);
-
-for c_idx = params.COLOR_VEC
-    experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
-end
-
-for puncta_idx = 1:num_puncta
-    for c_idx = params.COLOR_VEC
-        y_indices = Y(puncta_idx) - PSIZE/2 + 1: Y(puncta_idx) + PSIZE/2;
-        x_indices = X(puncta_idx) - PSIZE/2 + 1: X(puncta_idx) + PSIZE/2;
-        z_indices = Z(puncta_idx) - PSIZE/2 + 1: Z(puncta_idx) + PSIZE/2;
-        
-        reference_puncta{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
-    end
-end
-
-%Then copy this result into the aggregator vairable puncta_set_cell
-%Which will be put back together after we loop over rounds colors and
-puncta_set_cell{exp_idx} = reference_puncta;
-clear experiment_set; %avoid any possible broadcasting of variables in the parfor
+puncta_set_cell = cell(params.NUM_ROUNDS,1);
+badpuncta_cell = cell(params.NUM_ROUNDS,1);
+shifts_cell = cell(params.NUM_ROUNDS,1);
 
 %Now we're ready to loop over all puncta in all other rounds
 %And for each puncta in each round, doing the minor puncta adjustments
@@ -95,8 +66,6 @@ parfor exp_idx = experiement_indices_for_parallel_loop
     
     disp(['round=',num2str(exp_idx)])
     bad_puncta = [];
-    shifts = zeros(num_puncta,3);
-    offsetrange = [2,2,2];
     
     %Load all channels of data into memory for one experiment
     experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
@@ -110,7 +79,6 @@ parfor exp_idx = experiement_indices_for_parallel_loop
     
     puncta_set_cell{exp_idx} = cell(params.NUM_CHANNELS,num_puncta);
     
-    
     % Loop over every puncta:
     % Compare this round's puncta with the reference round puncta
     % Adjust the indices according to the shift
@@ -120,54 +88,19 @@ parfor exp_idx = experiement_indices_for_parallel_loop
         x_indices = X(puncta_idx) - PSIZE/2 + 1: X(puncta_idx) + PSIZE/2;
         z_indices = Z(puncta_idx) - PSIZE/2 + 1: Z(puncta_idx) + PSIZE/2;
         
-        %Create the candidate puncta
-        candidate = zeros(PSIZE,PSIZE,PSIZE,params.NUM_CHANNELS);
-        %Extract out the reference puncta colors so we can sum them up
-        reference_puncta_in_colors = zeros(PSIZE,PSIZE,PSIZE,params.NUM_CHANNELS);
-        for c_idx = params.COLOR_VEC
-            candidate(:,:,:,c_idx) = experiment_set(y_indices,x_indices,z_indices,c_idx);
-            reference_puncta_in_colors(:,:,:,c_idx) = reference_puncta{c_idx,puncta_idx}
-        end
-        
-        candidate_sum = sum(candidate,4);
-        reference_sum = sum(reference_puncta_in_colors,4);
-        
-        
-        %WE SHOULDN'T DO THE SHIFTS UNTIL WE'VE DONE COLOR NORMALIZATION
-%         [~,shifts] = crossCorr3D(reference_sum,candidate_sum,offsetrange);
-%         if numel(shifts)>3
-%             %A maximum point wasn't found for this round, likely indicating
-%             %something weird with the round.
-%             fprintf('Error in Round %i in Puncta %i\n', exp_idx,puncta_idx);
-%             
-%             %Take note of this puncta for later - perhaps it makes most
-%             %sense to discard these puncta preemptively
-%             bad_puncta = [bad_puncta; puncta_idx];
-%             
-%             %Store the non-adjusted data as a placeholder
-%             for c_idx = params.COLOR_VEC
-%                 puncta_set_cell{exp_idx}{c_idx,puncta_idx} = candidate(:,:,:,c_idx);
-%             end
-%             
-%             continue;
-%         end
-%         
-%         % Use the pixel adjustments:
-%         y_indices = y_indices + shifts(1);
-%         x_indices = x_indices + shifts(2);
-%         z_indices = z_indices + shifts(3);
-        
+        if any([y_indices(1),x_indices(1),z_indices(1)])<=0
+		bad_puncta = [bad_puncta puncta_idx];
+                disp('YARP');
+		continue;
+	 end   
         %Recreate the candidate with the new fixes
         for c_idx = params.COLOR_VEC
             puncta_set_cell{exp_idx}{c_idx,puncta_idx} = experiment_set(y_indices,x_indices,z_indices,c_idx);
         end
         
-        shifts(puncta_idx,:) = shifts;
     end
     
-    shifts_cell{exp_idx} = shifts;
     badpuncta_cell{exp_idx} = bad_puncta;
-    %clear experiment_set
 end
 
 

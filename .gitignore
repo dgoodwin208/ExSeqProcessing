@@ -3,6 +3,7 @@
 *.fig
 logs/
 *.log
+*.gif
 1_deconvolution
 2_*
 3_*
