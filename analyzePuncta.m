@@ -240,7 +240,7 @@ indices_too_close_to_border = [];ctr = 1;
 for puncta_idx = 1:size(puncta_filtered,1)
    pos = puncta_filtered(puncta_idx,:);
    
-   if any((pos-2*params.PUNCTA_SIZE)<0)
+   if any((pos-2*params.PUNCTA_SIZE)<=0)
         indices_too_close_to_border(ctr) = puncta_idx;
         ctr = ctr+1;
    elseif any((pos+2*params.PUNCTA_SIZE)>size(img))

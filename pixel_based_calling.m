@@ -4,8 +4,9 @@ loadParameters;
 
 % params.REFERENCE_ROUND_PUNCTA =5;
 % load('/Users/Goody/Neuro/ExSeq/rajlab/splintr2roi1_mackerel_2ndpass/splintrseqroi1_puncta_rois.mat');
-load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_normedrois.mat',params.FILE_BASENAME)));
+load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)));
 
+fprintf('Size of puncta: %i\n',size(puncta_set,1));
 %%
 PSIZE = params.PUNCTA_SIZE;
 % p_idx = 500;
