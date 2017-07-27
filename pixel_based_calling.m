@@ -154,13 +154,16 @@ for p_idx = 1:size(transcripts,1)
     %Search for a perfect match in the ground truth codes
     img_transcript = transcripts(p_idx,4:end);
     %Sanity check: randomize the img_transcript
-    img_transcript = img_transcript(randperm(length(img_transcript)));
+
+    %img_transcript = img_transcript(randperm(length(img_transcript)));
+
  
     %Search for a perfect match in the ground truth codes
     hits = (groundtruth_codes==img_transcript);
     
-    %Calculate the hamming distance
-    scores = params.NUM_ROUNDS - sum(hits,2);
+
+    %Calculate the hamming distance (now subtracting primer length)
+    scores = length(img_transcript)- sum(hits,2);
     [values, indices] = sort(scores,'ascend');
     
     %Get the first index that is great than the best score
@@ -177,7 +180,9 @@ for p_idx = 1:size(transcripts,1)
         transcript.distance_score= values(idx_last_tie);
         transcript.name = gtlabels{indices(idx_last_tie)};
         transcript.prob_error= -1; %Saying N/A;
-        transcript.pos = [0,0,0]; %TODO get position included 
+
+        transcript.pos = pos(p_idx,:); %TODO get position included 
+
     else
         
         %Difference metric: sum of probabilities,that the original call
@@ -199,7 +204,8 @@ for p_idx = 1:size(transcripts,1)
         transcript.known_sequence_matched = groundtruth_codes(indices(idx_best_second_place),:);
         transcript.distance_score= values(idx_last_tie);
         transcript.prob_error= val_best_second_place;
-        transcript.pos = [0,0,0]; %TODO get position included
+        transcript.pos = pos(p_idx,:); %TODO get position included
+
         
         transcript.name = gtlabels{indices(idx_best_second_place)};
     end
@@ -213,8 +219,10 @@ for p_idx = 1:size(transcripts,1)
     end
 end
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_RANDtranscriptmatches.mat',params.FILE_BASENAME)),'transcript_objects','-v7.3');
 
+save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches.mat',params.FILE_BASENAME)),'transcript_objects','-v7.3');
+
+%%
 
 error_reads = zeros(17,1);
 indices_for_specific_distance = []; ctr = 1;

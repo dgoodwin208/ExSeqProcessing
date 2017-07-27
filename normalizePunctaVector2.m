@@ -23,28 +23,38 @@ end
 
 %Rename puncta_set_normed to just puncta
 puncta_set=puncta_set_normed;
-clearvars puncta_set_normed;
+%clearvars puncta_set_normed;
 
-
+%%
 %After the normalization, calculate fine-pixel tweaks per puncta
 
 bad_puncta = [];
 puncta_fix_cell = cell(size(puncta_set,6),1);
 
-shifts_cell = cell(params.NUM_ROUNDS);
-parfor p_idx = 1:size(puncta_set,6)
+
+shifts_cell = cell(size(puncta_set,6),1);
+for p_idx = 1:size(puncta_set,6)
+
 
     puncta = puncta_set(:,:,:,:,:,p_idx);
-
+    puncta_backup = puncta;
+    
+    %The holder for all the shifts per puncta
+    shifts_puncta = zeros(params.NUM_ROUNDS,3);
+    
     %sum of channels (that have now been quantile normalized)
     puncta_roundref = sum(squeeze(puncta(:,:,:,params.REFERENCE_ROUND_PUNCTA,:)),4);
+
     offsetrange = [3,3,3];
+
     
     moving_exp_indices = 1:params.NUM_ROUNDS; 
     moving_exp_indices(params.REFERENCE_ROUND_PUNCTA) = [];
 
+
     %initialize the vector of all shift
     shifts = zeros(num_puncta,3);
+
     
     for e_idx = moving_exp_indices
         %Get the sum of the colors for the moving channel
@@ -56,41 +66,63 @@ parfor p_idx = 1:size(puncta_set,6)
             fprintf('Error in Round %i in Puncta %i\n', e_idx,p_idx);
             bad_puncta = [bad_puncta p_idx];
             puncta_fix_cell{p_idx} = puncta;
-            continue;
+            break;
         end
-        for c_idx = 1:params.NUM_CHANNELS
-            puncta(:,:,:,e_idx,c_idx) = ...
-                imtranslate3D(squeeze(puncta(:,:,:,e_idx,c_idx)),shifts);
-        end
+        %If it's a good looking shift, save it
+        
+        shifts_puncta(e_idx,:) = shifts;
+
     end
 
-
+    if ~ismember(p_idx,bad_puncta)
+        for e_idx = moving_exp_indices        
+            shifts= shifts_puncta(e_idx,:);
+            for c_idx = 1:params.NUM_CHANNELS
+                puncta(:,:,:,e_idx,c_idx) = ...
+                    imtranslate3D(squeeze(puncta(:,:,:,e_idx,c_idx)),shifts);
+            end
+        end    
+    end
+    %quick temp viewing
+%     visualizeGridPlot(puncta,ones(params.NUM_ROUNDS,1),params,1)
+%     visualizeGridPlot(puncta_backup,ones(params.NUM_ROUNDS,1),params,2)
+%     [(1:20)', shifts_puncta]
+% 
+%     p_idx
+%     drawnow
+%     pause
+    shifts_cell{p_idx} = shifts_puncta;
    puncta_fix_cell{p_idx} = puncta;
 
    if mod(p_idx,1000)==0
        fprintf('3D crosscorr fix for puncta  %i/%i\n',p_idx,size(puncta_set,6));
    end
 end
-
+%%
 %Bring it all back together
+shifts_total = zeros(params.NUM_ROUNDS,3,size(puncta_set,6));
 for p_idx = 1:size(puncta_set,6)
     puncta_set(:,:,:,:,:,p_idx) = puncta_fix_cell{p_idx};
+    shifts_total(:,:,p_idx) = shifts_cell{p_idx};
 end
 
 
-
+%old code may have allowed bad_puncta to have duplicates
+bad_puncta = unique(bad_puncta);
 
 puncta_set(:,:,:,:,:,bad_puncta) = [];
 X(bad_puncta) = [];
 Y(bad_puncta) = [];
 Z(bad_puncta) = [];
 pos = [Y X Z];
-save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedrois_oversize.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
+
+save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedrois_oversize.mat',params.FILE_BASENAME)),'puncta_set','pos','shifts_total','-v7.3');
 
 %Hardcode the proper crop to get the subvolumes we're used to working with
-puncta_set_normal= puncta_set(6:15,6:15,6:15,:,:,:);
+puncta_set_normal= puncta_set(3:12,3:12,3:12,:,:,:);
 puncta_set = puncta_set_normal; 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)),'puncta_set','pos','-v7.3');
+save(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)),'puncta_set','pos','shifts_total','-v7.3');
+
 
 % Rows are sequencing rounds, columns are channels, press enter to go to
 % next one

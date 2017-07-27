@@ -5,13 +5,13 @@ function interpolateDataVolume(round_num,Z_upsample_factor)
 
 FILEROOT_NAME_INPUT = 'exseqautoframe7';
 FILEROOT_NAME_OUTPUT = 'exseqautoframe7i';
-DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampus_rename/';
-
 
 %parfor roundnum = 1:NUM_ROUNDS
 fprintf('Starting processing of round %i\n',roundnum);
 %Load all channels, normalize them, calculate the cross corr of
 %channels 1-3 vs 4
+
+DIRECTORY = '1_deconvolution/';
 
 
 for chan_num = 0:3
@@ -28,7 +28,7 @@ for chan_num = 0:3
     
     for y = 1:size(data,1)
         for x = 1:size(data,2)
-            data_interpolated = interp1(indices,squeeze(data(y,x,:)),query_pts,'spline');
+            data_interpolated(y,x,:) = interp1(indices,squeeze(data(y,x,:)),query_pts,'spline');
         end
         
         if mod(y,200)==0
@@ -38,5 +38,6 @@ for chan_num = 0:3
     
     filename_out = fullfile(DIRECTORY,sprintf('%s_round%.03i_ch0%i.tif',FILEROOT_NAME_OUTPUT,round_num,chan_num));
     save3DTif(data_interpolated,filename_out);
-    fprintf('Loading %s\n',filename_in);
+    fprintf('Saving %s\n',filename_in);
+
 end
