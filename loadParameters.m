@@ -1,14 +1,16 @@
 % Data loading a storage parameteres
-params.registeredImagesDir = '/home/dgoodwin/ExSeqProcessing/3_registration';
-params.punctaSubvolumeDir = '/home/dgoodwin/ExSeqProcessing/4_puncta-extraction';
-params.transcriptResultsDir = '/home/dgoodwin/ExSeqProcessing/5_transcripts';
+params.deconvolutionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/1_deconvolution';
+params.colorCorrectionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/2_color-correction';
+params.registeredImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/4_registration';
+params.punctaSubvolumeDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/5_puncta-extraction';
+params.transcriptResultsDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/6_transcripts';
 
-params.FILE_BASENAME = 'exseqautoframe7';
+params.FILE_BASENAME = 'exseqautoframea1';
 
 %Experimental parameters
 params.REFERENCE_ROUND_WARP=5;
-params.REFERENCE_ROUND_PUNCTA=5;
-params.NUM_ROUNDS = 20;
+params.REFERENCE_ROUND_PUNCTA = 1;
+params.NUM_ROUNDS = 4;
 params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 
@@ -26,4 +28,4 @@ params.THRESHOLD_AGREEMENT_CHOSEN = 10; %how many rounds should the intensity me
 params.THRESHOLD_MARGIN = 0;
 
 %Reporting directories
-params.reportingDir = '/home/dgoodwin/ExSeqProcessing/logs/imgs/';
+params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/logs/imgs';
