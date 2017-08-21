@@ -19,7 +19,6 @@ usage() {
     echo "  -L    log directory"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  profile-check,color-correction,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
-    echo "  -m    decide a threshold of round-1 manually"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
     exit 1
@@ -49,11 +48,10 @@ CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
-THRESHOLD_DECISION='auto'
 
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:i:L:e:s:myh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:i:L:e:s:yh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -104,8 +102,6 @@ do
         e)  ARG_EXEC_STAGES=$OPTARG
             ;;
         s)  ARG_SKIP_STAGES=$OPTARG
-            ;;
-        m)  THRESHOLD_DECISION='manual'
             ;;
         y)  QUESTION_ANSW='yes'
             ;;
@@ -284,7 +280,6 @@ echo "  reference round        :  ${REFERENCE_ROUND}"
 echo "  processing channels    :  ${CHANNELS}"
 echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
-echo "  r-1 threshold decision :  ${THRESHOLD_DECISION}"
 echo
 echo "Stages"
 for((i=0; i<${#STAGES[*]}; i++))
@@ -543,10 +538,13 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             echo "round number is wrong."
         fi
 
-        input_file=$(printf "alexa%03d.tiff" $round_num)
-        if [ ! -f ${PUNCTA_DIR}/$input_file ]; then
-            ln -s $f ${PUNCTA_DIR}/$input_file
-        fi
+        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
+        do
+            input_file=$(printf "alexa%02d%d.tiff" $round_num $i)
+            if [ ! -f ${PUNCTA_DIR}/$input_file ]; then
+                ln -s $f ${PUNCTA_DIR}/$input_file
+            fi
+        done
     done
 
     pushd ${PUNCTA_DIR}
@@ -554,14 +552,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ln -s ../startup.m
     fi
 
-    if [ $THRESHOLD_DECISION = auto ]; then
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();adjustThresholds(false);getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-        #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} adjustThresholds(false);getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-    else
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction-1.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects(); ${ERR_HDL_POSTCODE}"
-        matlab -logfile ${LOG_DIR}/matlab-puncta-extraction-2.log -r "improc2.launchThresholdGUI()"
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction-3.log -r "${ERR_HDL_PRECODE} skip_first=true;adjustThresholds(skip_first);getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-    fi
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();saveThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
 
     popd
 else

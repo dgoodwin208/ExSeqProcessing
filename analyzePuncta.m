@@ -4,7 +4,7 @@ save_types = {'fig','jpg'};
 load(fullfile(params.punctaSubvolumeDir ,sprintf('%s_puncta_allexp.mat',params.FILE_BASENAME)));
 
 %load sample image for reference
-img = load3DTif(fullfile(params.punctaSubvolumeDir ,'alexa001.tiff'));
+img = load3DTif(fullfile(params.punctaSubvolumeDir ,'alexa010.tiff'));
 
 %% make a quick scatter plot
 figure('Visible','off')
