@@ -35,7 +35,7 @@ for file_idx = 1:length(files)
         for z=1:z_stack_size
             chan_data(:,:,z) = raw_data(:,:,(c_idx-1)*z_stack_size+z);
         end
-        save3DTif(chan_data,fullfile(dir_rootoutput,sprintf('%s_round%i_chan%i.tif',...
+        save3DTif(chan_data,fullfile(dir_rootoutput,sprintf('%s_round%.03i_chan0%i.tif',...
             experiment_string, file_idx,c_idx)));
     end
     
