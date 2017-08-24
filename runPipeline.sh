@@ -531,18 +531,14 @@ echo "puncta extraction"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    for f in $(\ls ${REGISTRATION_DIR}/${FILE_BASENAME}_round*_${REGISTRATION_CHANNEL}_registered.tif)
+    for((i=1; i<=${ROUND_NUM}; i++))
     do
-        round_num=$(( $(basename $f | sed -ne 's/[^_]*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
-        if [ $round_num -eq 0 ]; then
-            echo "round number is wrong."
-        fi
-
-        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
+        for((j=0; j<${#CHANNEL_ARRAY[*]}; j++))
         do
-            input_file=$(printf "alexa%02d%d.tiff" $round_num $i)
+            reg_file=$(printf "${REGISTRATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[j]}_registered.tif" $i)
+            input_file=$(printf "alexa%02d%d.tiff" $i $j)
             if [ ! -f ${PUNCTA_DIR}/$input_file ]; then
-                ln -s $f ${PUNCTA_DIR}/$input_file
+                ln -s $reg_file ${PUNCTA_DIR}/$input_file
             fi
         done
     done
