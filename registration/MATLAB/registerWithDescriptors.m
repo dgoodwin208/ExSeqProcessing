@@ -48,7 +48,7 @@ function registerWithDescriptors(moving_run)
     keys_moving_total = {}; keys_ctr=1;
     for register_channel = params.REGISTERCHANNELS
         descriptor_output_dir_moving = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
-            params.MOVING_RUN,register_channel));
+            params.MOVING_RUN,register_channel{1}));
         
         files = dir(fullfile(descriptor_output_dir_moving,'*.mat'));
         
@@ -76,7 +76,7 @@ function registerWithDescriptors(moving_run)
     keys_fixed_total = {}; keys_ctr=1;
     for register_channel = params.REGISTERCHANNELS
         descriptor_output_dir_fixed = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
-            params.FIXED_RUN,register_channel));
+            params.FIXED_RUN,register_channel{1}));
         
         files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
         
