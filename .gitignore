@@ -1,7 +1,9 @@
 *.m~
 *.mat
+*.fig
 logs/
 *.log
+*.gif
 1_deconvolution
 2_*
 3_*
@@ -9,4 +11,5 @@ logs/
 5_*
 6_*
 startup.m
-loadParameters*
+loadParameters.m
+loadParameters.m.back
