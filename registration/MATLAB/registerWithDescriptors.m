@@ -236,18 +236,29 @@ function registerWithDescriptors(moving_run)
 
     % Do we filter on maximum displacements in coordinate space?
     % For some data this might be useful
-    if (params.MAXDISTANCE>-1)
-        remove_indices = [];
-        for match_idx = 1:size(keyF_total,1)
-           if norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))>params.MAXDISTANCE
-            remove_indices = [remove_indices match_idx];
-           end
-        end
-        keyF_total(remove_indices,:) = [];
-        keyM_total(remove_indices,:) = [];
-        clear remove_indices;
-    end
-    
+%    if (params.MAXDISTANCE>-1)
+%        remove_indices = [];
+%        for match_idx = 1:size(keyF_total,1)
+%           if norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))>params.MAXDISTANCE
+%            remove_indices = [remove_indices match_idx];
+%           end
+%        end
+%        keyF_total(remove_indices,:) = [];
+%        keyM_total(remove_indices,:) = [];
+%        clear remove_indices;
+%    end
+  
+    %Remove correspondence match outliers by distance
+D = diag(pdist2(keyM_total,keyF_total,'euclidean'));
+
+thresh = quantile(D,params.DISTANCEQUANTILECUTOFF);
+[D_sorted,D_indexed] = sort(D);
+thresh_sorted_index = find(D_sorted>thresh,1,'first');
+keypoint_filter_indices = D_indexed(1:thresh_sorted_index-1);
+fprintf('Removing %i of %i corresondences\n', size(keyM_total,1) - length(keypoint_filter_indices),size(keyM_total));
+keyM_total = keyM_total(keypoint_filter_indices,:);
+keyF_total = keyF_total(keypoint_filter_indices,:);
+   
     %Do a global affine transform on the data and keypoints before
     %doing the fine-resolution non-rigid warp
    

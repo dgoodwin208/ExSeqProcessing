@@ -148,8 +148,9 @@ parfor idx = 1:total_iterations
        disp('ah'); 
     end
     
+    if mod(idx,100)==0 
     disp([num2str(idx) '/' num2str(total_iterations) ' Completed one round'])
-            
+    end
 end
 
 disp('finished parfor loop in TPS3DWarpWhole')
