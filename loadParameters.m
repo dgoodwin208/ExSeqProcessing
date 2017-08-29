@@ -29,3 +29,10 @@ params.THRESHOLD_MARGIN = 0;
 
 %Reporting directories
 params.reportingDir = '/home/dgoodwin/ExSeqProcessing/logs/imgs';
+
+%# of Jobs in normalization
+%params.NORM_JOB_SIZE = 5;
+params.NORM_JOB_SIZE = 10;
+params.NORM_EACH_JOB_POOL_SIZE = 20;
+params.tempDir = '/mp/nvme0/tmp';
+
