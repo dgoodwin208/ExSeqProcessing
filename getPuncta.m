@@ -12,12 +12,12 @@ while tools.iterator.continueIteration
     end
     
     %Get the filename
-    filename = tools.objectHandle.getImageFileName('alexa');
+    filename = tools.objectHandle.getImageFileName('alexa')
     %Get the three digits and extract the round by Atsushi's format
     %First two digits are the round number, the third digit is the channel
     %number
     exp_idx = str2num(filename(6:7));
-    chan_idx = str2num(filename(8));
+    chan_idx = str2num(filename(8))+1;
 
     objNum = tools.navigator.currentArrayNum();
     [Y X Z] = tools.objectHandle.getData('alexa').getSpotCoordinates();

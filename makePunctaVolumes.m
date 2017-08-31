@@ -6,7 +6,7 @@ loadParameters;
 load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)));
 
 %Get the list of all registred files
-files = dir(fullfile(params.registeredImagesDir,'*.tif'));
+files = dir(fullfile(params.registeredImagesDir,'*_registered.tif'));
 
 organized_data_files = cell(params.NUM_ROUNDS,params.NUM_CHANNELS);
 
@@ -20,7 +20,7 @@ for file_index = 1:length(files)
     
     %Need to crop out round number and channel
     %FULLTPSsa0916dncv_round7_chan1.tif
-    m = regexp(files(file_index).name,'.+_round(\d+)_(\w+).tif','tokens');
+    m = regexp(files(file_index).name,'.+_round(\d+)_(\w+)_registered.tif','tokens');
     round_num = str2num(m{1}{1});
     chan_name = m{1}{2};
     if sum(ismember(chan_list,chan_name)) == 0
