@@ -20,15 +20,15 @@ function registerWithDescriptors(moving_run)
     disp(['RUNNING ON MOVING: ' num2str(params.MOVING_RUN) ', FIXED: ' num2str(params.FIXED_RUN)])
 
     filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',...
-                        params.SAMPLE_NAME,params.FIXED_RUN,params.REGISTERCHANNELS{1} ));
+                        params.SAMPLE_NAME,params.FIXED_RUN,params.CHANNELS{1} ));
 
-    imgFixed_total = load3DTif(filename);
+    imgFixed_total = load3DTif_uint16(filename);
 
 
     filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',...
-                        params.SAMPLE_NAME,params.MOVING_RUN,params.REGISTERCHANNELS{1}));
+                        params.SAMPLE_NAME,params.MOVING_RUN,params.CHANNELS{1}));
     
-    imgMoving_total = load3DTif(filename);
+    imgMoving_total = load3DTif_uint16(filename);
 
     %LOAD FILES WITH CROP INFORMATION, CROP LOADED FILES
     cropfilename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_cropbounds.mat',params.SAMPLE_NAME,params.FIXED_RUN));
@@ -258,7 +258,22 @@ keypoint_filter_indices = D_indexed(1:thresh_sorted_index-1);
 fprintf('Removing %i of %i corresondences\n', size(keyM_total,1) - length(keypoint_filter_indices),size(keyM_total));
 keyM_total = keyM_total(keypoint_filter_indices,:);
 keyF_total = keyF_total(keypoint_filter_indices,:);
-   
+
+%Belt and suspenders here but after reviewing all the results we still need a max offset :/   
+if (params.MAXDISTANCE>-1)
+    remove_indices = [];
+    for match_idx = 1:size(keyF_total,1)
+        if norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))>params.MAXDISTANCE
+            norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))
+            remove_indices = [remove_indices match_idx];
+        end
+    end
+    keyF_total(remove_indices,:) = [];
+    keyM_total(remove_indices,:) = [];
+    clear remove_indices;
+end
+
+
     %Do a global affine transform on the data and keypoints before
     %doing the fine-resolution non-rigid warp
    
@@ -293,13 +308,13 @@ keyF_total = keyF_total(keypoint_filter_indices,:);
         data_channel = params.CHANNELS{c};
         fprintf('load 3D file for affine transform on %s channel\n',data_channel);
         filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-        imgToWarp = load3DTif(filename);
+        imgToWarp = load3DTif_uint16(filename);
         toc;
         
         output_affine_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_affine.tif',...
                         params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
         imgMoving_total_affine = imwarp(imgToWarp,affine3d(affine_tform'),'OutputView',rF);
-        save3DTif(imgMoving_total_affine,output_affine_filename);
+        save3DTif_uint16(imgMoving_total_affine,output_affine_filename);
     end
     
     disp('set up cluster and parpool')
@@ -343,7 +358,7 @@ keyF_total = keyF_total(keypoint_filter_indices,:);
         tic;
         data_channel = params.CHANNELS{c};
         filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_affine.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-        imgToWarp = load3DTif(filename);
+        imgToWarp = load3DTif_uint16(filename);
         toc;
         
         %we loaded the bounds_moving data at the very beginning of this file
@@ -353,7 +368,7 @@ keyF_total = keyF_total(keypoint_filter_indices,:);
         [ outputImage_interp ] = TPS3DApply(in1D_total,out1D_total,imgToWarp,size(imgFixed_total));
         
         outputfile = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_registered.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-        save3DTif(outputImage_interp,outputfile);
+        save3DTif_uint16(outputImage_interp,outputfile);
     end
 
     disp('delete parpool')

@@ -47,6 +47,7 @@ CHANNELS="'chan1','chan2','chan3','chan4'"
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
+PUNCTA_EXTRACT_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 ###### getopts
@@ -69,6 +70,7 @@ do
         c)  CHANNELS=$OPTARG
             CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
             REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
+            PUNCTA_EXTRACT_CHANNELS="'${REGISTRATION_CHANNEL}'"
             ;;
         B)  REFERENCE_ROUND=$OPTARG
                 expr $REFERENCE_ROUND + 1 > /dev/null 2>&1
@@ -538,6 +540,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     for((i=1; i<=${ROUND_NUM}; i++))
     do
         for((j=0; j<${#CHANNEL_ARRAY[*]}; j++))
+        #for((j=0; j<1; j++))
         do
             reg_file=$(printf "${REGISTRATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[j]}_registered.tif" $i)
             input_file=$(printf "alexa%02d%d.tiff" $i $j)
@@ -552,7 +555,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ln -s ../startup.m
     fi
 
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();saveThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();saveThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    matlab -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();improc2.launchThresholdGUI;getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
 
     popd
 else

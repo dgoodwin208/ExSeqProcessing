@@ -6,7 +6,7 @@ loadParameters;
 load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_filtered.mat',params.FILE_BASENAME)));
 
 %Get the list of all registred files
-files = dir(fullfile(params.registeredImagesDir,'*.tif'));
+files = dir(fullfile(params.registeredImagesDir,'*_registered.tif'));
 
 organized_data_files = cell(params.NUM_ROUNDS,params.NUM_CHANNELS);
 
@@ -20,7 +20,7 @@ for file_index = 1:length(files)
     
     %Need to crop out round number and channel
     %FULLTPSsa0916dncv_round7_chan1.tif
-    m = regexp(files(file_index).name,'.+_round(\d+)_(\w+).tif','tokens');
+    m = regexp(files(file_index).name,'.+_round(\d+)_(\w+)_registered.tif','tokens');
     round_num = str2num(m{1}{1});
     chan_name = m{1}{2};
     if sum(ismember(chan_list,chan_name)) == 0
@@ -37,7 +37,7 @@ end
 %For each experiment, load the four channels of data, then
 %start getting the subregions
 
-data = load3DTif(organized_data_files{1,1});
+data = load3DTif_uint16(organized_data_files{1,1});
 data_height = size(data,1);
 data_width = size(data,2);
 data_depth = size(data,3);
@@ -72,7 +72,7 @@ parfor exp_idx = experiement_indices_for_parallel_loop
     disp(['[',num2str(exp_idx),'] loading files'])
     
     for c_idx = params.COLOR_VEC
-        experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
+        experiment_set(:,:,:,c_idx) = load3DTif_uint16(organized_data_files{exp_idx,c_idx});
     end
     
     disp(['[',num2str(exp_idx),'] processing puncta in parallel'])
@@ -157,53 +157,5 @@ disp('saving files from makePunctaVolumes')
 save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois_oversize.mat',params.FILE_BASENAME)),...
     'puncta_set','Y','X','Z','-v7.3');
 
-% save(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_shifts.mat',params.FILE_BASENAME)),...
-%     'shifts','-v7.3');
 
-%save all the used location values
-save(fullfile(params.punctaSubvolumeDir,sprintf('%s_pixels_used_for_puncta.mat',params.FILE_BASENAME)),...
-    'x_total_indices','y_total_indices','z_total_indices','-v7.3');
-
-
-%For reporting, create an image that shows all the windows
-figfilename = fullfile(params.reportingDir,sprintf('%s_punctasubvolumemaxproj.fig',params.FILE_BASENAME));
-fprintf('generating output file %s\n',figfilename);
-figure('Visible','off');
-mask = zeros(size(data));
-indices_punctamask = [y_total_indices x_total_indices z_total_indices];
-%We could remove redundant puncta for speed, but I actually think that it
-%is slower than simply linearly indexing across all 3D image
-%[indices_unique, ia, ic] = unique(indices_punctamask,'rows');
-indices_linear = sub2ind(size(data),indices_punctamask(:,1),indices_punctamask(:,2),indices_punctamask(:,3));
-
-mask(indices_linear)=1;
-mask = ~mask; %flip to 1=background, 0=puncta subvolme
-
-imagesc(max(mask,[],3));
-title('Max Z projection of all puncta subvolumes');
-saveas(gcf,figfilename,'fig')
-
-
-bgdistros_cell = cell(params.NUM_ROUNDS,params.COLOR_VEC);
-parfor exp_idx = 1:params.NUM_ROUNDS
-    disp(['round=',num2str(exp_idx)])
-    
-    for c_idx = params.COLOR_VEC
-        
-        total_data = load3DTif(organized_data_files{exp_idx,c_idx});
-        masked_data = total_data(mask(:));
-        
-        [values,binedges] = histcounts(masked_data(:),params.NUM_BUCKETS);
-        
-        %Then use our createEmpDistributionFromVector function to make the
-        %distributions
-        [p,b] = createEmpDistributionFromVector(masked_data(:),binedges);
-        
-        bgdistros_cell(exp_idx,c_idx) = [p,b];
-    end
-    
-end
-
-save(fullfile(params.punctaSubvolumeDir,sprintf('%s_background_distributions.mat',params.FILE_BASENAME)),...
-    'bgdistros_cell','-v7.3');
 

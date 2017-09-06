@@ -31,7 +31,7 @@ clearvars puncta_set_normed;
 bad_puncta = [];
 puncta_fix_cell = cell(size(puncta_set,6),1);
 
-parfor p_idx = 1:size(puncta_set,6)
+for p_idx = 1:size(puncta_set,6)
 
     puncta = puncta_set(:,:,:,:,:,p_idx);
 
@@ -87,8 +87,9 @@ pos = zeros(size(puncta_set,6),3);
 
 cell_transcripts = cell(size(puncta_set,6),1);
 cell_transcripts_confidence = cell(size(puncta_set,6),1);
-cell_pos = cell(size(puncta_set,6),1);
-parfor puncta_idx = 1:size(puncta_set,6)
+cell_pos = cell(size(puncta_set,6),1)
+
+for puncta_idx = 1:size(puncta_set,6)
     
     answer_vector = zeros(params.NUM_ROUNDS,1);
     confidence_vector = zeros(params.NUM_ROUNDS,1);

@@ -1,8 +1,18 @@
 %Load the ROIS, calculate normalized intensities, then make transcript base
 %calls
 
+
 loadParameters;
 load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois_oversize.mat',params.FILE_BASENAME)));
+
+%load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois_oversize_indices%i.mat',params.FILE_BASENAME,split_piece)));
+
+%X = X(indices_for_this_part);
+%Y = Y(indices_for_this_part);
+%Z = Z(indices_for_this_part);
+
+%fprintf('Reducing the size of the puncta_set to %i\n',length(indices_for_this_part));
+%puncta_set = puncta_set(:,:,:,:,:,indices_for_this_part);
 
 %The puncta_set vector is of dimensions:
 %(PUNCTA_SIZE,PUNCTA_SIZE,PUNCTA_SIZE,NUM_ROUNDS,NUM_CHANNELS,num_puncta)
@@ -31,11 +41,10 @@ puncta_set=puncta_set_normed;
 bad_puncta = [];
 puncta_fix_cell = cell(size(puncta_set,6),1);
 
+num_puncta = size(puncta_set,6);
 
 shifts_cell = cell(size(puncta_set,6),1);
 for p_idx = 1:size(puncta_set,6)
-
-
     puncta = puncta_set(:,:,:,:,:,p_idx);
     puncta_backup = puncta;
     
@@ -83,14 +92,6 @@ for p_idx = 1:size(puncta_set,6)
             end
         end    
     end
-    %quick temp viewing
-%     visualizeGridPlot(puncta,ones(params.NUM_ROUNDS,1),params,1)
-%     visualizeGridPlot(puncta_backup,ones(params.NUM_ROUNDS,1),params,2)
-%     [(1:20)', shifts_puncta]
-% 
-%     p_idx
-%     drawnow
-%     pause
     shifts_cell{p_idx} = shifts_puncta;
    puncta_fix_cell{p_idx} = puncta;
 

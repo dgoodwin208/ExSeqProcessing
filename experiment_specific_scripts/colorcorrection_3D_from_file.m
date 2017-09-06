@@ -5,13 +5,17 @@ loadParameters;
 %Written for the first splintr barcode dataset from Oz
 % FOLDER_NAME = 'ExSeqAutoSlice';
 FILEROOT_NAME = 'exseqautoframe7';
-FILEROOT_NAME_INTERP = 'exseqautoframe7i';
-DIRECTORY = '/home/dgoodwin/ExSeqProcessing/1_deconvolution';
-DIRECTOR_SAVEDRESULTS = '/mp/nas0/ExSeq/AutoSeqHippocampus_results/20170725snapshot/1_deconvolution';
+FILEROOT_NAME_INTERP = 'exseqautoframe7';
+DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampusOrig/1_original/';
+DIRECTOR_SAVEDRESULTS = '/mp/nas0/ExSeq/AutoSeqHippocampus_results/20170725snapshot/1_deconvolution/';
+
 % NUM_ROUNDS = params.NUM_ROUNDS;
 offsets3D = [6,6,5]; %X,Y,Z offsets for calcuating the difference
 % BEAD_ZSTART = 120;
-Z_upsample =0.5/.17;
+Z_upsample = 1.0; %0.5/.17;
+
+opts_tiff.append = false;
+opts_tiff.big = false;
 
 %parfor roundnum = 1:NUM_ROUNDS
 fprintf('Starting processing of round %i\n',roundnum);
@@ -20,16 +24,16 @@ fprintf('Starting processing of round %i\n',roundnum);
 tic; 
 
 disp('load file 1');
-chan1 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME_INTERP,roundnum)));
+chan1 = double(read_file(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME_INTERP,roundnum))));
 
 disp('load file 2');
-chan2 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.tif',FILEROOT_NAME_INTERP,roundnum)));
+chan2 = double(read_file(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.tif',FILEROOT_NAME_INTERP,roundnum))));
 
 disp('load file 3');
-chan3 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.tif',FILEROOT_NAME_INTERP,roundnum)));
+chan3 = double(read_file(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.tif',FILEROOT_NAME_INTERP,roundnum))));
 
 disp('load file 4');
-chan4 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03.tif',FILEROOT_NAME_INTERP,roundnum)));
+chan4 = double(read_file(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03.tif',FILEROOT_NAME_INTERP,roundnum))));
 
 %The file contains: 'xcorr_scores3to1','xcorr_scores2to1','xcorr_scores4to1'
 load(fullfile(DIRECTOR_SAVEDRESULTS,sprintf('%s_round%.03i_colorcalcs.mat',FILEROOT_NAME,roundnum)));
@@ -47,7 +51,7 @@ disp('translate 4');
 chan4_shift = imtranslate3D(chan4,chan4_offsets);
 
 disp('save file 4');
-save3DTif(chan4_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME_INTERP,roundnum)));
+saveastiff(uint16(chan4_shift),fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME_INTERP,roundnum)),opts_tiff);
 
 
 %Warp Chan2
@@ -61,7 +65,7 @@ disp('translate 2');
 chan2_shift = imtranslate3D(chan2,chan2_offsets);
 
 disp('save file 2');
-save3DTif(chan2_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME_INTERP,roundnum)));
+saveastiff(uint16(chan2_shift),fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME_INTERP,roundnum)),opts_tiff);
 
 
 %Warp Chan3
@@ -76,7 +80,7 @@ disp('translate 3');
 chan3_shift = imtranslate3D(chan3,chan3_offsets);
 
 disp('save file 3');
-save3DTif(chan3_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME_INTERP,roundnum)));
+saveastiff(uint16(chan3_shift),fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME_INTERP,roundnum)),opts_tiff);
 
 
 toc

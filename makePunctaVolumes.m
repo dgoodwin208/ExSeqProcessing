@@ -37,7 +37,7 @@ end
 %For each experiment, load the four channels of data, then
 %start getting the subregions
 
-data = load3DTif(organized_data_files{1,1});
+data = load3DTif_uint16(organized_data_files{1,1});
 data_height = size(data,1);
 data_width = size(data,2);
 data_depth = size(data,3);
@@ -136,7 +136,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     experiment_set = zeros(data_height,data_width,data_depth, params.NUM_CHANNELS);
     disp(['[',num2str(exp_idx),'] loading files'])
     for c_idx = params.COLOR_VEC
-        experiment_set(:,:,:,c_idx) = load3DTif(organized_data_files{exp_idx,c_idx});
+        experiment_set(:,:,:,c_idx) = load3DTif_uint16(organized_data_files{exp_idx,c_idx});
     end
     
     disp(['[',num2str(exp_idx),'] processing puncta in parallel'])
@@ -206,7 +206,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
        
     for c_idx = params.COLOR_VEC
         
-        total_data = load3DTif(organized_data_files{exp_idx,c_idx});
+        total_data = load3DTif_uint16(organized_data_files{exp_idx,c_idx});
         masked_data = total_data(mask(:));
         
         [values,binedges] = histcounts(masked_data(:),params.NUM_BUCKETS);

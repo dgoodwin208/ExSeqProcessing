@@ -6,19 +6,19 @@ function interpolateDataVolume(round_num,Z_upsample_factor)
 FILEROOT_NAME_INPUT = 'exseqautoframe7';
 FILEROOT_NAME_OUTPUT = 'exseqautoframe7i';
 
-%parfor roundnum = 1:NUM_ROUNDS
-fprintf('Starting processing of round %i\n',roundnum);
+fprintf('Starting processing of round %i\n',round_num);
 %Load all channels, normalize them, calculate the cross corr of
 %channels 1-3 vs 4
 
-DIRECTORY = '1_deconvolution/';
+DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampusOrig/4_registration';
 
+chan_strs = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
-for chan_num = 0:3
-    
-    filename_in = fullfile(DIRECTORY,sprintf('%s_round%.03i_ch0%i.tif',FILEROOT_NAME_INPUT,round_num,chan_num));
+for chan_idx = 1:length(chan_strs)
+    chan_str = chan_strs{chan_idx};
+    filename_in = fullfile(DIRECTORY,sprintf('%s_round%.03i_%s_registered.tif',FILEROOT_NAME_INPUT,round_num,chan_str));
     fprintf('Loading %s\n',filename_in);
-    data = load3DTif(filename_in);
+    data = load3DTif_uint16(filename_in);
     
     indices = 1:size(data,3);
     query_pts = 1:1/Z_upsample_factor:size(data,3);
@@ -36,8 +36,8 @@ for chan_num = 0:3
         end
     end
     
-    filename_out = fullfile(DIRECTORY,sprintf('%s_round%.03i_ch0%i.tif',FILEROOT_NAME_OUTPUT,round_num,chan_num));
-    save3DTif(data_interpolated,filename_out);
-    fprintf('Saving %s\n',filename_in);
+    filename_out = fullfile(DIRECTORY,sprintf('%s_round%.03i_%s_registered.tif',FILEROOT_NAME_OUTPUT,round_num,chan_str));
+    save3DTif_uint16(data_interpolated,filename_out);
+    fprintf('Saving %s\n',filename_out);
 
 end

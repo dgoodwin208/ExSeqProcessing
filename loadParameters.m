@@ -1,21 +1,21 @@
 % Data loading a storage parameteres
-params.deconvolutionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/1_deconvolution';
-params.colorCorrectionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/2_color-correction';
-params.registeredImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/4_registration';
-params.punctaSubvolumeDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/5_puncta-extraction';
-params.transcriptResultsDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/6_transcripts';
+params.deconvolutionImagesDir = '/home/dgoodwin/ExSeqProcessing/1_deconvolution';
+params.colorCorrectionImagesDir = '/home/dgoodwin/ExSeqProcessing/1_deconvolution';
+params.registeredImagesDir = '/home/dgoodwin/ExSeqProcessing/4_registration';% '/mp/nas0/ExSeq/AutoSeqHippocampusOrig/4_registration';
+params.punctaSubvolumeDir = '/home/dgoodwin/ExSeqProcessing/5_puncta-extraction';
+params.transcriptResultsDir = '/home/dgoodwin/ExSeqProcessing/6_transcripts';
 
-params.FILE_BASENAME = 'exseqautoframea1';
+params.FILE_BASENAME = 'exseqautoframe7';
 
 %Experimental parameters
 params.REFERENCE_ROUND_WARP=5;
-params.REFERENCE_ROUND_PUNCTA = 1;
-params.NUM_ROUNDS = 4;
+params.REFERENCE_ROUND_PUNCTA = 5;
+params.NUM_ROUNDS = 20;
 params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 
 %RajLab filtering parameters:
-params.THRESHOLD = 3; %Number of rouds to agree on 
+params.THRESHOLD = 17; %Number of rouds to agree on 
 params.EPSILON_TARGET = 4; %Radius of neighborhood for puncta to agree across rounds
 
 %Base calling parameters
@@ -28,4 +28,4 @@ params.THRESHOLD_AGREEMENT_CHOSEN = 10; %how many rounds should the intensity me
 params.THRESHOLD_MARGIN = 0;
 
 %Reporting directories
-params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/logs/imgs';
+params.reportingDir = '/home/dgoodwin/ExSeqProcessing/logs/imgs';
