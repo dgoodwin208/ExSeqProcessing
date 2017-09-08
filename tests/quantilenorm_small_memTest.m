@@ -12,7 +12,7 @@ function setup(testCase)
 
     img={};
     for i = 1:4
-        img{i}=rand(10,10,8);
+        img{i}=rand(10,10,80);
     end
     img{1}(2,1,1)=0.1;
     img{1}(4,1,1)=0.1;
