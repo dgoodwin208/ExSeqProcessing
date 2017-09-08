@@ -21,7 +21,7 @@
 const auto FILECHECK_INTERVAL_SEC = std::chrono::seconds(1);
 const auto FILECHECK_TIMEOUT_SEC  = std::chrono::seconds(60*300);
 //const auto FILECHECK_TIMEOUT_SEC = std::chrono::seconds(10);
-const unsigned int FILE_BUFSIZE = 1024*4;
+const unsigned int FILE_BUFSIZE = 1024*256;
 const size_t NUM_ELEMENTS = 2;
 const size_t IDX_MEAN = 0;
 
@@ -58,11 +58,11 @@ meanFiles(
 
         std::this_thread::sleep_for(FILECHECK_INTERVAL_SEC);
 
-        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timer_start);
-        if (elapsed_time > FILECHECK_TIMEOUT_SEC) {
-            mexPrintf("timeout of waiting for a file to be mean.\n");
-            return -1;
-        }
+//        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timer_start);
+//        if (elapsed_time > FILECHECK_TIMEOUT_SEC) {
+//            mexPrintf("timeout of waiting for a file to be mean.\n");
+//            return -1;
+//        }
     }
 
     std::ofstream of(tmp_out_filename);

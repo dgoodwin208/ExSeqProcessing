@@ -1,8 +1,8 @@
 
 loadParameters;
 
-INPUT_DIRECTORY = '/mp/nas0/FC/';
-OUTPUT_DIRECTORY = '/mp/nas0/ExSeq/AutoSeqHippocampusOrig/1_original/'; %params.colorCorrectionImagesDir;
+INPUT_DIRECTORY = params.deconvolutionImagesDir;
+OUTPUT_DIRECTORY = params.colorCorrectionImagesDir;
 
 files = dir(fullfile(INPUT_DIRECTORY,'*.tif'));
 chanmap = {'ch00','ch01','ch02','ch03'};

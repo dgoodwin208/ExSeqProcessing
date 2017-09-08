@@ -83,9 +83,7 @@ end
 % error test cases
 
 function testLessArgs(testCase)
-    ret = semaphore('/t');
-
-    verifyNotEqual(testCase,ret,0);
+    verifyError(testCase,@() semaphore('/t'),'MATLAB:semaphore:minrhs');
 end
 
 function testNotOpenAndTrywaitError(testCase)

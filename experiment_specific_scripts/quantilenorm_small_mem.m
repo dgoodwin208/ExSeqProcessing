@@ -17,7 +17,8 @@ function [varargout] = quantilenorm_small_mem(outputdir,basename,varargin)
     image_width  = image_info{1}(1).Width;
     image_height = image_info{1}(1).Height;
 
-    div_size = 32;
+    %div_size = 32;
+    div_size = 16;
     %div_size = 8;
 
     sort1_start = tic;
@@ -86,12 +87,20 @@ function [varargout] = quantilenorm_small_mem(outputdir,basename,varargin)
             fname = varargin{col_i};
     
             fprintf('# start sort1 (%d)\n',i)
+            try
             f_sort1(i) = parfeval(@sort1,0,outputdir,basename,fname,image_info{col_i},col_i,sub_i,sub_idx,image_width,image_height);
             %sort1(outputdir,basename,fname,image_info{col_i},col_i,sub_i,sub_idx,image_width,image_height);
+            catch ME
+                disp(ME.getReport)
+            end
         end
     
+        try
         disp('# wait sort1')
         fetchOutputs(f_sort1);
+        catch ME
+            disp(ME.getReport)
+        end
         disp('# wait merge')
         fetchOutputs(f_merge);
         for i = 1:(div_size*col_size)
@@ -243,11 +252,18 @@ function ret = selectCore(num_core_sem)
     while true
         ret = semaphore(['/c' num2str(num_core_sem)],'trywait');
         if ret == 0
-            fprintf('selectCore[count=%d]\n',count);
+            fprintf('selectCore[/c%d count=%d]\n',num_core_sem,count);
             break
         end
         count = count + 1;
         pause(2);
+    end
+end
+
+function ret = selectCoreNoblock(num_core_sem)
+    ret = semaphore(['/c' num2str(num_core_sem)],'trywait');
+    if ret == 0
+        fprintf('selectCoreNoblock[/c%d]\n',num_core_sem);
     end
 end
 
@@ -271,6 +287,7 @@ function sort1(outputdir,basename,fname,image_info,col_i,sub_i,sub_idx,image_wid
     if exist(tmp_output_fname,'file')
         delete(tmp_output_fname);
     end
+    system(sprintf('touch %s',tmp_output_fname));
 
     selectCore(1);
 
@@ -282,18 +299,28 @@ function sort1(outputdir,basename,fname,image_info,col_i,sub_i,sub_idx,image_wid
         sub_images(:,:,j-start_sub_idx+1) = imread(fname,j,'Info',image_info);
     end
 
-    idx_gpu = selectGPU();
-    if idx_gpu > 0
-        gdv = gpuDevice(idx_gpu);
-        g = gpuArray([sub_images(:) (fpos_start:fpos_end)']);
-        sub_images = [];
-        sorted = gather(sortrows(g));
-        gpuDevice([]);
-        unselectGPU(idx_gpu);
-    else
-        sorted = sortrows([sub_images(:) (fpos_start:fpos_end)']);
-        sub_images = [];
-    end
+    while true
+        idx_gpu = selectGPU();
+        if idx_gpu > 0
+            gdv = gpuDevice(idx_gpu);
+            g = gpuArray([sub_images(:) (fpos_start:fpos_end)']);
+            sub_images = [];
+            sorted = gather(sortrows(g));
+            gpuDevice([]);
+            unselectGPU(idx_gpu);
+            break;
+        else
+            ret = selectCoreNoblock(2);
+            if ret == 0
+                sorted = sortrows([sub_images(:) (fpos_start:fpos_end)']);
+                sub_images = [];
+                unselectCore(2);
+                break;
+            else
+                pause(1);
+            end
+        end
+    end % while
 
     unselectCore(1);
 
@@ -315,6 +342,7 @@ function sort2(outputdir,basename,infile,col_i,sub_i,sub_idx,image_width,image_h
     if exist(tmp_output_fname,'file')
         delete(tmp_output_fname);
     end
+    system(sprintf('touch %s',tmp_output_fname));
 
     selectCore(1);
 
@@ -327,18 +355,29 @@ function sort2(outputdir,basename,infile,col_i,sub_i,sub_idx,image_width,image_h
     sub_images = fread(fid,[2,fpos_end-fpos_start],'double');
     fclose(fid);
 
-    idx_gpu = selectGPU();
-    if idx_gpu > 0
-        gdv = gpuDevice(idx_gpu);
-        g = gpuArray(sub_images');
-        sub_images = [];
-        sorted = gather(sortrows(g));
-        gpuDevice([]);
-        unselectGPU(idx_gpu);
-    else
-        sorted = sortrows(sub_images');
-        sub_images = [];
-    end
+    while true
+        idx_gpu = selectGPU();
+        if idx_gpu > 0
+            gdv = gpuDevice(idx_gpu);
+            g = gpuArray(sub_images');
+            sub_images = [];
+            sorted = gather(sortrows(g));
+            gpuDevice([]);
+            unselectGPU(idx_gpu);
+            break;
+        else
+            ret = selectCoreNoblock(2);
+            if ret == 0
+                sorted = sortrows(sub_images');
+                sub_images = [];
+                unselectCore(2);
+                break;
+            else
+                pause(1);
+            end
+        end
+    end % while
+
     unselectCore(1);
 
     save_bin(tmp_output_fname,sorted');

@@ -27,8 +27,8 @@
 const auto FILECHECK_INTERVAL_SEC = std::chrono::seconds(1);
 const auto FILECHECK_TIMEOUT_SEC  = std::chrono::seconds(60*300);
 //const auto FILECHECK_TIMEOUT_SEC = std::chrono::seconds(10);
-const unsigned int FILEREAD_BUFSIZE  = 1024*4;
-const unsigned int FILEWRITE_BUFSIZE = 1024*4;
+const unsigned int FILEREAD_BUFSIZE  = 1024*256;
+const unsigned int FILEWRITE_BUFSIZE = 1024*256;
 
 int
 mergeTwoFiles(const std::string& outputdir, const std::string& in1postfix, const std::string& in2postfix, const std::string& outpostfix)
@@ -43,12 +43,12 @@ mergeTwoFiles(const std::string& outputdir, const std::string& in1postfix, const
     while (if1.fail() || ! if1.is_open() || if2.fail() || ! if2.is_open()) {
         std::this_thread::sleep_for(FILECHECK_INTERVAL_SEC);
 
-        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timer_start);
-        if (elapsed_time > FILECHECK_TIMEOUT_SEC) {
-            //mexErrMsgIdAndTxt("MATLAB:mergesortfiles:timeout","Timeout of waiting for a file to be merged.");
-            mexPrintf("timeout of waiting for a file to be merged.\n");
-            return -1;
-        }
+//        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timer_start);
+//        if (elapsed_time > FILECHECK_TIMEOUT_SEC) {
+//            //mexErrMsgIdAndTxt("MATLAB:mergesortfiles:timeout","Timeout of waiting for a file to be merged.");
+//            mexPrintf("timeout of waiting for a file to be merged.\n");
+//            return -1;
+//        }
 
         if1.close();
         if2.close();

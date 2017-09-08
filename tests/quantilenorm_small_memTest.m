@@ -65,9 +65,9 @@ function testQuantilenorm(testCase)
     n3 = load_binary_image(testCase.TestData.tempDir,norm3_fname,image_height,image_width);
     n4 = load_binary_image(testCase.TestData.tempDir,norm4_fname,image_height,image_width);
 
-    verifyEqual(testCase,n1(:),norm_org(:,1));
-    verifyEqual(testCase,n2(:),norm_org(:,2));
-    verifyEqual(testCase,n3(:),norm_org(:,3));
-    verifyEqual(testCase,n4(:),norm_org(:,4));
+    verifyEqual(testCase,n1(:),norm_org(:,1),'RelTol',1e-2);
+    verifyEqual(testCase,n2(:),norm_org(:,2),'RelTol',1e-2);
+    verifyEqual(testCase,n3(:),norm_org(:,3),'RelTol',1e-2);
+    verifyEqual(testCase,n4(:),norm_org(:,4),'RelTol',1e-2);
 end
 

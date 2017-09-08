@@ -9,10 +9,11 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
         return
     end
 
-    cluster = parcluster('local_96workers');
-    parpool(cluster);
+    cluster = parcluster('local_200workers');
+    %parpool(cluster);
 
-    num_cores = [50 5];
+    %num_cores = [30 20];
+    num_cores = [10 5];
     %num_cores = [5 5];
     quantilenorm_init(num_cores);
 

@@ -65,11 +65,11 @@ substituteToNormValues(
     while (mnf.fail() || ! mnf.is_open() || inf.fail() || ! inf.is_open()) {
         std::this_thread::sleep_for(FILECHECK_INTERVAL_SEC);
 
-        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timer_start);
-        if (elapsed_time > FILECHECK_TIMEOUT_SEC) {
-            mexPrintf("timeout of waiting for a file.\n");
-            return -1;
-        }
+//        auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - timer_start);
+//        if (elapsed_time > FILECHECK_TIMEOUT_SEC) {
+//            mexPrintf("timeout of waiting for a file.\n");
+//            return -1;
+//        }
 
         mnf.close();
         inf.close();
