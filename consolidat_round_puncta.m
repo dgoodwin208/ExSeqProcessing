@@ -1,8 +1,8 @@
 
 loadParameters;
 
-
-rnd_string = '5_puncta-extraction/exseqautoframe7_rnd%i_puncta_v2_rois.mat';
+params.punctaSubvolumeDir = '/home/dgoodwin/simulator/simulation_output';
+rnd_string = fullfile(params.punctaSubvolumeDir,'exseqautoframe7_rnd%i_puncta_v2_rois.mat');
 %Load sample data to get the number of puncta
 load(sprintf(rnd_string,5));
 
@@ -22,5 +22,5 @@ for rnd_idx = 1:20
     end
 end
 
-output_string = '5_puncta-extraction/exseqautoframe7_allrounds_puncta_v2_rois.mat';
+output_string = fullfile(params.punctaSubvolumeDir,'/exseqautoframe7_allrounds_puncta_v2_rois.mat');
 save(output_string,'puncta_set_cell','-v7.3');

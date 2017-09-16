@@ -50,7 +50,7 @@ for register_channel = params.REGISTERCHANNELS
     %The {1} to register_cahnnel is a gross bit of cell matlab code
     filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',...
         params.SAMPLE_NAME,run_num,register_channel{1}));
-    img = load3DTif(filename);
+    img = load3DTif_uint16(filename);
     
     
     %chop the image up into grid

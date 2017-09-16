@@ -1,17 +1,24 @@
 %%
 loadParameters;
+
+%change the directories if necessary
+params.registeredImagesDir = '/mp/nas0/ExSeq/AutoSeqHippocampus_results/20170904/4_registration-cropped/';
+params.transcriptsResultsDir ='/mp/nas0/ExSeq/AutoSeqHippocampus_results/20170904/5_puncta-extraction/';
+params.FILE_BASENAME ='exseqautoframe7crop';
+TARGET_HAMMING_DISTANCE = 1;
+RND_IMG = 8; % Which round are we visualizing for the first plots
+
 %Load all the puncta that did not align
 fprintf('Loading puncta and transcripts...');
 load(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_normedroisv12.mat',params.FILE_BASENAME)));
 load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches.mat',params.FILE_BASENAME)));
 fprintf('DONE\n');
-%Load a round 
-RND_IMG = 8;
+
 %%
-filename_chan1 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch00'));
-filename_chan2 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch01SHIFT'));
-filename_chan3 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch02SHIFT'));
-filename_chan4 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch03SHIFT'));
+filename_chan1 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch00'));
+filename_chan2 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch01SHIFT'));
+filename_chan3 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch02SHIFT'));
+filename_chan4 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,RND_IMG,'ch03SHIFT'));
 
 fprintf('Images for Round %i...',RND_IMG);
 img = load3DTif(filename_chan1);
@@ -29,8 +36,8 @@ fprintf('DONE\n');
 %%
 
 hasInitGif = 0;
-giffilename1='puncta_transcripts_exseq.gif';
-giffilename2='puncta_locations.gif';
+giffilename1=sprintf('puncta_transcripts_exseq_hdist=%i.gif',TARGET_HAMMING_DISTANCE);
+giffilename2=sprintf('puncta_locations_hdist=%i.gif',TARGET_HAMMING_DISTANCE);
 
 TARGET_HAMMING_DISTANCE = 2;
 output_ctr = 1;
@@ -131,10 +138,10 @@ puncta_viewed = [];
 for rnd_idx = 1:params.NUM_ROUNDS
     
     output_ctr =1;
-    filename_chan1 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch00'));
-    filename_chan2 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch01SHIFT'));
-    filename_chan3 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch02SHIFT'));
-    filename_chan4 = fullfile('4_registration',sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch03SHIFT'));
+    filename_chan1 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch00'));
+    filename_chan2 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch01SHIFT'));
+    filename_chan3 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch02SHIFT'));
+    filename_chan4 = fullfile(params.registeredImagesDir ,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch03SHIFT'));
     
     fprintf('Loading images for Round %i...',rnd_idx);
     img = load3DTif(filename_chan1);
@@ -192,7 +199,7 @@ for rnd_idx = 1:params.NUM_ROUNDS
 end
 puncta_viewed = unique(puncta_viewed);
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_rgbimagesforpuncta.mat',params.FILE_BASENAME)),'all_rgb_regions','puncta_viewed');
+save(fullfile(params.transcriptResultsDir,sprintf('%s_rgbimagesforpuncta_hdist=%i.mat',params.FILE_BASENAME,TARGET_HAMMING_DISTANCE)),'all_rgb_regions','puncta_viewed');
 
 %% Now actually make the image looping over the cell arrays of the rGB images
 
