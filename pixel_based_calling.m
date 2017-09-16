@@ -148,6 +148,12 @@ end
 %In the long run this will be helpful too when implemented fully
 %[transcripts, ia, ic] = unique(transcripts,'rows');
 
+%Size 17 because we score from round 4-20
+round_mask = ones(1,17);
+round_mask(11) = 0; %ignore round 14
+round_mask(2) = 0; %ignore round 5
+round_mask = logical(round_mask);
+
 transcript_objects = cell(size(transcripts,1),1);
 for p_idx = 1:size(transcripts,1)
     
@@ -160,11 +166,11 @@ for p_idx = 1:size(transcripts,1)
 
  
     %Search for a perfect match in the ground truth codes
-    hits = (groundtruth_codes==img_transcript);
-    
+%     hits = (groundtruth_codes==img_transcript);
+    hits = (groundtruth_codes(:,round_mask)==img_transcript(round_mask));    
 
     %Calculate the hamming distance (now subtracting primer length)
-    scores = length(img_transcript)- sum(hits,2);
+    scores = length(img_transcript)- sum(hits,2) - sum(~round_mask);
     [values, indices] = sort(scores,'ascend');
     
     %Get the first index that is great than the best score

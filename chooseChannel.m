@@ -100,7 +100,7 @@ if max_2nd_val == 0
     max_2nd_val = 1;
 end
 
-confidence = max_val/max_2nd_val;
+confidence = max_val/(max_val+max_2nd_val);
 
 
 end
