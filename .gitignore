@@ -13,3 +13,4 @@ logs/
 startup.m
 loadParameters.m
 loadParameters.m.back
+*.tif
