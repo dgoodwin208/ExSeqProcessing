@@ -1,9 +1,9 @@
 % Data loading a storage parameteres
 params.deconvolutionImagesDir = '/Users/Goody/Neuro/ExSeq/simulator/images';
 params.colorCorrectionImagesDir = '/Users/Goody/Neuro/ExSeq/simulator/images';
-params.registeredImagesDir = '/Users/Goody/Neuro/ExSeq/simulator/images';
-params.punctaSubvolumeDir = '/Users/Goody/Neuro/ExSeq/simulator/puncta';
-params.transcriptResultsDir = '/Users/Goody/Neuro/ExSeq/simulator/puncta';
+params.registeredImagesDir = '/home/dgoodwin/simulator/simulation_output';
+params.punctaSubvolumeDir = '/home/dgoodwin/simulator/puncta';
+params.transcriptResultsDir = '/home/dgoodwin/simulator/puncta';
 
 params.FILE_BASENAME = 'simseqtryone';
 
@@ -15,7 +15,7 @@ params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 
 %RajLab filtering parameters:
-params.PUNCTA_PRESENT_THRESHOLD = 17; %Number of rounds to agree on 
+params.PUNCTA_PRESENT_THRESHOLD = 18; %Number of rounds to agree on 
 params.PUNCTA_SIZE_THRESHOLD = 10; %Number of rounds to agree on 
 params.EPSILON_TARGET = 4; %Radius of neighborhood for puncta to agree across rounds
 

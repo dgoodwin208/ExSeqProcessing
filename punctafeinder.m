@@ -125,7 +125,7 @@ end
 puncta_centroids = cell(params.NUM_ROUNDS,1);
 puncta_voxels = cell(params.NUM_ROUNDS,1);
 
-for 1:params.NUM_ROUNDS
+for rnd_idx=1:params.NUM_ROUNDS
     num_puncta_per_round = 0;
     for c_idx = 1:params.NUM_CHANNELS
         num_puncta_per_round = num_puncta_per_round + numel(centroids{rnd_idx,c_idx});

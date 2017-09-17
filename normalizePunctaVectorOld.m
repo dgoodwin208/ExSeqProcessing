@@ -59,7 +59,9 @@ for puncta_idx = 1:size(puncta_set_normed,6)
     transcripts(puncta_ctr,:) = answer_vector;
     transcripts_confidence(puncta_ctr,:) = confidence_vector;
 
-    pos_for_reference_round(puncta_ctr,:) = pos(:,REF_IDX,puncta_idx);
+    %TEMP: just get it to run
+    %pos_for_reference_round(puncta_ctr,:) = pos(:,REF_IDX,puncta_idx);
+    pos_for_reference_round(puncta_ctr,:) = zeros(1,3);
     puncta_ctr = puncta_ctr +1;
     
     fprintf('Calling base puncta #%i out of %i \n',puncta_ctr, size(puncta_set_normed,6));

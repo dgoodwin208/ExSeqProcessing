@@ -1,12 +1,12 @@
 loadParameters;
 
-params.registeredImagesDir =  '/home/dgoodwin/simulator/simulation_output/';
-params.transcriptResultsDir = '/home/dgoodwin/simulator/simulation_output/';
-params.punctaSubvolumeDir =   '/home/dgoodwin/simulator/simulation_output/';
-params.FILE_BASENAME = 'simseqtryone';
+%params.registeredImagesDir =  '/home/dgoodwin/simulator/simulation_output/';
+%params.transcriptResultsDir = '/home/dgoodwin/simulator/simulation_output/';
+%params.punctaSubvolumeDir =   '/home/dgoodwin/simulator/simulation_output/';
+%params.FILE_BASENAME = 'simseqtryone';
 %This loads puncta_centroids and puncta_voxels (the list of voxel INDICES)
 %per puncta
-filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',FILEROOT_NAME_INPUT));
+filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids)
 
 %%
@@ -17,7 +17,7 @@ REF_IDX = 5;
 puncta_ref = puncta_centroids{REF_IDX}; 
 % interpolate the Z position so we calculate the nearest neighbor
 % isotropically
-puncta_ref(:,3) = puncta_ref(:,3)*(.5/.165);
+%puncta_ref(:,3) = puncta_ref(:,3)*(.5/.165);
 
 %Puncta matches is the same size as a transcript for a specific puncta,
 %indexed from the puncta in the reference round, but in this case each
@@ -38,7 +38,7 @@ for mov_idx = 1:params.NUM_ROUNDS
     
     
     puncta_mov = puncta_centroids{mov_idx}; 
-    puncta_mov(:,3) = puncta_mov(:,3)*(.5/.165);
+    %puncta_mov(:,3) = puncta_mov(:,3)*(.5/.165);
     
     %init the holder for this round
     punctamaps = {};
@@ -102,13 +102,13 @@ for mov_idx = 1:params.NUM_ROUNDS
 end
 %%
 
-MIN_NEIGHBOR_AGREEMENT = 18;
+MIN_NEIGHBOR_AGREEMENT = params.PUNCTA_PRESENT_THRESHOLD;
 
 puncta_indices_filtered = (sum(puncta_matches~=0,2)>=MIN_NEIGHBOR_AGREEMENT);
 num_puncta_filtered = sum(puncta_indices_filtered);
 
 %As a proof of concept, make an image that shows those puncta
-filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,1,'ch00'));
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,1,'ch00'));
 sample_img = load3DTif_uint16(filename_in);
 
 data_height = size(sample_img,1);
@@ -117,11 +117,12 @@ data_depth = size(sample_img,3);
 
 filtered_mask = zeros(size(sample_img));
 
+puncta_voxels_refround = puncta_voxels{REF_IDX};
 for ref_idx = 1:size(puncta_matches,1)
     %skip any ones that are filtered out
     if ~puncta_indices_filtered(ref_idx); continue;end;
     
-    pixel_list = puncta_voxels{ref_idx};
+    pixel_list = puncta_voxels_refround{ref_idx};
     
     filtered_mask(pixel_list) = 200;
 end
@@ -144,7 +145,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,exp_idx,chan_strs{c_idx}));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,exp_idx,chan_strs{c_idx}));
         experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);         
     end
     
@@ -184,7 +185,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
         Z = round(puncta_mov(moving_puncta_idx,3));
         %Because of interpolation in the calculation of puncta location, we
         %have to undo the interpoaltino here:
-        Z = round(Z * (.165/.5));
+        %Z = round(Z * (.165/.5));
         
         %If we were just drawing a 10x10x10 subregion around the
         %puncta, we'd do this

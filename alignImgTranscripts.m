@@ -3,9 +3,11 @@
 %,'transcripts','transcripts_confidence','pos_for_reference_round');
 load(fullfile(params.punctaSubvolumeDir,'transcriptsv13_punctameannormed.mat'));
 
-params.transcriptResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_transcripts';
+%pos = pos_for_reference_round;
+%params.transcriptResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_transcripts';
 
 %% Score it
+clear perc_base
 for base_idx = 1:params.NUM_CHANNELS
     perc_base(:,base_idx) = sum(transcripts==base_idx,1)/size(transcripts,1);
 end
@@ -56,7 +58,8 @@ for idx = 1:length(t)
     gtlabels{idx}=t(idx).Header;
 end
 
-%% Get distributio
+%% Get distribution of the ground truth
+clear perc_base
 for base_idx = 1:params.NUM_CHANNELS
     perc_base(:,base_idx) = sum(groundtruth_codes==base_idx,1)/size(groundtruth_codes,1);
 end
@@ -113,7 +116,7 @@ for p_idx = 1:size(transcripts,1)
         transcript.name = gtlabels{indices(idx_last_tie)};
         
         %The pos vector of centroids looks like this: pos(:,exp_idx,puncta_idx)
-        transcript.pos = squeeze(pos(:,:,p_idx));
+        %transcript.pos = squeeze(pos(:,:,p_idx));
         
     else
         %If there is a tie between transcripts
@@ -146,7 +149,7 @@ for p_idx = 1:size(transcripts,1)
         transcript.distance_score= values(idx_last_tie);
         
         %The pos vector of centroids looks like this: pos(:,exp_idx,puncta_idx)
-        transcript.pos = squeeze(pos(:,:,p_idx));
+        %transcript.pos = squeeze(pos(:,:,p_idx));
         
         transcript.name = gtlabels{indices(best_metric_index)};
     end
@@ -162,6 +165,9 @@ for p_idx = 1:size(transcripts,1)
     end
     
 end
+
+filename_out = fullfile(params.transcriptResultsDir, 'transcript_objects.mat');
+save(filename_out,'transcript_objects');
 
 %% 
 outputImg = zeros(size(experiment_set_masked));
