@@ -149,7 +149,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,exp_idx,chan_strs{c_idx}));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,exp_idx,chan_strs{c_idx}));
         experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);
     end
     

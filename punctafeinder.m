@@ -13,7 +13,7 @@ for round_num = 1:params.NUM_ROUNDS
     for chan_num = 1:params.NUM_CHANNELS
         tic
         chan_str = chan_strs{chan_num};
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,round_num,chan_str));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,round_num,chan_str));
         stack_in = load3DTif_uint16(filename_in);
         
         %Todo: trim the registration (not relevant in the crop)
@@ -111,7 +111,7 @@ for round_num = 1:params.NUM_ROUNDS
             output_img(filtered_puncta(i).PixelIdxList)=100;
         end
         
-        filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_round%.03i_%s_punta.tif',params.FILE_BASENAME,round_num,chan_strs{chan_num}));
+        filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_round%.03i_%s_puncta.tif',params.FILE_BASENAME,round_num,chan_strs{chan_num}));
         save3DTif_uint16(L,filename_out);
         
     end

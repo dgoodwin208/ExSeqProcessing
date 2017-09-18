@@ -1,6 +1,7 @@
 loadParameters;
 
 load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
+REF_IDX = params.REFERENCE_ROUND_PUNCTA;
 
 %%
 puncta_set_normed = zeros(size(puncta_set));
@@ -25,6 +26,7 @@ for exp_idx = 1:params.NUM_ROUNDS
 
 exp_idx
 end
+
 
 transcripts = zeros(size(puncta_set_normed,6),params.NUM_ROUNDS);
 transcripts_confidence = zeros(size(puncta_set_normed,6),params.NUM_ROUNDS);

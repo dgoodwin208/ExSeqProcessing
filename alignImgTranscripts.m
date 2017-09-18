@@ -1,5 +1,5 @@
 %Align to the known sequences
-
+loadParameters
 %,'transcripts','transcripts_confidence','pos_for_reference_round');
 load(fullfile(params.punctaSubvolumeDir,'transcriptsv13_punctameannormed.mat'));
 
@@ -79,7 +79,7 @@ title(sprintf('Percentage of each base of ground truth, size= %i reads',size(gro
 %%
 % hamming_scores = zeros(size(transcripts,1),1);
 % par_factor = 5;
-
+MAXIMUM_MISSING_ROUNDS = 2;
 transcript_ctr =1;
 for p_idx = 1:size(transcripts,1)
     
@@ -93,7 +93,7 @@ for p_idx = 1:size(transcripts,1)
     %NEW: updating the round
     round_mask = (img_transcript ~= 0);
     
-    if(sum(~round_mask)>2)
+    if(sum(~round_mask)>MAXIMUM_MISSING_ROUNDS)
         fprintf('index %i has %i/%i zeros\n',p_idx,sum(~round_mask),length(img_transcript));
         continue;
     end
@@ -108,72 +108,82 @@ for p_idx = 1:size(transcripts,1)
     
     %Assuming the groundtruth options are de-duplicated
     %Is there a perfect match to the (unique ) best-fit
-    if sum(scores==best_score)==1 %If there is a perfect fit
+    if sum(scores==best_score)==1 %If there is a unique fit
+        fit_idx = find(scores==best_score);
         transcript.img_transcript=transcripts(p_idx,:);
         transcript.img_transcript_confidence=transcripts_confidence(p_idx,4:end);
-        transcript.known_sequence_matched = groundtruth_codes(indices(idx_last_tie),:);
-        transcript.distance_score= values(idx_last_tie);
-        transcript.name = gtlabels{indices(idx_last_tie)};
+        transcript.known_sequence_matched = groundtruth_codes(fit_idx,:);
+        transcript.distance_score= best_score;
+        transcript.name = gtlabels{fit_idx};
         
         %The pos vector of centroids looks like this: pos(:,exp_idx,puncta_idx)
         %transcript.pos = squeeze(pos(:,:,p_idx));
-        
     else
-        %If there is a tie between transcripts
-        [values, indices] = sort(scores,'ascend');
+%         %If there is a tie between transcripts
+%         [values, indices] = sort(scores,'ascend');
+%         
+%         %Get the first index that is great than the best score
+%         %If this is 1, then there is a best fit
+%         idx_last_tie = find(values>values(1),1)-1;
+%         
+%         %Find the bases that are different between the calls, choose the
+%         %one that has a higher confidence for those differences
+%         ground_truth_candidates = groundtruth_codes(indices(1:idx_last_tie),:);
+% %         different_base_indices = (diff(ground_truth_candidates)~=0);
+%         
+%         metrics_difference = zeros(idx_last_tie,1);
+%         for idx = 1:idx_last_tie
+%             %Crop to just the transcript. TEMP
+%             img_transcript_confidence = transcripts_confidence(p_idx,4:end);
+%             metrics_difference(idx) = ...
+%                 sum(img_transcript_confidence(img_transcript ~= groundtruth_codes(indices(idx),:))); 
+%         end
+%         %This whole thing is crappy, so just used as a temporary
+%         %placeholder
+%         
+% %         [~,best_metric_index] = min(metrics_difference);
+%         best_metric_index = randperm(length(metrics_difference),1);
+        indices_that_tie_bestscore = find(scores==best_score);
+        tiebreaker_placeholder = randperm(length(indices_that_tie_bestscore),1);
         
-        %Get the first index that is great than the best score
-        %If this is 1, then there is a best fit
-        idx_last_tie = find(values>values(1),1)-1;
-        
-        %Find the bases that are different between the calls, choose the
-        %one that has a higher confidence for those differences
-        ground_truth_candidates = groundtruth_codes(indices(1:idx_last_tie),:);
-        different_base_indices = (diff(ground_truth_candidates)~=0);
-        
-        metrics_difference = zeros(idx_last_tie,1);
-        for idx = 1:idx_last_tie
-            %Crop to just the transcript. TEMP
-            img_transcript_confidence = transcripts_confidence(p_idx,4:end);
-            metrics_difference(idx) = ...
-                sum(img_transcript_confidence(img_transcript ~= groundtruth_codes(indices(idx),:))); 
-        end
-        %This whole thing is crappy, so just used as a temporary
-        %placeholder
-        
-        [~,best_metric_index] = min(metrics_difference);
+        best_gt_match = indices_that_tie_bestscore(tiebreaker_placeholder);
         
         transcript.img_transcript=transcripts(p_idx,:);
         transcript.img_transcript_confidence=transcripts_confidence(p_idx,4:end);
-        transcript.known_sequence_matched = groundtruth_codes(indices(best_metric_index),:);
-        transcript.distance_score= values(idx_last_tie);
+        transcript.known_sequence_matched = groundtruth_codes(best_gt_match,:);
+        transcript.distance_score= best_score;
         
-        %The pos vector of centroids looks like this: pos(:,exp_idx,puncta_idx)
-        %transcript.pos = squeeze(pos(:,:,p_idx));
-        
-        transcript.name = gtlabels{indices(best_metric_index)};
+        transcript.name = gtlabels{best_gt_match};
     end
     
+    transcript.pos = pos_for_reference_round(p_idx,:);
+    
     transcript_objects{transcript_ctr} = transcript;
-    hamming_scores(transcript_ctr) = min(scores); %quick temporary output
+    hamming_scores(transcript_ctr) = best_score; %quick temporary output
     
     transcript_ctr = transcript_ctr+1;
     clear transcript; %Avoid any accidental overwriting
     
-    if mod(p_idx,1000) ==0
+    if mod(p_idx,100) ==0
         fprintf('%i/%i matched\n',p_idx,size(puncta_set,6));
     end
     
 end
 
+hamming_scores
+figure; histogram(hamming_scores);
+
 filename_out = fullfile(params.transcriptResultsDir, 'transcript_objects.mat');
 save(filename_out,'transcript_objects');
 
 %% 
-outputImg = zeros(size(experiment_set_masked));
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,1,'ch00'));
+sample_img = load3DTif_uint16(filename_in);
+outputImg = zeros(size(sample_img));
 
 skipped_puncta_ctr = 1;
 img_ctr = 1;
+
 for i = 1:length(transcript_objects)
     
     hamming_score = transcript_objects{i}.distance_score;
@@ -206,3 +216,9 @@ imagesc(max(outputImg,[],3))
 
 figure; 
 imagesc(transcript_img)
+% %%
+% hamming_scores = zeros(20,1);
+% for p = 1:length(transcript_objects)
+%     hamming_scores(transcript_objects{p}.distance_score+1) = hamming_scores(transcript_objects{p}.distance_score+1)+1;
+% end
+bar(hamming_scores)
