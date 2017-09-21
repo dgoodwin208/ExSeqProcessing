@@ -179,46 +179,47 @@ save(filename_out,'transcript_objects');
 %% 
 filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,1,'ch00'));
 sample_img = load3DTif_uint16(filename_in);
-outputImg = zeros(size(sample_img));
 
-skipped_puncta_ctr = 1;
-img_ctr = 1;
+%Make a four channel output image X,Y,Z of 3x3 puncta for hamming scores
+outputImg = zeros([size(sample_img),max(hamming_scores)]);
+
+%TEMP! This was left over in one experiment
+padwidth = ceil(params.PUNCTA_SIZE/2);
 
 for i = 1:length(transcript_objects)
     
     hamming_score = transcript_objects{i}.distance_score;
-    if hamming_score>1
-        continue;
-    end
-    
    
-    centroid = transcript_objects{i}.pos(:,3);
-    transcript_img(img_ctr,:) = transcript_objects{i}.known_sequence_matched;
-    img_ctr = img_ctr+1;
-    try
-    x_indices = centroid(1) - 1:centroid(1) + 1;
-    y_indices = centroid(2) - 1:centroid(2) + 1;
-    z_indices = centroid(3) - 1:centroid(3) + 1;
+    centroid_pos = transcript_objects{i}.pos-padwidth;
     
-    outputImg(y_indices,x_indices,z_indices) = hamming_score*20;
-    catch
-        fprintf('Puncta %i has zeros in round 6\n',i);
-        skipped_puncta_ctr   = skipped_puncta_ctr+1;
-    end
+
+    %Watch out for the XY shift
+    y_indices = (centroid_pos(1) - 1):(centroid_pos(1) + 1);
+    y_indices(y_indices<1)=[];y_indices(y_indices>size(sample_img,1))=[];
+    
+    x_indices = (centroid_pos(2) - 1):(centroid_pos(2) + 1);
+    x_indices(x_indices<1)=[];x_indices(x_indices>size(sample_img,2))=[];
+    
+    z_indices = (centroid_pos(3) - 1):(centroid_pos(3) + 1);
+    z_indices(z_indices<1)=[];z_indices(z_indices>size(sample_img,3))=[];
+    
+    outputImg(y_indices,x_indices,z_indices,hamming_score+1) = 100;
+
 end
-skipped_puncta_ctr
 
-save3DTif_uint16(outputImg,'punctaColorsByHammingScore.tif');
-
-%%
-figure;
-imagesc(max(outputImg,[],3))
-
-figure; 
-imagesc(transcript_img)
+for hamming_range = 1:size(outputImg,4)
+    output_filename = fullfile(params.punctaSubvolumeDir,sprintf('punctaScores_hamming=%i.tif',hamming_range-1));
+    save3DTif_uint16(squeeze(outputImg(:,:,:,hamming_range)),output_filename);
+end
 % %%
-% hamming_scores = zeros(20,1);
-% for p = 1:length(transcript_objects)
-%     hamming_scores(transcript_objects{p}.distance_score+1) = hamming_scores(transcript_objects{p}.distance_score+1)+1;
-% end
-bar(hamming_scores)
+% figure;
+% imagesc(max(outputImg,[],3))
+% 
+% figure; 
+% imagesc(transcript_img)
+%%
+hamming_scores = zeros(20,1);
+for p = 1:length(transcript_objects)
+    hamming_scores(transcript_objects{p}.distance_score+1) = hamming_scores(transcript_objects{p}.distance_score+1)+1;
+end
+figure; bar(hamming_scores)

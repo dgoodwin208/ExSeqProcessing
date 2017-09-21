@@ -3,11 +3,14 @@ loadParameters;
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids);
 
+filename_transcripts = fullfile(params.transcriptResultsDir, 'transcript_objects.mat');
+load(filename_transcripts);
+
 %Load ground truth:
 filename_groundtruth = '/Users/Goody/Neuro/ExSeq/simulator/images/simseqtryone_groundtruth_pos+transcripts.mat';
 load(filename_groundtruth);
 %%
-rnd_num = 5;
+rnd_num = params.REFERENCE_ROUND_PUNCTA;
 
 %Get the locations that the punctafeinder found
 centroids_per_round = puncta_centroids{rnd_num};
@@ -16,7 +19,7 @@ voxels_per_round = puncta_voxels{rnd_num};
 %Ground truth is:
 %puncta_covs are the dimensions of each puncta
 %puncta_pos are the positions of all puncta
-
+%puncta_transcripts are the transcripts
 scatter3(puncta_pos(:,1),puncta_pos(:,2),puncta_pos(:,3),'bo');
 hold on;
 scatter3(centroids_per_round(:,2),centroids_per_round(:,1),centroids_per_round(:,3),'rx');
@@ -24,87 +27,103 @@ hold off
 legend('Ground Truth','Discovered Puncta');
 title(sprintf('%i ground truth puncta vs %i discovered puncta',size(puncta_pos,1),size(centroids_per_round,1)));
 
-%% Use the same knn search from filterPunctaMakeSubvolumes
-mov_idx = rnd_num;
-DISTANCE_THRESHOLD=10;
+%% Match the positions of discovered image transcripts and positions to
+%the ground truth positions and
 
-puncta_mov = centroids_per_round(:,[2 1 3]); %discovered in img data
-puncta_ref = puncta_pos; %Ground truth
-% puncta_ref = centroids_per_round(:,[2 1 3]); %discovered in img data
-% puncta_mov = puncta_pos; %Ground truth
+img_transcript_positions = zeros(length(transcript_objects),3);
+img_transcript_sequences = zeros(length(transcript_objects),20);
+for obj_idx = 1:length(transcript_objects)
+    img_transcript_positions(obj_idx,:) = transcript_objects{obj_idx}.pos-padwidth;
+    img_transcript_sequences(obj_idx,:) = transcript_objects{obj_idx}.img_transcript;
+end
 
-%init the holder for this round
-puncta_matches = zeros(size(puncta_ref,1),params.NUM_ROUNDS);
-puncta_matches_distances = zeros(size(puncta_ref,1),params.NUM_ROUNDS)-1;
+scatter3(puncta_pos(:,1),puncta_pos(:,2),puncta_pos(:,3),'bo');
+hold on;
+scatter3(img_transcript_positions(:,1),img_transcript_positions(:,2),img_transcript_positions(:,3),'rx');
+hold off
+legend('Ground Truth','Positions of extracted transcripts');
+title(sprintf('%i ground truth puncta vs %i discovered puncta',size(puncta_pos,1),size(centroids_per_round,1)));
 
-%returns an my-by-1 vector D containing the distances between each
-%observation in Y and the corresponding closest observation in X.
-%That is, D(i) is the distance between X(IDX(i),:) and Y(i,:)
-% [IDX,D] = knnsearch(X,Y,'K',3);
-[IDX,D] = knnsearch(puncta_ref,puncta_mov,'K',1); %getting two other neighbor options
-%So puncta_mov(IDX(i),:) -> puncta_ref(i,:)
-%Note that IDX(i) can be a non-unique value
+%% Use the same knn+bipartite graph matching from filterPunctaMakeSubvolumes
 
-%Right now we're doing the most naive way, allowing a puncta from the
-%reference round to potentially hit the same moving-round puncta. fine.
-output_ctr = 1;
+%Make a vector to store the index of the matching extracted transcript 
+groundtruth_matches = zeros(size(puncta_pos,1),1);
+%Similar, but init distances as -1 so we know when there's not a match
+groundtruth_distances = zeros(size(puncta_pos,1),1)-1;
+puncta_ref = puncta_pos;
+puncta_mov = img_transcript_positions;
+[IDX,D] = knnsearch(puncta_ref,puncta_mov,'K',5); %getting five other options
+
+%create the distance matrix that is populated by IDX and D
+A = sparse(size(puncta_mov,1),size(puncta_ref,1));
+for idx_row = 1:size(IDX,1)
+    for idx_col = 1:size(IDX,2)
+        %For that row in the IDX, loop over the columns, which are the
+        %indices to the reference puncta round
+        %The entries are the inverse of distance, which is useful
+        %because we're going to get the maximum weighted partition
+        A(idx_row,IDX(idx_row,idx_col)) = 1/D(idx_row,idx_col);
+    end
+end
+
+%Using a bipartite complete matching algorithm
+[~, matched_indices_moving,matched_indices_ref] = bipartite_matching(A);
+
 num_discarded_noneighbors = 0;
 num_discarded_distance = 0;
 
 %confusing but ref_idx is the puncta index in the reference round
-for ref_idx = 1:size(puncta_ref,1)
-    indices_of_MOV = find(IDX == ref_idx);
+for matched_row_idx = 1:length(matched_indices_moving)
     
-    if isempty(indices_of_MOV)
-        %fprintf('Skipping due to no matches to ref_idx=%i \n',ref_idx);
-        num_discarded_noneighbors = num_discarded_noneighbors+1;
-        continue
-    end
+    %Get the indices of the puncta that were matched using the
+    %bipartite graph match
+    matched_puncta_mov_idx = matched_indices_moving(matched_row_idx);
+    ref_puncta_idx = matched_indices_ref(matched_row_idx);
     
-    distances_to_REF = D(indices_of_MOV);
     
-    puncta_matches(ref_idx,mov_idx) = 0;
-    
-    if length(indices_of_MOV) == 1
-        puncta_matches(ref_idx,mov_idx) = indices_of_MOV(1);
-        puncta_matches_distances(ref_idx,mov_idx) = distances_to_REF(1);
-        %             punctamap.pos_moving = puncta_mov(indices_of_MOV(1),:);
-        %             punctamap.index_mov = indices_of_MOV(1);
-        %             punctamap.distance = distances_to_REF(1);
-        %             punctamap.neighbors = 1;
-    else
-        [distances_sorted,I] = sort(distances_to_REF,'ascend');
-        %             punctamap.pos_moving = puncta_mov(indices_of_MOV(I(1)),:);
-        %             punctamap.distance = distances_to_REF(1);
-        %             punctamap.index_mov = indices_of_MOV(I(1));
-        %             punctamap.neighbors = numel(distances_to_REF);
-        puncta_matches(ref_idx,mov_idx) = indices_of_MOV(I(1));
-        puncta_matches_distances(ref_idx,mov_idx) = distances_sorted(1);
-        
-    end
-    
-    if puncta_matches_distances(ref_idx,mov_idx)>DISTANCE_THRESHOLD
-        puncta_matches_distances(ref_idx,mov_idx) = 0;
-        num_discarded_distance= num_discarded_distance+1;
-    end
+    groundtruth_matches(ref_puncta_idx) = matched_puncta_mov_idx;
+    %Going back to the A matrix (which is indexed like the transpose)
+    %to get the original distance value out (has to be re-inverted)
+    groundtruth_distances(ref_puncta_idx) = 1/A(matched_puncta_mov_idx,ref_puncta_idx);    
 end
 
-histogram(puncta_matches_distances(:,rnd_num),20)
+
+figure
+histogram(groundtruth_distances,30)
 title('Histogram of distances of ref=groundTruth and mov=sim round 5');
 xlabel('Distances in pixels')
 ylabel('Count');
 
-%% Get the indices of the reference/groundtruth puncta that DIDN'T Match
-
-matchless_indices = puncta_matches_distances(:,rnd_num)<0;
-
-scatter3(puncta_pos(:,1),puncta_pos(:,2),puncta_pos(:,3),'bo');
+nonmatched_gt_indices = groundtruth_distances==-1;
+%Plot the ground truth puncta that did not match with the extracted puncta
+figure;
+scatter3(puncta_pos(nonmatched_gt_indices,1),puncta_pos(nonmatched_gt_indices,2),puncta_pos(nonmatched_gt_indices,3),'rx');
 hold on;
-scatter3(centroids_per_round(:,2),centroids_per_round(:,1),centroids_per_round(:,3),'rx');
-scatter3(puncta_pos(matchless_indices,1),puncta_pos(matchless_indices,2),puncta_pos(matchless_indices,3),'g*')
+scatter3(puncta_pos(~nonmatched_gt_indices,1),puncta_pos(~nonmatched_gt_indices,2),puncta_pos(~nonmatched_gt_indices,3),'ko');
 hold off
-legend('Ground Truth','Discovered Puncta','Matchless Ground Truth');
-title(sprintf('%i ground truth puncta vs %i discovered puncta vs %i unmatched groundtruth',size(puncta_pos,1),size(centroids_per_round,1),sum(matchless_indices)));
+legend('Ground Truth that didnt match','Ground truths that did match');
+title(sprintf('%i ground truth puncta that were not tracked',sum(nonmatched_gt_indices)));
+
+
+%% Compare the ground truth of transcripts to their 
+final_scores = zeros(size(puncta_pos,1),1)-1;
+for gt_match_idx = 1:size(puncta_pos,1)
+   %If we know this gt transcript doesn't have a match, skip it
+    if nonmatched_gt_indices(gt_match_idx)
+        continue; 
+    end
+   
+    gt_transcript = puncta_transcripts(gt_match_idx,:);
+    est_transcript = img_transcript_sequences(groundtruth_matches(gt_match_idx),:);
+    final_scores(gt_match_idx) = size(gt_transcript,2) - sum(gt_transcript==est_transcript);
+end
+
+final_scores_filtered = final_scores(final_scores>=0); 
+figure
+histogram(final_scores_filtered,unique(final_scores_filtered))
+title('Histogram of hamming scores of extracted transcripts vs ground truth transcripts');
+xlabel('Distances in pixels')
+ylabel('Count');
 
 %% For the puncta that did match, let's compare puncta sizes
 

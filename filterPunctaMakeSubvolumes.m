@@ -28,17 +28,17 @@ puncta_matches = zeros(size(puncta_ref,1),params.NUM_ROUNDS);
 %same thing but track distances to the puncta across rounds
 puncta_matches_distances = zeros(size(puncta_ref,1),params.NUM_ROUNDS);
 
-for mov_idx = 1:params.NUM_ROUNDS
+for mov_rnd_idx = 1:params.NUM_ROUNDS
     
     %No need to run nearest neighbor to itself. Just set the index to
     %itself. Somewhat redundant but will make code easier later
-    if mov_idx==REF_IDX
-        puncta_matches(:,mov_idx) = 1:size(puncta_matches);
+    if mov_rnd_idx==REF_IDX
+        puncta_matches(:,mov_rnd_idx) = 1:size(puncta_matches);
         continue;
     end
     
     
-    puncta_mov = puncta_centroids{mov_idx};
+    puncta_mov = puncta_centroids{mov_rnd_idx};
     %puncta_mov(:,3) = puncta_mov(:,3)*(.5/.165);
     
     %init the holder for this round
@@ -48,57 +48,48 @@ for mov_idx = 1:params.NUM_ROUNDS
     %observation in Y and the corresponding closest observation in X.
     %That is, D(i) is the distance between X(IDX(i),:) and Y(i,:)
     % [IDX,D] = knnsearch(X,Y,'K',3);
-    [IDX,D] = knnsearch(puncta_ref,puncta_mov,'K',1); %getting two other neighbor options
-    %So puncta_mov(IDX(i),:) -> puncta_ref(i,:)
-    %Note that IDX(i) can be a non-unique value
+    [IDX,D] = knnsearch(puncta_ref,puncta_mov,'K',5); %getting five other options
     
-    %Right now we're doing the most naive way, allowing a puncta from the
-    %reference round to potentially hit the same moving-round puncta. fine.
-    output_ctr = 1;
+    %create the distance matrix that is populated by IDX and D
+    A = sparse(size(puncta_mov,1),size(puncta_ref,1));
+    for idx_row = 1:size(IDX,1)
+        for idx_col = 1:size(IDX,2)
+            %For that row in the IDX, loop over the columns, which are the
+            %indices to the reference puncta round
+            %The entries are the inverse of distance, which is useful
+            %because we're going to get the maximum weighted partition
+            A(idx_row,IDX(idx_row,idx_col)) = 1/D(idx_row,idx_col);
+        end
+    end
+    
+    %Using a bipartite complete matching algorithm
+    [~, matched_indices_moving,matched_indices_ref] = bipartite_matching(A);
+
     num_discarded_noneighbors = 0;
     num_discarded_distance = 0;
     
     %confusing but ref_idx is the puncta index in the reference round
-    for ref_idx = 1:size(puncta_ref,1)
-        %Find the puncta indices (plural!) of the moving rounds that map
-        %to reference round's puncta index index
-        indices_of_MOV = find(IDX == ref_idx);
+    for matched_row_idx = 1:length(matched_indices_moving)
         
-        %Sometimes there is no match to this reference round index
-        if isempty(indices_of_MOV)
-            %fprintf('Skipping due to no matches to ref_idx=%i \n',ref_idx);
-            num_discarded_noneighbors = num_discarded_noneighbors+1;
-            continue
-        end
+        %Get the indices of the puncta that were matched using the
+        %bipartite graph match
+        matched_puncta_mov_idx = matched_indices_moving(matched_row_idx);
+        ref_puncta_idx = matched_indices_ref(matched_row_idx);
         
-        distances_to_REF = D(indices_of_MOV);
         
-        puncta_matches(ref_idx,mov_idx) = 0;
-        
-        if length(indices_of_MOV) == 1
-            puncta_matches(ref_idx,mov_idx) = indices_of_MOV(1);
-            puncta_matches_distances(ref_idx,mov_idx) = distances_to_REF(1);
-            
-        else
-            %Sort all the potential matches by distance
-            [distances_sorted,I] = sort(distances_to_REF,'ascend');
-            
-            puncta_matches(ref_idx,mov_idx) = indices_of_MOV(I(1));
-            puncta_matches_distances(ref_idx,mov_idx) = distances_sorted(1);
-            
-        end
+        puncta_matches(ref_puncta_idx,mov_rnd_idx) = matched_puncta_mov_idx;
+        %Going back to the A matrix (which is indexed like the transpose)
+        %to get the original distance value out (has to be re-inverted)
+        puncta_matches_distances(ref_puncta_idx,mov_rnd_idx) = 1/A(matched_puncta_mov_idx,ref_puncta_idx);        
         
         %What if the nearest match is too far away?
-        if puncta_matches_distances(ref_idx,mov_idx)>DISTANCE_THRESHOLD
-            puncta_matches_distances(ref_idx,mov_idx) = 0;
+        if puncta_matches_distances(ref_puncta_idx,mov_rnd_idx)>DISTANCE_THRESHOLD
+            puncta_matches_distances(ref_puncta_idx,mov_rnd_idx) = 0;
             num_discarded_distance= num_discarded_distance+1;
         end
-        
-        %         if mod(ref_idx,1000)==0
-        %             fprintf('Looped %i/%i puncta for rnd=%i\n',ref_idx,size(puncta_ref,1),mov_idx);
-        %         end
     end
-    fprintf('Discarded %i no-neighbor and %i remote puncta in rnd=%i\n',num_discarded_noneighbors,num_discarded_distance,mov_idx);
+    
+    fprintf('Discarded %i no-neighbor and %i remote puncta in rnd=%i\n',num_discarded_noneighbors,num_discarded_distance,mov_rnd_idx);
 end
 %%
 
@@ -149,7 +140,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,exp_idx,chan_strs{c_idx}));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,exp_idx,chan_strs{c_idx}));
         experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);
     end
     
@@ -233,7 +224,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
         end
         
         
-       pos_per_round(:,subvolume_ctr) = [Y X Z];
+       pos_per_round(:,subvolume_ctr) = [Y X Z]-padwidth;
         
         subvolume_ctr = subvolume_ctr+1;
         if mod(subvolume_ctr,400)==0
@@ -281,5 +272,13 @@ end
 
 
 empty_puncta_ctr
+
+%% Make plots of distances to puncta
+figure
+histogram(puncta_matches_distances(:,4),20)
+title('Histogram of distances of ref=groundTruth and mov=sim round 5');
+xlabel('Distances in pixels')
+ylabel('Count');
+
 
 
