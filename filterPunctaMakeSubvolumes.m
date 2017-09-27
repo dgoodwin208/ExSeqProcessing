@@ -1,8 +1,5 @@
 loadParameters;
 
-%params.registeredImagesDir =  '/home/dgoodwin/simulator/simulation_output/';
-%params.transcriptResultsDir = '/home/dgoodwin/simulator/simulation_output/';
-%params.punctaSubvolumeDir =   '/home/dgoodwin/simulator/simulation_output/';
 %params.FILE_BASENAME = 'simseqtryone';
 %This loads puncta_centroids and puncta_voxels (the list of voxel INDICES)
 %per puncta
@@ -89,6 +86,7 @@ for mov_rnd_idx = 1:params.NUM_ROUNDS
         end
     end
     
+   
     fprintf('Discarded %i no-neighbor and %i remote puncta in rnd=%i\n',num_discarded_noneighbors,num_discarded_distance,mov_rnd_idx);
 end
 %%

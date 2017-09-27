@@ -44,65 +44,54 @@ hold off
 legend('Ground Truth','Positions of extracted transcripts');
 title(sprintf('%i ground truth puncta vs %i discovered puncta',size(puncta_pos,1),size(centroids_per_round,1)));
 
-%% Use the same knn+bipartite graph matching from filterPunctaMakeSubvolumes
+%% Match the positions of the extracted puncta to their closes ground truth puncta
+%Then compare the codes
 
 %Make a vector to store the index of the matching extracted transcript 
 groundtruth_matches = zeros(size(puncta_pos,1),1);
 %Similar, but init distances as -1 so we know when there's not a match
 groundtruth_distances = zeros(size(puncta_pos,1),1)-1;
+
 puncta_ref = puncta_pos;
-puncta_mov = img_transcript_positions;
-[IDX,D] = knnsearch(puncta_ref,puncta_mov,'K',5); %getting five other options
+puncta_mov = final_positions(:,[2 1 3]);
 
-%create the distance matrix that is populated by IDX and D
-A = sparse(size(puncta_mov,1),size(puncta_ref,1));
-for idx_row = 1:size(IDX,1)
-    for idx_col = 1:size(IDX,2)
-        %For that row in the IDX, loop over the columns, which are the
-        %indices to the reference puncta round
-        %The entries are the inverse of distance, which is useful
-        %because we're going to get the maximum weighted partition
-        A(idx_row,IDX(idx_row,idx_col)) = 1/D(idx_row,idx_col);
-    end
-end
-
-%Using a bipartite complete matching algorithm
-[~, matched_indices_moving,matched_indices_ref] = bipartite_matching(A);
+[IDX,D] = knnsearch(puncta_ref,puncta_mov,'K',1); %getting five other options
 
 num_discarded_noneighbors = 0;
 num_discarded_distance = 0;
 
 %confusing but ref_idx is the puncta index in the reference round
-for matched_row_idx = 1:length(matched_indices_moving)
+
+hamming_to_nearestRef = zeros(size(final_positions,1),1);
+for mov_idx = 1:size(puncta_mov,1)
     
     %Get the indices of the puncta that were matched using the
     %bipartite graph match
-    matched_puncta_mov_idx = matched_indices_moving(matched_row_idx);
-    ref_puncta_idx = matched_indices_ref(matched_row_idx);
+    matched_puncta_ref_idx = IDX(mov_idx);
     
+    transcripts_gt = puncta_transcripts(matched_puncta_ref_idx,:);
+    transcripts_discovered = final_transcripts(mov_idx,:);
     
-    groundtruth_matches(ref_puncta_idx) = matched_puncta_mov_idx;
-    %Going back to the A matrix (which is indexed like the transpose)
-    %to get the original distance value out (has to be re-inverted)
-    groundtruth_distances(ref_puncta_idx) = 1/A(matched_puncta_mov_idx,ref_puncta_idx);    
+    hamming_to_nearestRef(mov_idx) = 17-sum(transcripts_gt(4:end)==transcripts_discovered(4:end));
+    
 end
 
 
 figure
-histogram(groundtruth_distances,30)
-title('Histogram of distances of ref=groundTruth and mov=sim round 5');
-xlabel('Distances in pixels')
+histogram(hamming_to_nearestRef)
+title('Histogram of Hamming distances to the nearest ground truth puncta');
+xlabel('Hamming score')
 ylabel('Count');
 
-nonmatched_gt_indices = groundtruth_distances==-1;
-%Plot the ground truth puncta that did not match with the extracted puncta
-figure;
-scatter3(puncta_pos(nonmatched_gt_indices,1),puncta_pos(nonmatched_gt_indices,2),puncta_pos(nonmatched_gt_indices,3),'rx');
-hold on;
-scatter3(puncta_pos(~nonmatched_gt_indices,1),puncta_pos(~nonmatched_gt_indices,2),puncta_pos(~nonmatched_gt_indices,3),'ko');
-hold off
-legend('Ground Truth that didnt match','Ground truths that did match');
-title(sprintf('%i ground truth puncta that were not tracked',sum(nonmatched_gt_indices)));
+% nonmatched_gt_indices = groundtruth_distances==-1;
+% %Plot the ground truth puncta that did not match with the extracted puncta
+% figure;
+% scatter3(puncta_pos(nonmatched_gt_indices,1),puncta_pos(nonmatched_gt_indices,2),puncta_pos(nonmatched_gt_indices,3),'rx');
+% hold on;
+% scatter3(puncta_pos(~nonmatched_gt_indices,1),puncta_pos(~nonmatched_gt_indices,2),puncta_pos(~nonmatched_gt_indices,3),'ko');
+% hold off
+% legend('Ground Truth that didnt match','Ground truths that did match');
+% title(sprintf('%i ground truth puncta that were not tracked',sum(nonmatched_gt_indices)));
 
 
 %% Compare the ground truth of transcripts to their 
@@ -146,3 +135,56 @@ scatter(puncta_sizes_gt,puncta_sizes_found);
 xlabel('Product of 2*covariance');
 ylabel('Number of pixels found from the image');
 title('Scatter plot of ground truth puncta parameters and size of detected puncta');
+
+%% How many of these transcripts are in the original data?
+%Load ground truth:
+if ~exist('puncta_transcripts','var')
+    filename_groundtruth = '/Users/Goody/Neuro/ExSeq/simulator/images/simseqtryone_groundtruth_pos+transcripts.mat';
+    load(filename_groundtruth);
+end
+
+%Ground truth is:
+%puncta_covs are the dimensions of each puncta
+%puncta_pos are the positions of all puncta
+%puncta_transcripts are the transcripts
+
+%Randomize the reference
+% puncta_transcripts = puncta_transcripts(:,randperm(20));
+
+best_scores_insample = size(final_transcripts,1);
+best_scores_totalref = size(final_transcripts,1);
+perfect_transcripts = []; perfect_transcripts_ctr = 1;
+% acceptable_paths = zeros(size(filtered_unique_paths,1),1);
+for t_idx = 1:size(final_transcripts,1)
+    transcript = final_transcripts(t_idx,(4:end));
+    
+    %-------------------
+    %Search for a perfect match in the ground truth of field of view
+    hits = (puncta_transcripts(:,4:end)==transcript);
+
+    %Calculate the hamming distance
+    scores = length(transcript)- sum(hits,2);
+    
+    best_scores_insample(t_idx) = min(scores);
+    if best_scores_insample(t_idx)<=1
+        perfect_transcripts(perfect_transcripts_ctr,:) = transcript;
+        perfect_transcripts_ctr = perfect_transcripts_ctr+1;
+    end
+    
+    %-------------------
+    %Search for a perfect match in complete reference
+    hits = (groundtruth_codes==final_transcripts(t_idx,4:end));
+    %Calculate the hamming distance
+    scores = length(transcript)- sum(hits,2);
+    best_scores_totalref(t_idx) = min(scores);
+    
+end
+
+fprintf('Done matching!');
+figure
+subplot(1,2,1)
+histogram(best_scores_insample)
+title('Histogram of hamming scores to GT in sample');
+subplot(1,2,2)
+histogram(best_scores_totalref)
+title('Histogram of hamming scores to GT in total reference');
