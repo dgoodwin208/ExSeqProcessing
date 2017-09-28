@@ -5,6 +5,8 @@ loadParameters;
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids)
 
+THRESHOLD_MATCHING_DISTANCE = 10;
+MERGE_DISTANCE = 5;    
 %% Make a big matrix of all the rounds being connected to all the other rounds
 
 %make a holder vector of the sizes of all
@@ -16,21 +18,16 @@ end
 
 %% Examine the nearest neighbor of every pixel and flag it as a possible
 % merge error in another round
-MERGE_DISTANCE = 5;
+
 
 for demerge_iter = 1:2
     
+    %For each round, calculate a set of merge flags which indicate the
+    %number of puncta that are near enough that they could be incorrectly
+    %merged if the expressed channels are the same
     merge_flags = calculateMergeFlags(puncta_centroids,MERGE_DISTANCE);
     
-    
-    %--------Collect all possible puncta paths from the perfect matching
-    
-    % REF_ROUND = 6;
-    THRESHOLD_DISTANCE = 10;
-    % punctaA = puncta_centroids{REF_ROUND};
-    
-    % master_row = sparse(num_puncta_per_round(REF_ROUND),sum(num_puncta_per_round));
-    %possible_options_round = ones(size(punctaA,1),1);
+    %--------Collect all possible puncta paths from the perfect matching    
     all_possible_punctapaths = zeros(sum(num_puncta_per_round),params.NUM_ROUNDS);
     
     %The row is the reference round, the col is the moving round
@@ -61,7 +58,7 @@ for demerge_iter = 1:2
             [matches_AB,distances_AB] = matchPuncta(punctaA,punctaB);
             
             for match_idx = 1:length(matches_AB) %which is also size of (punctaA,1)
-                if (matches_AB(match_idx)==0) || (distances_AB(match_idx)>THRESHOLD_DISTANCE)
+                if (matches_AB(match_idx)==0) || (distances_AB(match_idx)>THRESHOLD_MATCHING_DISTANCE)
                     %Leave that entry blank if the perfect matching came back
                     %with nothing, or if the distances to a match is too far
                     all_possible_punctapaths(row_offset+match_idx,rnd_idx_B) = -1;
@@ -143,38 +140,6 @@ filtered_paths = all_possible_punctapaths(sum(all_possible_punctapaths==-1,2)<1,
 %into the original indieces
 all_possible_punctapaths_demerged = filtered_paths;
 
-% Actually skipping the de-merge step, because we want the different traces
-% to be treated seperately 
-% num_possible_paths = size(all_possible_punctapaths_demerged,1);
-% 
-% for rnd_idx = 1:params.NUM_ROUNDS
-%     rnd_idx
-%     puncta_rndA = puncta_centroids{rnd_idx};
-%     
-%     %For each puncta, find its nearest neighbor in the same round
-%     [IDX,D] = knnsearch(puncta_rndA,puncta_rndA,'K',5); %getting four other options
-%    
-%     %For each puncta, get all distances == 0 and find the lowest indexed
-%     %value. Then store a mapping of puncta_idx -> lowest index match
-%     mergefix_punca_mapping = 1:size(puncta_rndA,1);
-%     for puncta_idx = 1:size(puncta_rndA,1)
-%         %Find the indices where D=0, then get the minimum value of IDX()
-%         zero_distance_options = D(puncta_idx,:)==0;
-%         %We get the minimum because the duplicates are added to the end of
-%         %the puncta list per round, so we can assume the smallest number is
-%         %the original
-%         mergefix_punca_mapping(puncta_idx) = min(IDX(puncta_idx,zero_distance_options));
-%     end
-%     
-%     %Then loop over every entry in the all_possible_punctapaths_demerged
-%     %vector for that round and apply the mergefix vector
-%     for path_idx = 1:num_possible_paths
-%         all_possible_punctapaths_demerged(path_idx,rnd_idx) = ...
-%             mergefix_punca_mapping(all_possible_punctapaths_demerged(path_idx,rnd_idx));
-%     end
-% end
-
-
 %% Analyze how well these transcripts align!
 
 %To save time of matching identical transcripts, first find all the unique
@@ -217,8 +182,8 @@ for t_idx = 1:size(all_possible_transcripts,1)
     hammingscores_uniquepaths(t_idx) = min(scores);
 end
 
-figure
-histogram(hammingscores_uniquepaths)
+% figure
+% histogram(hammingscores_uniquepaths)
 
 
 
@@ -248,9 +213,9 @@ for path_idx = 1: size(acceptable_unique_paths,1)
     acceptable_unique_paths_votes(path_idx) = sum(votes);
 end
 
-figure;
-histogram(acceptable_unique_paths_votes);
-title('Histogram of votes for all the 0 or 1 score paths (incl. primer round)');
+% figure;
+% histogram(acceptable_unique_paths_votes);
+% title('Histogram of votes for all the 0 or 1 score paths (incl. primer round)');
 %% Of the punctapaths that we know align with 0 or 1 accuracy, what is the average position?
 
 filtered_positions = zeros(size(acceptable_unique_paths,1),3);
@@ -270,10 +235,6 @@ for t_idx = 1:size(acceptable_unique_paths,1)
     filtered_positions(t_idx,:) = mean(positions_across_rounds,1);    
     
 end
-
-figure;
-scatter3(filtered_positions(:,1),filtered_positions(:,2),filtered_positions(:,3),'b.')
-
 
 %% Collect all puncta into spatial regions
 
@@ -295,11 +256,9 @@ average_number_of_puncta_per_round = ceil(mean(num_puncta_per_round(consideratio
 c = cluster(Z,'maxclust',average_number_of_puncta_per_round);
 
 %For each spatial cluster, 
-
-final_positions = [];
-final_transcripts=[];
-final_confidence=[];
-% tie_count = 0;
+final_positions = zeros(max(c),3);
+final_transcripts=zeros(max(c),params.NUM_ROUNDS);
+final_confidence=zeros(max(c),params.NUM_ROUNDS);
 
 %Loop over all spatial clusters, which we then map to puncta paths which we
 %then map to transcripts
@@ -319,12 +278,6 @@ for cluster_idx = 1:max(c)
     [~,maxIdx] = max(votes_per_puncta);
     transcripts_per_puncta = acceptable_transcripts(indices,:);
     
-%     %How many ties are there for the highest voted path?
-%     if sum(max(votes_per_puncta)==votes_per_puncta)>1 |...
-%         (max(votes_per_puncta)<=.5*sum(votes_per_puncta))
-%         votes_per_puncta
-%         tie_count = tie_count+1;
-%     end
     
     weighted_indices = [];
     for idx = 1:length(indices)
@@ -355,4 +308,6 @@ for cluster_idx = 1:max(c)
 end
 
 
+filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
+save(filename_output,'final_positions','final_centroids','final_confidence');
 
