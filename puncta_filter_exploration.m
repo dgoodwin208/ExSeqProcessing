@@ -1,4 +1,4 @@
-loadParameters;
+% loadParameters;
 
 %This loads puncta_centroids and puncta_voxels (the list of voxel INDICES)
 %per puncta
@@ -308,6 +308,6 @@ for cluster_idx = 1:max(c)
 end
 
 
-filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
+filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 save(filename_output,'final_positions','final_centroids','final_confidence');
 
