@@ -5,6 +5,8 @@
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids)
 
+load('groundtruth_dictionary.mat')
+
 THRESHOLD_MATCHING_DISTANCE = 10;
 MERGE_DISTANCE = 5;    
 %% Make a big matrix of all the rounds being connected to all the other rounds
