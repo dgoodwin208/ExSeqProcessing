@@ -22,7 +22,7 @@ end
 % merge error in another round
 
 
-for demerge_iter = 1:2
+for demerge_iter = 1:3
     
     %For each round, calculate a set of merge flags which indicate the
     %number of puncta that are near enough that they could be incorrectly
@@ -172,11 +172,11 @@ end
 
 hammingscores_uniquepaths = zeros(size(all_possible_transcripts,1),1);
 
-consideration_mask = logical([0 0 0 ones(1,17)]);
+consideration_mask = logical([0 0 0 1 1 ones(1,5) 1 ones(1,9)]);
 max_hits = sum(consideration_mask);
 for t_idx = 1:size(all_possible_transcripts,1)
     %Search for a perfect match in the ground truth codes
-    hits = (groundtruth_codes==all_possible_transcripts(t_idx,consideration_mask));
+    hits = (groundtruth_codes(:,consideration_mask(4:end))==all_possible_transcripts(t_idx,consideration_mask));
     
     %Calculate the hamming distance
     scores = max_hits- sum(hits,2);
@@ -311,5 +311,5 @@ end
 
 
 filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
-save(filename_output,'final_positions','final_centroids','final_confidence');
+save(filename_output,'final_positions','final_transcripts','final_confidence','all_possible_punctapaths_demerged','acceptable_unique_paths_votes','acceptable_unique_paths');
 
