@@ -28,10 +28,12 @@ for p_idx = 1:num_puncta
     %Recall sigma=FWHM/(2*sqrt(2*ln(2)))
     %So we use the parameters to determine the 3D gaussian parameters
     cov_for_puncta = [-1 -1 -1]; %just initialize it for the while loop
-    while any(cov_for_puncta<.1) %.1 is magic number to avoid funky looking puncta
+    
+    while any(cov_for_puncta<.2) %.2 is magic number to avoid funky looking puncta
         %Because of the parameters, there are times when the covariance
         %parameters come in negative, which means the gaussian produces
-        %complex numbers :/
+        %complex numbers :/ In which case we just re-loop for better random
+        %values
         cov_for_puncta = normrnd(simparams.PUNCTA_SIZE_MEAN,simparams.PUNCTA_SIZE_STD,1,3)/(2*sqrt(2*log(2)));
     end
     puncta_covs(p_idx,:) = cov_for_puncta;
@@ -44,8 +46,12 @@ save(filename_groundtruth);
 %% Use the function across all rounds
 for rnd_idx = 1:size(puncta_transcripts,2)
     % Produce the raw output of gaussians across four channels
+    % Add 
     [ simulated_data] = makeSimulatedRound(num_puncta,puncta_transcripts(:,rnd_idx),...
-        simparams.PUNCTA_CROSSTALK,puncta_pos,puncta_covs,simparams.PUNCTA_SIZE_PRCTCHANGE_ACROSS_ROUNDS,...
+        simparams.PUNCTA_CROSSTALK,...
+        puncta_pos+normrnd(simparams.PUNCTA_DRIFT_MEAN,simparams.PUNCTA_DRIFT_MEAN,num_puncta,3),...
+        puncta_covs,...
+        simparams.PUNCTA_SIZE_PRCTCHANGE_ACROSS_ROUNDS,...
         [simparams.IMAGE_FOVSIZE_XY,simparams.IMAGE_FOVSIZE_XY,simparams.IMAGE_FOVSIZE_Z]);
     
     % Scale with intensity of channel, then add background

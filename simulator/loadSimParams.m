@@ -10,6 +10,10 @@ simparams.PUNCTA_SIZE_MEAN = 8; %FWHM
 simparams.PUNCTA_SIZE_STD = 3;
 simparams.PUNCTA_SIZE_PRCTCHANGE_ACROSS_ROUNDS = .10; %std deviation centered around 100%
 
+%puncta position drift (u=2,s=1 is a good guess)
+simparams.PUNCTA_DRIFT_MEAN = 2^(1/3); %observed 2 as the total distance in 3d, this params is 1D
+simparams.PUNCTA_DRIFT_STD = .7;
+
 %Puncta brightness and crosstalk:
 simparams.PUNCTA_BRIGHTNESS_MEANS = [800;800;800;300];
 % PUNCTA_BRIGHTNESS_STDS = [200;200;200;50];
