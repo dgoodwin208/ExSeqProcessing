@@ -116,13 +116,16 @@ for demerge_iter = 1:3
     for rnd_idx = 1:params.NUM_ROUNDS
         current_round_centroids = puncta_centroids{rnd_idx};
         current_round_centroids_baseguess = puncta_baseguess{rnd_idx};
+        current_round_voxels = puncta_voxels{rnd_idx};
         current_round_demerge_flags = demerge_indices{rnd_idx};
         extra_centroids = [];new_centroids_ctr = 1;
         extra_centroids_baseguess = [];
+        extra_centroids_voxels = {};
         for p_idx = 1:size(current_round_centroids,1)
             if logical(current_round_demerge_flags(p_idx))
                 extra_centroids(new_centroids_ctr,:) = current_round_centroids(p_idx,:);
                 extra_centroids_baseguess(new_centroids_ctr) = current_round_centroids_baseguess(p_idx);
+                extra_centroids_voxels{new_centroids_ctr} = current_round_voxels{p_idx};
                 new_centroids_ctr = new_centroids_ctr+1;
             end
         end
@@ -131,6 +134,7 @@ for demerge_iter = 1:3
         %Concatenate the additional puncta to the end of puncta_centroids!
         puncta_centroids{rnd_idx} = [current_round_centroids;extra_centroids]; 
         puncta_baseguess{rnd_idx} = [current_round_centroids_baseguess;extra_centroids_baseguess'];
+        puncta_voxels{rnd_idx} = [current_round_voxels;extra_centroids_voxels];
     end
     
 end %end demerge iterations
@@ -312,4 +316,8 @@ end
 
 filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 save(filename_output,'final_positions','final_transcripts','final_confidence','all_possible_punctapaths_demerged','acceptable_unique_paths_votes','acceptable_unique_paths');
+
+filename_centroidsMOD = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
+save(filename_centroidsMOD,'puncta_centroids','puncta_voxels','puncta_baseguess');
+
 
