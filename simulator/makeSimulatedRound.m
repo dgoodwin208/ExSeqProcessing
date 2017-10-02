@@ -59,7 +59,9 @@ parfor p_idx = 1:num_puncta
     
     %[ymin ymax xmin xmax zmin zmax]
     %     [ypos(p_idx) xpos(p_idx) zpos(p_idx)]
-    fprintf('%i/%i processed\n',p_idx,num_puncta);
+    if mod(p_idx,100)==0
+        fprintf('%i/%i processed\n',p_idx,num_puncta);
+    end
 end
 
 %Recollect all the pixels into the final image (in the case of a parfor
