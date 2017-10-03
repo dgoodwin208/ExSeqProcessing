@@ -110,7 +110,10 @@ parfor exp_idx = 1:params.NUM_ROUNDS
             puncta_set_cell{exp_idx}{c_idx,subvolume_ctr} = pixels_for_puncta_set;
             
             %Reset the specific pixels of the mask
-            experiment_set_padded_masked(i1,i2,i3) = 0;
+            for i_idx = 1:length(i1)
+                experiment_set_padded_masked(i1(i_idx),i2(i_idx),i3(i_idx)) = 0;
+            end
+            
         end
         
         
