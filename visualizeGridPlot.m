@@ -23,8 +23,8 @@ function visualizeGridPlot(puncta,transcripts,params,fignum)
             punctaVol = squeeze(punctaset_perround(:,:,:,c_idx));
             
             z_idx = ceil(size(punctaVol,3)/2);
-%             imagesc(squeeze(punctaVol(:,:,z_idx)),clims);
-            imagesc(max(squeeze(punctaVol(:,:,z_idx)),[],3),clims);
+            imagesc(squeeze(punctaVol(:,:,z_idx)),clims);
+%             imagesc(max(squeeze(punctaVol(:,:,z_idx)),[],3),clims);
             axis off;
             if numel(transcripts)>1 && c_idx==transcripts(exp_idx)
                 title(sprintf('%i',c_idx),'Color','m')
