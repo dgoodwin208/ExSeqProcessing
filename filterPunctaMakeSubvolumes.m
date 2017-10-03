@@ -97,8 +97,9 @@ parfor exp_idx = 1:params.NUM_ROUNDS
         
         for c_idx = params.COLOR_VEC
             %This makes a volume that is all zeros except for the punctafeinder_indices_for_puncta
-            experiment_set_padded_masked(i1,i2,i3) = experiment_set_padded(i1,i2,i3,c_idx);
-            
+            for i_idx = 1:length(i1)
+                experiment_set_padded_masked(i1(i_idx),i2(i_idx),i3(i_idx)) = experiment_set_padded(i1(i_idx),i2(i_idx),i3(i_idx),c_idx);
+            end
             pixels_for_puncta_set = experiment_set_padded_masked(y_indices,x_indices,z_indices);
             
             if max(pixels_for_puncta_set(:))==0
@@ -124,20 +125,20 @@ parfor exp_idx = 1:params.NUM_ROUNDS
 end
 
 disp('reducing processed puncta')
-puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_ROUNDS,params.NUM_CHANNELS,num_puncta_filtered);
+puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_ROUNDS,params.NUM_CHANNELS,num_insitu_transcripts);
 
 % reduction of parfor
 for exp_idx = 1:params.NUM_ROUNDS
-    for puncta_idx = 1:num_puncta_filtered
+    for puncta_idx = 1:num_insitu_transcripts
         for c_idx = params.COLOR_VEC            
             puncta_set(:,:,:,exp_idx,c_idx,puncta_idx) = puncta_set_cell{exp_idx}{c_idx,puncta_idx};
         end
     end
 end
-pos= zeros(3,params.NUM_ROUNDS,num_puncta_filtered);
+pos= zeros(3,params.NUM_ROUNDS,num_insitu_transcripts);
 for exp_idx = 1:params.NUM_ROUNDS
     pos_per_round = pos_cell{exp_idx};
-    for puncta_idx = 1:num_puncta_filtered
+    for puncta_idx = 1:num_insitu_transcripts
         pos(:,exp_idx,puncta_idx) = pos_per_round(:,puncta_idx);
     end
 end
