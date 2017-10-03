@@ -3,12 +3,12 @@ loadParameters;
 filename_paths = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 load(filename_paths,'acceptable_unique_paths');
 
-filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
+filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
 load(filename_centroids,'puncta_baseguess','puncta_centroids','puncta_voxels')
 %% Make the 10x10x10 subvolumes we started this with, but now only with the pixels from the puncta!
 
 %Load
-filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,1,'ch00'));
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,1,'ch00'));
 sample_img = load3DTif_uint16(filename_in);
 data_height = size(sample_img,1);
 data_width = size(sample_img,2);
@@ -31,7 +31,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx}));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx}));
         experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);
     end
     
@@ -56,7 +56,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     experiment_set_padded = padarray(experiment_set,[padwidth padwidth padwidth 0],0);
     experiment_set_padded_masked = zeros(size(experiment_set_padded));
     
-    for puncta_idx = 1:size(puncta_matches,1)
+    for puncta_idx = 1:num_insitu_transcripts
         
         %Get the puncta_idx in the context of this experimental round
         moving_puncta_idx = acceptable_unique_paths(puncta_idx,exp_idx);
@@ -78,9 +78,9 @@ parfor exp_idx = 1:params.NUM_ROUNDS
         %NOTE: The centroid position come from the regionprops() call in
         %punctafeinder.m and have the XY coords flipped relative to what
         %we're used to, so Y and X are switched
-        Y = round(this_centroid,2)+padwidth; 
-        X = round(this_centroid,1)+padwidth;
-        Z = round(this_centroid,3)+padwidth;
+        Y = round(this_centroid(2))+padwidth; 
+        X = round(this_centroid(1))+padwidth;
+        Z = round(this_centroid(3))+padwidth;
         
         %If we were just drawing a 10x10x10 subregion around the
         %puncta, we'd do this

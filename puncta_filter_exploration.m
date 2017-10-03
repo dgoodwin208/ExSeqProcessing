@@ -134,7 +134,7 @@ for demerge_iter = 1:3
         %Concatenate the additional puncta to the end of puncta_centroids!
         puncta_centroids{rnd_idx} = [current_round_centroids;extra_centroids]; 
         puncta_baseguess{rnd_idx} = [current_round_centroids_baseguess;extra_centroids_baseguess'];
-        puncta_voxels{rnd_idx} = [current_round_voxels;extra_centroids_voxels];
+        puncta_voxels{rnd_idx} = [current_round_voxels;extra_centroids_voxels'];
     end
     
 end %end demerge iterations

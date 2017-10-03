@@ -47,9 +47,22 @@ save(filename_groundtruth);
 for rnd_idx = 1:size(puncta_transcripts,2)
     % Produce the raw output of gaussians across four channels
     % Add 
-    [ simulated_data] = makeSimulatedRound(num_puncta,puncta_transcripts(:,rnd_idx),...
+    
+     puncta_pos_perturbed = puncta_pos+normrnd(simparams.PUNCTA_DRIFT_MEAN,simparams.PUNCTA_DRIFT_MEAN,num_puncta,3);
+
+     puncta_pos_perturbed(puncta_pos_perturbed<1)=1;
+     y_max_indices = puncta_pos_perturbed(:,1)>simparams.IMAGE_FOVSIZE_XY-1;
+     puncta_pos_perturbed(y_max_indices,1) = simparams.IMAGE_FOVSIZE_XY-1;
+     x_max_indices = puncta_pos_perturbed(:,2)>simparams.IMAGE_FOVSIZE_XY-1;
+     puncta_pos_perturbed(x_max_indices,2) = simparams.IMAGE_FOVSIZE_XY-1;
+     z_max_indices = puncta_pos_perturbed(:,3)>simparams.IMAGE_FOVSIZE_Z-1;
+     puncta_pos_perturbed(z_max_indices,3) = simparams.IMAGE_FOVSIZE_Z-1;
+
+     puncta_pos_perturbed = round(puncta_pos_perturbed);
+
+      [ simulated_data] = makeSimulatedRound(num_puncta,puncta_transcripts(:,rnd_idx),...
         simparams.PUNCTA_CROSSTALK,...
-        puncta_pos+normrnd(simparams.PUNCTA_DRIFT_MEAN,simparams.PUNCTA_DRIFT_MEAN,num_puncta,3),...
+        puncta_pos_perturbed,...
         puncta_covs,...
         simparams.PUNCTA_SIZE_PRCTCHANGE_ACROSS_ROUNDS,...
         [simparams.IMAGE_FOVSIZE_XY,simparams.IMAGE_FOVSIZE_XY,simparams.IMAGE_FOVSIZE_Z]);

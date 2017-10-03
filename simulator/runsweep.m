@@ -2,12 +2,12 @@ loadSimParams;
 loadParameters;
 
 %% simseqtwo: 20puncta/100
-simparams.SIMULATION_NAME = 'simseqfour';
+simparams.SIMULATION_NAME = 'simseqfive';
 simparams.VOLUME_DENSITY = 70/100; %puncta per cubic micron
-simparams.OUTPUTDIR = '/mp/nas0/ExSeq/simulator/simseqfour';
-params.registeredImagesDir = '/mp/nas0/ExSeq/simulator/simseqfour';
-params.punctaSubvolumeDir = '/mp/nas0/ExSeq/simulator/simseqfour';
-params.FILE_BASENAME = 'simseqfour';
+simparams.OUTPUTDIR = '/mp/nas0/ExSeq/simulator/simseqfive';
+params.registeredImagesDir = '/mp/nas0/ExSeq/simulator/simseqfive';
+params.punctaSubvolumeDir = '/mp/nas0/ExSeq/simulator/simseqfive';
+params.FILE_BASENAME = 'simseqfive';
 puncta_creator;
 punctafeinder; puncta_filter_exploration;
 
