@@ -1,5 +1,5 @@
 function [ simulated_data] = makeSimulatedRound(num_puncta,bases,cross_talk,puncta_positions,puncta_sizes,puncta_variability,outputDims)
-%MAKESIMULATEDROUND Summary of this function goes here
+%MAKESIMULATEDROUND  
 % num_puncta: how many puncta are going into this volume?
 % bases: what base is each puncta showing
 % cross_talk: what percentage of each signal is in each round?

@@ -263,8 +263,9 @@ c = cluster(Z,'maxclust',average_number_of_puncta_per_round);
 
 %For each spatial cluster, 
 final_positions = zeros(max(c),3);
-final_transcripts=zeros(max(c),params.NUM_ROUNDS);
-final_confidence=zeros(max(c),params.NUM_ROUNDS);
+final_transcripts =zeros(max(c),params.NUM_ROUNDS);
+final_confidence = zeros(max(c),params.NUM_ROUNDS);
+final_punctapaths = zeros(max(c),params.NUM_ROUNDS);
 
 %Loop over all spatial clusters, which we then map to puncta paths which we
 %then map to transcripts
@@ -307,15 +308,16 @@ for cluster_idx = 1:max(c)
     %The confidence is the percentage that agree per rond
     confidence_per_puncta = sum(weighted_transcripts_per_puncta==transcript_per_puncta,1)/size(weighted_transcripts_per_puncta,1);
 
-    
     final_positions(cluster_idx,:) = mean(filtered_positions(indices,:),1);
     final_transcripts(cluster_idx,:) = transcript_per_puncta;
     final_confidence(cluster_idx,:) = confidence_per_puncta;
+    final_punctapaths(cluster_idx,:) = paths_per_puncta(maxIdx,:);
 end
 
 
 filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
-save(filename_output,'final_positions','final_transcripts','final_confidence','all_possible_punctapaths_demerged','acceptable_unique_paths_votes','acceptable_unique_paths');
+save(filename_output,'final_positions','final_transcripts','final_confidence',...
+    'final_punctapaths','all_possible_punctapaths_demerged','acceptable_unique_paths_votes','acceptable_unique_paths');
 
 filename_centroidsMOD = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
 save(filename_centroidsMOD,'puncta_centroids','puncta_voxels','puncta_baseguess');

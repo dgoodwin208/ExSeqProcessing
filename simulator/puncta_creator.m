@@ -79,8 +79,6 @@ for rnd_idx = 1:size(puncta_transcripts,2)
     
 
     % Save this round
-    
-    
     for c_idx = 1:4
         filename = fullfile(simparams.OUTPUTDIR,sprintf('%s_round%.03i_%s_registered.tif',simparams.SIMULATION_NAME,...
             rnd_idx,simparams.chan_strs{c_idx}));
