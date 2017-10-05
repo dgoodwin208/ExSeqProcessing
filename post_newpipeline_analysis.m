@@ -2,6 +2,16 @@
 
 %% Get the distances between each tracked puncta per round  
 
+%% Generate an image of puncta centroids across rounds
+
+rnd_idx=5;
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,rnd_idx,'ch00'));
+sample_img = load3DTif_uint16(filename_in);
+imgSize = size(sample_img);
+
+outputImg = makeDebugImageOfPoints(squeeze(pos(:,rnd_idx,:))',imgSize);
+save3DTif_uint16(outputImg,fullfile(params.punctaSubvolumeDir,sprintf('transcript_pos_rnd%i.tif',rnd_idx)))
+
 %% Get the cross talk matrix 
 
 num_puncta = size(puncta_set,6);

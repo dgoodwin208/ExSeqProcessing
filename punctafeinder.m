@@ -17,7 +17,10 @@ for round_num = 1:params.NUM_ROUNDS
         stack_in = load3DTif_uint16(filename_in);
         
         %Todo: trim the registration (not relevant in the crop)
-        background = min(stack_in,[],3);
+        min_z = round(.1*size(stack_in,3));
+        max_z = round(.9*size(stack_in,3));
+        background = min(squeeze(stack_in(:,:,min_z:max_z)),[],3);
+        
         toc
         tic
         stack_original = stack_in;
