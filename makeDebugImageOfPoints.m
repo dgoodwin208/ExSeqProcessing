@@ -1,7 +1,7 @@
 function [ outputImg ] = makeDebugImageOfPoints(points,imgSize)
 
 
-%UNTITLED4 Summary of this function goes here
+%makeDebugImageOfPoints Summary of this function goes here
 %   Detailed explanation goes here
 outputImg = zeros(imgSize);
 

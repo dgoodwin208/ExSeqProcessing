@@ -1,4 +1,4 @@
-% loadParameters;
+loadParameters;
 
 %This loads puncta_centroids and puncta_voxels (the list of voxel INDICES)
 %per puncta
@@ -9,13 +9,11 @@ load('groundtruth_dictionary.mat')
 
 THRESHOLD_MATCHING_DISTANCE = 10;
 MERGE_DISTANCE = 5;    
-%% Make a big matrix of all the rounds being connected to all the other rounds
 
-%make a holder vector of the sizes of all
-num_puncta_per_round = zeros(params.NUM_ROUNDS,1);
-for rnd_idx = 1:params.NUM_ROUNDS
-    num_puncta_per_round(rnd_idx) = size(puncta_centroids{rnd_idx},1);
-end
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,6,'ch00'));
+sample_img = load3DTif_uint16(filename_in);
+img_size = size(sample_img);
+
 
 
 %% Examine the nearest neighbor of every pixel and flag it as a possible
@@ -57,10 +55,10 @@ for demerge_iter = 1:3
             %Output of matchPuncta is the size of punctaA. If there are no
             %matches, the index is zero. There is also no distance filtering,
             %so that has to be done here.
-            [matches_AB,distances_AB] = matchPuncta(punctaA,punctaB);
+            [matches_AB,distances_AB] = matchPuncta(punctaA,punctaB,puncta_voxels{rnd_idx_A},puncta_voxels{rnd_idx_B});
             
             for match_idx = 1:length(matches_AB) %which is also size of (punctaA,1)
-                if (matches_AB(match_idx)==0) || (distances_AB(match_idx)>THRESHOLD_MATCHING_DISTANCE)
+                if (matches_AB(match_idx)==0) %|| (distances_AB(match_idx)>THRESHOLD_MATCHING_DISTANCE)
                     %Leave that entry blank if the perfect matching came back
                     %with nothing, or if the distances to a match is too far
                     all_possible_punctapaths(row_offset+match_idx,rnd_idx_B) = -1;
@@ -225,6 +223,7 @@ end
 %% Of the punctapaths that we know align with 0 or 1 accuracy, what is the average position?
 
 filtered_positions = zeros(size(acceptable_unique_paths,1),3);
+figure;
 for t_idx = 1:size(acceptable_unique_paths,1)
     
     positions_across_rounds = zeros(params.NUM_ROUNDS,3);
@@ -238,6 +237,11 @@ for t_idx = 1:size(acceptable_unique_paths,1)
 
     end
     
+    Dmat = squareform(pdist(positions_across_rounds,'euclidean'));
+    plot(Dmat(4,:)); hold on;
+    if mod(t_idx,50)==0
+        pause;
+    end
     filtered_positions(t_idx,:) = mean(positions_across_rounds,1);    
     
 end

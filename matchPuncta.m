@@ -1,5 +1,7 @@
-function [ match_vector,distances ] = matchPuncta(puncta_rndA,puncta_rndB)
-%This matches round B to round A
+function [ match_vector,distances ] = matchPuncta(puncta_rndA,puncta_rndB,pixels_rndA,pixels_rndB)
+
+%This matches round B to round A, getting the nearest 5 neighbors in terms
+%of euclidean distance between centroids
 [IDX,D] = knnsearch(puncta_rndA,puncta_rndB,'K',5); %getting five other options
 
 match_vector = zeros(size(puncta_rndA,1),1);
@@ -12,7 +14,12 @@ for idx_row = 1:size(IDX,1)
         %indices to the reference puncta round
         %The entries are the inverse of distance, which is useful
         %because we're going to get the maximum weighted partition
-        A(idx_row,IDX(idx_row,idx_col)) = 1/D(idx_row,idx_col);
+        puncta_pixels_rndA = pixels_rndB{idx_row};
+        puncta_pixels_rndB = pixels_rndA{IDX(idx_row,idx_col)};
+        overlap_pixel_count = sum(ismember(puncta_pixels_rndA,puncta_pixels_rndB));
+        if overlap_pixel_count>0
+            A(idx_row,IDX(idx_row,idx_col)) = overlap_pixel_count; %1/D(idx_row,idx_col);
+        end
     end
 end
 
@@ -31,8 +38,9 @@ for matched_row_idx = 1:length(matched_indices_moving)
     match_vector(punctaA_idx) = matched_punctaB_idx;
     %Going back to the A matrix (which is indexed like the transpose)
     %to get the original distance value out (has to be re-inverted)
-    distances(punctaA_idx) = 1/A(matched_punctaB_idx,punctaA_idx);
-    
+%     distances(punctaA_idx) = 1/A(matched_punctaB_idx,punctaA_idx);
+    %output is now the number of overlapping puncta
+    distances(punctaA_idx) = A(matched_punctaB_idx,punctaA_idx);
 %     %What if the nearest match is too far away?
 %     if distances(punctaA_idx)>DISTANCE_THRESHOLD
 %         distances(punctaA_idx) = 0;

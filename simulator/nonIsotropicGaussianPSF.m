@@ -86,13 +86,13 @@ mu=mean(coord);
 outsize=size(X);
 
 
-if (areTheseToolboxesInstalled('Statistics Toolbox')),
+if (areTheseToolboxesInstalled('Statistics and Machine Learning Toolbox')),
     
     %with statistics toolbox
     clear X Y Z
     
     % Check mvnpdf help for details on this function
-    p = mvnpdf(coord, mu, S);
+    p = mvnpdf(coord, mu, inSigma);
     
     % Output vector is reshaped to volume.
     outKer=reshape(p,outsize);
