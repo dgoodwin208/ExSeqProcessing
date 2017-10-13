@@ -1,4 +1,5 @@
-loadParameters;
+% loadParameters;
+
 %Load puncta_centroids, puncta_voxels
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids);
@@ -7,7 +8,7 @@ filename_transcripts = fullfile(params.transcriptResultsDir, 'transcript_objects
 load(filename_transcripts);
 
 %Load ground truth:
-filename_groundtruth = '/Users/Goody/Neuro/ExSeq/simulator/images/simseqtryone_groundtruth_pos+transcripts.mat';
+filename_groundtruth = fullfile(simparams.OUTPUTDIR, 'simseqtryone_groundtruth_pos+transcripts.mat');
 load(filename_groundtruth);
 %%
 rnd_num = params.REFERENCE_ROUND_PUNCTA;

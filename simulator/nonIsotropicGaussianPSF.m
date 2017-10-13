@@ -92,7 +92,7 @@ if (areTheseToolboxesInstalled('Statistics and Machine Learning Toolbox')),
     clear X Y Z
     
     % Check mvnpdf help for details on this function
-    p = mvnpdf(coord, mu, inSigma);
+    p = mvnpdf(coord, mu, S); %I think I had hacked this to inSigma...
     
     % Output vector is reshaped to volume.
     outKer=reshape(p,outsize);

@@ -1,4 +1,4 @@
-loadParameters;
+% loadParameters;
 
 %This loads puncta_centroids and puncta_voxels (the list of voxel INDICES)
 %per puncta

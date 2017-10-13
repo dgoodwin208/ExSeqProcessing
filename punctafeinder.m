@@ -1,5 +1,5 @@
 
-loadParameters;
+% loadParameters;
 
 
 %M is the mask

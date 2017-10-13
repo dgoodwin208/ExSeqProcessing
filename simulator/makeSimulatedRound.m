@@ -24,12 +24,13 @@ for p_idx = 1:num_puncta
     %Using the size variability parameter modify the size of the puncta
     %It's a randomly chosen percentage off of 100%. so u=1
     %TEMP from OCT 10 by Dan
-%     punctasize_modified = normrnd(1,puncta_variability,1,3) .* puncta_sizes(p_idx,:);
+    punctasize_modified = normrnd(1,puncta_variability,1,3) .* puncta_sizes(p_idx,:);
     
     %Generate the volume with some padding around it (2.1 is the default)
-    %gaussObj = nonIsotropicGaussianPSF(punctasize_modified,2.1,'single');
+    gaussObj = nonIsotropicGaussianPSF(punctasize_modified,2.1,'single');
     
-    gaussObj = nonIsotropicGaussianPSF(squeeze(puncta_sizes(:,:,p_idx)),2.1,'single');
+    %Workign on generating more complex gaussians
+%     gaussObj = nonIsotropicGaussianPSF(squeeze(puncta_sizes(:,:,p_idx)),2.1,'single');
     
     %These objects are a blob with odd size, with symmetric extension on
     %both sides

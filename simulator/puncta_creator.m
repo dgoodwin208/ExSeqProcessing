@@ -1,4 +1,4 @@
-% loadSimParams;
+%loadSimParams;
 %% Generate number of puncta, positions and the transcripts
 load('groundtruth_dictionary.mat')
 
@@ -6,15 +6,34 @@ load('groundtruth_dictionary.mat')
 volume_microns = (simparams.IMAGE_FOVSIZE_XY*simparams.IMAGE_RESOLUTION_XY)^2 *...
     (simparams.IMAGE_FOVSIZE_Z*simparams.IMAGE_RESOLUTION_Z);
 
-num_puncta = floor(volume_microns*simparams.VOLUME_DENSITY);
 
-%Create rand positions, one pixel away from any edges
-xpos = randi([2 simparams.IMAGE_FOVSIZE_XY-1],num_puncta,1);
-ypos = randi([2 simparams.IMAGE_FOVSIZE_XY-1],num_puncta,1);
-zpos = randi([2 simparams.IMAGE_FOVSIZE_Z-1],num_puncta,1);
 
-puncta_pos = [ypos,xpos,zpos];
-clear xpos ypos zpos; %don't need once they are in the puncta_pos vector
+if strcmp(simparams.puncta_placement_method,'random')
+    num_puncta = floor(volume_microns*simparams.VOLUME_DENSITY);
+    %Create rand positions, one pixel away from any edges
+    xpos = randi([2 simparams.IMAGE_FOVSIZE_XY-1],num_puncta,1);
+    ypos = randi([2 simparams.IMAGE_FOVSIZE_XY-1],num_puncta,1);
+    zpos = randi([2 simparams.IMAGE_FOVSIZE_Z-1],num_puncta,1);
+    
+    puncta_pos = [ypos,xpos,zpos];
+    clear xpos ypos zpos; %don't need once they are in the puncta_pos vector
+
+elseif strcmp(simparams.puncta_placement_method,'grid')
+
+    xpos_partial = 1:simparams.GRID_XY_SPACING:simparams.IMAGE_FOVSIZE_XY;
+    ypos_partial = 1:simparams.GRID_XY_SPACING:simparams.IMAGE_FOVSIZE_XY;
+    zpos_partial = 1:simparams.GRID_Z_SPACING:simparams.IMAGE_FOVSIZE_Z;
+    
+    [xpos ypos zpos] = meshgrid(xpos_partial, ypos_partial, zpos_partial);
+    
+    num_puncta = length(xpos(:));
+    puncta_pos = [ypos(:),xpos(:),zpos(:)];
+    clear xpos ypos zpos; %don't need once they are in the puncta_pos vector
+else
+    error('ERROR: Unrecognized parameter for simparams.puncta_placement_method');
+end
+
+
 puncta_transcripts = groundtruth_codes(randperm(size(groundtruth_codes,1),num_puncta),:);
 clear groundtruth_codes; %don't need once we've loaded the random subset
 

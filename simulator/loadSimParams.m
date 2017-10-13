@@ -2,8 +2,8 @@
 %Define paramters
 simparams.IMAGE_RESOLUTION_XY = .165; %microns
 simparams.IMAGE_RESOLUTION_Z = .165; %microns
-simparams.IMAGE_FOVSIZE_XY = 250;
-simparams.IMAGE_FOVSIZE_Z = 60;
+simparams.IMAGE_FOVSIZE_XY = 150;
+simparams.IMAGE_FOVSIZE_Z = 50;
 
 %puncta size (I think u=10 and s=3.5 is correct but it's slow)
 simparams.PUNCTA_SIZE_MEAN = 8; %FWHM
@@ -25,7 +25,12 @@ simparams.PUNCTA_CROSSTALK = [[.7 .1 .1 .1];
 
 
 %puncta_spatial distribution (per cubic micron)
+simparams.puncta_placement_method='grid'; %or 'random'
+%if simparams.puncta_placement_method ='random', we use this parameter:
 simparams.VOLUME_DENSITY = 10/100; %puncta per cubic micron
+%if simparams.puncta_placement_method = 'grid', we use these parameters
+simparams.GRID_XY_SPACING=10; 
+simparams.GRID_Z_SPACING=10; 
 
 %Offset and background and noise
 simparams.CHANNEL_BACKGROUND = [100,100,100,100];
