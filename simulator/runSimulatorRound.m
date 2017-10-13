@@ -14,6 +14,10 @@ end
 %Set the parameters for the simulator
 simparams.SIMULATION_NAME = simname;
 simparams.OUTPUTDIR = working_dir;
+
+simparams.GRID_XY_SPACING=spacing; 
+simparams.GRID_Z_SPACING=spacing; 
+
 params.registeredImagesDir = working_dir;
 params.punctaSubvolumeDir = working_dir;
 params.FILE_BASENAME = simname;
