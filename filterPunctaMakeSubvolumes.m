@@ -1,7 +1,7 @@
 loadParameters;
 
 filename_paths = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
-load(filename_paths,'acceptable_unique_paths');
+load(filename_paths,'final_punctapaths');
 
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
 load(filename_centroids,'puncta_baseguess','puncta_centroids','puncta_voxels')
@@ -15,14 +15,14 @@ data_width = size(sample_img,2);
 data_depth = size(sample_img,3);
 
 
-num_insitu_transcripts = size(acceptable_unique_paths,1);
+num_insitu_transcripts = size(final_punctapaths,1);
 
 %Define a puncta_set object that can be parallelized
 puncta_set_cell = cell(params.NUM_ROUNDS,1);
 pos_cell = cell(params.NUM_ROUNDS,1);
 
 
-parfor exp_idx = 1:params.NUM_ROUNDS
+for exp_idx = 1:params.NUM_ROUNDS
     disp(['round=',num2str(exp_idx)])
     
     %Load all channels of data into memory for one experiment
@@ -59,7 +59,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     for puncta_idx = 1:num_insitu_transcripts
         
         %Get the puncta_idx in the context of this experimental round
-        moving_puncta_idx = acceptable_unique_paths(puncta_idx,exp_idx);
+        moving_puncta_idx = final_punctapaths(puncta_idx,exp_idx);
         
         %If this round did not have a match for this puncta, just return
         %all -1s
@@ -103,8 +103,8 @@ parfor exp_idx = 1:params.NUM_ROUNDS
             pixels_for_puncta_set = experiment_set_padded_masked(y_indices,x_indices,z_indices);
             
             if max(pixels_for_puncta_set(:))==0
-               fprintf('Ok we have found an issue\n');
-               barf()
+               fprintf('Ok we have found an issue with puncta_idx=%i\n',puncta_idx);
+%                barf()
             end
             %Then we take the PUNCTA_SIZE region around those pixels only
             puncta_set_cell{exp_idx}{c_idx,subvolume_ctr} = pixels_for_puncta_set;

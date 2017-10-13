@@ -61,3 +61,38 @@ end
 
 filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_ALLPixelIdxListSummedNoPrimer.tif',params.FILE_BASENAME));
 save3DTif_uint16(sum_img,filename_out);
+
+%% Create an image that is the sum of all exclusive path ROIs
+
+ imgSize = size(stack_in);
+ sum_img = zeros(imgSize);
+for round_num = 3:params.NUM_ROUNDS
+    fprintf('Round %i\n',round_num);
+
+    
+     for i= 2:size(exclusive_paths,1)
+            %Set the pixel value to somethign non-zero
+        indices_to_add = puncta_voxels{round_num}{exclusive_paths(i,round_num)};
+        sum_img(indices_to_add)=sum_img(indices_to_add)+1;
+     end
+
+end
+
+filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_exclusivePathROIs.tif',params.FILE_BASENAME));
+save3DTif_uint16(sum_img,filename_out);
+
+%% For each individual path, generate an image sequentially
+
+imgSize = size(stack_in);
+sum_img = zeros(imgSize);
+figure;
+for i= size(exclusive_paths,1):-1:2
+    for round_num = 3:params.NUM_ROUNDS
+        indices_to_add = puncta_voxels{round_num}{exclusive_paths(i,round_num)};
+        sum_img(indices_to_add)=sum_img(indices_to_add)+1;
+    end
+    
+    imagesc(max(sum_img,[],3));
+    pause
+end
+
