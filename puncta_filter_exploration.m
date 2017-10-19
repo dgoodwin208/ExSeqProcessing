@@ -18,7 +18,11 @@ img_size = size(sample_img);
 
 %% Examine the nearest neighbor of every pixel and flag it as a possible
 % merge error in another round
-
+%make a holder vector of the sizes of all
+num_puncta_per_round = zeros(params.NUM_ROUNDS,1);
+for rnd_idx = 1:params.NUM_ROUNDS
+    num_puncta_per_round(rnd_idx) = size(puncta_centroids{rnd_idx},1);
+end
 
 for demerge_iter = 1:3
     
@@ -405,11 +409,13 @@ for excl_path_idx = 1:size(exclusive_paths_transcripts,1)
     end
 
     exclusive_path_positions(excl_path_idx,:) = mean(positions_across_rounds,1); 
+    
 end
 
 final_positions = exclusive_path_positions;
 final_transcripts = exclusive_paths_transcripts;
 final_punctapaths = exclusive_paths;
+final_votes = exclusive_paths_votes;
 
 %% And get the hamming score on the way out :)
 consideration_mask = logical([0 0 0 1 1 ones(1,5) 1 ones(1,9)]);
@@ -429,7 +435,30 @@ end
 
 filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 save(filename_output,'final_positions','final_transcripts','final_hammingscores',...'final_confidence',...
-    'final_punctapaths','all_possible_punctapaths_demerged','acceptable_unique_paths_votes','acceptable_unique_paths');
+    'final_punctapaths','final_votes','all_possible_punctapaths_demerged','acceptable_unique_paths_votes','acceptable_unique_paths');
 
 filename_centroidsMOD = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
 save(filename_centroidsMOD,'puncta_centroids','puncta_voxels','puncta_baseguess');
+
+% %% Calculate average distances
+% 
+% uppertriangular_mask = triu(ones(params.NUM_ROUNDS),1);
+% mean_distances = zeros(size(final_transcripts,1),1);
+% for excl_path_idx = 1:size(final_transcripts,1)
+%    
+%     positions_across_rounds = zeros(params.NUM_ROUNDS,3);
+%     
+%     for rnd_idx = 1:params.NUM_ROUNDS
+%        
+%         %Puncta_centroids is the output of the punctafeinder
+%         %filtered_unique_paths is a row vector where each round is the
+%         %index of that puncta in a round
+%         pos = puncta_centroids{rnd_idx}(final_punctapaths(excl_path_idx,rnd_idx),:);
+%         positions_across_rounds(rnd_idx,:) = pos;
+%         
+%     end
+% 
+%     Dmat = squareform(pdist(positions_across_rounds,'euclidean'));
+%     Dmat = Dmat(:);
+%     mean_distances(excl_path_idx) = mean(Dmat(logical(uppertriangular_mask)));
+% end

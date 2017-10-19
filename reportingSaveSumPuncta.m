@@ -83,16 +83,28 @@ save3DTif_uint16(sum_img,filename_out);
 
 %% For each individual path, generate an image sequentially
 
-imgSize = size(stack_in);
+% filename_in = fullfile(params.punctaSubvolumeDir,sprintf('%s_round%.03i_%s_puncta.tif',params.FILE_BASENAME,1,1));
+% stack_in = load3DTif_uint16(filename_in);
+        
+imgSize = [500 500 101]; %size(stack_in);
 sum_img = zeros(imgSize);
 figure;
-for i= size(exclusive_paths,1):-1:2
+for i= size(exclusive_paths,1):-1:size(exclusive_paths,1)-100
     for round_num = 3:params.NUM_ROUNDS
         indices_to_add = puncta_voxels{round_num}{exclusive_paths(i,round_num)};
         sum_img(indices_to_add)=sum_img(indices_to_add)+1;
     end
     
     imagesc(max(sum_img,[],3));
+%     pause
+end
+
+
+%% for 
+
+for puncta_idx = 550:-1:1
+    visualizeGridPlot(puncta_set_normed(:,:,:,:,:,puncta_idx),ones(20,1),params,1)
+    visualizeGridPlot(puncta_set(:,:,:,:,:,puncta_idx),ones(20,1),params,2)   
     pause
 end
 

@@ -8,6 +8,19 @@ load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE
 %(PUNCTA_SIZE,PUNCTA_SIZE,PUNCTA_SIZE,NUM_ROUNDS,NUM_CHANNELS,num_puncta)
 
 
+%% quik temp with Fei
+
+puncta_set_normed = zeros(size(puncta_set));
+for c = params.COLOR_VEC
+    chan_col(:,c) = reshape(puncta_set(:,:,:,:,c,:),[],1);
+end
+cols_normed = zscore(chan_col);
+
+for c = params.COLOR_VEC
+    puncta_set_normed(:,:,:,:,c,:) = reshape(cols_normed(:,c),size(squeeze(puncta_set(:,:,:,:,c,:))));
+end
+
+
 %% Vectorize the entire set of puncta into one column per channel
 
 puncta_set_normed = zeros(size(puncta_set));
