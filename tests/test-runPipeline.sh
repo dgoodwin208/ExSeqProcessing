@@ -83,12 +83,13 @@ tearDown() {
 get_values_and_keys() {
     Value[ 1]=$(get_value_by_key "$Log" "# of rounds")
     Value[ 2]=$(get_value_by_key "$Log" "file basename")
-    Value[15]=$(get_value_by_key "$Log" "reference round")
+    Value[16]=$(get_value_by_key "$Log" "reference round")
     Value[ 3]=$(get_value_by_key "$Log" "processing channels")
     Value[ 4]=$(get_value_by_key "$Log" "registration channel")
     Value[ 5]=$(get_value_by_key "$Log" "warp channels")
+    Value[15]=$(get_value_by_key "$Log" "r-1 threshold decision")
     Value[ 6]=$(get_value_by_key "$Log" "deconvolution images")
-    Value[17]=$(get_value_by_key "$Log" "color correction images")
+    Value[18]=$(get_value_by_key "$Log" "color correction images")
     Value[ 7]=$(get_value_by_key "$Log" "normalization images")
     Value[ 8]=$(get_value_by_key "$Log" "registration images")
     Value[ 9]=$(get_value_by_key "$Log" "puncta")
@@ -96,7 +97,7 @@ get_values_and_keys() {
     Value[11]=$(get_value_by_key "$Log" "Registration project")
     Value[12]=$(get_value_by_key "$Log" "vlfeat lib")
     Value[13]=$(get_value_by_key "$Log" "Raj lab image tools")
-    Value[16]=$(get_value_by_key "$Log" "Reporting")
+    Value[17]=$(get_value_by_key "$Log" "Reporting")
     Value[14]=$(get_value_by_key "$Log" "Log")
 
     Key[1]=$(get_key_by_value "$Log" "profile-check")
@@ -142,8 +143,8 @@ assert_all_default_values() {
     if [ ! "${skips[6]}" = "skip" ]; then
         assertEquals "$PWD/1_deconvolution" "${Value[6]}"
     fi
-    if [ ! "${skips[17]}" = "skip" ]; then
-        assertEquals "$PWD/2_color-correction" "${Value[17]}"
+    if [ ! "${skips[18]}" = "skip" ]; then
+        assertEquals "$PWD/2_color-correction" "${Value[18]}"
     fi
     if [ ! "${skips[7]}" = "skip" ]; then
         assertEquals "$PWD/3_normalization" "${Value[7]}"
@@ -174,11 +175,14 @@ assert_all_default_values() {
         assertEquals "$log_dir" "${Value[14]}"
     fi
     if [ ! "${skips[15]}" = "skip" ]; then
-        assertEquals 1 ${Value[15]}
+        assertEquals "auto" ${Value[15]}
     fi
     if [ ! "${skips[16]}" = "skip" ]; then
+        assertEquals 1 ${Value[16]}
+    fi
+    if [ ! "${skips[17]}" = "skip" ]; then
         reporting_dir=$(cd ./logs/imgs && pwd)
-        assertEquals "$reporting_dir" "${Value[16]}"
+        assertEquals "$reporting_dir" "${Value[17]}"
     fi
 }
 
@@ -324,10 +328,10 @@ testArgument007_set_color_correction_dir() {
 
     get_values_and_keys
 
-    assertEquals "$PWD/test2_colorcor" "${Value[17]}"
+    assertEquals "$PWD/test2_colorcor" "${Value[18]}"
 
     # others are default values
-    assert_all_default_values skip 17
+    assert_all_default_values skip 18
     assert_all_default_keys
 }
 
@@ -479,7 +483,25 @@ testArgument015_set_log_dir() {
     assert_all_default_keys
 }
 
-testArgument016_set_reference_round() {
+testArgument016_set_threshold_manual_decision_in_round_1() {
+    local curfunc=${FUNCNAME[0]}
+    mkdir ${Result_dir}/${curfunc}
+    Log=$Result_dir/$curfunc/output.log
+
+    echo 'n' | ./runPipeline.sh -m > $Log 2>&1
+    local status=$?
+    assertEquals 0 $status
+
+    get_values_and_keys
+
+    assertEquals "manual" ${Value[15]}
+
+    # others are default values
+    assert_all_default_values skip 15
+    assert_all_default_keys
+}
+
+testArgument017_set_reference_round() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -490,14 +512,14 @@ testArgument016_set_reference_round() {
 
     get_values_and_keys
 
-    assertEquals 2 ${Value[15]}
+    assertEquals 2 ${Value[16]}
 
     # others are default values
-    assert_all_default_values skip 15
+    assert_all_default_values skip 16
     assert_all_default_keys
 }
 
-testArgument017_set_reporting_dir() {
+testArgument018_set_reporting_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -509,10 +531,10 @@ testArgument017_set_reporting_dir() {
     get_values_and_keys
 
     reporting_dir=$(cd ./test_report && pwd)
-    assertEquals "$reporting_dir" "${Value[16]}"
+    assertEquals "$reporting_dir" "${Value[17]}"
 
     # others are default values
-    assert_all_default_values skip 16
+    assert_all_default_values skip 17
     assert_all_default_keys
 }
 
@@ -535,7 +557,7 @@ testArgument100_skip_stage_profile_check() {
     assert_all_default_keys skip 1
 }
 
-testArgument101_skip_stage_coloe_correction() {
+testArgument101_skip_stage_color_correction() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -975,7 +997,7 @@ testArgument201_Error_no_deconvolution_dir() {
     ln -s $INPUT_IMAGE_DIR $DECONVOLUTION_DIR
 }
 
-testArgument202_Error_no_ragistration_proj_dir() {
+testArgument202_Error_no_registration_proj_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -988,7 +1010,7 @@ testArgument202_Error_no_ragistration_proj_dir() {
     assertEquals 1 $message
 }
 
-testArgument203_Error_no_ragistration_proj_matlab_dir() {
+testArgument203_Error_no_registration_proj_matlab_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -1001,7 +1023,7 @@ testArgument203_Error_no_ragistration_proj_matlab_dir() {
     assertEquals 1 $message
 }
 
-testArgument204_Error_no_ragistration_proj_scripts_dir() {
+testArgument204_Error_no_registration_proj_scripts_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     Log=$Result_dir/$curfunc/output.log
@@ -1153,7 +1175,7 @@ testRun001_replace_parameters_and_skip_all() {
     assertEquals "'${Value[6]}'" "$param"
 
     local param=$(sed -ne 's#params.colorCorrectionImagesDir = \(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "'${Value[17]}'" "$param"
+    assertEquals "'${Value[18]}'" "$param"
 
     local param=$(sed -ne 's#params.registeredImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[8]}'" "$param"
@@ -1165,7 +1187,7 @@ testRun001_replace_parameters_and_skip_all() {
     assertEquals "'${Value[10]}'" "$param"
 
     local param=$(sed -ne 's#params.reportingDir = \(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "'${Value[16]}'" "$param"
+    assertEquals "'${Value[17]}'" "$param"
 
     local param=$(sed -ne 's#params.FILE_BASENAME = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[2]}'" "$param"
@@ -1174,7 +1196,7 @@ testRun001_replace_parameters_and_skip_all() {
     assertEquals "${Value[1]}" "$param"
 
     local param=$(sed -ne 's#params.REFERENCE_ROUND_PUNCTA = \(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "${Value[15]}" "$param"
+    assertEquals "${Value[16]}" "$param"
 
     local param=$(sed -ne "s#run('\(.*\)/toolbox.*#\1#p" ./startup.m)
     assertEquals "${Value[12]}" "$param"

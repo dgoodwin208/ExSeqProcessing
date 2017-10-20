@@ -1,6 +1,6 @@
 % normalization
 
-function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,channels,total_round_num)
+function normalization_cuda(src_folder_name,dst_folder_name,fileroot_name,channels,total_round_num)
 
     loadParameters;
 
@@ -12,10 +12,10 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
     cluster = parcluster('local_200workers');
     %parpool(cluster);
 
-    num_cores = [40 20];
-    %num_cores = [10 5];
-    %num_cores = [5 5];
-    quantilenorm_init(5,num_cores);
+    num_sem_gpus = [1,1];
+%    num_cores = [20, 10, 15, 1];
+    num_cores = [20, 0, 20, 0];
+    quantilenorm_cuda_init(num_sem_gpus,num_cores);
 
     tic;
     disp('===== create batch jobs')
@@ -56,7 +56,7 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
                 end
             end
             if is_finished == 0
-              disp(['waiting... ',num2str(find(running_jobs==1))])
+              disp(['waiting... # of jobs = ',num2str(length(find(running_jobs==1))),', ',num2str(find(running_jobs==1))])
               pause(waiting_sec);
             end
         end
@@ -94,19 +94,26 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
 
     % Normalize the data
     basename = sprintf('%s_round%03d',fileroot_name,roundnum);
-    [chan1_norm_fname,chan2_norm_fname,chan3_norm_fname,chan4_norm_fname,image_height,image_width] = ...
-        quantilenorm_small_mem(params.tempDir,basename, ...
+    ret = ...
+        quantilenorm_cuda(params.tempDir,basename, { ...
         fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})), ...
         fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})), ...
         fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})) });
+
+    chan1_norm_fname = ret{1};
+    chan2_norm_fname = ret{2};
+    chan3_norm_fname = ret{3};
+    chan4_norm_fname = ret{4};
+    image_height = ret{5};
+    image_width  = ret{6};
 
     summed_file = sprintf('%s_round%03d_5_summed.bin',fileroot_name,roundnum);
-    sumfiles(params.tempDir,{ chan1_norm_fname,chan2_norm_fname,chan3_norm_fname,chan4_norm_fname },summed_file);
+    sumbinfiles(params.tempDir,{ chan1_norm_fname,chan2_norm_fname,chan3_norm_fname,chan4_norm_fname },summed_file);
 
     summed_norm = load_binary_image(params.tempDir,summed_file,image_height,image_width);
 
-    save3DTif_uint16(summed_norm,outputfile);
+    save3DTif(summed_norm,outputfile);
 
 end
 

@@ -1,22 +1,15 @@
-TARGET=mergesortfiles.mexa64 meanfiles.mexa64 sumfiles.mexa64 substituteToNormValues.mexa64 semaphore.mexa64
+.SUFFIXES: .mexa64
 
-all: ${TARGET}
+TARGET=mergesortfiles.mexa64 meanfiles.mexa64 sumfiles.mexa64 substituteToNormValues.mexa64 semaphore.mexa64 quantilenorm_cuda_init.mexa64 sumbinfiles.mexa64
 
-mergesortfiles.mexa64: mergesortfiles.cpp
-	mex $<
+SOURCES := $(wildcard *.cpp)
+OBJS := $(SOURCES:.cpp=.o)
 
-meanfiles.mexa64: meanfiles.cpp
-	mex $<
+all: $(TARGET)
 
-sumfiles.mexa64: sumfiles.cpp
-	mex $<
-
-substituteToNormValues.mexa64: substituteToNormValues.cpp
-	mex $<
-
-semaphore.mexa64: semaphore.cpp
-	mex $<
+.cpp.mexa64: $(SOURCES)
+	mex $< -I./include
 
 clean:
-	-rm ${TARGET}
+	-rm $(TARGET)
 

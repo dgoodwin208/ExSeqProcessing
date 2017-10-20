@@ -193,11 +193,25 @@ function [varargout] = quantilenorm_small_mem(outputdir,basename,varargin)
             col_i = ceil(i/div_size);
             sub_i = i-div_size*(col_i-1);
 
+            fprintf('# start sort2 (%d)\n',i)
+            try
             f_sort2(i) = parfeval(@sort2,0,outputdir,basename,substfile_list{col_i},col_i,sub_i,sub_idx,image_width,image_height);
+            catch ME
+                disp(ME.getReport)
+            end
         end
 
+        try
+        disp('# wait sort2')
         fetchOutputs(f_sort2);
+        catch ME
+            disp(ME.getReport)
+        end
+        disp('# wait merge')
         fetchOutputs(f_merge);
+        for i = 1:(div_size*col_size)
+            f_sort2(i).Diary
+        end
         f_merge.Diary
     end
     toc(sort2_sub_start)
@@ -306,6 +320,7 @@ function sort1(outputdir,basename,fname,image_info,col_i,sub_i,sub_idx,image_wid
             g = gpuArray([sub_images(:) (fpos_start:fpos_end)']);
             sub_images = [];
             sorted = gather(sortrows(g));
+            %sorted = radixsort(sub_images(:),(fpos_start:fpos_end)');
             gpuDevice([]);
             unselectGPU(idx_gpu);
             break;
@@ -362,6 +377,7 @@ function sort2(outputdir,basename,infile,col_i,sub_i,sub_idx,image_width,image_h
             g = gpuArray(sub_images');
             sub_images = [];
             sorted = gather(sortrows(g));
+            %sorted = radixsort(sub_images(1,:)',sub_images(2,:)');
             gpuDevice([]);
             unselectGPU(idx_gpu);
             break;

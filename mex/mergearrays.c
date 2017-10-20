@@ -1,10 +1,10 @@
 /*=================================================================
- * mergearrays.c - merge two sorted arrays to one array
+ * mergefiles.c - merge two sorted data files to one file
  *                 the first column is sorted
  *
- *  outMatrix = mergearrays(inMatrix[0], inMatrix[1])
+ *  outMatrix = mergefiles(inFile[0], inFile[1])
  *
- *  inMatrix:  MxN matrix
+ *  inFile:  file that stores MxN matrix
  *  outMatrix: (2*M)xN matrix
  *
  *=================================================================*/
@@ -26,10 +26,10 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
     /* Check for proper number of input and output arguments */    
     if (nrhs != 2) {
-        mexErrMsgIdAndTxt( "MATLAB:mergearrays:minrhs","Two or three input arguments required.");
+        mexErrMsgIdAndTxt( "MATLAB:mergefiles:minrhs","Two input arguments required.");
     } 
     if (nlhs > 1){
-        mexErrMsgIdAndTxt( "MATLAB:mergearrays:maxrhs","Too many output arguments.");
+        mexErrMsgIdAndTxt( "MATLAB:mergefiles:maxrhs","Too many output arguments.");
     }
 
     /* make sure the first and second input arguments are type double */
