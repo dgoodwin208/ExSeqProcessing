@@ -69,10 +69,10 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
         fprintf('%s already exists, skipping\n',outputfile);
         return
     end
-    chan1 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})));
-    chan2 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})));
-    chan3 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})));
-    chan4 = load3DTif(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
+    chan1 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})));
+    chan2 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})));
+    chan3 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})));
+    chan4 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
     size_chan1 = size(chan1);
     size_chan2 = size(chan2);
     size_chan3 = size(chan3);
@@ -99,7 +99,7 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
     summed_norm = chan1_norm+chan2_norm+chan3_norm+chan4_norm;
     clearvars chan1_norm chan2_norm chan3_norm chan4_norm;
 
-    save3DTif(summed_norm,outputfile);
+    save3DTif_uint16(summed_norm,outputfile);
 
 end
 

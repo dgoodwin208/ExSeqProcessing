@@ -100,7 +100,7 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
 
     summed_norm = load_binary_image(params.tempDir,summed_file,image_height,image_width);
 
-    save3DTif(summed_norm,outputfile);
+    save3DTif_uint16(summed_norm,outputfile);
 
 end
 

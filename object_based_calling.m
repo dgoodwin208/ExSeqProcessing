@@ -120,8 +120,9 @@ for p_idx = 1:size(transcripts,1)
         [val_best_second_place,idx_best_second_place]=max(metrics_difference);
 
         transcript.img_transcript=transcripts(p_idx,:);
-        transcript.img_transcript_votes=transcripts_votes(p_idx,:);
-        transcript.img_transcript_calls=transcripts_calls(:,:,p_idx);
+   %     transcript.img_transcript_votes=transcripts_votes(p_idx,:);
+    %    transcript.img_transcript_calls=transcripts_calls(:,:,p_idx);
+        
         transcript.known_sequence_matched = groundtruth_codes(indices(idx_best_second_place),:);
         transcript.distance_score= values(idx_last_tie);
         transcript.prob_error= val_best_second_place;
@@ -187,19 +188,4 @@ end
 %     
      save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)),'transcript_objects','-v7.3');
 %     
-    %%
     
-    error_reads = zeros(17,1);
-    indices_for_specific_distance = []; ctr = 1;
-    for idx = 1:size(transcript_objects,1)
-        if transcript_objects{idx}.distance_score-3==3
-            indices_for_specific_distance(ctr) = idx;
-            ctr = ctr +1;
-        end
-        addition = (transcript_objects{idx}.img_transcript(4:end)~=transcript_objects{idx}.known_sequence_matched);
-        error_reads = error_reads + double(addition');
-    end
-    
-    puncta_set_cropped =  puncta_set(:,:,:,:,:,indices_for_specific_distance);
-    save(fullfile(params.transcriptResultsDir,sprintf('%s_RANDpunctanormed_crop3.mat',params.FILE_BASENAME)),'puncta_set_cropped','-v7.3');
-

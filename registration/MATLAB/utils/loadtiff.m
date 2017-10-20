@@ -59,12 +59,14 @@ while ~exist('tiff', 'var')
         file_opening_error_count = file_opening_error_count + 1;
         pause(0.1);
         if file_opening_error_count > 5 % automatically retry to open for 5 times.
-            reply = input('Failed to open the file. Do you wish to retry? Y/n: ', 's');
-            if isempty(reply) || any(upper(reply) == 'Y')
-                file_opening_error_count = 0;
-            else
+            %Small edit by DG because this input() line was very annnoying
+            %for finding bugs when running this on a cluster
+            %reply = input('Failed to open the file. Do you wish to retry? Y/n: ', 's');
+            %if isempty(reply) || any(upper(reply) == 'Y')
+            %    file_opening_error_count = 0;
+            %else
                 error(['Failed to open the file ''' path '''.']);
-            end
+            %end
         end
     end
 end
