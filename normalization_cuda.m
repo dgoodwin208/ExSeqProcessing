@@ -130,23 +130,3 @@ function image = load_binary_image(outputdir,image_fname,image_height,image_widt
     fclose(fid);
 end
 
-function ret = selectCore(num_core_sem)
-    count = 1;
-    while true
-        ret = semaphore(['/c' num2str(num_core_sem)],'trywait');
-        if ret == 0
-            fprintf('selectCore[count=%d]\n',count);
-            break
-        end
-        count = count + 1;
-        pause(2);
-    end
-end
-
-function unselectCore(num_core_sem)
-    ret = semaphore(['/c' num2str(num_core_sem)],'post');
-    if ret == -1
-        fprintf('unselect [/c%d] failed.\n',num_core_sem);
-    end
-end
-

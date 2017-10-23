@@ -36,11 +36,11 @@ REGISTRATION_DIR=4_registration
 PUNCTA_DIR=5_puncta-extraction
 TRANSCRIPT_DIR=6_transcripts
 
-REGISTRATION_PROJ_DIR=../Registration
+REGISTRATION_PROJ_DIR=registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
 RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
-REPORTING_DIR=./logs/imgs
-LOG_DIR=./logs
+REPORTING_DIR=logs/imgs
+LOG_DIR=logs
 
 FILE_BASENAME=sa0916dncv
 CHANNELS="'chan1','chan2','chan3','chan4'"
@@ -158,14 +158,22 @@ if [ ! -f "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh ]; then
     exit 1
 fi
 
-if [ ! -f "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m ]; then
-    echo "No 'loadExperimentParams.m' in Registration MATLAB"
+if [ ! -f "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m.template ]; then
+    echo "No 'loadExperimentParams.m.template' in Registration MATLAB"
     exit 1
 fi
+if [ ! -f "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m ]; then
+    echo "No 'loadExperimentParams.m' in Registration MATLAB. Copy from a template file"
+    cp -a "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m{.template,}
+fi
 
-if [ ! -f ./loadParameters.m ]; then
-    echo "No 'loadParameters.m' in ExSeqProcessing MATLAB"
+if [ ! -f ./loadParameters.m.template ]; then
+    echo "No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
     exit 1
+fi
+if [ ! -f ./loadParameters.m ]; then
+    echo "No 'loadParameters.m' in ExSeqProcessing MATLAB. Copy from a template file"
+    cp -a ./loadParameters.m{.template,}
 fi
 
 
