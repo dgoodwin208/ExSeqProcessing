@@ -12,10 +12,11 @@ function normalization_cuda(src_folder_name,dst_folder_name,fileroot_name,channe
     cluster = parcluster('local_200workers');
     %parpool(cluster);
 
-    num_sem_gpus = [1,1];
-%    num_cores = [20, 10, 15, 1];
-    num_cores = [20, 0, 20, 0];
-    quantilenorm_cuda_init(num_sem_gpus,num_cores);
+%    num_sem_gpus = [1,1];
+    num_sem_gpus = ones(1, gpuDeviceCount());
+%    num_sem_cores = [20, 10, 15, 1];
+    num_sem_cores = [params.NORM_JOB_SIZE, 0, 20, 0];
+    quantilenorm_cuda_init(num_sem_gpus,num_sem_cores);
 
     tic;
     disp('===== create batch jobs')
@@ -34,7 +35,7 @@ function normalization_cuda(src_folder_name,dst_folder_name,fileroot_name,channe
             running_jobs(roundnum) = 1;
             jobs{roundnum} = batch(cluster,@normalizeImage,0, ...
                {src_folder_name,dst_folder_name,fileroot_name,channels,roundnum}, ...
-               'Pool',params.NORM_EACH_JOB_POOL_SIZE,'CaptureDiary',true);
+               'CaptureDiary',true);
 %            normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum); % serial run
             roundnum = roundnum+1;
         else
@@ -52,7 +53,7 @@ function normalization_cuda(src_folder_name,dst_folder_name,fileroot_name,channe
                     diary(job,['./matlab-normalization-',num2str(job_id),'-failed.log']);
                     jobs{job_id} = batch(cluster,@normalizeImage,0, ...
                        {src_folder_name,dst_folder_name,fileroot_name,channels,job_id}, ...
-                       'Pool',params.NORM_EACH_JOB_POOL_SIZE,'CaptureDiary',true);
+                       'CaptureDiary',true);
                 end
             end
             if is_finished == 0
