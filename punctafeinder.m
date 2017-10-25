@@ -117,8 +117,8 @@ for round_num = 1:params.NUM_ROUNDS
         end
         
         %Now we need to merge accidental any accidental splits
-        XYSEARCH_DISTANCE = 3; %how close to
-        ZMAXDISTANCE_FOR_SPLIT = 15;
+        XYSEARCH_DISTANCE = -3; %how close to
+        ZMAXDISTANCE_FOR_SPLIT = -15;
         img_size = size(stack_in);
         fprintf('Running de-splitting where appropriate\n');
         this_round2D = centroids_temp(:,1:2);
@@ -186,10 +186,7 @@ for round_num = 1:params.NUM_ROUNDS
             last_count_of_neighbors=0;
             unpacked_neighbors = [unique_indices(u_idx)];
             
-%             if unique_indices(u_idx)==1462
-%                 barf()
-%             end
-            
+
             if ismember(unpacked_neighbors,examined_puncta)
 %                 fprintf('Already examined %i\n',unique_indices(u_idx));
                 continue

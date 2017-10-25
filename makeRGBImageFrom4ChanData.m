@@ -5,6 +5,10 @@ function [ rgbimg ] = makeRGBImageFrom4ChanData(data4d  )
 % Chan 2 = Green
 % Chan 3 = Magenta
 % Chan 4 = Red
+%NOTE! The data4d input MUST be between 0 and 1.
+
+
+
 AB = imfuse(data4d(:,:,1),data4d(:,:,4),'ColorChannels',[2 0 1]);
 CD = imfuse(data4d(:,:,2),data4d(:,:,3),'ColorChannels',[2 1 2]);
 rgbimg=AB+CD;

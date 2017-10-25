@@ -49,7 +49,7 @@ function visualizeGridPlot(puncta,transcripts,params,fignum)
         %Add a fifth column to visualize the puncta in RGB
         %Get the subplot index using the tight_subplot system
         axes(ha(subplot_idx));
-        max_vol_stack = round(255*(max_vol_stack./max(max_vol_stack(:))) );
+        max_vol_stack = uint8(1*(max_vol_stack./max(max_vol_stack(:))));
         rgb_img = makeRGBImageFrom4ChanData(max_vol_stack);
         
         imshow(rgb_img,'InitialMagnification','fit');

@@ -44,8 +44,8 @@ for round_num = 1:params.NUM_ROUNDS
 end
 
 %% Create an image that is the sum of all puncta ROIs
- imgSize = size(stack_in);
- sum_img = zeros(imgSize);
+%  imgSize = size(stack_in);
+ sum_img = zeros(img_size);
 for round_num = 3:params.NUM_ROUNDS
     fprintf('Round %i\n',round_num);
 

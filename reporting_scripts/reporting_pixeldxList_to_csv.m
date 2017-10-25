@@ -8,8 +8,9 @@ load(filename_centroidsMOD)
 filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 load(filename_output,'final_punctapaths');
 
-
-imgSize = [500 500 101];
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,6,'ch00'));
+sample_img = load3DTif_uint16(filename_in);
+img_size = size(sample_img);
 
 %% Make one sample view
 
@@ -20,6 +21,7 @@ total_number_of_pixels = 0;
 for puncta_idx = 1:length(puncta_voxels{RND_IDX})
     pixels = puncta_voxels{RND_IDX}{puncta_idx};
     total_number_of_pixels =total_number_of_pixels +length(pixels) ;
+    
 end
 total_number_of_pixels
 
@@ -27,14 +29,15 @@ output_cell = cell(total_number_of_pixels,1);
 ctr = 1;
 for puncta_idx = 1:length(puncta_voxels{RND_IDX})
     pixels = puncta_voxels{RND_IDX}{puncta_idx};
-    [posX, posY, posZ] = ind2sub(imgSize,pixels);
+    [posX, posY, posZ] = ind2sub(img_size,pixels);
     
     r = randi(255);
     g = randi(255);
     b = randi(255);
+    a = 255;
     for i = 1:size(pixels,1)
-        output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
-            r,g,b);
+        output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
+            r,g,b,a,RND_IDX);
         ctr = ctr+1;
     end
     
@@ -55,7 +58,7 @@ fclose(fileID);
 % each round in a different color
 
 
-centerpoint = imgSize/2;
+centerpoint = img_size/2;
 radius_to_show = 25;
 
 %Pre-initialize the cell arrray
@@ -81,17 +84,17 @@ for rnd_idx = 1:params.NUM_ROUNDS
     r = randi(255);
     g = randi(255);
     b = randi(255);
-    
+    a = 255;
     for puncta_idx = 1:length(puncta_voxels{rnd_idx})
         centroid = puncta_centroids{rnd_idx}(puncta_idx,:);
         dist = pdist([centerpoint; centroid],'euclidean');
         
         if dist <= radius_to_show
             pixels = puncta_voxels{rnd_idx}{puncta_idx};
-            [posX, posY, posZ] = ind2sub(imgSize,pixels);
+            [posX, posY, posZ] = ind2sub(img_size,pixels);
             for i = 1:size(pixels,1)
-                output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
-                    r,g,b,rnd_idx);
+                output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
+                    r,g,b,a,rnd_idx);
                 ctr = ctr+1;
             end
         end
@@ -117,7 +120,7 @@ fclose(fileID);
 % path_indices = randi(size(final_punctapaths,1),num_paths,1)';
 
 
-path_indices = 1:600;% size(final_punctapaths,1);
+path_indices = 1:100;% size(final_punctapaths,1);
 
 %Pre-initialize the cell arrray
 total_number_of_pixels = 0;
@@ -136,15 +139,15 @@ for path_idx = path_indices
     r = randi(255);
     g = randi(255);
     b = randi(255);
-    
+    a = 255;
     
     for rnd_idx = 1:params.NUM_ROUNDS
         
         pixels = puncta_voxels{rnd_idx}{final_punctapaths(path_idx,rnd_idx)};
-        [posX, posY, posZ] = ind2sub(imgSize,pixels);
+        [posX, posY, posZ] = ind2sub(img_size,pixels);
         for i = 1:size(pixels,1)
-            output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
-                    r,g,b,rnd_idx);
+            output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
+                    r,g,b,a,rnd_idx);
             ctr = ctr+1;
         end
     end
@@ -159,58 +162,13 @@ fileID = fopen(output_file,'w');
 fprintf(fileID,output_csv);
 fclose(fileID);
 
-fprintf('Done!')
+fprintf('Done!\n')
 
 
 %% Make a normalized version of puncta_set
 
-puncta_set_normed = zeros(size(puncta_set));
-for c = params.COLOR_VEC
-    chan_col(:,c) = reshape(puncta_set(:,:,:,:,c,:),[],1);
-end
-cols_normed = quantilenorm(chan_col);
 
-for c = params.COLOR_VEC
-    puncta_set_normed(:,:,:,:,c,:) = reshape(cols_normed(:,c),size(squeeze(puncta_set(:,:,:,:,c,:))));
-end
-
-
-%% Load a few, z-projections and color mapped
-
-%Generate random indices
-
-
-path_indices = 1:100;
-
-%Pre-initialize the cell arrray and determine the basecalls
-total_number_of_pixels = 0;
-base_calls_quickzscore=zeros(length(path_indices),params.NUM_ROUNDS);
-new_pixelidxlist = {};
-chans = zeros(params.PUNCTA_SIZE^3,4);
-
-for p_idx= 1:length(path_indices)
-    
-%     path_idx = path_indices(p_idx);
-    
-    for rnd_idx = 1:params.NUM_ROUNDS
-        
-        %Load and vectorize the puncta_subset
-        for c = 1:params.NUM_CHANNELS
-            chantemp = puncta_set_normed(:,:,:,rnd_idx,c,p_idx);
-            chans(:,c) = chantemp(:)';
-        end
-        
-        sorted_chans = sort(chans,1,'descend');
-        %Take the mean of the top 10 values
-        scores = mean(sorted_chans(1:10,:),1);
-        %and the new baseguess 
-        [~, newbaseguess] = max(scores);
-        base_calls_quickzscore(p_idx,rnd_idx) = newbaseguess;
-       
-        total_number_of_pixels = total_number_of_pixels + 100;
-    end
-end
-
+%% 
 fprintf('Makign CSV of %i rows\n',total_number_of_pixels);
 
 output_cell = cell(total_number_of_pixels,1);
@@ -252,6 +210,8 @@ for p_idx= 1:length(path_indices)
         posX = round(centroid(1)+X(:));
         posY = round(centroid(2)+Y(:));
         posZ = round(ones(length(posY),1)*rnd_idx);
+        
+        puncta_chans_zproj = round(puncta_chans_zproj./max(puncta_chans_zproj(:)));
         
         %If we want to view non-normalized pdata:
         rgb_img = makeRGBImageFrom4ChanData(puncta_chans_zproj);
@@ -301,3 +261,84 @@ fprintf(fileID,output_csv);
 fclose(fileID);
 
 fprintf('Done!\n')
+
+%% Make a plot of 3D pixels and puncta centroids
+
+
+RND_IDX = 6;
+
+%Pre-initialize the cell arrray
+total_number_of_pixels = 0;
+for puncta_idx = 1:length(puncta_voxels{RND_IDX})
+    pixels = puncta_voxels{RND_IDX}{puncta_idx};
+    %Adding 3*3*3 pixels to each centroid
+    total_number_of_pixels =total_number_of_pixels +length(pixels)+27 ;
+    
+end
+total_number_of_pixels
+
+output_cell = cell(total_number_of_pixels,1);
+ctr = 1;
+for puncta_idx = 1:length(puncta_voxels{RND_IDX})
+    pixels = puncta_voxels{RND_IDX}{puncta_idx};
+    [posX, posY, posZ] = ind2sub(img_size,pixels);
+    
+    r = randi(255);
+    g = randi(255);
+    b = randi(255);
+    a = 100;
+    for i = 1:size(pixels,1)
+        output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i,%i\n', posX(i),posY(i),posZ(i),...
+            r,g,b,a,3);
+        ctr = ctr+1;
+    end
+    
+        
+    r = 255;
+    g = 0;
+    b = 0;
+    a = 255;
+    center_point = puncta_centroids{RND_IDX}(puncta_idx,:);
+    [posX, posY, posZ] = meshgrid(center_point(1)-1:center_point(1)+1,...
+                                center_point(2)-1:center_point(2)+1,...
+                                center_point(3)-1:center_point(3)+1);
+    posX = posX(:); posY = posY(:); posZ = posZ(:);
+    
+    for i = 1:length(posX)
+        output_cell{ctr} = sprintf('%i,%i,%i,%i,%i,%i,%i,%i\n', posY(i),posX(i),posZ(i),...
+            r,g,b,a,4);
+        ctr = ctr+1;
+    end
+    
+    
+    if mod(puncta_idx,100)==0
+        puncta_idx
+    end
+end
+
+output_csv = strjoin(output_cell,'');
+
+output_file = '/Users/Goody/Coding/of_v0.9.0_osx_release/apps/myApps/ExSeqViewer/bin/oneRoundPixelsAndCentroids.csv';
+
+fileID = fopen(output_file,'w');
+fprintf(fileID,output_csv);
+fclose(fileID);
+fprintf('Done!\n');
+
+%% Create an image that is the sum of all puncta ROIs
+%  imgSize = size(stack_in);
+sum_img = zeros(img_size);
+for round_num = 3:params.NUM_ROUNDS
+    fprintf('Round %i\n',round_num);
+
+     for i= 1:length(puncta_voxels{round_num})
+            %Set the pixel value to somethign non-zero
+        indices_to_add = puncta_voxels{round_num}{i};
+        sum_img(indices_to_add)=sum_img(indices_to_add)+1;
+     end
+end
+
+filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_ALLPixelIdxListSummedNoPrimer.tif',params.FILE_BASENAME));
+save3DTif_uint16(sum_img,filename_out);
+
+
