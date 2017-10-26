@@ -66,7 +66,7 @@ function normalization_cuda(src_folder_name,dst_folder_name,fileroot_name,channe
     disp('===== all batch jobs finished')
     toc;
 
-    quantilenorm_final(length(num_cores));
+%    quantilenorm_final(length(num_cores));
 
 end
 
