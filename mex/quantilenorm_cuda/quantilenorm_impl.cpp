@@ -977,7 +977,7 @@ QuantileNormImpl::waitForTasks(const std::string& task_name, std::vector<std::fu
     for (size_t i = 0; i < futures.size(); i++) {
         int ret = futures[i].get();
         if (ret == -1) {
-            logger_->error("[{}] {} [{}] done - {}", basename_, task_name, i, ret);
+            logger_->error("[{}] {} [{}] failed - {}", basename_, task_name, i, ret);
             throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:failTasks", task_name + "failed.");
         }
     }
