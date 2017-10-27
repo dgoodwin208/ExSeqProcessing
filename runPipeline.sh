@@ -375,9 +375,6 @@ sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
 
 # setup for segmentation using Raj lab image tools
 
-# tmux command?
-#set -g mouse-select-window on
-
 sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
     -e "s#\(params.colorCorrectionImagesDir\) *= *.*;#\1 = '${COLOR_CORRECTION_DIR}';#" \
     -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
@@ -387,10 +384,13 @@ sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
+    -e "s#\(params.NUM_CHANNELS\) *= *.*;#\1 = ${#CHANNEL_ARRAY[*]};#" \
+    -e "s#\(params.CHAN_STRS\) *= *.*;#\1 = {${CHANNELS}};#" \
     -i.back \
     ./loadParameters.m
 
 ###### setup startup.m
+
 
 cat << EOF > startup.m
 run('${VLFEAT_DIR}/toolbox/vl_setup')
@@ -566,7 +566,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     fi
 
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();saveThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-    matlab -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();improc2.launchThresholdGUI;getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
+    matlab -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} punctafeinder; ${ERR_HDL_POSTCODE}"
 
     popd
 else
