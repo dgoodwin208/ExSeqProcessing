@@ -1,8 +1,6 @@
 function [ outputImg ] = makeDebugImageOfPoints(points,imgSize)
-
-
-%makeDebugImageOfPoints Summary of this function goes here
-%   Detailed explanation goes here
+%makeDebugImageOfPoints Make a 3D volume of 0s with values of 100 at the
+%specified 3d points (Nx3 array)
 outputImg = zeros(imgSize);
 
 for i = 1:size(points,1)
