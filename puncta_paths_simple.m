@@ -29,9 +29,14 @@ for round_num = 3:params.NUM_ROUNDS
      end
 end
 
+filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_ALLPixelIdxListSummedNoPrimer.tif',params.FILE_BASENAME));
+save3DTif_uint16(sum_img,filename_out);
+
+
+%%
 
 stack_in = sum_img;
-bw = stack_in>5;
+bw = stack_in>5; %MAGIC NUMBER MINIMUM NUMBER OF ROUNDS!
 D = bwdist(~stack_in);
 D = -D;
 D(~bw) = Inf;
@@ -118,7 +123,7 @@ for demerge_iter = 1:1
             [matches_AB,distances_AB] = matchPuncta(punctaA,punctaB,puncta_voxels{rnd_idx_A},puncta_voxels{rnd_idx_B});
             
             for match_idx = 1:length(matches_AB) %which is also size of (punctaA,1)
-                if (matches_AB(match_idx)==0) %|| (distances_AB(match_idx)>THRESHOLD_MATCHING_DISTANCE)
+                if (matches_AB(match_idx)==0) 
                     %Leave that entry blank if the perfect matching came back
                     %with nothing, or if the distances to a match is too far
                     all_possible_punctapaths(row_offset+match_idx,rnd_idx_B) = -1;
@@ -274,7 +279,7 @@ exclusive_paths_votes(any(exclusive_paths==0,2)) = [];
 exclusive_paths(any(exclusive_paths==0,2),:) = [];
 
 exclusive_paths_transcripts = zeros(size(exclusive_paths));
-
+exclusive_path_positions = zeros(size(exclusive_paths_transcripts,1),3);
 for excl_path_idx = 1:size(exclusive_paths_transcripts,1)
    
     positions_across_rounds = zeros(params.NUM_ROUNDS,3);

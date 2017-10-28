@@ -8,7 +8,7 @@ load(filename_centroidsMOD)
 filename_output = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 load(filename_output,'final_punctapaths');
 
-filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,6,'ch00'));
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_puncta.tif',params.FILE_BASENAME,6,'ch00'));
 sample_img = load3DTif_uint16(filename_in);
 img_size = size(sample_img);
 
@@ -279,6 +279,17 @@ total_number_of_pixels
 
 output_cell = cell(total_number_of_pixels,1);
 ctr = 1;
+
+hamming_score_color_map = ...
+    [0 255 0;   %Green is 0
+    0 255 255;  %Cyan is 1
+    255 0 255;  %Magenta is 2
+    255 0 0;    %Red is 3
+    0 0 255;    %Blue is 4
+    0 0 0;    %Black is 5
+    0 0 0;    %Black is 6
+    ];
+
 for puncta_idx = 1:length(puncta_voxels{RND_IDX})
     pixels = puncta_voxels{RND_IDX}{puncta_idx};
     [posX, posY, posZ] = ind2sub(img_size,pixels);
@@ -294,9 +305,17 @@ for puncta_idx = 1:length(puncta_voxels{RND_IDX})
     end
     
         
-    r = 255;
-    g = 0;
-    b = 0;
+%     r = 255;
+%     g = 0;
+%     b = 0;
+    score = final_hammingscores(puncta_idx);
+    if score <=1
+        r = 0; g= 255; b=0;
+    else
+        r = 255; g= 0; b=0;
+    end
+    color_codes = hamming_score_color_map(score+1,:);
+%     r = color_codes(1); b = color_codes(1); b = color_codes(3);
     a = 255;
     center_point = puncta_centroids{RND_IDX}(puncta_idx,:);
     [posX, posY, posZ] = meshgrid(center_point(1)-1:center_point(1)+1,...
@@ -318,8 +337,7 @@ end
 
 output_csv = strjoin(output_cell,'');
 
-output_file = '/Users/Goody/Coding/of_v0.9.0_osx_release/apps/myApps/ExSeqViewer/bin/oneRoundPixelsAndCentroids.csv';
-
+output_file = sprintf('/Users/Goody/Coding/of_v0.9.0_osx_release/apps/myApps/ExSeqViewer/bin/%s_oneRoundPixelsAndCentroids.csv',params.FILE_BASENAME);
 fileID = fopen(output_file,'w');
 fprintf(fileID,output_csv);
 fclose(fileID);

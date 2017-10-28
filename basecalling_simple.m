@@ -1,8 +1,10 @@
 
-if ~exist('puncta_set','var')
-    load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
-end
 
+load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
+load(fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME)));
+
+
+load('groundtruth_dictionary.mat')
 %% Convert all the data into zscores (very cheap base calling)
 puncta_set_normed = zeros(size(puncta_set));
 for c = params.COLOR_VEC
@@ -25,8 +27,9 @@ path_indices = 1:size(final_positions,1);
 total_number_of_pixels = 0;
 
 chans = zeros(params.PUNCTA_SIZE^3,4);
-
-for p_idx= 1:length(path_indices) %accidentally deleted whatever was here
+base_calls_quickzscore = zeros(length(path_indices),params.NUM_ROUNDS);
+base_calls_quickzscore_confidence = zeros(length(path_indices),params.NUM_ROUNDS);
+for p_idx= 1:length(path_indices) 
     
     path_idx = path_indices(p_idx);
     
@@ -41,10 +44,13 @@ for p_idx= 1:length(path_indices) %accidentally deleted whatever was here
         sorted_chans = sort(chans,1,'descend');
         %Take the mean of the top 10 values
         scores = mean(sorted_chans(1:10,:),1);
+        %add the minimum score to shift everything non-zero
+        scores = scores - min(scores);
+        
         %and the new baseguess 
         [~, newbaseguess] = max(scores);
         base_calls_quickzscore(p_idx,rnd_idx) = newbaseguess;
-       
+        base_calls_quickzscore_confidence(p_idx,rnd_idx) = scores(newbaseguess)/sum(scores);
         total_number_of_pixels = total_number_of_pixels + 100;
     end
 end
@@ -52,18 +58,80 @@ end
 [unique_transcipts,~,~] = unique(base_calls_quickzscore,'rows');
 fprintf('Found %i transcripts, %i of which are duplicates\n',size(base_calls_quickzscore,1),size(unique_transcipts,1));
 
-fprintf('Scoring...');
-consideration_mask = logical([0 0 0 1 1 ones(1,5) 1 ones(1,9)]);
-max_hits = sum(consideration_mask);
-final_hammingscores = zeros(size(base_calls_quickzscore,1),1);
-for t_idx = 1:size(unique_transcipts,1)
-    %Search for a perfect match in the ground truth codes
-    hits = (groundtruth_codes(:,consideration_mask(4:end))==unique_transcipts(t_idx,consideration_mask));
-    
-    %Calculate the hamming distance
-    scores = max_hits- sum(hits,2);
-    
-    final_hammingscores(t_idx) = min(scores);
+%% Make sets of transcripts and create a new transcript object
+if ~exist('gtlabels','var')
+    loadGroundTruth;
 end
+%
+transcript_objects = cell(size(base_calls_quickzscore,1),1);
 
+output_cell = {}; ctr = 1;
+
+for p_idx = 1:size(base_calls_quickzscore,1)
+
+    transcript = struct;
+    %Search for a perfect match in the ground truth codes
+    img_transcript = base_calls_quickzscore(p_idx,4:end);
+    
+    %Sanity check: randomize the img_transcript
+    %img_transcript = img_transcript(randperm(length(img_transcript)));
+
+    %Search for a perfect match in the ground truth codes
+    hits = (groundtruth_codes==img_transcript);
+
+    %Calculate the hamming distance (now subtracting primer length)
+    scores = length(img_transcript)- sum(hits,2);
+    [values, indices] = sort(scores,'ascend');
+
+    best_score = values(1);
+    %Get the first index that is great than the best score
+    %If this is 1, then there is a best fit
+    idx_last_tie = find(values>best_score,1)-1;
+
+    %Assuming the groundtruth options are de-duplicated
+    %Is there a perfect match to the (unique ) best-fit
+    transcript.img_transcript=base_calls_quickzscore(p_idx,:);
+    transcript.img_transcript_confidence=base_calls_quickzscore_confidence(p_idx,:);
+    transcript.pos = final_positions(p_idx,:); %TODO get position included
+    transcript.hamming_score= best_score;
+    
+    
+    if best_score <=1
+        row_string = sprintf('%i,%s,',p_idx,mat2str(img_transcript));
+        
+        if idx_last_tie==1 
+            transcript.known_sequence_matched = groundtruth_codes(indices(idx_last_tie),:);
+            transcript.name = gtlabels{indices(idx_last_tie)};        
+%         else
+%             fprintf('Found a non-unique match under hammign 1\n');
+        end
+        
+        for tiedindex = 1:idx_last_tie
+        row_string = strcat(row_string,sprintf('%s,',gtlabels{indices(tiedindex)}));
+        end
+        row_string = sprintf('%s\n',row_string);
+        fprintf('%s',row_string);
+        output_cell{ctr} = row_string; ctr = ctr+1;
+    end
+    
+    transcript_objects{p_idx} = transcript;
+
+    clear transcript; %Avoid any accidental overwriting
+
+    if mod(p_idx,100) ==0
+        fprintf('%i/%i matched\n',p_idx,size(puncta_set,6));
+    end
+end
 fprintf('Done!\n');
+
+output_csv = strjoin(output_cell,'');
+
+output_file = fullfile(params.transcriptResultsDir,sprintf('%s_groundtruthcodes.csv',params.FILE_BASENAME));
+
+fileID = fopen(output_file,'w');
+fprintf(fileID,output_csv);
+fclose(fileID);
+
+%%
+save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)),'transcript_objects','-v7.3');
+fprintf('Saved trnscript_matches_objects!\n');
