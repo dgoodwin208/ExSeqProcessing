@@ -1,4 +1,4 @@
-loadParameters;
+% loadParameters;
 
 filename_paths = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
 load(filename_paths,'final_punctapaths');
@@ -103,7 +103,7 @@ for exp_idx = 1:params.NUM_ROUNDS
             pixels_for_puncta_set = experiment_set_padded_masked(y_indices,x_indices,z_indices);
             
             if max(pixels_for_puncta_set(:))==0
-               fprintf('Ok we have found an issue with puncta_idx=%i\n',puncta_idx);
+               fprintf('WARNING: subvolume w max value 0 in puncta_idx=%i, color=%i\n',puncta_idx,c_idx);
 %                barf()
             end
             %Then we take the PUNCTA_SIZE region around those pixels only
