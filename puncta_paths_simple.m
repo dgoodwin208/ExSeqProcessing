@@ -36,7 +36,7 @@ save3DTif_uint16(sum_img,filename_out);
 %%
 
 stack_in = sum_img;
-bw = stack_in>5; %MAGIC NUMBER MINIMUM NUMBER OF ROUNDS!
+bw = stack_in>10; %MAGIC NUMBER MINIMUM NUMBER OF ROUNDS!
 D = bwdist(~stack_in);
 D = -D;
 D(~bw) = Inf;

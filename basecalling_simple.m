@@ -7,6 +7,7 @@ load(fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FIL
 load('groundtruth_dictionary.mat')
 %% Convert all the data into zscores (very cheap base calling)
 puncta_set_normed = zeros(size(puncta_set));
+clear chan_col; %Just in case, otherwise the for loop can error.
 for c = params.COLOR_VEC
     chan_col(:,c) = reshape(puncta_set(:,:,:,:,c,:),[],1);
 end
@@ -56,7 +57,7 @@ for p_idx= 1:length(path_indices)
 end
 
 [unique_transcipts,~,~] = unique(base_calls_quickzscore,'rows');
-fprintf('Found %i transcripts, %i of which are duplicates\n',size(base_calls_quickzscore,1),size(unique_transcipts,1));
+fprintf('Found %i transcripts, %i of which are unique\n',size(base_calls_quickzscore,1),size(unique_transcipts,1));
 
 %% Make sets of transcripts and create a new transcript object
 if ~exist('gtlabels','var')
