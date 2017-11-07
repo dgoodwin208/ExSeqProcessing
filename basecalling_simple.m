@@ -59,6 +59,21 @@ end
 [unique_transcipts,~,~] = unique(base_calls_quickzscore,'rows');
 fprintf('Found %i transcripts, %i of which are unique\n',size(base_calls_quickzscore,1),size(unique_transcipts,1));
 
+%% For the final puncta, score each index with it's distance to nearests neightbor
+% filename_centroidsMOD = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
+% load(filename_centroidsMOD);
+
+%For each puncta, find it's nearest neighbor in the same round
+[IDX,D] = knnsearch(final_positions,final_positions,'K',2); %getting four other options
+
+spacings = zeros(size(centroids,1),1);
+%For each puncta, ignore the mapping to itself, and note the number of
+%possible merge mistakes for this puncta
+for puncta_idx = 1:size(centroids,1)
+    %When doing KNN with itself, D(1) will be 0
+    spacings(puncta_idx) = floor(D(puncta_idx,2));
+end
+
 %% Make sets of transcripts and create a new transcript object
 if ~exist('gtlabels','var')
     loadGroundTruth;
@@ -93,9 +108,9 @@ for p_idx = 1:size(base_calls_quickzscore,1)
     %Is there a perfect match to the (unique ) best-fit
     transcript.img_transcript=base_calls_quickzscore(p_idx,:);
     transcript.img_transcript_confidence=base_calls_quickzscore_confidence(p_idx,:);
-    transcript.pos = final_positions(p_idx,:); %TODO get position included
-    transcript.hamming_score= best_score;
-    
+    transcript.pos = final_positions(p_idx,:); 
+    transcript.hamming_score = best_score;
+    transcript.nn_distance = spacings(p_idx);
     
     if best_score <=1
         row_string = sprintf('%i,%s,',p_idx,mat2str(img_transcript));
