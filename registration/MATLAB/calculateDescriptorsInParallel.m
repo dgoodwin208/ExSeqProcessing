@@ -15,9 +15,9 @@ function calculateDescriptorsInParallel(run_num_list)
 
     tic; 
     disp('===== create batch jobs =====') 
-    max_running_jobs = params.MAX_JOB_RUNNING_NUM;
-    max_jobs = params.MAX_JOB_NUM;
-    waiting_sec = 10;
+    max_running_jobs = run_size;
+    max_jobs = run_size;
+    waiting_sec = 5;
 
     jobs = cell(1, max_jobs);
     running_jobs = zeros(1, max_jobs);
@@ -26,40 +26,42 @@ function calculateDescriptorsInParallel(run_num_list)
     while job_idx <= max_jobs || sum(running_jobs) > 0
         % check that number of jobs currently running is valid
         if (job_idx <= max_running_jobs) && (sum(running_jobs) < max_running_jobs)
-            [run_num, target_idx] = getJobIds(run_num_list, job_idx, desc_size)
+            [run_num, target_idx] = getJobIds(run_num_list, job_idx, desc_size);
 
             disp(['create batch (', num2str(job_idx), ') run_num=', ...
-                num2str(run_num),', target_idx=',num2str(target_idx)])
+                num2str(run_num),', target_idx=',num2str(target_idx)]);
             running_jobs(job_idx) = 1; % mark as running
             jobs{job_idx} = batch(cluster, @calculateDescriptors, ... 
                 0, {run_num, target_idx, target_idx}, 'Pool', 2, 'CaptureDiary', true);
             job_idx = job_idx + 1;
         else
-            for job_id = find(running_jobs==1)
-                job = jobs{job_id};
+            for job_idx_running = find(running_jobs==1)
+                job = jobs{job_idx_running};
                 is_finished = 0;
 
-                [run_num, target_idx] = getJobIds(run_num_list, job_idx, desc_size)
+                [run_num, target_idx] = getJobIds(run_num_list, job_idx_running, desc_size);
                 if strcmp(job.State,'finished')
-                    disp(['batch (',num2str(job_id),') has ',job.State,'.'])
+                    disp(['batch (',num2str(job_idx_running),') has ', job.State,'.']);
                     diary(job, ['./matlab-calcDesc-',num2str(run_num),'-',num2str(target_idx),'.log']);
-                    running_jobs(job_id) = 0;
-                    delete(job)
+                    running_jobs(job_idx_running) = 0;
+                    delete(job);
                     is_finished = 1;
                 elseif strcmp(job.State,'failed') % Retry block
-                    disp(['batch (',num2str(job_id),') has ',job.State,', resubmit it.'])
+                    disp(['batch (',num2str(job_idx_running),') has ',job.State,', resubmit it.']);
                     diary(job, ['./matlab-calcDesc-', num2str(run_num), '-', ... 
                         num2str(target_idx),'-failed.log']);
-                    jobs{job_idx} = batch(cluster, @calculateDescriptors, ... 
+                    jobs{job_idx_running} = batch(cluster, @calculateDescriptors, ... 
                         0, {run_num, target_idx, target_idx}, 'Pool', 2, 'CaptureDiary', true);
                 end
             end
-            if is_finished == 0
-              disp(['waiting... # of jobs = ',num2str(length(find(running_jobs==1))),', ',num2str(find(running_jobs==1))])
+            if ~is_finished
+              disp(['waiting on ', num2str(length(find(running_jobs==1))), ...
+                  ' jobs (batches : ', num2str(find(running_jobs==1)), ')']);
               pause(waiting_sec);
             end
         end
     end
+    toc;
 
 end
 
