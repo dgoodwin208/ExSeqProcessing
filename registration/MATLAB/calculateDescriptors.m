@@ -43,6 +43,7 @@ end
 
 target_indices = start_idx:end_idx;
 
+try
 
 for register_channel = params.REGISTERCHANNELS
     %Loading the tif file associated with the reference channel (ie,
@@ -57,43 +58,40 @@ for register_channel = params.REGISTERCHANNELS
     tile_upperleft_y = floor(linspace(1,size(img,1),params.ROWS_DESC+1));
     tile_upperleft_x = floor(linspace(1,size(img,2),params.COLS_DESC+1));
     
-    % Commenting out this optimization from Atsushi, only because I don't
-    % understand how/why this beneficial
+    img_cache = containers.Map('KeyType','int32','ValueType','any');
     
-    % img_cache = containers.Map('KeyType','int32','ValueType','any');
-    %
-    % if length(target_indices) < params.ROWS_DESC*params.COLS_DESC*0.5 % magic number
-    %     for x_idx=1:params.COLS_DESC
-    %         for y_idx=1:params.ROWS_DESC
-    %             tile_counter = (x_idx-1)*params.ROWS_DESC+y_idx;
-    %
-    %             % only run kypts+descriptors for specified indices
-    %             if ~ismember(tile_counter,target_indices)
-    %                 continue
-    %             end
-    %
-    %             % get region, indexing column-wise
-    %             ymin = tile_upperleft_y(y_idx);
-    %             ymax = tile_upperleft_y(y_idx+1);
-    %             xmin = tile_upperleft_x(x_idx);
-    %             xmax = tile_upperleft_x(x_idx+1);
-    %
-    %             % create overlap region for calcuating features
-    %             % will remove all points in the overlap region after calculation
-    %             % but this avoids edge effects on any boundaries of
-    %             ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
-    %             ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
-    %             xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
-    %             xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
-    %
-    %             %Calculate the features on the larger (overlapping) regions
-    %             img_cache(tile_counter) = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
-    %
-    %         end
-    %     end
-    %
-    %     clearvars img;
-    % end
+    if length(target_indices) < params.ROWS_DESC*params.COLS_DESC*0.5 % magic number
+        for x_idx=1:params.COLS_DESC
+            for y_idx=1:params.ROWS_DESC
+                tile_counter = (x_idx-1)*params.ROWS_DESC+y_idx;
+    
+                % only run kypts+descriptors for specified indices
+                if ~ismember(tile_counter,target_indices)
+                    continue
+                end
+    
+                % get region, indexing column-wise
+                ymin = tile_upperleft_y(y_idx);
+                ymax = tile_upperleft_y(y_idx+1);
+                xmin = tile_upperleft_x(x_idx);
+                xmax = tile_upperleft_x(x_idx+1);
+    
+                % create overlap region for calcuating features
+                % will remove all points in the overlap region after calculation
+                % but this avoids edge effects on any boundaries of
+                ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
+                ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
+                xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
+                xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
+    
+                %Calculate the features on the larger (overlapping) regions
+                img_cache(tile_counter) = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
+    
+            end
+        end
+    
+        clearvars img;
+    end
     
     
     tile_counter = 0; %create a manual counter to be used in the data partitioning
@@ -122,21 +120,19 @@ for register_channel = params.REGISTERCHANNELS
             xmax = tile_upperleft_x(x_idx+1);
             
             %Calculate the features on the larger (overlapping) regions
-            %         if length(img_cache) > 0
-            %             tile_img = img_cache(tile_counter);
-            %         else
-            % create overlap region for calcuating features
-            % will remove all points in the overlap region after calculation
-            % but this avoids edge effects on any boundaries of
-            
-            
-            ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
-            ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
-            xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
-            xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
-            
-            tile_img = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
-            %         end
+            if length(img_cache) > 0
+                tile_img = img_cache(tile_counter);
+            else
+                % create overlap region for calcuating features
+                % will remove all points in the overlap region after calculation
+                % but this avoids edge effects on any boundaries of
+                ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
+                ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
+                xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
+                xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
+                
+                tile_img = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
+            end
             
             outputfilename = fullfile(descriptor_output_dir, ...
                 [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
@@ -215,4 +211,12 @@ for register_channel = params.REGISTERCHANNELS
             
         end
     end
+
 end
+
+catch ME
+    disp(ME.getReport)
+end
+
+
+

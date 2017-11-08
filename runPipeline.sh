@@ -454,32 +454,32 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
     reg_stage_idx=0
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        #rounds=$(seq -s' ' 1 ${ROUND_NUM})
-        ## calculateDescriptors for all rounds in parallel
-        #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+        rounds=$(seq -s' ' 1 ${ROUND_NUM})
+        # calculateDescriptors for all rounds in parallel
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
     
-        #if ls *.log > /dev/null 2>&1; then
-        #    mv matlab-calcDesc-*.log ${LOG_DIR}/
-        #else
-        #    echo "No log files."
-        #fi
+        if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
+            mv matlab-calcDesc-*.log ${LOG_DIR}/
+        else
+            echo "No log files."
+        fi
 
-        for((i=1; i<=${ROUND_NUM}; i+=2))
-        do
-            if [ $i -eq ${ROUND_NUM} ]; then
-                rounds=$i
-            else
-                rounds="$i $(( $i + 1 ))"
-            fi
-            # calculateDescriptors for two groups of rounds in parallel
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+        #for((i=1; i<=${ROUND_NUM}; i+=2))
+        #do
+        #    if [ $i -eq ${ROUND_NUM} ]; then
+        #        rounds=$i
+        #    else
+        #        rounds="$i $(( $i + 1 ))"
+        #    fi
+        #    # calculateDescriptors for two groups of rounds in parallel
+        #    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
     
-            if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
-                mv matlab-calcDesc-*.log ${LOG_DIR}/
-            else
-                echo "No log files."
-            fi
-        done
+        #    if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
+        #        mv matlab-calcDesc-*.log ${LOG_DIR}/
+        #    else
+        #        echo "No log files."
+        #    fi
+        #done
     else
         echo "Skip!"
     fi
