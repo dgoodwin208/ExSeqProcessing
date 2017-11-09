@@ -63,7 +63,7 @@ function punctafeinder()
     disp('===== all batch jobs finished')
     toc;
 
-    makeCentrodsAndVoxels(centroids);
+    makeCentroidsAndVoxels(centroids);
 
 end
 
@@ -396,7 +396,7 @@ function centroids = punctafeinder_round(round_num)
 
 end
 
-function makeCentrodsAndVoxels(centroids)
+function makeCentroidsAndVoxels(centroids)
     loadParameters;
 
     %combine the centroid objects into a single set of centroids+pixels per
@@ -406,9 +406,10 @@ function makeCentrodsAndVoxels(centroids)
     puncta_voxels = cell(params.NUM_ROUNDS,1);
     puncta_baseguess = cell(params.NUM_ROUNDS,1);
 
-    for rnd_idx=1:params.NUM_ROUNDS
+    num_channels = params.NUM_CHANNELS;
+    parfor rnd_idx=1:params.NUM_ROUNDS
         num_puncta_per_round = 0;
-        for c_idx = 1:params.NUM_CHANNELS
+        for c_idx = 1:num_channels
             num_puncta_per_round = num_puncta_per_round + numel(centroids{rnd_idx,c_idx});
         end
 
@@ -418,7 +419,7 @@ function makeCentrodsAndVoxels(centroids)
         voxels_per_round = cell(num_puncta_per_round,1);
 
         ctr = 1;
-        for c_idx = 1:params.NUM_CHANNELS
+        for c_idx = 1:num_channels
             round_objects = centroids{rnd_idx,c_idx};
             for r_idx = 1:size(round_objects,1)
                 %Note the centroid of the puncta
