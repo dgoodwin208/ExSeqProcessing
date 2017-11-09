@@ -10,6 +10,8 @@
 
 #include <semaphore.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "mex.h"
 #include "spdlog/spdlog.h"
@@ -29,7 +31,9 @@ init_semaphores(const mxArray *elem_ptr, const std::string& prefix) {
         sem_t *sem;
         std::string sem_name = prefix + std::to_string(i);
         sem_unlink(sem_name.c_str());
+        mode_t old_umask = umask(0);
         sem = sem_open(sem_name.c_str(), O_CREAT|O_RDWR, 0777, num_sem_values);
+        umask(old_umask);
         logger->debug("init sem: {} ({})", sem_name.c_str(), num_sem_values);
         int ret = errno;
         if (sem == SEM_FAILED) {

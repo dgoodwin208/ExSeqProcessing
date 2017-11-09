@@ -12,6 +12,8 @@
 
 #include <semaphore.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "mex.h"
 
 
@@ -54,7 +56,9 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         }
         mwSize sem_value = mxGetScalar(prhs[2]);
 //        mexPrintf("value = %d\n", sem_value);
+        mode_t old_umask = umask(0);
         sem = sem_open(sem_name.c_str(), O_CREAT|O_RDWR, 0777, sem_value);
+        umask(old_umask);
         ret = 0;
         if (sem == SEM_FAILED) {
             ret = errno;

@@ -11,6 +11,8 @@
 #include <iostream>
 #include <semaphore.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 // mock of mexutils
 namespace mexutils {
@@ -59,11 +61,13 @@ protected:
             logger_ = spdlog::basic_logger_mt("mex_logger", "mex.log");
         }
 
+        mode_t old_umask = umask(0);
         for (size_t i = 0; i < num_gpus_; i++) {
             std::string sem_name = "/g" + std::to_string(i);
             sem_unlink(sem_name.c_str());
             sem_open(sem_name.c_str(), O_CREAT|O_RDWR, 0777, 1);
         }
+        umask(old_umask);
 
         num_channels_ = 4;
         std::default_random_engine generator(1);
@@ -92,6 +96,11 @@ protected:
     virtual ~QuantileNormCudaTest() {
         for (int i = 0; i < 4; i++) {
             remove(tif_fnames_[i].c_str());
+        }
+
+        for (size_t i = 0; i < num_gpus_; i++) {
+            std::string sem_name = "/g" + std::to_string(i);
+            sem_unlink(sem_name.c_str());
         }
     }
 };
@@ -470,6 +479,7 @@ TEST_F(QuantileNormCudaTest, RadixSort1Test) {
     fb_reader.open();
     ASSERT_TRUE(fb_reader.isOpen());
     fb_reader.readFileToBuffer();
+    logger_->info("5\n");
 
     uint16_t cur_val = fb_reader.get();
     fb_reader.next();
@@ -479,6 +489,7 @@ TEST_F(QuantileNormCudaTest, RadixSort1Test) {
         ASSERT_LE(cur_val, nxt_val);
     }
     fb_reader.close();
+    logger_->info("6\n");
 
     std::string idx_out_file = "idx_out.bin";
     ASSERT_TRUE(oneFileExists(datadir_ + "/" + idx_out_file));

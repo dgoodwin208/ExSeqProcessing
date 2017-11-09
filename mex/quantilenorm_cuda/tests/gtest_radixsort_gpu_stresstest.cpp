@@ -6,6 +6,8 @@
 #include <thread>
 #include <future>
 #include <semaphore.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <cuda_runtime_api.h>
 #include "radixsort.h"
 #include "spdlog/spdlog.h"
@@ -28,11 +30,13 @@ protected:
     RadixSortGPUStressTest() {
         logger_ = spdlog::basic_logger_mt("mex_logger", "mex.log");
 
+        mode_t old_umask = umask(0);
         for (size_t i = 0; i < GPU_NUM; i++) {
             std::string sem_name = "/g" + std::to_string(i);
             sem_unlink(sem_name.c_str());
             sem_open(sem_name.c_str(), O_CREAT|O_RDWR, 0777, 1);
         }
+        umask(old_umask);
 
         std::mt19937 mt(1);
         for (size_t i = 0; i < MAX_DATA_SIZE_FOR_GPU; i++) {
@@ -41,6 +45,10 @@ protected:
         }
     }
     virtual ~RadixSortGPUStressTest() {
+        for (size_t i = 0; i < GPU_NUM; i++) {
+            std::string sem_name = "/g" + std::to_string(i);
+            sem_unlink(sem_name.c_str());
+        }
     }
 
     int
