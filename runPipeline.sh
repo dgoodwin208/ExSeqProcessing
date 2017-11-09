@@ -547,28 +547,7 @@ echo "puncta extraction"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    for((i=1; i<=${ROUND_NUM}; i++))
-    do
-        for((j=0; j<${#CHANNEL_ARRAY[*]}; j++))
-        #for((j=0; j<1; j++))
-        do
-            reg_file=$(printf "${REGISTRATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[j]}_registered.tif" $i)
-            input_file=$(printf "alexa%02d%d.tiff" $i $j)
-            if [ ! -f ${PUNCTA_DIR}/$input_file ]; then
-                ln -s $reg_file ${PUNCTA_DIR}/$input_file
-            fi
-        done
-    done
-
-    pushd ${PUNCTA_DIR}
-    if [ ! -f ./startup.m ]; then
-        ln -s ../startup.m
-    fi
-
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();saveThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
     matlab -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} punctafeinder; ${ERR_HDL_POSTCODE}"
-
-    popd
 else
     echo "Skip!"
 fi
