@@ -15,9 +15,9 @@ function calculateDescriptorsInParallel(run_num_list)
 
     tic; 
     disp('===== create batch jobs =====') 
-    max_running_jobs = run_size;
+    max_running_jobs = 30;
     max_jobs = run_size;
-    waiting_sec = 5;
+    waiting_sec = 10;
 
     jobs = cell(1, max_jobs);
     running_jobs = zeros(1, max_jobs);
@@ -25,7 +25,7 @@ function calculateDescriptorsInParallel(run_num_list)
 
     while job_idx <= max_jobs || sum(running_jobs) > 0
         % check that number of jobs currently running is valid
-        if (job_idx <= max_running_jobs) && (sum(running_jobs) < max_running_jobs)
+        if (job_idx <= max_jobs) && (sum(running_jobs) < max_running_jobs)
             [run_num, target_idx] = getJobIds(run_num_list, job_idx, desc_size);
 
             disp(['create batch (', num2str(job_idx), ') run_num=', ...
@@ -62,6 +62,5 @@ function calculateDescriptorsInParallel(run_num_list)
         end
     end
     toc;
-
 end
 
