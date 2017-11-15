@@ -14,26 +14,29 @@ clear puncta_centroids puncta_voxels puncta_baseguess;
 %% For the final puncta, score each index with it's distance to nearests neightbor
 % filename_centroidsMOD = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
 % load(filename_centroidsMOD);
-
-%All the puncta should be the same per round
-centroids = puncta_centroids{4}; %arbitrarily pick one round
-
-%For each puncta, find it's nearest neighbor in the same round
-[IDX,D] = knnsearch(centroids,centroids,'K',2); %getting four other options
-
-spacings = zeros(size(centroids,1),1);
-%For each puncta, ignore the mapping to itself, and note the number of
-%possible merge mistakes for this puncta
-for puncta_idx = 1:size(centroids,1)
-    %When doing KNN with itself, D(1) will be 0
-    spacings(puncta_idx) = floor(D(puncta_idx,2));
-end
-
+spacings = cell2mat(cellfun(@(x) x.nn_distance, transcript_objects,'UniformOutput',0));
 figure;
 histogram(spacings)  
 title(sprintf('Histogram of distance to nearest neighbor puncta, N=%i',length(spacings)));
 xlabel('Distance (pixels)');
 ylabel('Count');
+
+%% Look at the histograms by the hamming distance
+scoresAndDistances = cell2mat(cellfun(@(x) [x.hamming_score x.nn_distance], transcript_objects,'UniformOutput',0));
+
+figure;
+subplot(max(scoresAndDistances(:,1))+1,1,1);
+
+for specific_hamming_distance = 0:max(scoresAndDistances(:,1))
+      
+    subplot(max(scoresAndDistances(:,1))+1,1,specific_hamming_distance+1);
+    
+    indices = find(scoresAndDistances(:,1)==specific_hamming_distance);
+    histogram(scoresAndDistances(indices,2))
+    title(sprintf('Histogram of nearest-neighbor distances for Hamming Score = %i, N=%i',specific_hamming_distance,length(indices)));
+    xlabel('Distance (pixels)');
+end
+
 %% Consolidate the results 
 
 %load(fullfile(directory_to_process,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)));
