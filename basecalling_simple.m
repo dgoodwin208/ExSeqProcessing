@@ -25,8 +25,6 @@ end
 path_indices = 1:size(final_positions,1);
 
 %Pre-initialize the cell arrray and determine the basecalls
-total_number_of_pixels = 0;
-
 chans = zeros(params.PUNCTA_SIZE^3,4);
 base_calls_quickzscore = zeros(length(path_indices),params.NUM_ROUNDS);
 base_calls_quickzscore_confidence = zeros(length(path_indices),params.NUM_ROUNDS);
@@ -51,8 +49,9 @@ for p_idx= 1:length(path_indices)
         %and the new baseguess 
         [~, newbaseguess] = max(scores);
         base_calls_quickzscore(p_idx,rnd_idx) = newbaseguess;
-        base_calls_quickzscore_confidence(p_idx,rnd_idx) = scores(newbaseguess)/sum(scores);
-        total_number_of_pixels = total_number_of_pixels + 100;
+        
+        [scores_sorted,~] = sort(scores,'descend');
+        base_calls_quickzscore_confidence(p_idx,rnd_idx) = scores_sorted(1)/(scores_sorted(1)+ scores_sorted(2));
     end
 end
 
