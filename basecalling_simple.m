@@ -65,10 +65,10 @@ fprintf('Found %i transcripts, %i of which are unique\n',size(base_calls_quickzs
 %For each puncta, find it's nearest neighbor in the same round
 [IDX,D] = knnsearch(final_positions,final_positions,'K',2); %getting four other options
 
-spacings = zeros(size(centroids,1),1);
+spacings = zeros(size(final_positions,1),1);
 %For each puncta, ignore the mapping to itself, and note the number of
 %possible merge mistakes for this puncta
-for puncta_idx = 1:size(centroids,1)
+for puncta_idx = 1:size(final_positions,1)
     %When doing KNN with itself, D(1) will be 0
     spacings(puncta_idx) = floor(D(puncta_idx,2));
 end
@@ -149,4 +149,4 @@ fclose(fileID);
 
 %%
 save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)),'transcript_objects','-v7.3');
-fprintf('Saved trnscript_matches_objects!\n');
+fprintf('Saved transcript_matches_objects!\n');
