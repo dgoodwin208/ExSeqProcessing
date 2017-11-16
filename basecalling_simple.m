@@ -28,6 +28,8 @@ path_indices = 1:size(final_positions,1);
 chans = zeros(params.PUNCTA_SIZE^3,4);
 base_calls_quickzscore = zeros(length(path_indices),params.NUM_ROUNDS);
 base_calls_quickzscore_confidence = zeros(length(path_indices),params.NUM_ROUNDS);
+base_calls_pixel_intensity = zeros(length(path_indices),params.NUM_ROUNDS);
+
 for p_idx= 1:length(path_indices) 
     
     path_idx = path_indices(p_idx);
@@ -38,6 +40,7 @@ for p_idx= 1:length(path_indices)
         for c = 1:params.NUM_CHANNELS
             chantemp = puncta_set_normed(:,:,:,rnd_idx,c,p_idx);
             chans(:,c) = chantemp(:)';
+            
         end
         
         sorted_chans = sort(chans,1,'descend');
@@ -52,6 +55,14 @@ for p_idx= 1:length(path_indices)
         
         [scores_sorted,~] = sort(scores,'descend');
         base_calls_quickzscore_confidence(p_idx,rnd_idx) = scores_sorted(1)/(scores_sorted(1)+ scores_sorted(2));
+        
+        %use the baseguess to get the absolute brightness of the puncta
+        chantemp = puncta_set(:,:,:,rnd_idx,newbaseguess,p_idx);
+        raw_pixels = chantemp(:);
+        sorted_raw_pixels = sort(raw_pixels,'descend');
+        %Take the mean of the top 10 values
+        
+        base_calls_pixel_intensity(p_idx,rnd_idx) = mean(sorted_raw_pixels(1:10));
     end
 end
 
@@ -107,6 +118,7 @@ for p_idx = 1:size(base_calls_quickzscore,1)
     %Is there a perfect match to the (unique ) best-fit
     transcript.img_transcript=base_calls_quickzscore(p_idx,:);
     transcript.img_transcript_confidence=base_calls_quickzscore_confidence(p_idx,:);
+    transcript.img_transcript_absValuePixel=base_calls_pixel_intensity(p_idx,:);
     transcript.pos = final_positions(p_idx,:); 
     transcript.hamming_score = best_score;
     transcript.nn_distance = spacings(p_idx);
