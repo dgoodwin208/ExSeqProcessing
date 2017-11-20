@@ -479,7 +479,6 @@ TEST_F(QuantileNormCudaTest, RadixSort1Test) {
     fb_reader.open();
     ASSERT_TRUE(fb_reader.isOpen());
     fb_reader.readFileToBuffer();
-    logger_->info("5\n");
 
     uint16_t cur_val = fb_reader.get();
     fb_reader.next();
@@ -489,7 +488,6 @@ TEST_F(QuantileNormCudaTest, RadixSort1Test) {
         ASSERT_LE(cur_val, nxt_val);
     }
     fb_reader.close();
-    logger_->info("6\n");
 
     std::string idx_out_file = "idx_out.bin";
     ASSERT_TRUE(oneFileExists(datadir_ + "/" + idx_out_file));
