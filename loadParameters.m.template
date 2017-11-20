@@ -36,5 +36,6 @@ params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/logs/imgs';
 %params.NORM_JOB_SIZE = 5;
 params.NORM_JOB_SIZE = 20;
 params.NORM_EACH_JOB_POOL_SIZE = 4;
+params.PUNCTA_JOB_SIZE = 1;
 params.tempDir = '/mp/nvme0/tmp';
 
