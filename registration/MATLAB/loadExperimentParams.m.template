@@ -25,6 +25,7 @@ params.COLS_DESC = 3;
 %over how many subsections to calculate the piecewise affine transforms?
 params.ROWS_TFORM = 3;
 params.COLS_TFORM = 3;
+params.JOB_SIZE = 30;
 
 %if more than this percentage of pixels doesn't change in a tile
 %consider it an empty tile and skip it

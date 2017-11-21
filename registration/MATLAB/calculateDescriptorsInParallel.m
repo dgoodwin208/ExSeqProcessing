@@ -3,7 +3,6 @@
 function calculateDescriptorsInParallel(run_num_list)
 
     loadExperimentParams;
-    loadParams;
 
     run_num_list_size = length(run_num_list);
     desc_size = params.ROWS_DESC * params.COLS_DESC;
