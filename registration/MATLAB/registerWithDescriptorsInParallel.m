@@ -13,7 +13,7 @@ function registerWithDescriptorsInParallel(run_num_list)
     tic; 
     disp('===== create batch jobs =====') 
     max_jobs = length(run_num_list);
-    max_running_jobs = 30;
+    max_running_jobs = params.JOB_SIZE;
     waiting_sec = 10;
 
     jobs = cell(1, max_jobs);

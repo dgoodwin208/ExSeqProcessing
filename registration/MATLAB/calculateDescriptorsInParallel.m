@@ -3,6 +3,7 @@
 function calculateDescriptorsInParallel(run_num_list)
 
     loadExperimentParams;
+    loadParams;
 
     run_num_list_size = length(run_num_list);
     desc_size = params.ROWS_DESC * params.COLS_DESC;
@@ -15,7 +16,7 @@ function calculateDescriptorsInParallel(run_num_list)
 
     tic; 
     disp('===== create batch jobs =====') 
-    max_running_jobs = 30;
+    max_running_jobs = params.JOB_SIZE;
     max_jobs = run_size;
     waiting_sec = 10;
 
