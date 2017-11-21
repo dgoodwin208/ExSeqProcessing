@@ -1,3 +1,10 @@
+% makeMIPimages
+%     make MIP movies from 3D images
+%
+% ex)
+% inputFile=dir('4_registration/*_round*_summedNorm_registered.tif')
+% makeMIPimages(inputFile, 'registration-mip.avi')
+
 function makeMIPimages(inputFiles, outputFile)
 
     num_input = length(inputFiles);
