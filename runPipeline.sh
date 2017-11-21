@@ -518,16 +518,23 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             fi
         done
 
-        for((i=1; i<=${ROUND_NUM}; i++))
-        do
-            if [ $REFERENCE_ROUND -eq $i ]; then
-                echo "Skipping registration of the reference round"
-                continue
-            fi
-            # registerWithDescriptors for ${REFERENCE_ROUND} and i
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} registerWithDescriptors(${i}); ${ERR_HDL_POSTCODE}"
+        rounds=$(seq -s' ' 1 ${ROUND_NUM})
+        rounds=${rounds:1}
+        echo "Skipping registration of the reference round"
+        echo $rounds
+        # registerWithDescriptors for ${REFERENCE_ROUND} and i
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDescInParallel.log -r "${ERR_HDL_PRECODE} registerWithDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
 
-        done
+        #for((i=1; i<=${ROUND_NUM}; i++))
+        #do
+            #if [ $REFERENCE_ROUND -eq $i ]; then
+                #echo "Skipping registration of the reference round"
+                #continue
+            #fi
+            ## registerWithDescriptors for ${REFERENCE_ROUND} and i
+            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} registerWithDescriptors(${i}); ${ERR_HDL_POSTCODE}"
+
+        #done
     else
         echo "Skip!"
     fi

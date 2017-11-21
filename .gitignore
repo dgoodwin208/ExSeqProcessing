@@ -1,3 +1,5 @@
+*.back
+*.swp
 *.m~
 *.mat
 *.fig

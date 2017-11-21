@@ -211,7 +211,6 @@ for register_channel = params.REGISTERCHANNELS
             
         end
     end
-
 end
 
 catch ME

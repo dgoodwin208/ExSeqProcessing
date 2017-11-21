@@ -317,12 +317,6 @@ end
         save3DTif_uint16(imgMoving_total_affine,output_affine_filename);
     end
     
-    disp('set up cluster and parpool')
-    tic;
-    cluster = parcluster('local_96workers');
-    parpool(cluster,24)
-    toc;
-
     output_TPS_filename = fullfile(params.OUTPUTDIR,sprintf('TPSMap_%sround%03d.mat',params.SAMPLE_NAME,params.MOVING_RUN));
     if exist(output_TPS_filename,'file')==0
 %        [in1D_total,out1D_total] = TPS3DWarpWhole(keyM_total,keyF_total, ...
@@ -370,18 +364,6 @@ end
         outputfile = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_registered.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
         save3DTif_uint16(outputImage_interp,outputfile);
     end
-
-    disp('delete parpool')
-    tic;
-    p = gcp('nocreate');
-    delete(p);
-    toc;
-
-
-
-
-
-
 
 end
 
