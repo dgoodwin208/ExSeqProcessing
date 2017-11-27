@@ -26,7 +26,7 @@ function keys = SWITCH_tile_processing(img)
 
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
-        img_blur = convn(img,h,'same');         
+        img_blur = convnfft(img,h,'same');         
         
         keys = calculate_3DSIFT(img_blur, res_vect);
         

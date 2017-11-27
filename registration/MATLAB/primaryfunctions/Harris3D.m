@@ -40,13 +40,13 @@ Hz(:,:,3) = hp(3)*h*h';
 clear fx fy fz
 
 % applying sobel edge detector in the horizontal direction
-Ix = convn(test_img,Hx,'same');
+Ix = convnfft(test_img,Hx,'same');
 disp('calc sobel of x dir')
 
-Iy = convn(test_img,Hy,'same'); 
+Iy = convnfft(test_img,Hy,'same'); 
 disp('calc sobel of y dir')
 
-Iz = convn(test_img,Hz,'same');
+Iz = convnfft(test_img,Hz,'same');
 disp('calc sobel of z dir')
 
 Ix2 = Ix.^2;
@@ -64,13 +64,13 @@ disp('calculating gaussian filters')
 % applying gaussian filter on the computed value
 h   = fspecial3('gaussian',blur_dim);
 
-Ix2 = convn(Ix2,h,'same'); 
-Iy2 = convn(Iy2,h,'same');
-Iz2 = convn(Iz2,h,'same');
+Ix2 = convnfft(Ix2,h,'same'); 
+Iy2 = convnfft(Iy2,h,'same');
+Iz2 = convnfft(Iz2,h,'same');
 
-Ixy = convn(Ixy,h,'same');
-Ixz = convn(Ixz,h,'same');
-Iyz = convn(Iyz,h,'same');
+Ixy = convnfft(Ixy,h,'same');
+Ixz = convnfft(Ixz,h,'same');
+Iyz = convnfft(Iyz,h,'same');
 
 height = size(test_img,1);
 width = size(test_img,2);
