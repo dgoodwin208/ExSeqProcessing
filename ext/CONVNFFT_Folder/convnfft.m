@@ -163,7 +163,10 @@ if GPU
     clear B
 else
     % inplace product to save 1/3 of the memory
-    inplaceprod(A,B);
+    %inplaceprod(A,B);
+    %Matlab already uses in place
+    A = A.*B;
+    clear B
 end
 
 % Back to the non-Fourier space
@@ -178,9 +181,11 @@ if GPU % GPU/Jacket FFT
         end        
     end   
 else % Matlab IFFT  
-    for dim=dims
-        A = ifft(A,[],dim);
-    end
+    %for dim=dims
+        %A = ifft(A,[],dim);
+    %end
+    % this is slightly faster than for-loop over dims
+    A = ifftn(A);
 end
 
 % Truncate the results

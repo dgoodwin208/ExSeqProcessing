@@ -1,3 +1,5 @@
+% WARNING: this source is DEPRECATED, see SWITCH[...]InParallel.m instead
+%
 % Step 4: Keypoints and Descriptors
 % This is the code that calculates the keypoints and descriptors at 
 % varying scale levels
