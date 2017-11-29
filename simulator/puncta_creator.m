@@ -66,9 +66,11 @@ save(filename_groundtruth);
 for rnd_idx = 1:size(puncta_transcripts,2)
     % Produce the raw output of gaussians across four channels
     % Add 
-    
-     puncta_pos_perturbed = puncta_pos+normrnd(simparams.PUNCTA_DRIFT_MEAN,simparams.PUNCTA_DRIFT_MEAN,num_puncta,3);
-
+     %If we want normal position drift:
+%      puncta_pos_perturbed = puncta_pos+normrnd(simparams.PUNCTA_DRIFT_MEAN,simparams.PUNCTA_DRIFT_MEAN,num_puncta,3);
+     %If we want uniform drift
+     puncta_pos_perturbed = puncta_pos+(rand(num_puncta,3)*4-2);
+     
      puncta_pos_perturbed(puncta_pos_perturbed<1)=1;
      y_max_indices = puncta_pos_perturbed(:,1)>simparams.IMAGE_FOVSIZE_XY-1;
      puncta_pos_perturbed(y_max_indices,1) = simparams.IMAGE_FOVSIZE_XY-1;

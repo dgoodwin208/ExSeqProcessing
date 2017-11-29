@@ -1,4 +1,4 @@
-function visualizeGridPlot(puncta,transcripts,params,fignum)
+function visualizeGridPlot(puncta,transcript_object,params,fignum)
 
     
     figure(fignum);
@@ -29,15 +29,18 @@ function visualizeGridPlot(puncta,transcripts,params,fignum)
 %             imagesc(squeeze(punctaVol(:,:,z_idx)),clims);
             imagesc(max_vol_stack(:,:,c_idx),clims);
             axis off;
-            if numel(transcripts)>1 && c_idx==transcripts(exp_idx)
+            if numel(transcript_object.img_transcript)>1 && c_idx==transcript_object.img_transcript(exp_idx)
                 title(sprintf('%i',c_idx),'Color','m')
             end
             if c_idx==1 && exp_idx ==1
-                
-                position_string = '';
+                pos = round(transcript_object.pos);
+                position_string = sprintf('pos=(%i,%i,%i)',pos(2),pos(1),pos(3));
                 text(-0.0,10.,position_string,'rotation',90)
                  axis tight;
-                
+            elseif c_idx==1
+                position_string = sprintf('Rnd=%i',exp_idx);
+                text(-0.0,10.,position_string,'rotation',90)
+                axis tight;
             else
                 axis off;
             end
@@ -49,7 +52,7 @@ function visualizeGridPlot(puncta,transcripts,params,fignum)
         %Add a fifth column to visualize the puncta in RGB
         %Get the subplot index using the tight_subplot system
         axes(ha(subplot_idx));
-        max_vol_stack = round(255*(max_vol_stack./max(max_vol_stack(:))) );
+        max_vol_stack = uint8(1*(max_vol_stack./max(max_vol_stack(:))));
         rgb_img = makeRGBImageFrom4ChanData(max_vol_stack);
         
         imshow(rgb_img,'InitialMagnification','fit');
