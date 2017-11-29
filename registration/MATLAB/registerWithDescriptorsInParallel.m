@@ -4,10 +4,10 @@ function registerWithDescriptorsInParallel(run_num_list)
 
     loadExperimentParams;
 
-    disp('set up cluster and parpool')
+    disp('set up cluster')
     tic;
     cluster = parcluster('local_96workers');
-    parpool(cluster,24)
+    %parpool(cluster,24)
     toc;
 
     tic; 
