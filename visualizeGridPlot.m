@@ -32,13 +32,14 @@ function visualizeGridPlot(puncta,transcript_object,params,fignum)
             if numel(transcript_object.img_transcript)>1 && c_idx==transcript_object.img_transcript(exp_idx)
                 %title(sprintf('%.02f',transcript_object.img_transcript_confidence(exp_idx)),'Color','m');
             end
-            if c_idx==1 && exp_idx ==1
+            %breaking the first option so we only write the round number, not position
+            if c_idx==-1 && exp_idx ==1
                 pos = round(transcript_object.pos);
                 position_string = sprintf('pos=(%i,%i,%i)',pos(2),pos(1),pos(3));
                 text(-0.0,10.,position_string,'rotation',90)
                  axis tight;
             elseif c_idx==1
-                position_string = sprintf('Rnd=%i',exp_idx);
+                position_string = sprintf('i',exp_idx);
                 text(-0.0,10.,position_string,'rotation',90)
                 axis tight;
             else
