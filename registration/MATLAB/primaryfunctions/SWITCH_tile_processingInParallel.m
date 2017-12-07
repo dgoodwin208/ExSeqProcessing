@@ -15,6 +15,8 @@
 function keys = SWITCH_tile_processingInParallel(img)
     
     loadExperimentParams;
+    options = {};
+    options.Power2Flag = false;
 
     blur_size_list = params.SCALE_PYRAMID;
 
@@ -28,7 +30,7 @@ function keys = SWITCH_tile_processingInParallel(img)
 
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
-        img_blur = convnfft(img,h,'same');         
+        img_blur = convnfft(img,h,'same',[],options);         
         
         keys_cell{i} = calculate_3DSIFT(img_blur, res_vect);
 

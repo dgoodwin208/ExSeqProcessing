@@ -14,6 +14,9 @@
 
 function  res_vect = Harris3D(test_img,blur_dim)
 
+options = {};
+options.Power2Flag = false;
+
 %Creating 3D sobel filters
 h = [ -1; 2; 1];
 hp = [1 0 -1];
@@ -40,13 +43,13 @@ Hz(:,:,3) = hp(3)*h*h';
 clear fx fy fz
 
 % applying sobel edge detector in the horizontal direction
-Ix = convnfft(test_img,Hx,'same');
+Ix = convnfft(test_img,Hx,'same',[],options);
 disp('calc sobel of x dir')
 
-Iy = convnfft(test_img,Hy,'same'); 
+Iy = convnfft(test_img,Hy,'same',[],options); 
 disp('calc sobel of y dir')
 
-Iz = convnfft(test_img,Hz,'same');
+Iz = convnfft(test_img,Hz,'same',[],options);
 disp('calc sobel of z dir')
 
 Ix2 = Ix.^2;
@@ -64,13 +67,13 @@ disp('calculating gaussian filters')
 % applying gaussian filter on the computed value
 h   = fspecial3('gaussian',blur_dim);
 
-Ix2 = convnfft(Ix2,h,'same'); 
-Iy2 = convnfft(Iy2,h,'same');
-Iz2 = convnfft(Iz2,h,'same');
+Ix2 = convnfft(Ix2,h,'same',[],options); 
+Iy2 = convnfft(Iy2,h,'same',[],options);
+Iz2 = convnfft(Iz2,h,'same',[],options);
 
-Ixy = convnfft(Ixy,h,'same');
-Ixz = convnfft(Ixz,h,'same');
-Iyz = convnfft(Iyz,h,'same');
+Ixy = convnfft(Ixy,h,'same',[],options);
+Ixz = convnfft(Ixz,h,'same',[],options);
+Iyz = convnfft(Iyz,h,'same',[],options);
 
 height = size(test_img,1);
 width = size(test_img,2);
