@@ -37,7 +37,7 @@ function registerWithDescriptorsInParallel(run_num_list)
 
                 if strcmp(job.State,'finished')
                     disp(['batch (',num2str(job_idx_running),') has ', job.State,'.']);
-                    diary(job, ['./matlab-regDesc-', num2str(run_num), '-failed.log']);
+                    diary(job, ['./matlab-regDesc-', num2str(run_num), '.log']);
                     running_jobs(job_idx_running) = 0;
                     delete(job);
                     is_finished = 1;
