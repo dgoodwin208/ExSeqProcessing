@@ -42,8 +42,8 @@ RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
 REPORTING_DIR=logs/imgs
 LOG_DIR=logs
 
-FILE_BASENAME=sa0916dncv
-CHANNELS="'chan1','chan2','chan3','chan4'"
+FILE_BASENAME=exseqautoframea1
+CHANNELS="'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'"
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
@@ -562,6 +562,12 @@ echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     matlab -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} punctafeinder; ${ERR_HDL_POSTCODE}"
+
+    if ls matlab-puncta-extraction-*.log > /dev/null 2>&1; then
+        mv matlab-puncta-extraction-*.log ${LOG_DIR}/
+    else
+        echo "No job log files."
+    fi
 else
     echo "Skip!"
 fi
