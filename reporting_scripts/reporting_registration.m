@@ -1,26 +1,43 @@
-function reporting_registration(channels)
+function keys_total = reporting_registration(channels, registeredImagesDir, num_rounds, reportingDir)
 %For every round,
 % create a max projection of each registered image
 % get the number of features
 % save the 3D plots of feature agreements
 
 save_types = {'fig','jpg'};
+keys_total = [];
 
 %Get the number of rounds and copy it out of the params variable
 %because params is going to be overwritten when we load the Registation
 %params
 loadParameters;
-num_sequencing_rounds = params.NUM_ROUNDS;
-getMaxProjections(params.registeredImagesDir, channels)
+
+if ~exist('channels', 'var')
+    channels = params.CHAN_STRS;
+end
+
+if ~exist('registeredImagesDir', 'var')
+    registeredImagesDir = params.registeredImagesDir;
+end
+
+if ~exist('num_rounds', 'var')
+    num_rounds = params.NUM_ROUNDS;
+end
+
+if ~exist('reportingDir', 'var')
+    reportingDir = params.reportingDir;
+end
+
+%reporting_getMaxProjections(registeredImagesDir, channels);
 
 
 %Now calling code from the
 loadExperimentParams;
 figure('Visible','off');
-for sequencing_round = 1:1 %:num_sequencing_rounds
+for sequencing_round = 2:num_rounds
     
     % LOAD KEYS
-    output_keys_filename = fullfile(params.OUTPUTDIR,sprintf('globalkeys_%sround%.03i.mat',params.SAMPLE_NAME,sequencing_round));
+    output_keys_filename = fullfile(registeredImagesDir,sprintf('globalkeys_%sround%.03i.mat',params.SAMPLE_NAME,sequencing_round));
     load(output_keys_filename);
     
     plot3(keyF_total(:,1),keyF_total(:,2),keyF_total(:,3),'o');
@@ -45,6 +62,7 @@ for sequencing_round = 1:1 %:num_sequencing_rounds
         plot3(lines(:,1),lines(:,2),lines(:,3),'color',rgb);
     end
     legend('Reference', 'Moving');
+    keys_total = [keys_total size(keyF_total,1)];
     output_string = sprintf('Round%i: %i correspondences to calculate TPS warp',sequencing_round,size(keyF_total,1));
     title(output_string);
     disp(output_string)
@@ -53,7 +71,7 @@ for sequencing_round = 1:1 %:num_sequencing_rounds
     
     for idx = 1:length(save_types)
         save_type = save_types{idx};
-        figfilename = fullfile(params.reportingDir,...
+        figfilename = fullfile(reportingDir,...
             sprintf('%s_featuresInRound%.03i.%s',...
             'registration',...
             sequencing_round,...
