@@ -20,12 +20,12 @@ fprintf('Source file\tDestination file\n')
 for file_indx = 1:length(files)
 
     %Sample filename for this script: 'PrimerN-4_P_ch03.tif' or 'primer_n-4_p_ch03.tif'
-    filename = strrep(lower(files(file_indx).name),'rimer','primer');
+    filename = strrep(lower(files(file_indx).name),'primer_','primer');
     parts = split(filename,'_');
     
     string_primer = parts{1};
     string_ligation= parts{2};
-    string_color = parts{4};
+    string_color = parts{5};
     
 
     primer_string_pieces = split(string_primer,'n');
@@ -39,11 +39,11 @@ for file_indx = 1:length(files)
     multiplier_ligation = length(strfind(string_ligation,'c'));
     
     %Get the channel number from 'chXX.tif'
-    %string_color_parts = split(string_color,'.');
-    %color_chan_name = string_color_parts{1}; 
+    string_color_parts = split(string_color,'.');
+    color_chan_name = string_color_parts{1}; 
     %In the case of changing channel names
-    chan_number = str2num(string_color(5));
-    color_chan_name = chanmap{chan_number};
+%    chan_number = str2num(string_color(5));
+%    color_chan_name = chanmap{chan_number};
 
     %round number (add one to start at 1)
     round_number = multiplier_ligation*5 + offset_primer+1;
@@ -55,8 +55,8 @@ for file_indx = 1:length(files)
     
     fprintf('%s\t%s\n',src_file,dest_file);
     if ~exist(dest_file,'file')
-        %status = system(sprintf('ln -s %s %s',src_file,dest_file));
-        status = system(sprintf('cp %s %s',src_file,dest_file));
+        status = system(sprintf('ln -s %s %s',src_file,dest_file));
+        %status = system(sprintf('cp %s %s',src_file,dest_file));
     end
 end
 

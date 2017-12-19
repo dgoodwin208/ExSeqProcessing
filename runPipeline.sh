@@ -16,6 +16,7 @@ usage() {
     echo "  -V    vlfeat lib directory"
     echo "  -I    Raj lab image tools MATLAB directory"
     echo "  -i    reporting directory"
+    echo "  -T    temp directory"
     echo "  -L    log directory"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  profile-check,color-correction,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
@@ -39,11 +40,12 @@ TRANSCRIPT_DIR=6_transcripts
 REGISTRATION_PROJ_DIR=registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
 RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
+TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ./loadParameters.m.template)
 REPORTING_DIR=logs/imgs
 LOG_DIR=logs
 
-FILE_BASENAME=exseqautoframea1
-CHANNELS="'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'"
+FILE_BASENAME=sa0916dncv
+CHANNELS="'chan1','chan2','chan3','chan4'"
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
@@ -52,7 +54,7 @@ REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:i:L:e:s:yh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:yh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -96,6 +98,8 @@ do
         V)  VLFEAT_DIR=$OPTARG
             ;;
         I)  RAJLABTOOLS_DIR=$OPTARG
+            ;;
+        T)  TEMP_DIR=$OPTARG
             ;;
         i)  REPORTING_DIR=$OPTARG
             ;;
@@ -207,6 +211,12 @@ if [ ! -d "${TRANSCRIPT_DIR}" ]; then
     echo "No transcript information dir."
     echo "mkdir ${TRANSCRIPT_DIR}"
     mkdir "${TRANSCRIPT_DIR}"
+fi
+
+if [ ! -d "${TEMP_DIR}" ]; then
+    echo "No temp dir."
+    echo "mkdir ${TEMP_DIR}"
+    mkdir "${TEMP_DIR}"
 fi
 
 if [ ! -d "${REPORTING_DIR}" ]; then
@@ -324,6 +334,8 @@ echo "  Registration project   :  ${REGISTRATION_PROJ_DIR}"
 echo "  vlfeat lib             :  ${VLFEAT_DIR}"
 echo "  Raj lab image tools    :  ${RAJLABTOOLS_DIR}"
 echo
+echo "  Temporal storage       :  ${TEMP_DIR}"
+echo
 echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
 echo "#########################################################################"
@@ -386,8 +398,10 @@ sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.NUM_CHANNELS\) *= *.*;#\1 = ${#CHANNEL_ARRAY[*]};#" \
     -e "s#\(params.CHAN_STRS\) *= *.*;#\1 = {${CHANNELS}};#" \
+    -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -i.back \
     ./loadParameters.m
+
 
 ###### setup startup.m
 

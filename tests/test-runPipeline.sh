@@ -6,6 +6,8 @@
 SHUNIT2_SRC_DIR=~/works/shunit2
 INPUT_IMAGE_DIR=/mp/nas1/share/ExSEQ/ExSeqCulture-small/input-new
 DECONVOLUTION_DIR=1_deconvolution
+TEMP_DIR=/mp/nas1/share/tmp-test
+TEMP_DIR_TMP=${TEMP_DIR}-tmp
 
 # =================================================================================================
 oneTimeSetUp() {
@@ -38,6 +40,10 @@ oneTimeSetUp() {
     if [ -d logs ]; then
         rm -r logs
     fi
+
+    sed -i.bak -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" loadParameters.m.template
+    mkdir -p "$TEMP_DIR"
+    mkdir -p "$TEMP_DIR_TMP"
 }
 
 oneTimeTearDown() {
@@ -66,6 +72,12 @@ oneTimeTearDown() {
     done
     if [ -d test_logs ]; then
         rm -r test_logs
+    fi
+    if [ -d "$TEMP_DIR" ]; then
+        rm -r "$TEMP_DIR"
+    fi
+    if [ -d "$TEMP_DIR_TMP" ]; then
+        rm -r "$TEMP_DIR_TMP"
     fi
 }
 
@@ -105,6 +117,7 @@ get_values_and_keys() {
     Value[11]=$(get_value_by_key "$Log" "Registration project")
     Value[12]=$(get_value_by_key "$Log" "vlfeat lib")
     Value[13]=$(get_value_by_key "$Log" "Raj lab image tools")
+    Value[18]=$(get_value_by_key "$Log" "Temporal storage")
     Value[16]=$(get_value_by_key "$Log" "Reporting")
     Value[14]=$(get_value_by_key "$Log" "Log")
 
@@ -188,6 +201,10 @@ assert_all_default_values() {
     if [ ! "${skips[16]}" = "skip" ]; then
         reporting_dir=$(cd ./logs/imgs && pwd)
         assertEquals "$reporting_dir" "${Value[16]}"
+    fi
+    if [ ! "${skips[18]}" = "skip" ]; then
+        temp_dir=$(cd "${TEMP_DIR}" && pwd)
+        assertEquals "$temp_dir" "${Value[18]}"
     fi
 }
 
@@ -522,6 +539,25 @@ testArgument017_set_reporting_dir() {
 
     # others are default values
     assert_all_default_values skip 16
+    assert_all_default_keys
+}
+
+testArgument018_set_temp_dir() {
+    local curfunc=${FUNCNAME[0]}
+    mkdir ${Result_dir}/${curfunc}
+    Log=$Result_dir/$curfunc/output.log
+
+    echo 'n' | ./runPipeline.sh -T ${TEMP_DIR_TMP} > $Log 2>&1
+    local status=$?
+    assertEquals 0 $status
+
+    get_values_and_keys
+
+    temp_dir=$(cd ${TEMP_DIR_TMP} && pwd)
+    assertEquals "$temp_dir" "${Value[18]}"
+
+    # others are default values
+    assert_all_default_values skip 18
     assert_all_default_keys
 }
 
@@ -1172,6 +1208,9 @@ testRun001_replace_parameters_and_skip_all() {
 
     local param=$(sed -ne 's#params.reportingDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[16]}'" "$param"
+
+    local param=$(sed -ne 's#params.tempDir = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "'${Value[18]}'" "$param"
 
     local param=$(sed -ne 's#params.FILE_BASENAME = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[2]}'" "$param"
