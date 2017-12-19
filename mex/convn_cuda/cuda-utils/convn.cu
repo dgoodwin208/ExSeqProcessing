@@ -12,7 +12,7 @@
         }                                                          \
     }
 
-float* main(int argc, char const *argv[])  {
+float* convolution(int argc, char const *argv[])  {
     // process args
     int batch_size = 1;
     int channels = 1;
