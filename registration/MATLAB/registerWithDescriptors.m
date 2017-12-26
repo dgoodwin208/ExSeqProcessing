@@ -255,24 +255,34 @@ thresh = quantile(D,params.DISTANCEQUANTILECUTOFF);
 [D_sorted,D_indexed] = sort(D);
 thresh_sorted_index = find(D_sorted>thresh,1,'first');
 keypoint_filter_indices = D_indexed(1:thresh_sorted_index-1);
-fprintf('Removing %i of %i corresondences\n', size(keyM_total,1) - length(keypoint_filter_indices),size(keyM_total));
+fprintf('Removing %i of %i correspondences\n', size(keyM_total,1) - length(keypoint_filter_indices),size(keyM_total));
 keyM_total = keyM_total(keypoint_filter_indices,:);
 keyF_total = keyF_total(keypoint_filter_indices,:);
+
+if isempty(keyF_total) || isempty(keyM_total)
+    error('ERROR: all keys removed, consider raising quantile thresh... exiting');
+end
+
 
 %Belt and suspenders here but after reviewing all the results we still need a max offset :/   
 if (params.MAXDISTANCE>-1)
     remove_indices = [];
     for match_idx = 1:size(keyF_total,1)
         if norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))>params.MAXDISTANCE
-            norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))
+            norm(keyF_total(match_idx,:)-keyM_total(match_idx,:));
             remove_indices = [remove_indices match_idx];
         end
     end
     keyF_total(remove_indices,:) = [];
     keyM_total(remove_indices,:) = [];
+
     clear remove_indices;
 end
 
+    if isempty(keyF_total) || isempty(keyM_total)
+        error('ERROR: all keys removed, consider raising `params.MAXDISTANCE`... exiting');
+    end
+    
 
     %Do a global affine transform on the data and keypoints before
     %doing the fine-resolution non-rigid warp
@@ -282,7 +292,11 @@ end
     keyM_total_switch = keyM_total(:,[2 1 3]);
     keyF_total_switch = keyF_total(:,[2 1 3]);
     affine_tform = findAffineModel(keyM_total_switch, keyF_total_switch);
-    
+
+    if ~det(affine_tform)
+        error('ERROR: affine_tform can not be singular for following calcs... exiting')
+    end
+
     %Warp the keyM features into the new space
     rF = imref3d(size(imgFixed_total));
     %Key total_affine is now with the switched XY
