@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cstdlib>
 
+#include "convn.h"
+
 #define checkCUDNN(expression)                                     \
     {                                                              \
         cudnnStatus_t status = (expression);                       \
@@ -12,7 +14,7 @@
         }                                                          \
     }
 
-float* convolution(int argc, char const *argv[])  {
+float* convn(float* image, float* kernel)  {
     // process args
     int batch_size = 1;
     int channels = 1;
