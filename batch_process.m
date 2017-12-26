@@ -1,5 +1,6 @@
-function batch_processing(prefix, func, run_num_list, args)
+function success_code = batch_process(prefix, func, run_num_list, args)
 
+    success_code = true;
     loadExperimentParams;
 
     disp('set up cluster')
@@ -12,7 +13,7 @@ function batch_processing(prefix, func, run_num_list, args)
     disp('===== create batch jobs =====') 
     max_running_jobs = params.JOB_SIZE;
     max_jobs = length(run_num_list);
-    if func == @calculateDescriptors
+    if isequal(func, @calculateDescriptors)
         run_num_list_size = length(run_num_list);
         desc_size = params.ROWS_DESC * params.COLS_DESC;
         max_jobs  = run_num_list_size * desc_size;
@@ -28,15 +29,19 @@ function batch_processing(prefix, func, run_num_list, args)
         if (job_idx <= max_jobs) && (sum(running_jobs) < max_running_jobs)
 
             % determine args
-            run_num = run_num_list(job_idx);
-            if func == @registerWithDescriptors
+            if isequal(func, @registerWithDescriptors)
+                run_num = run_num_list(job_idx);
                 args = {run_num};
-            else if func == @calculateDescriptors
+            elseif isequal(func, @calculateDescriptors)
                 [run_num, target_idx] = getJobIds(run_num_list, job_idx, desc_size);
                 args = {run_num, target_idx, target_idx};
-            else if func == @normalizeImage
-                % FIXME add one more element to cell
-                args = {args, run_num};
+            elseif isequal(func, @normalizeImage)
+                run_num = run_num_list(job_idx);
+                % add one more element to arg cell
+                args{end+1} = run_num;
+            else
+                func
+                error('Function type not supported');
             end
 
             disp(['create batch ', num2str(job_idx)]);
@@ -50,21 +55,22 @@ function batch_processing(prefix, func, run_num_list, args)
                 is_finished = 0;
 
                 % determine args
-                run_num = run_num_list(job_idx_running);
-                postfix = num2str(run_num);
-                if func == @registerWithDescriptors
+                if isequal(func, @registerWithDescriptors)
+                    run_num = run_num_list(job_idx_running);
                     args = {run_num};
-                else if func == @calculateDescriptors
+                    postfix = num2str(run_num);
+                elseif isequal(func, @calculateDescriptors)
                     [run_num, target_idx] = getJobIds(run_num_list, job_idx_running, desc_size);
                     args = {run_num, target_idx, target_idx};
                     postfix = [num2str(run_num), '-', num2str(target_idx)];
-                else if func == @normalizeImage
-                    % FIXME add one more element to cell
-                    args = {args, run_num};
+                elseif isequal(func, @normalizeImage)
+                    run_num = run_num_list(job_idx_running);
+                    args{end+1} = run_num;
+                    postfix = num2str(run_num);
                 end
 
                 if strcmp(job.State,'finished')
-                    if isempty(getReport(job.Tasks(1).Error))
+                    if isempty(job.Tasks(1).Error)
                         % batch finished with no error
                         disp(['batch (',num2str(job_idx_running),') has ', job.State,'.']);
                         diary(job, ['./matlab-', prefix, '-', postfix, '.log']);
@@ -78,6 +84,7 @@ function batch_processing(prefix, func, run_num_list, args)
                         fid = fopen(fn, 'a');
                         fprintf(fid, error_msg);
                         fclose(fid);
+                        success_code = false;
                     end
                     running_jobs(job_idx_running) = 0;
                     delete(job);
