@@ -33,9 +33,13 @@ params.THRESHOLD_MARGIN = 0;
 params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/logs/imgs';
 
 %# of Jobs in normalization
-%params.NORM_JOB_SIZE = 5;
-params.NORM_JOB_SIZE = 20;
-params.NORM_EACH_JOB_POOL_SIZE = 4;
-params.PUNCTA_JOB_SIZE = 1;
+params.NORM_MAX_RUN_JOBS = 20;
+params.NORM_EACH_JOB_POOL_SIZE = 0;
+params.PUNCTA_MAX_RUN_JOBS = 1;
 params.tempDir = '/mp/nas1/share/tmp-test';
 
+%batch_processing parameters
+params.WAIT_SEC = 10;
+params.REG_POOL_SIZE = 2;
+params.PUNCTA_POOL_SIZE = 4;
+params.MAX_RUN_JOBS = 30;

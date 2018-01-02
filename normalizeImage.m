@@ -45,3 +45,17 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
     save3DTif_uint16(summed_norm,outputfile);
 
 end
+
+function image = load_binary_image(outputdir,image_fname,image_height,image_width)
+    fid = fopen(fullfile(outputdir,image_fname),'r');
+    count = 1;
+    while ~feof(fid)
+        sub_image = fread(fid,[image_height,image_width],'double');
+        if ~isempty(sub_image)
+            image(:,:,count) = sub_image;
+            count = count + 1;
+        end
+    end
+    fclose(fid);
+end
+
