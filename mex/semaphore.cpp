@@ -48,6 +48,11 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
     int ret;
     if (func == "unlink") {
         ret = sem_unlink(sem_name.c_str());
+        if (ret == -1) {
+            ret = errno;
+            mexPrintf("ERR=%d\n", ret);
+            mexPrintf("failed to unlink semaphore.\n");
+        }
         plhs[0] = mxCreateDoubleScalar(ret);
         return;
     } else if (func == "open") {

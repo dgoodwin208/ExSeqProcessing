@@ -21,7 +21,7 @@ function success_code = normalization_cuda(src_folder_name,dst_folder_name,filer
     args = {src_folder_name,dst_folder_name,fileroot_name,channels};
     success_code = batch_process('normalization', @normalizeImage, total_round_num, args)
 
-%    quantilenorm_final(length(num_cores));
+    quantilenorm_cuda_final(length(num_sem_gpus), length(num_cores));
 
 end
 

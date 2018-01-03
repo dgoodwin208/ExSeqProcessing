@@ -1,7 +1,7 @@
 /*=================================================================
  * quantilenorm_cuda_init.cpp - initialize for quantilenorm_cuda
  *
- *  quantilenorm_cuda(num_gpu_sem, num_core_sem)
+ *  quantilenorm_cuda_init(num_gpu_sem, num_core_sem)
  *
  *  num_gpu_sem(cell):  a list of pairs of # gpus and # semaphores
  *  num_core_sem(cell):  a list of pairs of # cores and # semaphores
@@ -37,7 +37,7 @@ init_semaphores(const mxArray *elem_ptr, const std::string& prefix) {
         logger->debug("init sem: {} ({})", sem_name.c_str(), num_sem_values);
         int ret = errno;
         if (sem == SEM_FAILED) {
-            mexErrMsgIdAndTxt("MATLAB::quantilenorm_cuda_init::semaphoreNotCreated", "failed to create semaphore %s. ERR=%d", sem_name.c_str(), ret);
+            mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_init:semaphoreNotCreated", "failed to create semaphore %s. ERR=%d", sem_name.c_str(), ret);
         }
     }
 }
