@@ -440,7 +440,6 @@ echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 #    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
-#    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization_small_mem('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
 
     if ls matlab-normalization-*.log > /dev/null 2>&1; then
@@ -448,6 +447,25 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     else
         echo "No job log files."
     fi
+
+    # prepare normalized channel images for registration
+    for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
+    do
+        for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
+        do
+            round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+            if [ $round_num -eq 0 ]; then
+                echo "round number is wrong."
+            fi
+
+            normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+
+            if [ ! -f $normalized_ch_file ]; then
+                ln -s $f $normalized_ch_file
+            fi
+        done
+    done
+
 else
     echo "Skip!"
 fi
@@ -477,23 +495,6 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         else
             echo "No log files."
         fi
-
-        #for((i=1; i<=${ROUND_NUM}; i+=2))
-        #do
-        #    if [ $i -eq ${ROUND_NUM} ]; then
-        #        rounds=$i
-        #    else
-        #        rounds="$i $(( $i + 1 ))"
-        #    fi
-        #    # calculateDescriptors for two groups of rounds in parallel
-        #    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group-${rounds/ /-}.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
-    
-        #    if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
-        #        mv matlab-calcDesc-*.log ${LOG_DIR}/
-        #    else
-        #        echo "No log files."
-        #    fi
-        #done
     else
         echo "Skip!"
     fi
@@ -504,24 +505,6 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     echo
 
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        # prepare normalized channel images for warp
-        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
-        do
-            for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
-            do
-                round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
-                if [ $round_num -eq 0 ]; then
-                    echo "round number is wrong."
-                fi
-
-                normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
-
-                if [ ! -f $normalized_ch_file ]; then
-                    ln -s $f $normalized_ch_file
-                fi
-            done
-        done
-
         # make symbolic links of round-1 images because it is not necessary to warp them
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
@@ -545,17 +528,6 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             echo "No log files."
         fi
 
-
-        #for((i=1; i<=${ROUND_NUM}; i++))
-        #do
-            #if [ $REFERENCE_ROUND -eq $i ]; then
-                #echo "Skipping registration of the reference round"
-                #continue
-            #fi
-            ## registerWithDescriptors for ${REFERENCE_ROUND} and i
-            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} registerWithDescriptors(${i}); ${ERR_HDL_POSTCODE}"
-
-        #done
     else
         echo "Skip!"
     fi
