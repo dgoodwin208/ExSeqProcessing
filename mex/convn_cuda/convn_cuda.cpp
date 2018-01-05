@@ -1,5 +1,5 @@
 #include "mex.h"
-#include "convn.h"
+#include "cuda-utils/convn.h"
 
 /*
  * Host code

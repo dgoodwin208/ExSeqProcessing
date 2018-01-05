@@ -14,38 +14,12 @@
         }                                                          \
     }
 
-float* convn(float* image, float* kernel)  {
+float* convn(float *image, const int channels, const int height, const int width, float *kernel, const int kernel_height, const int kernel_width)  {
     // process args
     int batch_size = 1;
-    int channels = 1;
     int out_channels = 1; //feature maps
     int in_channels = 1;
-    int height = 12;
-    int width = 12;
-    // printf("Creating image");
-    std::cout << "Creating image" << std::endl;
-    float image[batch_size][channels][height][width];
-    /*for (int batch = 0; batch < batch_size; ++batch) {*/
-        /*for (int channel = 0; channel < channels; ++channels) {*/
-            /*for (int row = 0; row < height; ++row) {*/
-                /*for (int col = 0; col < width; ++col) {*/
-                    /*// image[batch][channel][row][col] = std::rand();*/
-                    /*image[batch][channel][row][col] = 0.0f;*/
-                /*}*/
-            /*}*/
-        /*}*/
-    /*}*/
-    /*std::cout << "Image created" << std::endl;*/
-    const int kernel_height = 3;
-    const int kernel_width = 3;
-    // toy kernel until passed in via argv
-    // clang-format off
-    float kernel[kernel_height][kernel_width] = {
-        {1, 1, 1},
-        {1, -8, 1},
-        {1, 1, 1}
-    };
-    // clang-format on
+    int dimensions = 3; // only supports 3 dimensional images
     cudnnHandle_t cudnn;
     checkCUDNN(cudnnCreate(&cudnn));
 
@@ -53,17 +27,6 @@ float* convn(float* image, float* kernel)  {
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
     checkCUDNN(cudnnSetTensor4dDescriptor(input_descriptor,
-                /*format=*/CUDNN_TENSOR_NCHW,
-                /*dataType=*/CUDNN_DATA_FLOAT,
-                /*batch_size=*/batch_size,
-                /*channels=*/channels,
-                /*image_height=*/height,
-                /*image_width=*/width));
-
-    // define output tensor
-    cudnnTensorDescriptor_t output_descriptor;
-    checkCUDNN(cudnnCreateTensorDescriptor(&output_descriptor));
-    checkCUDNN(cudnnSetTensor4dDescriptor(output_descriptor,
                 /*format=*/CUDNN_TENSOR_NCHW,
                 /*dataType=*/CUDNN_DATA_FLOAT,
                 /*batch_size=*/batch_size,
@@ -85,15 +48,42 @@ float* convn(float* image, float* kernel)  {
     // describe the convolution
     cudnnConvolutionDescriptor_t convolution_descriptor;
     checkCUDNN(cudnnCreateConvolutionDescriptor(&convolution_descriptor));
-    checkCUDNN(cudnnSetConvolution2dDescriptor(convolution_descriptor,
-            /*pad_height=*/1, //control the zero padding around the image
-            /*pad_width=*/1,
-            /*vertical_stride=*/1,
-            /*horizontal_stride=*/1,
-            /*dilation_height=*/1,
-            /*dilation_width=*/1,
+    // define the zero padding size for each dimension
+    const int padA[] = {1, 1, 1};
+    // for each dim, define num elements to stride for each point
+    const int filterStrideA[] = {1, 1, 1};
+    const int dilationA[] = {1, 1, 1}; // dilation factor
+    checkCUDNN(cudnnSetConvolutionNdDescriptor(convolution_descriptor,
+            /*array_length=*/dimensions,
+            /*padA=*/padA,
+            /*filterStrideA=*/filterStrideA,
+            /*dilationA=*/dilationA,
             /*mode=*/CUDNN_CONVOLUTION,
             /*computeType=*/CUDNN_DATA_FLOAT));
+
+    // get output dimensions of convolutions for allocating correct space
+    // holds size of output tensor
+    // output dims of this function must be strictly respected for `cudnnConvolutionForward()`
+    int tensorOutputDimA[] = {0, 0, 0};
+    checkCUDNN(cudnnGetConvolutionNdForwardOutputDim(convolution_descriptor,
+                input_descriptor,
+                kernel_descriptor,
+                /*nbDims=*/dimensions,
+                tensorOutputDimA));
+
+    std::cout << "Output dimensions: " << tensorOutputDimA[0] << ", " << tensorOutputDimA[1] << ", " << tensorOutputDimA[2] << std::endl;
+
+    // define output tensor
+    cudnnTensorDescriptor_t output_descriptor;
+    checkCUDNN(cudnnCreateTensorDescriptor(&output_descriptor));
+    checkCUDNN(cudnnSetTensor4dDescriptor(output_descriptor,
+                /*format=*/CUDNN_TENSOR_NCHW,
+                /*dataType=*/CUDNN_DATA_FLOAT,
+                /*batch_size=*/batch_size,
+                /*channels=*/channels,
+                /*image_height=*/height,
+                /*image_width=*/width));
+
 
     std::cout << "Starting convolution algorithm" << std::endl;
     // choose convolution algorithm
@@ -108,14 +98,13 @@ float* convn(float* image, float* kernel)  {
             CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
             memoryLimitInBytes, 
             &convolution_algorithm)); // save chosen algo
-            /*memoryLimitInBytes=*/
 
-    //TODO print convolution_algorithm to stdout
+    // print convolution_algorithm to stdout
     std::cout << "Convolution algorithm: " << convolution_algorithm << std::endl;
 
     // choose workspace byte size
    std::cout << "Getting workspace size" << std::endl;
-   size_t workspace_bytes = 0;
+   size_t workspace_bytes{0};
    checkCUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn,
                input_descriptor,
                kernel_descriptor,
@@ -125,26 +114,11 @@ float* convn(float* image, float* kernel)  {
                &workspace_bytes));
    std::cerr << "Workspace size: " << (workspace_bytes / 1048576.0) << "MB" << std::endl;
 
-   // get output dimensions of convolutions for allocating correct space
-   int n; //batch size
-   int c; //channels (typically RGB chans)
-   int h; //height
-   int w; //width
-   checkCUDNN(cudnnGetConvolution2dForwardOutputDim(
-               convolution_descriptor,
-               input_descriptor,
-               kernel_descriptor,
-               &n,
-               &c,
-               &h,
-               &w))
-
    // allocation of mem buffers
-
    void* d_workspace{nullptr};
    cudaMalloc(&d_workspace, workspace_bytes);
 
-   int image_bytes = n * c * h * w * sizeof(float);
+   int image_bytes = batch_size * tensorOutputDimA[0] * tensorOutputDimA[1] * tensorOutputDimA[2] * sizeof(float);
 
    float* d_input{nullptr};
    cudaMalloc(&d_input, image_bytes);
@@ -156,26 +130,15 @@ float* convn(float* image, float* kernel)  {
    // guarantee all vals 0
    cudaMemset(d_output, 0, image_bytes);
 
-   // copy into higher dim, once for each channel, once for each output feature map (out_channel)
-   float h_kernel[out_channels][channels][kernel_height][kernel_width];
-   for (int out_channel = 0; out_channel < out_channels; ++out_channel) {
-       for (int channel = 0; channel < channels; ++channel) {
-           for (int row = 0; row < kernel_height; ++row) {
-               for (int column = 0; column < kernel_width; ++column) {
-                   h_kernel[out_channel][channel][row][column] = kernel[row][column];
-               }
-           }
-       }
-   }
-
    float* d_kernel{nullptr};
-   cudaMalloc(&d_kernel, sizeof(h_kernel));
+   cudaMalloc(&d_kernel, sizeof(kernel));
    // copy to device
-   cudaMemcpy(d_kernel, h_kernel, sizeof(h_kernel), cudaMemcpyHostToDevice);
+   cudaMemcpy(d_kernel, kernel, sizeof(kernel), cudaMemcpyHostToDevice);
 
    // Convolution
-   std::cout << "Compute convolution" << std::endl
-   const float alpha = 1.0f, beta = 0.0f;
+   std::cout << "Compute convolution" << std::endl;
+   const float alpha = 1.0f;
+   const float beta = 0.0f;
    checkCUDNN(cudnnConvolutionForward(cudnn,
                &alpha, 
                input_descriptor, 

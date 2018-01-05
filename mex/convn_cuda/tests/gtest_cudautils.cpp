@@ -1,9 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "gpudevice.h"
-#include "radixsort.h"
-
-#include "spdlog/spdlog.h"
+#include "convn.h"
 
 #include <vector>
 #include <cstdint>
@@ -11,122 +8,105 @@
 
 namespace {
 
-class GpuDeviceTest : public ::testing::Test {
+class ConvnTest : public ::testing::Test {
 protected:
-    GpuDeviceTest() {
-        auto logger = spdlog::basic_logger_mt("mex_logger", "mex.log");
+    ConvnTest() {
     }
-    virtual ~GpuDeviceTest() {
+    virtual ~ConvnTest() {
     }
 };
 
-TEST_F(GpuDeviceTest, GetGpuNumTest) {
-    int gpu_num = cudautils::get_gpu_num();
-
-    EXPECT_EQ(2, gpu_num);
-}
-
-class RadixSortTest : public ::testing::Test {
-protected:
-    RadixSortTest() {
+TEST_F(ConvnTest, ConvnBasicTest) {
+    // process args
+    int batch_size = 1;
+    int channels = 3;
+    int height = 12;
+    int width = 12;
+    int image_bytes = batch_size * channels * height * width * sizeof(float);
+    std::cout << "Creating image" << std::endl;
+    float image[batch_size][channels][height][width];
+    for (int batch = 0; batch < batch_size; ++batch) {
+        for (int channel = 0; channel < channels; ++channels) {
+            for (int row = 0; row < height; ++row) {
+                for (int col = 0; col < width; ++col) {
+                    // image[batch][channel][row][col] = std::rand();
+                    image[batch][channel][row][col] = 0.0f;
+                }
+            }
+        }
     }
-    virtual ~RadixSortTest() {
-    }
-};
+    std::cout << "Image created" << std::endl;
 
-TEST_F(RadixSortTest, GpuSortAndResortTest) {
-    std::vector<uint16_t> keys;
-    std::vector<unsigned int> values;
+    const int kernel_height = 3;
+    const int kernel_width = 3;
+    // toy kernel 
+    // clang-format off
+    float kernel[kernel_height][kernel_width] = {
+        {1, 1, 1},
+        {1, -8, 1},
+        {1, 1, 1}
+    };
+    // clang-format on
+    std::cout << "Kernel Created" << std::endl;
 
-    const size_t DATA_SIZE = 10000;
 
-    std::mt19937 mt(1);
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        keys.push_back(mt());
-        values.push_back(i);
-    }
-    std::vector<uint16_t> keys2(keys.begin(), keys.end());
+    //// copy into higher dim, once for each channel, once for each output feature map (out_channel)
+    //float h_kernel[batch_size][channels][kernel_height][kernel_width];
+    //for (int out_channel = 0; out_channel < out_channels; ++out_channel) {
+       //for (int channel = 0; channel < channels; ++channel) {
+           //for (int row = 0; row < kernel_height; ++row) {
+               //for (int column = 0; column < kernel_width; ++column) {
+                   //h_kernel[out_channel][channel][row][column] = kernel[row][column];
+               //}
+           //}
+       //}
+    //}
 
-    cudautils::radixsort(keys2, values);
-
-    for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
-        ASSERT_LE(keys2[i], keys2[j]);
-    }
-
-    std::vector<double> keys3;
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        keys3.push_back((double)keys2[i]);
-    }
-
-    cudautils::radixsort(values, keys3);
-
-    for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
-        ASSERT_LE(values[i], values[j]);
-    }
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        ASSERT_EQ((double)keys[i], keys3[i]);
-    }
-}
-
-TEST_F(RadixSortTest, HostSortAndResortTest) {
-    std::vector<uint16_t> keys;
-    std::vector<unsigned int> values;
-
-    const size_t DATA_SIZE = 10000;
-
-    std::mt19937 mt(1);
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        keys.push_back(mt());
-        values.push_back(i);
-    }
-    std::vector<uint16_t> keys2(keys.begin(), keys.end());
-
-    cudautils::radixsort_host(keys2, values);
-
-    for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
-        ASSERT_LE(keys2[i], keys2[j]);
-    }
-
-    std::vector<double> keys3;
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        keys3.push_back((double)keys2[i]);
-    }
-
-    cudautils::radixsort_host(values, keys3);
-
-    for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
-        ASSERT_LE(values[i], values[j]);
-    }
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        ASSERT_EQ((double)keys[i], keys3[i]);
+    float* h_output;
+    h_output = convn((float *) image, channels, height, width, (float *) kernel, kernel_height, kernel_width);
+   
+    for (int batch = 0; batch < batch_size; ++batch) {
+        for (int channel = 0; channel < channels; ++channels) {
+            for (int row = 0; row < height; ++row) {
+                for (int col = 0; col < width; ++col) {
+                    // image[batch][channel][row][col] = std::rand();
+                    ASSERT_EQ(image[batch][channel][row][col], 0.0f);
+                }
+            }
+        }
     }
 }
 
-TEST_F(RadixSortTest, GpuOutOfMemoryTest) {
-    std::vector<unsigned int> keys;
-    std::vector<double> values;
+} // namespace
 
-    const size_t DATA_SIZE = 1024*1024*200;
+    //std::vector<uint16_t> keys;
+    //std::vector<unsigned int> values;
 
-    std::mt19937 mt(1);
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        keys.push_back(mt());
-        values.push_back((double)i);
-    }
+    //const size_t DATA_SIZE = 10000;
 
-    ASSERT_NO_THROW(cudautils::radixsort(keys, values));
+    //std::mt19937 mt(1);
+    //for (size_t i = 0; i < DATA_SIZE; i++) {
+        //keys.push_back(mt());
+        //values.push_back(i);
+    //}
+    //std::vector<uint16_t> keys2(keys.begin(), keys.end());
 
-    keys.resize(DATA_SIZE * 2);
-    values.resize(DATA_SIZE * 2);
+    //cudautils::radixsort(keys2, values);
 
-    for (size_t i = 0; i < DATA_SIZE; i++) {
-        keys.push_back(mt());
-        values.push_back((double)(i + DATA_SIZE));
-    }
+    //for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
+        //ASSERT_LE(keys2[i], keys2[j]);
+    //}
 
-    EXPECT_THROW(cudautils::radixsort(keys, values), std::bad_alloc);
-}
+    //std::vector<double> keys3;
+    //for (size_t i = 0; i < DATA_SIZE; i++) {
+        //keys3.push_back((double)keys2[i]);
+    //}
 
-}
+    //cudautils::radixsort(values, keys3);
 
-
+    //for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
+        //ASSERT_LE(values[i], values[j]);
+    //}
+    //for (size_t i = 0; i < DATA_SIZE; i++) {
+        //ASSERT_EQ((double)keys[i], keys3[i]);
+    //}
