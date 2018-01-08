@@ -5,10 +5,10 @@ HEADERS := -I $(CUDA_ROOT_DIR)/include
 LIBS := -L $(CUDA_ROOT_DIR)/lib64 -L/usr/local/lib
 CXXFLAGS := --gpu-architecture=sm_61 -std=c++11 -O2 -lcudart -lcudnn 
 
-all: convn
+all: convn.o
 
-convn: $(TARGET).cu
-		$(CXX) $(CXXFLAGS) $(HEADERS) $(LIBS) $(TARGET).cu -c -o $(TARGET) 
+convn.o: $(TARGET).cu
+		$(CXX) $(CXXFLAGS) $(HEADERS) $(LIBS) $(TARGET).cu -c -o $(TARGET).o
 
 .phony: clean
 

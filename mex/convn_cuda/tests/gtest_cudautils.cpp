@@ -18,15 +18,15 @@ protected:
 
 TEST_F(ConvnTest, ConvnBasicTest) {
     // process args
-    int batch_size = 1;
-    int channels = 3;
-    int height = 12;
-    int width = 12;
-    int image_bytes = batch_size * channels * height * width * sizeof(float);
+    const int batch_size = 1;
+    const int channels = 11;
+    const int height = 300;
+    const int width = 300;
+    const int image_bytes = batch_size * channels * height * width * sizeof(float);
     std::cout << "Creating image" << std::endl;
     float image[batch_size][channels][height][width];
     for (int batch = 0; batch < batch_size; ++batch) {
-        for (int channel = 0; channel < channels; ++channels) {
+        for (int channel = 0; channel < channels; ++channel) {
             for (int row = 0; row < height; ++row) {
                 for (int col = 0; col < width; ++col) {
                     // image[batch][channel][row][col] = std::rand();
@@ -63,10 +63,10 @@ TEST_F(ConvnTest, ConvnBasicTest) {
     //}
 
     float* h_output;
-    h_output = convn((float *) image, channels, height, width, (float *) kernel, kernel_height, kernel_width);
+    h_output = cudautils::convn((float *) image, channels, height, width, (float *) kernel, kernel_height, kernel_width);
    
     for (int batch = 0; batch < batch_size; ++batch) {
-        for (int channel = 0; channel < channels; ++channels) {
+        for (int channel = 0; channel < channels; ++channel) {
             for (int row = 0; row < height; ++row) {
                 for (int col = 0; col < width; ++col) {
                     // image[batch][channel][row][col] = std::rand();

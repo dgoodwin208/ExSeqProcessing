@@ -4,6 +4,8 @@
 
 #include "convn.h"
 
+namespace cudautils {
+
 #define checkCUDNN(expression)                                     \
     {                                                              \
         cudnnStatus_t status = (expression);                       \
@@ -27,7 +29,7 @@ float* convn(float *image, const int channels, const int height, const int width
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
     checkCUDNN(cudnnSetTensor4dDescriptor(input_descriptor,
-                /*format=*/CUDNN_TENSOR_NCHW,
+                /*format=*/CUDNN_TENSOR_NHWC,
                 /*dataType=*/CUDNN_DATA_FLOAT,
                 /*batch_size=*/batch_size,
                 /*channels=*/channels,
@@ -174,3 +176,5 @@ float* convn(float *image, const int channels, const int height, const int width
 
    return h_output;
 }
+
+} //namespace
