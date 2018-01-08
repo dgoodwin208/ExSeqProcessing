@@ -1,5 +1,5 @@
 function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg_list, ...
-    pool, max_jobs, max_running_jobs, wait_sec, output_num, channels)
+    postfix_list, pool, max_jobs, max_running_jobs, wait_sec, output_num, channels)
 
     success_code = true;
     outputs = {};
@@ -35,14 +35,7 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
 
                 % determine args
                 args = arg_list{job_idx_running};
-                if isequal(func, @calculateDescriptors)
-                    run_num = args{1};
-                    target_idx = args{2};
-                    postfix = [num2str(run_num), '-', num2str(target_idx)];
-                else
-                    run_num = run_num_list(job_idx_running);
-                    postfix = num2str(run_num);
-                end
+                postfix = postfix_list{job_idx_running};
 
                 if strcmp(job.State,'finished')
                     %if isempty(job.Tasks(1).Error) && ~isequal(class(job.Tasks(1).Error), 'ParallelException')
@@ -50,7 +43,7 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                         % batch finished with no error
                         disp(['batch (',num2str(job_idx_running),') has ', job.State,'.']);
                         diary(job, ['./matlab-', prefix, '-', postfix, '.log']);
-                        if isequal(func, @punctafeinder_round) && output_num
+                        if output_num
                             job_output = fetchOutputs(job);
                             centroids_job = job_output{1};
                             for c_idx = 1:channels
@@ -78,8 +71,9 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                     % batch call failed, retry
                     disp(['batch (',num2str(job_idx_running),') has ',job.State,', resubmit it.']);
                     diary(job, ['./matlab-', prefix, '-', postfix, '-failed.log']);
-                    jobs{job_idx_running} = batch(cluster, func, ... 
-                        output_num, args, 'Pool', 2, 'CaptureDiary', true);
+                    jobs{job_idx_running} = recreate(job);
+                    %jobs{job_idx_running} = batch(cluster, func, ... 
+                        %output_num, args, 'Pool', 2, 'CaptureDiary', true);
                 end
             end
             if ~is_finished
