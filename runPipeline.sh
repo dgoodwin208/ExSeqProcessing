@@ -141,7 +141,6 @@ if [ -n "${SEMAPHORE_STATUS}" ]; then
         exit 0
     fi
 fi
-exit 0
 
 ###### check directories
 
