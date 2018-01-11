@@ -19,7 +19,7 @@ protected:
 TEST_F(ConvnTest, ConvnBasicTest) {
     // process args
     const int batch_size = 1;
-    const int channels = 11;
+    const int channels = 3;
     const int height = 300;
     const int width = 300;
     const int image_bytes = batch_size * channels * height * width * sizeof(float);
@@ -37,15 +37,25 @@ TEST_F(ConvnTest, ConvnBasicTest) {
     }
     std::cout << "Image created" << std::endl;
 
+    const int kernel_channels = 3;
     const int kernel_height = 3;
     const int kernel_width = 3;
+    float kernel[kernel_height][kernel_width][kernel_channels];
+    for (int channel = 0; channel < kernel_channels; ++channel) {
+        for (int row = 0; row < kernel_height; ++row) {
+            for (int col = 0; col < kernel_width; ++col) {
+                // image[batch][channel][row][col] = std::rand();
+                kernel[channel][row][col] = 0.0f;
+            }
+        }
+    }
     // toy kernel 
     // clang-format off
-    float kernel[kernel_height][kernel_width] = {
-        {1, 1, 1},
-        {1, -8, 1},
-        {1, 1, 1}
-    };
+    //float kernel[kernel_height][kernel_width] = {
+        //{1, 1, 1},
+        //{1, -8, 1},
+        //{1, 1, 1}
+    //};
     // clang-format on
     std::cout << "Kernel Created" << std::endl;
 
@@ -63,7 +73,7 @@ TEST_F(ConvnTest, ConvnBasicTest) {
     //}
 
     float* h_output;
-    h_output = cudautils::convn((float *) image, channels, height, width, (float *) kernel, kernel_height, kernel_width);
+    h_output = cudautils::convn((float *) image, channels, height, width, (float *) kernel, kernel_channels, kernel_height, kernel_width);
    
     for (int batch = 0; batch < batch_size; ++batch) {
         for (int channel = 0; channel < channels; ++channel) {

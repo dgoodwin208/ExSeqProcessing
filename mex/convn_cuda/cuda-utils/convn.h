@@ -5,7 +5,7 @@
 
 namespace cudautils {
 
-float* convn(float *image, const int channels, const int height, const int width, float *kernel, const int kernel_height, const int kernel_width);
+float* convn(float *image, const int channels, const int height, const int width, float *kernel, const int kernel_channels, const int kernel_height, const int kernel_width);
 
 }
 

@@ -13,4 +13,4 @@ convn.o: $(TARGET).cu
 .phony: clean
 
 clean:
-		rm $(TARGET) || echo -n ""
+		rm $(TARGET).o || echo -n ""
