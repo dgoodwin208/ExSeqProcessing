@@ -1,9 +1,11 @@
 
 fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
-len = 400;
 img = load3DTif_uint16(fn);
-%img_mini = img(1:len, 1:len, :);
+lens = floor(size(img) / 3);
+%img_mini = img(1:lens(1), 1:lens(2), 1:lens(3));
 img_mini = img(:, :, :);
+disp('Testing with size: ')
+size(img_mini)
 
 compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
 
@@ -22,9 +24,15 @@ disp('convnfft')
 tic; img_blur_fft = convnfft(img_mini, h, 'same'); toc;
 %compute_err(img_blur_fft, img_blur)
 
-disp('Custom FFT based matlab implementation')
-tic; img_blur_cust = convn_custom(img_mini, h, false); toc;
-compute_err(img_blur_cust, img_blur_fft)
+disp('convnfft power2flag false')
+options = {};
+options.Power2Flag = false;
+tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
+%compute_err(img_blur_fft, img_blur)
+
+%disp('Custom FFT based matlab implementation')
+%tic; img_blur_cust = convn_custom(img_mini, h, false); toc;
+%compute_err(img_blur_cust, img_blur_fft)
 
 %disp('Custom FFT based matlab implementation power2flag')
 %tic; img_blur_cust_pow2 = convn_custom(img_mini, h, true); toc;
