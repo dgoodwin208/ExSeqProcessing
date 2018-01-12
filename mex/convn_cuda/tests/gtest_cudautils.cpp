@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "convn.h"
+#include "cudnnutils.h"
 
 #include <vector>
 #include <cstdint>
@@ -15,6 +16,66 @@ protected:
     virtual ~ConvnTest() {
     }
 };
+
+//Generate uniform numbers [0,1)
+static void initImage(float* image, int imageSize) {
+    static unsigned seed = 123456789;
+    for (int index = 0; index < imageSize; index++) {
+        seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;
+        image[index] = float(seed)*2.3283064e-10; //2^-32
+    }
+}
+
+static void generateStrides(const int* dimA, int* strideA, int nbDims, bool isNchw) {
+    if (isNchw) {
+        strideA[nbDims-1] = 1 ;
+        for(int d = nbDims-2 ; d >= 0 ; d--) {
+            strideA[d] = strideA[d+1] * dimA[d+1] ;
+        }
+    } else {
+        strideA[1] = 1;
+        strideA[nbDims-1] = strideA[1]*dimA[1];
+        for(int d = nbDims-2 ; d >= 2 ; d--) {
+            strideA[d] = strideA[d+1] * dimA[d+1] ;
+        }
+        strideA[0] = strideA[2]*dimA[2];
+    }
+}
+
+TEST_F(ConvnTest, ConvnSampleTest) {
+
+    // generate params
+    int algo = 0;
+    int benchmark = 0;
+    int dimA[] = {1, 8, 32, 32};
+    int filterdimA[] = {8, 8, 3, 3};
+    int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2]*filterdimA[3];
+
+    int strideA[] = {8192, 1024, 32, 1};
+    int nbDims = 4;
+    bool isNchw = true;
+    generateStrides(dimA, strideA, nbDims, isNchw);
+    int insize = strideA[0]*dimA[0];
+    
+    int outdimA[] = {1, 8, 30, 30};
+    outdimA[0] = dimA[0];
+    int outstrideA[] = {7200, 900, 30, 1};
+    int outsize = outstrideA[0]*outdimA[0];
+
+    // Create a random filter and image
+    float* hostI;
+    float* hostF;
+    float* hostO;
+
+    hostI = (float*)calloc (insize, sizeof(hostI[0]) );
+    hostF = (float*)calloc (filtersize, sizeof(hostF[0]) );
+    hostO = (float*)calloc (outsize, sizeof(hostO[0]) );
+
+    initImage(hostI, insize);
+    initImage(hostF, filtersize);
+
+    cudnnutils::conv_handler(hostI, hostF, hostO, algo, dimA, filterdimA, benchmark);
+}
 
 TEST_F(ConvnTest, ConvnBasicTest) {
     // process args

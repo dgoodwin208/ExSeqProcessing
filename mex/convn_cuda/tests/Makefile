@@ -16,6 +16,7 @@ SPDLOG_DIR = ../../include
 
 UTILS_DIR = ../utils
 CUDAUTILS_DIR = ../cuda-utils
+CUDNNUTILS_DIR = ../cudnn-utils
 
 TESTS = gtest_utils gtest_cudautils 
 
@@ -36,7 +37,7 @@ gtest_utils : gtest_utils.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread $^ -o $@ -L$(UTILS_DIR) -lutils
 
 gtest_cudautils.o : gtest_cudautils.cpp $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils.cpp
+	$(CXX) $(CPPFLAGS) -I$(CUDNNUTILS_DIR) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils.cpp
 
-gtest_cudautils : $(CUDAUTILS_DIR)/convn.o gtest_cudautils.o
+gtest_cudautils : $(CUDAUTILS_DIR)/convn.o $(CUDNNUTILS_DIR)/conv_sample.o gtest_cudautils.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ -L$(CUDA_LIB) -lcudnn -lcudart -ltbb

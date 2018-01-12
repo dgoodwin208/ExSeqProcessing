@@ -23,8 +23,12 @@ lib-cuda-utils:
 lib-tests:
 	make -C tests
 
+lib-cudnn-utils:
+	make -C cudnn-utils
+
 clean:
 	-rm *.mexa64 *.o
 	@make -C tests clean
 	@make -C cuda-utils clean
+	@make -C cudnn-utils clean
 

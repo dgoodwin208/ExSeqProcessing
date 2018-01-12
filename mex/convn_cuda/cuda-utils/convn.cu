@@ -28,13 +28,19 @@ float* convn(float *image, const int channels, const int height, const int width
     // define input tensor
     cudnnTensorDescriptor_t input_descriptor;
     checkCUDNN(cudnnCreateTensorDescriptor(&input_descriptor));
+    /*checkCUDNN(cudnnSetTensorNdDescriptor(input_descriptor,*/
+                /*dataType=CUDNN_DATA_FLOAT,*/
+                /*batch_size=batch_size,*/
+                /*channels=channels,*/
+                /*image_height=height,*/
+                /*image_width=width));*/
     checkCUDNN(cudnnSetTensor4dDescriptor(input_descriptor,
-                /*format=*/CUDNN_TENSOR_NCHW,
-                /*dataType=*/CUDNN_DATA_FLOAT,
-                /*batch_size=*/batch_size,
-                /*channels=*/channels,
-                /*image_height=*/height,
-                /*image_width=*/width));
+                CUDNN_TENSOR_NCHW,
+                CUDNN_DATA_FLOAT,
+                batch_size,
+                channels,
+                height,
+                width));
 
     /*Real code*/
     cudnnFilterDescriptor_t kernel_descriptor;
