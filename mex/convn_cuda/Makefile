@@ -24,7 +24,7 @@ lib-tests:
 	make -C tests
 
 lib-cudnn-utils:
-	make -C cudnn-utils
+	make -C cudnn-utils libcudnnutils.a
 
 clean:
 	-rm *.mexa64 *.o

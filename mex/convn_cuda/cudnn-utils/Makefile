@@ -185,6 +185,7 @@ endif
 #all: build
 
 #build: conv_sample
+.SUFFIXES: .a
 
 check.deps:
 ifeq ($(SAMPLE_ENABLED),0)
@@ -217,7 +218,6 @@ libcudnnutils.a: $(OBJ)
 
 clean:
 	rm -rf *o
-	rm -rf conv_sample
 	rm -rf *a
 
 clobber: clean
