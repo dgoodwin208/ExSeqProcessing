@@ -63,13 +63,13 @@ TEST_F(ConvnTest, ConvnSampleTest) {
     int outsize = outstrideA[0]*outdimA[0];
 
     // Create a random filter and image
-    float* hostI;
-    float* hostF;
-    float* hostO;
+    double* hostI;
+    double* hostF;
+    double* hostO;
 
-    hostI = (float*)calloc (insize, sizeof(hostI[0]) );
-    hostF = (float*)calloc (filtersize, sizeof(hostF[0]) );
-    hostO = (float*)calloc (outsize, sizeof(hostO[0]) );
+    hostI = (double*)calloc (insize, sizeof(hostI[0]) );
+    hostF = (double*)calloc (filtersize, sizeof(hostF[0]) );
+    hostO = (double*)calloc (outsize, sizeof(hostO[0]) );
 
     initImage(hostI, insize);
     initImage(hostF, filtersize);
@@ -149,35 +149,3 @@ TEST_F(ConvnTest, ConvnBasicTest) {
 }
 
 } // namespace
-
-    //std::vector<uint16_t> keys;
-    //std::vector<unsigned int> values;
-
-    //const size_t DATA_SIZE = 10000;
-
-    //std::mt19937 mt(1);
-    //for (size_t i = 0; i < DATA_SIZE; i++) {
-        //keys.push_back(mt());
-        //values.push_back(i);
-    //}
-    //std::vector<uint16_t> keys2(keys.begin(), keys.end());
-
-    //cudautils::radixsort(keys2, values);
-
-    //for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
-        //ASSERT_LE(keys2[i], keys2[j]);
-    //}
-
-    //std::vector<double> keys3;
-    //for (size_t i = 0; i < DATA_SIZE; i++) {
-        //keys3.push_back((double)keys2[i]);
-    //}
-
-    //cudautils::radixsort(values, keys3);
-
-    //for (size_t i = 0, j = 1; i < DATA_SIZE - 1; i++, j++) {
-        //ASSERT_LE(values[i], values[j]);
-    //}
-    //for (size_t i = 0; i < DATA_SIZE; i++) {
-        //ASSERT_EQ((double)keys[i], keys3[i]);
-    //}

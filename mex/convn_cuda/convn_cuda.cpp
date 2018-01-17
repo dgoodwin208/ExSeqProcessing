@@ -1,5 +1,5 @@
 #include "mex.h"
-#include "cuda-utils/convn.h"
+#include "cudnn-utils/conv_sample.h"
 
 /*
  * Host code
@@ -33,20 +33,29 @@ void mexFunction(int nlhs, mxArray *plhs[],
         mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
     }
 
-    /* create a pointer to the real data in the input array  */
-    inArray1 = mxGetPr(prhs[0]);
-    inArray2 = mxGetPr(prhs[1]);
+    // Handle image and filter array sizes
+    const size_t *image_size;
+    image_size = mxGetDimensions(prhs[0]);
+    printf("image size: %d, %d, %d", image_size[0], image_size[1], image_size[2]);
 
-    /* get dimensions of the input array */
-    mrows1 = mxGetM(prhs[0]);
-    ncols1 = mxGetN(prhs[0]);
+    const size_t *filter_size;
+    filter_size = mxGetDimensions(prhs[0]);
+    printf("filter size: %d, %d", filter_size[0], filter_size[1]);
+
+    /* create a pointer to the real data in the input array  */
+    //inArray1 = mxGetPr(prhs[0]);
+    //inArray2 = mxGetPr(prhs[1]);
+
+    //[> get dimensions of the input array <]
+    //mrows1 = mxGetM(prhs[0]);
+    //ncols1 = mxGetN(prhs[0]);
     //if (ncols1 != 1) {
     //    mexErrMsgIdAndTxt("parallel:gpu:radixsort:InvalidInput","Input array must be M x 1.");
     //}
-    inArraySize = mrows1;
+    //inArraySize = mrows1;
 
-    mrows2 = mxGetM(prhs[1]);
-    ncols2 = mxGetN(prhs[1]);
+    //mrows2 = mxGetM(prhs[1]);
+    //ncols2 = mxGetN(prhs[1]);
     /*
     if (ncols2 != 1) {
         mexErrMsgIdAndTxt("parallel:gpu:radixsort:InvalidInput","Input array must be M x 1.");
@@ -58,7 +67,12 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
 
+    // generate params
+    int algo = 0; // forward convolve
+    int benchmark = 0;
     outArray = mxGetPr(plhs[0]);
-    //cudnnutils::conv_handler(hostI, hostF, hostO, algo, dimA, filterdimA, benchmark);
+    double *image = mxGetPr(plhs[0]);
+    double *filter = mxGetPr(plhs[1]);
+    cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
 
