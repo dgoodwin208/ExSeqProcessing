@@ -17,22 +17,21 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     /* Check for proper number of input and output arguments */    
     if (nrhs != 2) {
-        mexErrMsgIdAndTxt( "parallel:gpu:radixsort:InvalidInput","Two input arguments required.");
+        mexErrMsgIdAndTxt( "convn_cuda:InvalidInput","Two input arguments required.");
     } 
     if (nlhs > 1){
-        mexErrMsgIdAndTxt( "parallel:gpu:radixsort:InvalidOutput","Many output arguments.");
+        mexErrMsgIdAndTxt( "convn_cuda:InvalidOutput","Only 0 or 1 output arguments.");
     }
 
     /* make sure input array arguments are type double */
     if ( !mxIsDouble(prhs[0]) || 
           mxIsComplex(prhs[0])) {
-        mexErrMsgIdAndTxt("parallel:gpu:radixsort:InvalidInput","Input array must be type double.");
+        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
     }
     if ( !mxIsDouble(prhs[1]) || 
           mxIsComplex(prhs[1])) {
-        mexErrMsgIdAndTxt("parallel:gpu:radixsort:InvalidInput","Input array must be type double.");
+        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
     }
-
 
     /* create a pointer to the real data in the input array  */
     inArray1 = mxGetPr(prhs[0]);
@@ -60,5 +59,6 @@ void mexFunction(int nlhs, mxArray *plhs[],
     plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
 
     outArray = mxGetPr(plhs[0]);
+    //cudnnutils::conv_handler(hostI, hostF, hostO, algo, dimA, filterdimA, benchmark);
 }
 

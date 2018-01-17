@@ -77,6 +77,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/sysinfo.h>
+#include "conv_sample.h"
 
 namespace cudnnutils {
 
@@ -1243,8 +1244,7 @@ int main( int argc, char** argv )
 }
 
 //custom
-template <typename T_ELEM>
-int conv_handler(T_ELEM* hostI, T_ELEM* hostF, T_ELEM* hostO, int algo, int* dimA, int* filterdimA, int benchmark) {
+int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* dimA, int* filterdimA, int benchmark) {
 
     // generate params
     int mathType = 0;
@@ -1252,7 +1252,7 @@ int conv_handler(T_ELEM* hostI, T_ELEM* hostF, T_ELEM* hostO, int algo, int* dim
     int padA[] = {0, 0};
     int convstrideA[] = {1, 1};
 
-    cudnnTensorFormat_t  filterFormat = CUDNN_TENSOR_NCHW;  
+    cudnnTensorFormat_t filterFormat = CUDNN_TENSOR_NCHW;  
 
     int error = 0;
     int dilationA[] = {1, 1};

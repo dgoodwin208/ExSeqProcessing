@@ -202,12 +202,13 @@ OBJ = fp16_dev.o fp16_emu.o conv_sample.o
 all: libcudnnutils.a
 
 libcudnnutils.a: $(OBJ)
-	ar crs $@ $^
+	ar crs $@ $^ 
+
 
 #conv_sample: $(OBJ)
 	#$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 
-%.o: %.cpp
+%.o: %.cpp 
 	$(EXEC) $(HOST_COMPILER) $(INCLUDES) $(CCFLAGS) $(EXTRA_CCFLAGS) -o $@ -c $<
 
 %.o: %.cu

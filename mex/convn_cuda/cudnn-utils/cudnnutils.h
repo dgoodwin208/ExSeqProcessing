@@ -4,8 +4,7 @@
 
 namespace cudnnutils {
 
-template <typename T_ELEM>
-int conv_handler(T_ELEM* hostI, T_ELEM* hostF, T_ELEM* hostO, int algo, int* dimA, int* filterdimA, int benchmark);
+int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* dimA, int* filterdimA, int benchmark);
 
 }
 
