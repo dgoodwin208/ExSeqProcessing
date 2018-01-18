@@ -63,18 +63,21 @@ TEST_F(ConvnTest, ConvnSampleTest) {
     int outsize = outstrideA[0]*outdimA[0];
 
     // Create a random filter and image
-    double* hostI;
-    double* hostF;
-    double* hostO;
+    float* hostI;
+    float* hostF;
+    float* hostO;
 
-    hostI = (double*)calloc (insize, sizeof(hostI[0]) );
-    hostF = (double*)calloc (filtersize, sizeof(hostF[0]) );
-    hostO = (double*)calloc (outsize, sizeof(hostO[0]) );
+    hostI = (float*)calloc (insize, sizeof(hostI[0]) );
+    hostF = (float*)calloc (filtersize, sizeof(hostF[0]) );
+    hostO = (float*)calloc (outsize, sizeof(hostO[0]) );
 
+    // Create two random images
     initImage(hostI, insize);
     initImage(hostF, filtersize);
 
     cudnnutils::conv_handler(hostI, hostF, hostO, algo, dimA, filterdimA, benchmark);
+
+    //TODO test the convolution output hostO
 }
 
 TEST_F(ConvnTest, ConvnBasicTest) {

@@ -1224,27 +1224,27 @@ int main( int argc, char** argv )
 
     printf("Testing single precision\n");
 
-    double* hostI;
-    double* hostF;
-    double* hostO;
+    float* hostI;
+    float* hostF;
+    float* hostO;
 
-    hostI = (double*)calloc (insize, sizeof(hostI[0]) );
-    hostF = (double*)calloc (filtersize, sizeof(hostF[0]) );
-    hostO = (double*)calloc (outsize, sizeof(hostO[0]) );
+    hostI = (float*)calloc (insize, sizeof(hostI[0]) );
+    hostF = (float*)calloc (filtersize, sizeof(hostF[0]) );
+    hostO = (float*)calloc (outsize, sizeof(hostO[0]) );
 
     initImage(hostI, insize);
     initImage(hostF, filtersize);
 
-    conv<double>(hostI, hostF, hostO, algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
-    //doTest<double>(algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
+    conv(hostI, hostF, hostO, algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
+    //doTest(algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
     //printf("Testing half precision (math in single precision)\n");
-    //doTest<half1>(algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
+    //doTest(algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
 
     return 0;
 }
 
 //custom
-int conv_handler(double* hostI, double* hostF, double* hostO, int algo, int* dimA, int* filterdimA, int benchmark) {
+int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* dimA, int* filterdimA, int benchmark) {
 
     // generate params
     int mathType = 0;

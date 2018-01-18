@@ -10,7 +10,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     /* Declare all variables.*/
     double *inArray1;
     double *inArray2;
-    double *outArray;
+    float *outArray;
     size_t mrows1, ncols1;
     size_t mrows2, ncols2;
     size_t inArraySize;
@@ -34,12 +34,15 @@ void mexFunction(int nlhs, mxArray *plhs[],
     }
 
     // Handle image and filter array sizes
-    const size_t *image_size;
-    image_size = mxGetDimensions(prhs[0]);
+    int *image_size;
+    const mwSize image_dims = mxGetNumberOfDimensions(prhs[0]);
+    image_size = (int *) mxGetDimensions(prhs[0]);
     printf("image size: %d, %d, %d", image_size[0], image_size[1], image_size[2]);
 
-    const size_t *filter_size;
-    filter_size = mxGetDimensions(prhs[0]);
+    //const size_t *filter_size;
+    int *filter_size;
+    const mwSize filter_dims = mxGetNumberOfDimensions(prhs[0]);
+    filter_size = (int *) mxGetDimensions(prhs[0]);
     printf("filter size: %d, %d", filter_size[0], filter_size[1]);
 
     /* create a pointer to the real data in the input array  */
@@ -65,14 +68,18 @@ void mexFunction(int nlhs, mxArray *plhs[],
     }
     */
 
-    plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
+    //plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
+    plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
+    plhs[1] = mxCreateNumericArray(filter_dims, (mwSize* ) filter_size, mxSINGLE_CLASS, mxREAL);
+    outArray = (float *) mxGetData(mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL));
 
     // generate params
     int algo = 0; // forward convolve
     int benchmark = 0;
-    outArray = mxGetPr(plhs[0]);
-    double *image = mxGetPr(plhs[0]);
-    double *filter = mxGetPr(plhs[1]);
-    cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
+    //float *image = mxGetPr(plhs[0]);
+    //float *filter = mxGetPr(plhs[1]);
+    float *image = (float *) mxGetData(plhs[0]);
+    float *filter = (float *) mxGetData(plhs[1]);
+    cudnnutils::conv_handler(image, filter, outArray, algo, image_size, (int *) filter_size, benchmark);
 }
 

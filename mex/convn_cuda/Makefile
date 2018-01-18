@@ -11,10 +11,10 @@ CUDNN_DIR=cudnn-utils
 all: $(TARGET)
 
 convn_cuda.mexa64: $(OBJS) $(CUDNN_DIR)/libcudnnutils.a
-	mex -outdir ../ -output $@ $(OBJS) $(CUDNN_DIR)/libcudnnutils.a -lmwgpu -L$(CUDA_LIB) -lcudart -ltbb
+	mex -compatibleArrayDims -outdir ../ -output $@ $(OBJS) $(CUDNN_DIR)/libcudnnutils.a -lmwgpu -L$(CUDA_LIB) -lcudart -ltbb -lcudnn
 
 .cpp.o: $(SOURCES)
-	mex -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUDNN_DIR)
+	mex -compatibleArrayDims -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUDNN_DIR)
 
 lib-cuda-utils:
 	make -C cuda-utils
