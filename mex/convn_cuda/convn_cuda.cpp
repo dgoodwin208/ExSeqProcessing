@@ -37,13 +37,13 @@ void mexFunction(int nlhs, mxArray *plhs[],
     int *image_size;
     const mwSize image_dims = mxGetNumberOfDimensions(prhs[0]);
     image_size = (int *) mxGetDimensions(prhs[0]);
-    printf("image size: %d, %d, %d", image_size[0], image_size[1], image_size[2]);
+    printf("image size: %d, %d, %d\n", image_size[0], image_size[1], image_size[2]);
 
     //const size_t *filter_size;
     int *filter_size;
-    const mwSize filter_dims = mxGetNumberOfDimensions(prhs[0]);
-    filter_size = (int *) mxGetDimensions(prhs[0]);
-    printf("filter size: %d, %d", filter_size[0], filter_size[1]);
+    const mwSize filter_dims = mxGetNumberOfDimensions(prhs[1]);
+    filter_size = (int *) mxGetDimensions(prhs[1]);
+    printf("filter size: %d, %d, %d\n", filter_size[0], filter_size[1], filter_size[2]);
 
     /* create a pointer to the real data in the input array  */
     //inArray1 = mxGetPr(prhs[0]);
@@ -80,6 +80,6 @@ void mexFunction(int nlhs, mxArray *plhs[],
     //float *filter = mxGetPr(plhs[1]);
     float *image = (float *) mxGetData(plhs[0]);
     float *filter = (float *) mxGetData(plhs[1]);
-    cudnnutils::conv_handler(image, filter, outArray, algo, image_size, (int *) filter_size, benchmark);
+    cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
 

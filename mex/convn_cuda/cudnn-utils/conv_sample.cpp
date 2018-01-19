@@ -790,13 +790,11 @@ int conv(T_ELEM* hostI, T_ELEM* hostF, T_ELEM* hostO, int algo, int* dimA, int* 
     cudaMalloc ((void**)&(devPtrI), (insize) * sizeof(devPtrI[0]) );
     cudaMalloc ((void**)&(devPtrF), (filtersize) * sizeof(devPtrF[0]) );
     cudaMalloc ((void**)&(devPtrO), (outsize) * sizeof(devPtrO[0]) );
-    //hostI = (T_ELEM*)calloc (insize, sizeof(hostI[0]) );
-    //hostF = (T_ELEM*)calloc (filtersize, sizeof(hostF[0]) );
-    //hostO = (T_ELEM*)calloc (outsize, sizeof(hostO[0]) );
 
-    //initImage(hostI, insize);
-    //initImage(hostF, filtersize);
-    //initImage(hostO, outsize);
+    //printf("sizeof hostI[0]: %zu\n", sizeof(hostI[0]));
+    printf("Handler: stride[0]: %d\n", strideA[0]);
+    printf("Handler: dimA[0]: %d\n", dimA[0]);
+    printf("insize: %d\n", insize);
 
     checkCudaErr( cudaMemcpy(devPtrI, hostI, sizeof(hostI[0]) * insize, cudaMemcpyHostToDevice));
     checkCudaErr( cudaMemcpy(devPtrF, hostF, sizeof(hostF[0]) * filtersize, cudaMemcpyHostToDevice));
@@ -1248,37 +1246,31 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* dimA, 
 
     // generate params
     int mathType = 0;
-
+    cudnnTensorFormat_t filterFormat = CUDNN_TENSOR_NCHW;  
     int padA[] = {0, 0};
     int convstrideA[] = {1, 1};
-
-    cudnnTensorFormat_t filterFormat = CUDNN_TENSOR_NCHW;  
-
-    int error = 0;
     int dilationA[] = {1, 1};
  
-    int strideA[] = {8192, 1024, 32, 1};
-    generateStrides(dimA, strideA, 4, (filterFormat == CUDNN_TENSOR_NCHW));
-    int insize = strideA[0]*dimA[0];
+    //int strideA[] = {8192, 1024, 32, 1};
+    //generateStrides(dimA, strideA, 4, (filterFormat == CUDNN_TENSOR_NCHW));
+    //int insize = strideA[0]*dimA[0];
+    //int insize = dimA[0] * dimA[1] * dimA[2];
+    //printf("Handler: stride[0]: %d\n", strideA[0]);
+    //printf("Handler: dimA[0]: %d\n", dimA[0]);
+    //printf("Handler: insize: %d\n", insize);
 
-    int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2]*filterdimA[3];
-    
-    int outdimA[] = {1, 8, 30, 30};
-    outdimA[0] = dimA[0];
-    outdimA[1] = filterdimA[0];
-    for( int dim = 0; dim < 2; dim++) {
-        outdimA[dim+2] = getFwdConvOutputDim( dimA[dim+2],
-                                          padA[dim],
-                                          filterdimA[dim+2],
-                                          convstrideA[dim],
-                                          dilationA[dim]);
-    }
+    //int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2]*filterdimA[3];
+    //int outdimA[] = {1, 8, 30, 30};
+    //outdimA[0] = dimA[0];
+    //outdimA[1] = filterdimA[0];
+    //for( int dim = 0; dim < 2; dim++) {
+        //outdimA[dim+2] = getFwdConvOutputDim( dimA[dim+2],
+                                          //padA[dim],
+                                          //filterdimA[dim+2],
+                                          //convstrideA[dim],
+                                          //dilationA[dim]);
+    //}
 
-    int outstrideA[] = {7200, 900, 30, 1};
-    generateStrides(outdimA, outstrideA, 4, (filterFormat == CUDNN_TENSOR_NCHW));
-    int outsize = outstrideA[0]*outdimA[0];
-
-    printf("Testing single precision\n");
 
     conv(hostI, hostF, hostO, algo, dimA, padA, convstrideA, filterdimA, filterFormat, mathType, benchmark);
 
