@@ -159,13 +159,18 @@ function registerWithDescriptors(moving_run)
                     :);
                 tilesize_fixed = size(tile_img_fixed_nopadding);
                 
-                ymin_fixed = floor(max(tile_upperleft_y_fixed(y_idx)-(params.OVERLAP/2)*tilesize_fixed(1),1));
-                ymax_fixed = floor(min(tile_upperleft_y_fixed(y_idx+1)+(params.OVERLAP/2)*tilesize_fixed(1),size(imgFixed_total,1)));
-                xmin_fixed = floor(max(tile_upperleft_x_fixed(x_idx)-(params.OVERLAP/2)*tilesize_fixed(2),1));
-                xmax_fixed = floor(min(tile_upperleft_x_fixed(x_idx+1)+(params.OVERLAP/2)*tilesize_fixed(2),size(imgFixed_total,2)));
+                ymin_fixed = tile_upperleft_y_fixed(y_idx);
+                ymax_fixed = tile_upperleft_y_fixed(y_idx+1);
+                xmin_fixed = tile_upperleft_x_fixed(x_idx);
+                xmax_fixed = tile_upperleft_x_fixed(x_idx+1);
+
+                ymin_fixed_overlap = floor(max(tile_upperleft_y_fixed(y_idx)-(params.OVERLAP/2)*tilesize_fixed(1),1));
+                ymax_fixed_overlap = floor(min(tile_upperleft_y_fixed(y_idx+1)+(params.OVERLAP/2)*tilesize_fixed(1),size(imgFixed_total,1)));
+                xmin_fixed_overlap = floor(max(tile_upperleft_x_fixed(x_idx)-(params.OVERLAP/2)*tilesize_fixed(2),1));
+                xmax_fixed_overlap = floor(min(tile_upperleft_x_fixed(x_idx+1)+(params.OVERLAP/2)*tilesize_fixed(2),size(imgFixed_total,2)));
                 
                 clear tile_img_fixed_nopadding;
-                tile_img_fixed = imgFixed_total(ymin_fixed:ymax_fixed, xmin_fixed:xmax_fixed,:);
+                tile_img_fixed = imgFixed_total(ymin_fixed_overlap:ymax_fixed_overlap, xmin_fixed_overlap:xmax_fixed_overlap,:);
                 
                 if checkIfTileEmpty(tile_img_fixed,params.EMPTY_TILE_THRESHOLD)
                     disp('Sees the moving tile to be empty');
