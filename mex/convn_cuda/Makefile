@@ -1,4 +1,4 @@
-TARGET=lib-cuda-utils lib-cudnn-utils lib-tests convn_cuda.mexa64
+TARGET=lib-cuda-utils lib-cudnn-utils convn_cuda.mexa64 # lib-tests 
 
 SOURCES := $(wildcard convn_cuda.cpp)
 OBJS := $(SOURCES:.cpp=.o)
@@ -11,7 +11,7 @@ CUDNN_DIR=cudnn-utils
 all: $(TARGET)
 
 convn_cuda.mexa64: $(OBJS) $(CUDNN_DIR)/libcudnnutils.a
-	mex -compatibleArrayDims -outdir ../ -output $@ $(OBJS) $(CUDNN_DIR)/libcudnnutils.a -lmwgpu -L$(CUDA_LIB) -lcudart -ltbb -lcudnn
+	mex -compatibleArrayDims -outdir ../ -output $@ $(OBJS) $(CUDNN_DIR)/libcudnnutils.a -lmwgpu -L$(CUDA_LIB) -lcudart -lcudnn #-ltbb 
 
 .cpp.o: $(SOURCES)
 	mex -compatibleArrayDims -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUDNN_DIR)
@@ -22,11 +22,12 @@ lib-cuda-utils:
 lib-cudnn-utils:
 	make -C cudnn-utils libcudnnutils.a
 
-lib-tests:
-	make -C tests
+#lib-tests:
+	#make -C tests
 
 clean:
 	-rm *.mexa64 *.o
+	-rm ../convn_cuda.mexa64
 	@make -C tests clean
 	@make -C cuda-utils clean
 	@make -C cudnn-utils clean

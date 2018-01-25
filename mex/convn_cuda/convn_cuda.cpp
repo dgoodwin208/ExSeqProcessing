@@ -69,17 +69,17 @@ void mexFunction(int nlhs, mxArray *plhs[],
     */
 
     //plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
-    plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
-    plhs[1] = mxCreateNumericArray(filter_dims, (mwSize* ) filter_size, mxSINGLE_CLASS, mxREAL);
+    //plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
+    //plhs[1] = mxCreateNumericArray(filter_dims, (mwSize* ) filter_size, mxSINGLE_CLASS, mxREAL);
     outArray = (float *) mxGetData(mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL));
 
     // generate params
     int algo = 0; // forward convolve
-    int benchmark = 0;
+    int benchmark = 0; //time it
     //float *image = mxGetPr(plhs[0]);
     //float *filter = mxGetPr(plhs[1]);
-    float *image = (float *) mxGetData(plhs[0]);
-    float *filter = (float *) mxGetData(plhs[1]);
+    float *image = (float *) mxGetData(prhs[0]);
+    float *filter = (float *) mxGetData(prhs[1]);
     cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
 
