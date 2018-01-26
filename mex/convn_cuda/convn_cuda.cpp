@@ -23,15 +23,15 @@ void mexFunction(int nlhs, mxArray *plhs[],
         mexErrMsgIdAndTxt( "convn_cuda:InvalidOutput","Only 0 or 1 output arguments.");
     }
 
-    /* make sure input array arguments are type double */
-    if ( !mxIsDouble(prhs[0]) || 
-          mxIsComplex(prhs[0])) {
-        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
-    }
-    if ( !mxIsDouble(prhs[1]) || 
-          mxIsComplex(prhs[1])) {
-        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
-    }
+    //[> make sure input array arguments are type double <]
+    //if ( !mxIsDouble(prhs[0]) || 
+          //mxIsComplex(prhs[0])) {
+        //mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
+    //}
+    //if ( !mxIsDouble(prhs[1]) || 
+          //mxIsComplex(prhs[1])) {
+        //mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type double.");
+    //}
 
     // Handle image and filter array sizes
     int *image_size;
@@ -45,20 +45,11 @@ void mexFunction(int nlhs, mxArray *plhs[],
     filter_size = (int *) mxGetDimensions(prhs[1]);
     printf("filter size: %d, %d, %d\n", filter_size[0], filter_size[1], filter_size[2]);
 
-    /* create a pointer to the real data in the input array  */
-    //inArray1 = mxGetPr(prhs[0]);
-    //inArray2 = mxGetPr(prhs[1]);
-
-    //[> get dimensions of the input array <]
-    //mrows1 = mxGetM(prhs[0]);
-    //ncols1 = mxGetN(prhs[0]);
     //if (ncols1 != 1) {
     //    mexErrMsgIdAndTxt("parallel:gpu:radixsort:InvalidInput","Input array must be M x 1.");
     //}
     //inArraySize = mrows1;
 
-    //mrows2 = mxGetM(prhs[1]);
-    //ncols2 = mxGetN(prhs[1]);
     /*
     if (ncols2 != 1) {
         mexErrMsgIdAndTxt("parallel:gpu:radixsort:InvalidInput","Input array must be M x 1.");
@@ -69,17 +60,19 @@ void mexFunction(int nlhs, mxArray *plhs[],
     */
 
     //plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
-    //plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
     //plhs[1] = mxCreateNumericArray(filter_dims, (mwSize* ) filter_size, mxSINGLE_CLASS, mxREAL);
-    outArray = (float *) mxGetData(mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL));
+    // return pointer to n-d numeric array
+    plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
+    //outArray = (float *) mxGetData(mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL));
+    // FIXME this probably doesn't work
+    outArray = (float *) mxGetData(plhs[0]);
 
     // generate params
     int algo = 0; // forward convolve
     int benchmark = 0; //time it
-    //float *image = mxGetPr(plhs[0]);
-    //float *filter = mxGetPr(plhs[1]);
-    float *image = (float *) mxGetData(prhs[0]);
-    float *filter = (float *) mxGetData(prhs[1]);
+    /* create a pointer to the real data in the input array,  */
+    float *image = (float *) mxGetData(prhs[0]); // GetData returns type void *
+    float *filter = (float *) mxGetData(prhs[1]); // GetData returns type void *
     cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
 

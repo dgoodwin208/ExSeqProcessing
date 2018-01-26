@@ -13,6 +13,10 @@ all: $(TARGET)
 convn_cuda.mexa64: $(OBJS) $(CUDNN_DIR)/libcudnnutils.a
 	mex -compatibleArrayDims -outdir ../ -output $@ $(OBJS) $(CUDNN_DIR)/libcudnnutils.a -lmwgpu -L$(CUDA_LIB) -lcudart -lcudnn #-ltbb 
 
+convn_cuda.mexa64: convn_cuda.cpp
+	mex -compatibleArrayDims -outdir ../ -output $@ $(OBJS) $(CUDNN_DIR)/libcudnnutils.a -lmwgpu -L$(CUDA_LIB) -lcudart -lcudnn #-ltbb 
+
+
 .cpp.o: $(SOURCES)
 	mex -compatibleArrayDims -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUDNN_DIR)
 

@@ -6,7 +6,10 @@ disp('Testing with size: ')
 
 compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
 
-h = fspecial3('gaussian', 20);
+h = fspecial3('gaussian', 10);
+tic; disp('convert to single'); img_mini = single(img_mini); h = single(h); toc;
+
+%tic; disp('convert to single'); img_mini = single(img_mini); h = single(h); toc;
 
 %disp('Built-in convn')
 %if exist('img_blur.mat')
@@ -21,28 +24,6 @@ h = fspecial3('gaussian', 20);
 %tic; img_blur_fft = convnfft(img_mini, h, 'same'); toc;
 %compute_err(img_blur_fft, img_blur)
 
-%disp('img size');
-%size(img_mini)
-%disp('filter size');
-%size(h)
-%disp('convn cuda implementation')
-%tic; img_blur_cuda = convn_cuda(img_mini, h); toc;
-%%compute_err(img_blur_fft, img_blur)
-
-%disp('convnfft power2flag false')
-%options = {};
-%options.Power2Flag = false;
-%tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
-%size(img_blur_fft)
-%compute_err(img_blur_fft, img_blur)
-
-
-% Test with the batch size convolve
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-lens = floor(size(img) / 3);
-img_mini = img(1:lens(1), 1:lens(2), 1:lens(3));
-
 disp('img size');
 size(img_mini)
 disp('filter size');
@@ -55,6 +36,27 @@ disp('convnfft power2flag false')
 options = {};
 options.Power2Flag = false;
 tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
+%size(img_blur_fft)
+%compute_err(img_blur_fft, img_blur)
+
+
+% Test with the batch size convolve
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+lens = floor(size(img) / 3);
+img_mini = img(1:lens(1), 1:lens(2), 1:lens(3));
+disp('img size'); size(img_mini)
+disp('filter size'); size(h)
+
+disp('convnfft power2flag false')
+options = {};
+options.Power2Flag = false;
+tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
+
+disp('convn cuda implementation')
+tic; img_blur_cuda = convn_cuda(img_mini, h); toc;
+%size(img_blur_cuda);
+%compute_err(img_blur_fft, img_blur_cuda)
 
 %compute_err(img_blur_fft, img_blur)
 %disp('Custom FFT based matlab implementation')
