@@ -71,9 +71,9 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                     % batch call failed, retry
                     disp(['batch (',num2str(job_idx_running),') has ',job.State,', resubmit it.']);
                     diary(job, ['./matlab-', prefix, '-', postfix, '-failed.log']);
-                    jobs{job_idx_running} = recreate(job);
-                    %jobs{job_idx_running} = batch(cluster, func, ... 
-                        %output_num, args, 'Pool', 2, 'CaptureDiary', true);
+                    %jobs{job_idx_running} = recreate(job);
+                    jobs{job_idx_running} = batch(cluster, func, ... 
+                        output_num, args, 'Pool', 2, 'CaptureDiary', true);
                 end
             end
             if ~is_finished
