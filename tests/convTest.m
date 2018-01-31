@@ -1,15 +1,14 @@
 
 fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
 img = load3DTif_uint16(fn);
-img_mini = img(:, :, :);
-disp('Testing with size: ')
 
 compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
 
-h = fspecial3('gaussian', 10);
-%tic; disp('convert to single'); img_mini = single(img_mini); h = single(h); toc;
+filter_size = 10
+h = fspecial3('gaussian', filter_size);
+%tic; disp('convert to single'); img = single(img); h = single(h); toc;
 
-%tic; disp('convert to single'); img_mini = single(img_mini); h = single(h); toc;
+%tic; disp('convert to single'); img = single(img); h = single(h); toc;
 
 %disp('Built-in convn')
 %if exist('img_blur.mat')
@@ -17,50 +16,85 @@ h = fspecial3('gaussian', 10);
     %% Takes ~6100 seconds (1.7 hrs) to create
     % Several minutes to load from file
 %else
-    %tic; img_blur = convn(img_mini, h, 'same'); toc;
+    %tic; img_blur = convn(img, h, 'same'); toc;
 %end
 
 %disp('convnfft')
-%tic; img_blur_fft = convnfft(img_mini, h, 'same'); toc;
+%tic; img_blur_fft = convnfft(img, h, 'same'); toc;
 %compute_err(img_blur_fft, img_blur)
 
-disp('img size');
-size(img_mini)
-disp('filter size');
-size(h)
 %disp('convn cuda implementation')
-%tic; img_blur_cuda = convn_cuda(img_mini, h); toc;
+%tic; img_blur_cuda = convn_cuda(img, h); toc;
 %%compute_err(img_blur_fft, img_blur)
 
-%disp('convnfft power2flag false double')
-%options = {};
-%options.Power2Flag = false;
-%tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
-%size(img_blur_fft)
-%compute_err(img_blur_fft, img_blur)
-
-tic; disp('convert to single'); img_mini = single(img_mini); h = single(h); toc;
+%disp('Testing with size: ')
+%disp('img size'); size(img)
+%disp('filter size'); size(h)
 
 %disp('convnfft power2flag false single')
 %options = {};
 %options.Power2Flag = false;
-%tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
+%tic; img_blur_fft = convnfft(img, h, 'same', [], options); toc;
 
-disp('array fire')
-tic; img_blur_af = convn_arrayfire_cuda(img_mini, h); toc;
+%%test imfilter Fastest implementation yet
+%disp('imfilter gpuArray single');
+%tic;
+%gpuDevice(1); %free up max memory
+%img_gpu = gpuArray(img);
+%h_gpu = gpuArray(h);
+%img_imfilter = imfilter(img_gpu, h_gpu, 'same', 'conv');
+%toc;
+
+%disp('convnfft power2flag false single')
+%options = {};
+%options.Power2Flag = false;
+%tic; img_blur_fft = convnfft(img, h, 'same', [], options); toc;
+
+%disp('array fire')
+%tic; img_blur_af = convn_arrayfire_cuda(img, h); toc;
 
 % Test with the batch size convolve
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%lens = floor(size(img) / 3);
-%img_mini = img(1:lens(1), 1:lens(2), 1:lens(3));
-%disp('img size'); size(img_mini)
-%disp('filter size'); size(h)
+lens = floor(size(img) / 3);
+img_mini = img(1:lens(1), 1:lens(2), :);
 
-%disp('convnfft power2flag false')
+disp('Testing with size: ')
+disp('img size'); size(img_mini)
+disp('filter size'); size(h)
+fprintf('Type: %s\n', class(img_mini));
+
+%fprintf('convnfft power2flag false, %s\n', class(img_mini))
 %options = {};
 %options.Power2Flag = false;
 %tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
+
+%fprintf('imfilter gpuArray, %s\n', class(img_mini));
+%tic;
+%img_gpu = gpuArray(img_mini);
+%h_gpu = gpuArray(h);
+%img_imfilter = imfilter(img_gpu, h_gpu, 'same', 'conv');
+%toc;
+
+tic; disp('convert to single'); img_mini = single(img_mini); toc;
+
+%disp('Testing with size: ')
+%disp('img size'); size(img_mini)
+%disp('filter size'); size(h)
+%fprintf('Type: %s\n', class(img_mini));
+
+fprintf('convnfft power2flag false, %s\n', class(img_mini))
+options = {};
+options.Power2Flag = false;
+tic; img_blur_fft = convnfft(img_mini, h, 'same', [], options); toc;
+
+fprintf('imfilter gpuArray, %s ', class(img_mini));
+fprintf('convn_filter func\n');
+tic; img_filter_func = convn_filter(img_mini, h); toc;
+
+%fprintf('convn_filter with random filter func\n');
+%tic; i = convn_filter(img_mini, rand(filter_size, filter_size, filter_size)); toc;
+
 
 %disp('convn cuda implementation')
 %tic; img_blur_cuda = convn_cuda(img_mini, h); toc;
