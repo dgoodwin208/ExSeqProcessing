@@ -119,18 +119,18 @@ for register_channel = params.REGISTERCHANNELS
             xmin = tile_upperleft_x(x_idx);
             xmax = tile_upperleft_x(x_idx+1);
             
+            % create overlap region for calcuating features
+            % will remove all points in the overlap region after calculation
+            % but this avoids edge effects on any boundaries of
+            ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
+            ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
+            xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
+            xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
+
             %Calculate the features on the larger (overlapping) regions
             if length(img_cache) > 0
                 tile_img = img_cache(tile_counter);
             else
-                % create overlap region for calcuating features
-                % will remove all points in the overlap region after calculation
-                % but this avoids edge effects on any boundaries of
-                ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
-                ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
-                xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
-                xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
-                
                 tile_img = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
             end
             

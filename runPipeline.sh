@@ -121,6 +121,27 @@ done
 shift $((OPTIND - 1))
 
 
+###### check semaphores
+
+SEMAPHORE_STATUS=$(./utils/semaphore/semaphore /g0,/g1,/g2,/g3,/qn_c0,/qn_c1,/qn_c2,/qn_c3 getvalue | grep OK)
+if [ -n "${SEMAPHORE_STATUS}" ]; then
+    echo "Semaphores still left."
+    echo ${SEMAPHORE_STATUS} | sed -e "s/OK//g"
+
+    echo "Proceed? (y/n)"
+    read -sn1 ANSW
+    if [ $ANSW = 'n' -o $ANSW = 'N' ]; then
+        echo
+        echo "Canceled."
+        echo
+        echo "##########  CAUTION!!  ##########"
+        echo "Unexpected semaphores can be removed by using ./utils/semaphore/semaphore."
+        echo "If you don't have any permission to remove them, you should use sudo."
+        echo
+        exit 0
+    fi
+fi
+
 ###### check directories
 
 if [ ! -d "${DECONVOLUTION_DIR}" ]; then
