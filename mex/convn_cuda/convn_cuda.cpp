@@ -73,6 +73,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     /* create a pointer to the real data in the input array,  */
     float *image = (float *) mxGetData(prhs[0]); // GetData returns type void *
     float *filter = (float *) mxGetData(prhs[1]); // GetData returns type void *
-    cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
+    //cufftutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
+    //cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
 
