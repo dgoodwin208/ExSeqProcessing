@@ -92,14 +92,31 @@ void scaleResult(int N, cufftComplex *f)
 
 int fft3(float * data, int* size, int* length) {
      
+    int nGPUs;
+    cudaGetDeviceCount(&nGPUs);
+    printf("No. of GPU on node %d\n", nGPUs);
+
     /*FIXME account for length*/
     int i, j, k, idx;
     int N = size[0] * size[1] * size[2];
     int max_thread = 1024;
-    // float complex test;
+
+    //Create complex variables on host
+    cufftComplex *u = (cufftComplex *)malloc(sizeof(cufftComplex) * N);
+    cufftComplex *u_fft = (cufftComplex *)malloc(sizeof(cufftComplex) * N);
+
+    // Initialize the transform memory 
+    for ( int i = 0; i < N; i++)
+    {
+        u[i].x = data[i];
+        u[i].y = 0.0f;
+
+        u_fft[i].x = 0.0f;
+        u_fft[i].y = 0.0f;
+    }
 
     // Set GPU's to use and list device properties
-    int nGPUs = 2, deviceNum[nGPUs];
+    int deviceNum[nGPUs];
     for(i = 0; i<nGPUs; ++i)
     {
         deviceNum[i] = i;
@@ -124,16 +141,17 @@ int fft3(float * data, int* size, int* length) {
     /*NX_per_GPU = size[0]/nGPUs;              // This is not a good solution long-term; needs more work for arbitrary grid sizes/nGPUs*/
 
     // Declare variables
-    cufftComplex *u;
-    cufftComplex *u_fft;
+    /*cufftComplex *u;*/
+    /*cufftComplex *u_fft;*/
 
     // Allocate memory for arrays
-    cudaMallocManaged(&u, sizeof(cufftComplex)*N );
-    cudaMallocManaged(&u_fft, sizeof(cufftComplex)*N );
+    /*cudaMallocManaged(&u, sizeof(cufftComplex)*N );*/
+    /*cudaMallocManaged(&u_fft, sizeof(cufftComplex)*N );*/
 
     // Launch CUDA kernel to convert to complex
-    cudaSetDevice(deviceNum[0]);
-    initialize<<<N / max_thread + 1, max_thread>>>(N, data, u, u_fft);
+    /*cudaSetDevice(deviceNum[0]);*/
+    /*initialize<<<N / max_thread + 1, max_thread>>>(N, data, u, u_fft);*/
+
     /*for (i = 0; i<nGPUs; ++i){*/
         /*cudaSetDevice(deviceNum[i]);*/
         /*initialize<<<N / max_thread + 1, max_thread>>>(N, data, &u[idx], &u_fft[idx]);*/
@@ -172,7 +190,7 @@ int fft3(float * data, int* size, int* length) {
     worksize =(size_t*)malloc(sizeof(size_t) * nGPUs);  // Allocates memory for the worksize variable, which tells cufft how many GPUs it has to work with
     
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
-    result = cufftMakePlan3d(plan, size[0], size[1], size[2], CUFFT_Z2Z, worksize); // multi-gpus must have a complex to complex transform
+    result = cufftMakePlan3d(plan, size[0], size[1], size[2], CUFFT_C2C, worksize); // multi-gpus must have a complex to complex transform
     if (result != CUFFT_SUCCESS) { printf ("*MakePlan* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
 
     printf("The size of the worksize is %lu\n", worksize[0]);
@@ -189,8 +207,8 @@ int fft3(float * data, int* size, int* length) {
 
     // Perform FFT on multiple GPUs
     printf("Forward 3d FFT on multiple GPUs\n");
-    result = cufftXtExecDescriptorZ2Z(plan, u_prime, u_prime, CUFFT_FORWARD);
-    if (result != CUFFT_SUCCESS) { printf ("*XtExecZ2Z  failed\n"); exit (EXIT_FAILURE); }
+    result = cufftXtExecDescriptorC2C(plan, u_prime, u_prime, CUFFT_FORWARD);
+    if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }
 
 ////////// Apparently re-ordering the data prior to the IFFT is not necessary (gives incorrect results)////////////////////
     // cudaLibXtDesc *u_reorder;
@@ -204,8 +222,8 @@ int fft3(float * data, int* size, int* length) {
 
     // Perform inverse FFT on multiple GPUs
     printf("Inverse 3d FFT on multiple GPUs\n");
-    result = cufftXtExecDescriptorZ2Z(plan, u_prime, u_prime, CUFFT_INVERSE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtExecZ2Z  failed\n"); exit (EXIT_FAILURE); }
+    result = cufftXtExecDescriptorC2C(plan, u_prime, u_prime, CUFFT_INVERSE);
+    if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }
 
     // Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)
     result = cufftXtMemcpy (plan, u_fft, u_prime, CUFFT_COPY_DEVICE_TO_HOST);
@@ -265,6 +283,7 @@ int fft3(float * data, int* size, int* length) {
 int main (void)
 {
     int size[3] = {2048, 2048, 141};
+    /*int size[3] = {512, 512, 512};*/
     int N = size[0] * size[1] * size[2];
     
     printf("Initializing rand array\n");
