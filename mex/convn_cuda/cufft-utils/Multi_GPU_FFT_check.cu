@@ -231,7 +231,15 @@ int fft3(float * data, int* size, int* length) {
 
     // Scale output to match input (cuFFT does not automatically scale FFT output by 1/N)
     cudaSetDevice(deviceNum[0]);
-    scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);
+
+    // cuFFT does not scale transform to 1 / N 
+    for (int idx=0; idx < N; idx++) {
+        u_fft[idx].x = u_fft[idx].x / ( (float)N );
+        u_fft[idx].y = u_fft[idx].y / ( (float)N );
+    }
+
+    /*scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);*/
+
     /*for (i = 0; i<nGPUs; ++i){*/
         /*cudaSetDevice(deviceNum[i]);*/
         /*idx = i*NX_per_GPU*NY*NZ;                // sets the index value of the data to send to each gpu*/
@@ -251,7 +259,7 @@ int fft3(float * data, int* size, int* length) {
             for (k = 0; k<size[2]; ++k){
                 idx = k + j*size[2] + size[2]*size[1]*i;
                 // error += (float)u[idx].x - sin(x)*cos(y)*cos(z);
-                error += (float)u[idx].x - (float)u_fft[idx].x;
+                error += abs((float)u[idx].x - (float)u_fft[idx].x);
                 // printf("At idx = %d, the value of the error is %f\n",idx,(float)u[idx].x - (float)u_fft[idx].x);
                 // printf("At idx = %d, the value of the error is %f\n",idx,error);
 
@@ -290,7 +298,7 @@ int main (void)
     float* data = new float[N]; 
 
     for (int i=0; i < N; i++)
-        data[i] = rand() % 100;
+        data[i] = sin(i);
 
     printf("Rand array created\n");
 
