@@ -12,7 +12,7 @@
 % Date: August 2015
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function keys = SWITCH_tile_processingInParallel(img)
+function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
     
     loadExperimentParams;
 
@@ -29,9 +29,12 @@ function keys = SWITCH_tile_processingInParallel(img)
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
         img_blur = convn(img,h,'same');         
-        
-        keys_cell{i} = calculate_3DSIFT(img_blur, res_vect);
-
+        if ~isempty(res_vect) 
+            keys_cell{i} = calculate_3DSIFT(img_blur, res_vect,skipDescriptor);
+	else
+            fprintf('WARNING: no keypoints found for blur size %i\n',blur_size);
+            keys_cell{i} = [];
+        end
     end
     
     keys = {};

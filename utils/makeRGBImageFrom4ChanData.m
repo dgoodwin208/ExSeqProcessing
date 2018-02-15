@@ -46,12 +46,12 @@ function mapped_val = mymap(inputImg,clims)
     
     indices_Min = inputImg<=minVal;
     indices_Max = inputImg>=maxVal;
-    indicesRest = inputImg>minVal && inputImg<maxVal;
+    indicesRest = inputImg>minVal & inputImg<maxVal;
     
     mapped_val(indices_Min)=0;
     mapped_val(indices_Max)=255;
-    mapped_val(indicesRest) = round(255*(inputImg(indicesRest)-minVal)/(maxVal-minVal));
-    
+    mapped_val(indicesRest) = 255*(inputImg(indicesRest)-minVal)/(maxVal-minVal);
+    mapped_val = uint8(mapped_val);
 end
 
 end

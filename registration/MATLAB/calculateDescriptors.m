@@ -44,7 +44,8 @@ end
 target_indices = start_idx:end_idx;
 
 
-for register_channel = params.REGISTERCHANNELS
+for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC] 
+
     %Loading the tif file associated with the reference channel (ie,
     %Lectin) for the image specified by run_num
     %The {1} to register_cahnnel is a gross bit of cell matlab code
@@ -121,22 +122,20 @@ for register_channel = params.REGISTERCHANNELS
             xmin = tile_upperleft_x(x_idx);
             xmax = tile_upperleft_x(x_idx+1);
             
-            %Calculate the features on the larger (overlapping) regions
-            %         if length(img_cache) > 0
-            %             tile_img = img_cache(tile_counter);
-            %         else
             % create overlap region for calcuating features
             % will remove all points in the overlap region after calculation
             % but this avoids edge effects on any boundaries of
-            
-            
             ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
             ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
             xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
             xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
             
-            tile_img = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
-            %         end
+            %Calculate the features on the larger (overlapping) regions
+%             if length(img_cache) > 0
+%                 tile_img = img_cache(tile_counter);
+%             else
+                tile_img = img(ymin_overlap:ymax_overlap, xmin_overlap:xmax_overlap,:);
+%             end
             
             outputfilename = fullfile(descriptor_output_dir, ...
                 [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
@@ -147,12 +146,18 @@ for register_channel = params.REGISTERCHANNELS
                 continue
             end
             
-            
+            %If we're calculating a channel just for shape context, then we
+            %only need the keypoint. So we do a check for any channel that
+            %is only in the REGISTERCHANNELS_SC and not in
+            %REGISTERCHANNELS_SIFT
+            regChan = register_channel{1}; 
+            skipDescriptor = ~any(strcmp(params.REGISTERCHANNELS_SIFT,regChan));            
             if exist(outputfilename,'file')>0 %Make sure that the descriptors have been calculated!
+                fprintf('Sees that the file %s already exists, skipping\n',outputfilename);
                 continue;
             else
                 %keys = SWITCH_tile_processing(tile_img);
-                keys = SWITCH_tile_processingInParallel(tile_img);
+                keys = SWITCH_tile_processingInParallel(tile_img,skipDescriptor);
             end
             
             %There is a different terminology for the x,y coordinates that
@@ -202,12 +207,7 @@ for register_channel = params.REGISTERCHANNELS
             final_indices(indices_to_remove)=0;
             keys = keys(logical(final_indices));
             fprintf('Removed %i/%i keypoints from the excess overlapping region\n',length(indices_to_remove),length(keys));
-            
-            
-            
-            
-            
-            
+                        
             save(outputfilename,'keys','ymin','xmin','ymax','xmax', 'params','run_num',...
                 'ymin_overlap','ymax_overlap', 'xmin_overlap','xmax_overlap');
             

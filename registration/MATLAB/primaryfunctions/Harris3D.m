@@ -99,17 +99,17 @@ R(:,:,1:margin-1) = 0;
 R(:,:,depth-margin+1:depth) = 0;
 
 
-vecsort = sort(R(:),'descend');
-
 %Because of the strong power law in this data, choose RMax to be the value of the 50th highest
-Rmax = vecsort(5000); 
-
+%Threshold setting is an important step. This is how it was for the SWITCH
+%paper:
+% vecsort = sort(R(:),'descend');
+% Rmax = vecsort(5000); 
+% [r,c,v] = ind2sub(size(R),find(R > .1*Rmax));
+%However, for ExSeq, and we see that about 5% of the data is puncta
+RThresh = quantile(R(:),0.99);
+[r,c,v] = ind2sub(size(R),find(R > .01*RThresh));
 toc
 
-%% Generating the points
-
- %If the candidate spot is of high enough value
-[r,c,v] = ind2sub(size(R),find(R > .1*Rmax));
 cnt = 0;
 disp('Looping over candidate positions')
 res_vect=[];
@@ -155,6 +155,8 @@ for ctr=1:length(r)
 end;
 
 res_vect = res_vect';
+
+fprintf('Sees %i Harris Keypoints before SIFT descriptor calcs\n',size(res_vect,1));
 
 end
 
