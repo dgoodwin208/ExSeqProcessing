@@ -9,12 +9,17 @@ centroids = {};
 
 chan_strs = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 chan_minimums = [110 150 140 60];
-for round_num = 4:params.NUM_ROUNDS
+for round_num = [5 10 15]%[3,4,5,6,7,8,9,10,12,13,14,15,18,19]
     
     for chan_num = 1:params.NUM_CHANNELS
         tic
         chan_str = chan_strs{chan_num};
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,round_num,chan_str));
+        
+        %This is the normal line
+        %filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,round_num,chan_str));
+        %This is the debug exploration: 
+
+        filename_in = fullfile('/home/dgoodwin/ExSeqProcessing/3_normalization',sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,round_num,chan_str));
         stack_in = load3DTif_uint16(filename_in);
         
         %Todo: trim the registration (not relevant in the crop)
@@ -115,10 +120,10 @@ for round_num = 4:params.NUM_ROUNDS
         
         
         
-        centroids_temp = zeros(length(filtered_puncta),3);
+       % centroids_temp = zeros(length(filtered_puncta),3);
         voxels_temp = cell(length(filtered_puncta),1);
         for p_idx = 1:length(filtered_puncta)
-            centroids_temp(p_idx,:) = filtered_puncta(p_idx).WeightedCentroid;
+        %    centroids_temp(p_idx,:) = filtered_puncta(p_idx).WeightedCentroid;
             voxels_temp{p_idx} = filtered_puncta(p_idx).PixelIdxList;
         end
         

@@ -110,7 +110,7 @@ for y = 1:length(y_grid)-1
             end
             if ~isempty(problem_indices)
                 
-                disp(['ERROR: out of bounds. Chopping out ' num2str(length(problem_indices)/size(o,1)) '% of the pixels ']);
+                %disp(['ERROR: out of bounds. Chopping out ' num2str(length(problem_indices)/size(o,1)) '% of the pixels ']);
                 
                 o(problem_indices,:) = []; %this is short for removing elemnts
                 i(problem_indices,:) = [];

@@ -11,14 +11,17 @@ save_types = {'fig','jpg'};
 %params
 loadParameters;
 num_sequencing_rounds = params.NUM_ROUNDS;
-getMaxProjections(params.registeredImagesDir, channels)
+reporting_getMaxProjections(params.registeredImagesDir, channels)
 
 
 %Now calling code from the
 loadExperimentParams;
 figure('Visible','off');
-for sequencing_round = 1:1 %:num_sequencing_rounds
+for sequencing_round =1:params.NUM_ROUNDS%[3,4,5,6,7,8,9,10,12,13,14,15,18,19];
     
+    if sequencing_round==5
+    continue
+    end
     % LOAD KEYS
     output_keys_filename = fullfile(params.OUTPUTDIR,sprintf('globalkeys_%sround%.03i.mat',params.SAMPLE_NAME,sequencing_round));
     load(output_keys_filename);
@@ -54,10 +57,12 @@ for sequencing_round = 1:1 %:num_sequencing_rounds
     for idx = 1:length(save_types)
         save_type = save_types{idx};
         figfilename = fullfile(params.reportingDir,...
-            sprintf('%s_featuresInRound%.03i.%s',...
+            sprintf('%s_%s_featuresInRound%.03i.%s',...
             'registration',...
+            params.FILE_BASENAME,...
             sequencing_round,...
             save_type));
         saveas(gcf,figfilename,save_type)
     end
+    fprintf('Saved images to %s\n',figfilename);
 end

@@ -402,8 +402,8 @@ echo "Color correction"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r " for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end;exit;"
 else
     echo "Skip!"
 fi
@@ -416,8 +416,12 @@ echo "========================================================================="
 echo "Normalization"; date
 echo
 
+# Quick fix by Dan 01/29/2018
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    
+cp 1_deconvolution/*ch00.tif 2_color-correction/
+
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
 
     if ls matlab-normalization-*.log > /dev/null 2>&1; then
         mv matlab-normalization-*.log ${LOG_DIR}/
@@ -498,11 +502,13 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             done
         done
 
-        # make symbolic links of round-1 images because it is not necessary to warp them
+        
+        # make symbolic links of round-5 images because it is not necessary to warp them
+        #TODO: Change this to be any round, currently hardcoding to 5
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
-            normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round001_${ch}.tif
-            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${ch}_registered.tif
+            normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round005_${ch}.tif
+            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round005_${ch}_registered.tif
             if [ ! -f $registered_file ]; then
                 ln -s $normalized_file $registered_file
             fi
@@ -510,7 +516,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
         for((i=1; i<=${ROUND_NUM}; i++))
         do
-            if [$REFERENCE_ROUND -eq $i]; then
+            if [${REFERENCE_ROUND} -eq $i]; then
             echo "Skipping registration of the reference round"
             continue   
             fi
@@ -537,28 +543,7 @@ echo "puncta extraction"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    for((i=1; i<=${ROUND_NUM}; i++))
-    do
-        for((j=0; j<${#CHANNEL_ARRAY[*]}; j++))
-        #for((j=0; j<1; j++))
-        do
-            reg_file=$(printf "${REGISTRATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[j]}_registered.tif" $i)
-            input_file=$(printf "alexa%02d%d.tiff" $i $j)
-            if [ ! -f ${PUNCTA_DIR}/$input_file ]; then
-                ln -s $reg_file ${PUNCTA_DIR}/$input_file
-            fi
-        done
-    done
-
-    pushd ${PUNCTA_DIR}
-    if [ ! -f ./startup.m ]; then
-        ln -s ../startup.m
-    fi
-
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();saveThresholds();getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-    matlab -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} makeROIs();improc2.processImageObjects();improc2.launchThresholdGUI;getPuncta;analyzePuncta;makePunctaVolumes; ${ERR_HDL_POSTCODE}"
-
-    popd
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} loadParameters; punctafeinder_simple; puncta_subvolumes_simple;${ERR_HDL_POSTCODE}"    
 else
     echo "Skip!"
 fi
@@ -573,9 +558,7 @@ echo "base calling"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    cp -a ${REGISTRATION_DIR}/${FILE_BASENAME}_round001_${REGISTRATION_CHANNEL}_registered.tif ${TRANSCRIPT_DIR}/alexa001.tiff
-    cp -a ${PUNCTA_DIR}/${FILE_BASENAME}_puncta_rois.mat ${TRANSCRIPT_DIR}/
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} normalizePunctaVector;  ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} loadParameters; basecalling_simple;  ${ERR_HDL_POSTCODE}"
 else
     echo "Skip!"
 fi

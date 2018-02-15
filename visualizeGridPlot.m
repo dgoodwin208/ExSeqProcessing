@@ -39,7 +39,7 @@ function visualizeGridPlot(puncta,transcript_object,params,fignum)
                 text(-0.0,10.,position_string,'rotation',90)
                  axis tight;
             elseif c_idx==1
-                position_string = sprintf('i',exp_idx);
+                position_string = sprintf('%i',exp_idx);
                 text(-0.0,10.,position_string,'rotation',90)
                 axis tight;
             else

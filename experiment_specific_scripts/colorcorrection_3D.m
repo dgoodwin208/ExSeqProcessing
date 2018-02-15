@@ -5,7 +5,7 @@ loadParameters;
 %Written for the first splintr barcode dataset from Oz
 % FOLDER_NAME = 'ExSeqAutoSlice';
 FILEROOT_NAME = params.FILE_BASENAME;
-DIRECTORY = params.colorCorrectionImagesDir;
+DIRECTORY = params.deconvolutionImagesDir; %params.colorCorrectionImagesDir;
 NUM_ROUNDS = params.NUM_ROUNDS;
 offsets3D = [6,6,5]; %X,Y,Z offsets for calcuating the difference
 BEAD_ZSTART = 120;
@@ -15,16 +15,16 @@ fprintf('Starting processing of round %i\n',roundnum);
 %Load all channels, normalize them, calculate the cross corr of 
 %channels 1-3 vs 4
 tic; disp('load file 1');
-chan1 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME,roundnum)));
+chan1 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME,roundnum)));
 toc
 tic; disp('load file 2');
-chan2 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.tif',FILEROOT_NAME,roundnum)));
+chan2 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.tif',FILEROOT_NAME,roundnum)));
 toc
 tic; disp('load file 3');
-chan3 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.tif',FILEROOT_NAME,roundnum)));
+chan3 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.tif',FILEROOT_NAME,roundnum)));
 toc
 tic; disp('load file 4');
-chan4 = load3DTif(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03.tif',FILEROOT_NAME,roundnum)));
+chan4 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03.tif',FILEROOT_NAME,roundnum)));
 toc
     
 chan1_beads = chan1(:,:,BEAD_ZSTART:end);
@@ -44,7 +44,7 @@ tic; disp('translate 4');
 chan4_shift = imtranslate3D(chan4,chan4_offsets);
 toc
 tic; disp('save file 4');
-save3DTif(chan4_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DTif_uint16(chan4_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)));
 toc
 
 chan4_shift_beads = chan4_shift(:,:,BEAD_ZSTART:end);
@@ -60,7 +60,7 @@ tic; disp('translate 2');
 chan2_shift = imtranslate3D(chan2,chan2_offsets);
 toc
 tic; disp('save file 2');
-save3DTif(chan2_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DTif_uint16(chan2_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME,roundnum)));
 toc
 
 data_cols = zeros(length(reshape(chan1,[],1)),4);
@@ -71,7 +71,7 @@ data_cols(:,4) = reshape(chan4_shift,[],1);
 
 %     %Normalize the data
 tic; disp('quantilenorm');
-data_cols_norm = quantilenorm(data_cols);
+data_cols_norm = quantilenorm_simple(data_cols);
 toc
 
 % reshape the normed results back into 3d images
@@ -98,7 +98,7 @@ tic; disp('translate 3');
 chan3_shift = imtranslate3D(chan3,chan3_offsets);
 toc
 tic; disp('save file 3');
-save3DTif(chan3_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DTif_uint16(chan3_shift,fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)));
 toc
 
 save(fullfile(DIRECTORY,sprintf('%s_round%.03i_colorcalcs.mat',FILEROOT_NAME,roundnum)),'xcorr_scores3to1','xcorr_scores2to1','xcorr_scores4to1');

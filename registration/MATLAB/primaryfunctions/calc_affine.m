@@ -4,6 +4,10 @@
 % Author: Daniel Goodwin, Aug 2015 dgoodwin208@gmail.com
 
 
+XRES = .18;
+YRES = .18;
+ZRES = .18;
+
 %Create new A, calcuate the transformed values, get the distance from the
 %target points as defined by the correspondences
 keypointsM = [];
@@ -18,7 +22,7 @@ for idx = 1:length(correspondences)
 end
 
 %RANSAC params
-threshold = 3.; %How close does it have to be??
+threshold = 1.; %In microns how close does an inlier have to be 
 best_score = -1;
 best_inliers = [];
 best_tform = [];
@@ -28,8 +32,8 @@ p = 0.99;         % Desired probability of choosing at least one sample
 inlier_stat_vec = zeros(1,length(correspondences));
 trial_iter_count = 0;
 N=10;  %initting N, will be set first iteration    
-max_trial_limit = 2000000;
-min_trial_limit = 10000;
+max_trial_limit = 10000; %used to be 20x times this -DG 12-20-2017
+min_trial_limit = 1000;
 %input points
 num_inputs = length(correspondences);
 num_samples = 6; %4 or any other number used to calculate the affine tform
@@ -59,7 +63,7 @@ while trial_iter_count < N || trial_iter_count<min_trial_limit
         key_est = homogeneous_res(1:3);    
         %disp([mat2str(key_act) ' ' mat2str(key_est)])
         
-        dist = sqrt((key_act(1)-key_est(1))^2 + (key_act(2)-key_est(2))^2 + (key_act(3)-key_est(3))^2 );
+        dist = sqrt((XRES^2)*(key_act(1)-key_est(1))^2 + (YRES^2)*(key_act(2)-key_est(2))^2 + (ZRES^2)*(key_act(3)-key_est(3))^2 );
         if dist <= threshold
            inliers = [inliers; i]; 
         end
@@ -112,8 +116,14 @@ keyM = keypointsM(best_inliers,:);
 keyF = keypointsF(best_inliers,:);
 
 % Fit the model for points in Moving image to points in Fixed image 
-affine_tform_tot = findAffineModel(keyM, keyF);
+%affine_tform_tot = findAffineModel(keyM, keyF);
+%If you have reason to believe the overall warping is affine,
+%just use the best warp!
+affine_tform_tot = best_tform;
 
+%keyM = LM(correspondences(inliers),:);
+%keyF = LF(correspondences(inliers),:);
+return;
 % disp(['Key Actual | Key Estimated | Original Keypoint Moving'])
 % for i = 1:length(best_inliers)
 %     % The actual keypoint in the fixed image
