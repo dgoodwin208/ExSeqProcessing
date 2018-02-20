@@ -9,25 +9,23 @@ params.FILE_BASENAME = 'exseqautoframea1';
 
 %Experimental parameters
 params.REFERENCE_ROUND_WARP=5;
-params.REFERENCE_ROUND_PUNCTA = 1;
+params.REFERENCE_ROUND_PUNCTA = 5;
 params.NUM_ROUNDS = 4;
 params.NUM_CHANNELS = 4;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 params.CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
+params.REGISTRATION_TYPE = 'registered';
 %RajLab filtering parameters:
-params.PUNCTA_PRESENT_THRESHOLD = 18; %Number of rounds to agree on 
-params.PUNCTA_SIZE_THRESHOLD = 10; %Number of rounds to agree on 
+params.PUNCTA_PRESENT_THRESHOLD = 18; %Number of rounds to agree on
+params.PUNCTA_SIZE_THRESHOLD = 10; %Number of rounds to agree on
 params.EPSILON_TARGET = 4; %Radius of neighborhood for puncta to agree across rounds
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
 
-params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise 
-params.NUM_BUCKETS = 500; %For stastical analysis
-params.THRESHOLD_AGREEMENT_CHOSEN = 10; %how many rounds should the intensity method agree with the probabilistic cleanup?
-params.THRESHOLD_MARGIN = 0;
+params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
 
 %Reporting directories
 params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/logs/imgs';

@@ -9,14 +9,20 @@ DIRECTORY = params.colorCorrectionImagesDir;
 OUTPUTDIR = params.colorCorrectionImagesDir;
 NUM_ROUNDS = params.NUM_ROUNDS;
 offsets3D = [6,6,5]; %X,Y,Z offsets for calcuating the difference
-BEAD_ZSTART = 120;
+%BEAD_ZSTART = 43; for atacseq
+BEAD_ZSTART = 120; %for exseqauto
 
 %parfor roundnum = 1:NUM_ROUNDS
 fprintf('Starting processing of round %i\n',roundnum);
 %Load all channels, normalize them, calculate the cross corr of 
 %channels 1-3 vs 4
 tic; disp('load file 1');
+try
 chan1 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME,roundnum)));
+catch
+fprintf('ERROR LOADING FILE: Is this a missing round? %s\n', chan1);
+return
+end
 toc
 tic; disp('load file 2');
 chan2 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.tif',FILEROOT_NAME,roundnum)));
@@ -35,10 +41,10 @@ chan4_beads = chan4(:,:,BEAD_ZSTART:end);
 tic; disp('POC 4');
 chan4_offsets = phaseOnlyCorrelation(chan1_beads,chan4_beads,offsets3D);
 toc
-
+size(offsets3D)
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum,4,chan4_offsets(1),chan4_offsets(2),chan4_offsets(3));
 tic; disp('translate 4');
-chan4_shift = imtranslate3D(chan4,chan4_offsets);
+chan4_shift = imtranslate3D(chan4,real(round(chan4_offsets)));
 toc
 tic; disp('save file 4');
 save3DTif_uint16(chan4_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)));
@@ -51,7 +57,7 @@ toc
 
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum,2,chan2_offsets(1),chan2_offsets(2),chan2_offsets(3));
 tic; disp('translate 2');
-chan2_shift = imtranslate3D(chan2,chan2_offsets);
+chan2_shift = imtranslate3D(chan2,round(chan2_offsets));
 toc
 tic; disp('save file 2');
 save3DTif_uint16(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME,roundnum)));
@@ -92,7 +98,7 @@ toc
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum, 3,chan3_offsets(1),chan3_offsets(2),chan3_offsets(3));
 
 tic; disp('translate 3');
-chan3_shift = imtranslate3D(chan3,chan3_offsets);
+chan3_shift = imtranslate3D(chan3,round(chan3_offsets));
 toc
 tic; disp('save file 3');
 save3DTif_uint16(chan3_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)));

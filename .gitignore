@@ -17,3 +17,5 @@ loadParameters.m.back
 *.tif
 *.o
 *.a
+.nfs*
+*.fa

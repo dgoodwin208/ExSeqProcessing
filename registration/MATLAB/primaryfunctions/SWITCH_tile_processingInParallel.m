@@ -12,7 +12,7 @@
 % Date: August 2015
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function keys = SWITCH_tile_processingInParallel(img)
+function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
     
     loadExperimentParams;
     options = {};
@@ -25,17 +25,20 @@ function keys = SWITCH_tile_processingInParallel(img)
     parfor i = 1:length(blur_size_list)
         blur_size = blur_size_list(i);
 
-        %Blurring is done inside the Harris keypoint detection code        
+        %Blurring is done inside the Harris keypoint detection code
         res_vect = Harris3D(img, blur_size);
 
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
-        img_blur = convnfft(img,h,'same',[],options);         
-        
-        keys_cell{i} = calculate_3DSIFT(img_blur, res_vect);
-
+        img_blur = convnfft(img,h,'same',[],options);
+        if ~isempty(res_vect) 
+            keys_cell{i} = calculate_3DSIFT(img_blur, res_vect,skipDescriptor);
+    else
+            fprintf('WARNING: no keypoints found for blur size %i\n',blur_size);
+            keys_cell{i} = [];
+        end
     end
-    
+
     keys = {};
     ctr = 1;
 
