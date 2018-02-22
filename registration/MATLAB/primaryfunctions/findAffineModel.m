@@ -20,6 +20,7 @@ else %If we want full affine transformation
         A(3*(i-1)+1:3*i, :) = [ x1(i,:) zeros(1,8); zeros(1,4), x1(i,:), zeros(1,4); zeros(1,8), x1(i,:)];
     end
 end
+
 %Vectorize the output points (x1 mapped into x2)
 x2 = key2';
 b = x2(:);

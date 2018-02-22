@@ -1,7 +1,7 @@
 
 
 load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)));
-load(fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME)));
+% load(fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME)));
 
 
 load('groundtruth_dictionary.mat')
@@ -22,14 +22,14 @@ end
 
 %% Compare the top 10 brightest (zscore) pixels in each puncta across channels
 
-path_indices = 1:size(final_positions,1);
+path_indices = 1:size(pos,3);
 
 %Pre-initialize the cell arrray and determine the basecalls
 chans = zeros(params.PUNCTA_SIZE^3,4);
 base_calls_quickzscore = zeros(length(path_indices),params.NUM_ROUNDS);
 base_calls_quickzscore_confidence = zeros(length(path_indices),params.NUM_ROUNDS);
-base_calls_pixel_intensity = zeros(length(path_indices),params.NUM_ROUNDS);
-
+base_calls_pixel_intensity = zeros(length(path_indices),params.NUM_ROUNDS,params.NUM_CHANNELS);
+base_calls_zscores = zeros(length(path_indices),params.NUM_ROUNDS,params.NUM_CHANNELS);
 for p_idx= 1:length(path_indices) 
     
     path_idx = path_indices(p_idx);
@@ -40,7 +40,6 @@ for p_idx= 1:length(path_indices)
         for c = 1:params.NUM_CHANNELS
             chantemp = puncta_set_normed(:,:,:,rnd_idx,c,p_idx);
             chans(:,c) = chantemp(:)';
-            
         end
         
         sorted_chans = sort(chans,1,'descend');
@@ -57,12 +56,21 @@ for p_idx= 1:length(path_indices)
         base_calls_quickzscore_confidence(p_idx,rnd_idx) = scores_sorted(1)/(scores_sorted(1)+ scores_sorted(2));
         
         %use the baseguess to get the absolute brightness of the puncta
-        chantemp = puncta_set(:,:,:,rnd_idx,newbaseguess,p_idx);
-        raw_pixels = chantemp(:);
-        sorted_raw_pixels = sort(raw_pixels,'descend');
-        %Take the mean of the top 10 values
         
-        base_calls_pixel_intensity(p_idx,rnd_idx) = mean(sorted_raw_pixels(1:10));
+
+        for c = 1:params.NUM_CHANNELS
+            chantemp = puncta_set(:,:,:,rnd_idx,c,p_idx);
+            raw_pixels = chantemp(:);
+            sorted_raw_pixels = sort(raw_pixels,'descend');
+            base_calls_pixel_intensity(p_idx,rnd_idx,c) = mean(sorted_raw_pixels(1:10)); 
+        end
+        
+        base_calls_zscores(p_idx,rnd_idx,:) = scores;
+%         chantemp = puncta_set(:,:,:,rnd_idx,newbaseguess,p_idx);
+%         raw_pixels = chantemp(:);
+%         sorted_raw_pixels = sort(raw_pixels,'descend');
+        %Take the mean of the top 10 values
+%         base_calls_pixel_intensity(p_idx,rnd_idx) = mean(sorted_raw_pixels(1:10));
     end
 end
 
@@ -72,11 +80,12 @@ fprintf('Found %i transcripts, %i of which are unique\n',size(base_calls_quickzs
 %% For the final puncta, score each index with it's distance to nearests neightbor
 % filename_centroidsMOD = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
 % load(filename_centroidsMOD);
-
+final_positions = squeeze(pos(:,5,:))';
 %For each puncta, find it's nearest neighbor in the same round
 [IDX,D] = knnsearch(final_positions,final_positions,'K',2); %getting four other options
 
 spacings = zeros(size(final_positions,1),1);
+% spacings = zeros(size(pos,3),1);
 %For each puncta, ignore the mapping to itself, and note the number of
 %possible merge mistakes for this puncta
 for puncta_idx = 1:size(final_positions,1)
@@ -89,6 +98,7 @@ if ~exist('gtlabels','var')
     loadGroundTruth;
 end
 %
+
 transcript_objects = cell(size(base_calls_quickzscore,1),1);
 
 output_cell = {}; ctr = 1;
@@ -100,10 +110,10 @@ for p_idx = 1:size(base_calls_quickzscore,1)
     img_transcript = base_calls_quickzscore(p_idx,4:end);
     
     %Sanity check: randomize the img_transcript
-    %img_transcript = img_transcript(randperm(length(img_transcript)));
+%     img_transcript = img_transcript(randperm(length(img_transcript)));
 
     %Search for a perfect match in the ground truth codes
-    hits = (groundtruth_codes==img_transcript);
+    hits = (groundtruth_codes(:,1:end)==img_transcript);
 
     %Calculate the hamming distance (now subtracting primer length)
     scores = length(img_transcript)- sum(hits,2);
@@ -111,16 +121,30 @@ for p_idx = 1:size(base_calls_quickzscore,1)
 
     best_score = values(1);
     %Get the first index that is great than the best score
-    %If this is 1, then there is a best fit
-    idx_last_tie = find(values>best_score,1)-1;
-
+    %If this is 1, then there is a unique fit
+%     idx_last_tie = find(values>best_score,1)-1;
+    idx_last_tie = 1;
+    while values(idx_last_tie)<=best_score %Trying a faster method than find()
+        idx_last_tie = idx_last_tie +1; 
+    end
+    idx_last_tie = idx_last_tie-1;
+    
+    intensities = squeeze(base_calls_pixel_intensity(p_idx,:,:));
+    %Check if there are any all-zero rows. If so, discard this sequence
+    if any(sum(intensities>0,2)==0)
+        fprintf('Discarding puncta at (%i,%i,%i) bc empty round\n',...
+            final_positions(p_idx,1),final_positions(p_idx,2),final_positions(p_idx,3));
+        continue;
+    end
     %Assuming the groundtruth options are de-duplicated
     %Is there a perfect match to the (unique ) best-fit
     transcript.img_transcript=base_calls_quickzscore(p_idx,:);
     transcript.img_transcript_confidence=base_calls_quickzscore_confidence(p_idx,:);
-    transcript.img_transcript_absValuePixel=base_calls_pixel_intensity(p_idx,:);
+    transcript.img_transcript_absValuePixel=intensities;
+    transcript.img_transcript_zscores=squeeze(base_calls_zscores(p_idx,:,:));
     transcript.pos = final_positions(p_idx,:); 
     transcript.hamming_score = best_score;
+    transcript.numMatches = idx_last_tie;
     transcript.nn_distance = spacings(p_idx);
     
     if best_score <=1
@@ -134,7 +158,7 @@ for p_idx = 1:size(base_calls_quickzscore,1)
         end
         
         for tiedindex = 1:idx_last_tie
-        row_string = strcat(row_string,sprintf('%s,',gtlabels{indices(tiedindex)}));
+            row_string = strcat(row_string,sprintf('%s,',gtlabels{indices(tiedindex)}));
         end
         row_string = sprintf('%s\n',row_string);
         fprintf('%s',row_string);
@@ -145,7 +169,7 @@ for p_idx = 1:size(base_calls_quickzscore,1)
 
     clear transcript; %Avoid any accidental overwriting
 
-    if mod(p_idx,100) ==0
+    if mod(p_idx,1000) ==0
         fprintf('%i/%i matched\n',p_idx,size(puncta_set,6));
     end
 end
@@ -153,7 +177,7 @@ fprintf('Done!\n');
 
 output_csv = strjoin(output_cell,'');
 
-output_file = fullfile(params.transcriptResultsDir,sprintf('%s_groundtruthcodes.csv',params.FILE_BASENAME));
+output_file = fullfile(params.transcriptResultsDir,sprintf('%s_simpleextractedcodes.csv',params.FILE_BASENAME));
 
 fileID = fopen(output_file,'w');
 fprintf(fileID,output_csv);

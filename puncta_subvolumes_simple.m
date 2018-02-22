@@ -1,21 +1,19 @@
 % loadParameters;
 
-filename_paths = fullfile(params.punctaSubvolumeDir,sprintf('%s_finalmatches.mat',params.FILE_BASENAME));
-load(filename_paths,'final_punctapaths');
 
-filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels_demerged.mat',params.FILE_BASENAME));
-load(filename_centroids,'puncta_baseguess','puncta_centroids','puncta_voxels')
+filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
+load(filename_centroids,'puncta_centroids','puncta_voxels')
 %% Make the 10x10x10 subvolumes we started this with, but now only with the pixels from the puncta!
 
-%Load
-filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,1,'ch00'));
+%Load a sample round 
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,4,'ch00',params.REGISTRATION_TYPE));
 sample_img = load3DTif_uint16(filename_in);
 data_height = size(sample_img,1);
 data_width = size(sample_img,2);
 data_depth = size(sample_img,3);
 
 
-num_insitu_transcripts = size(final_punctapaths,1);
+num_insitu_transcripts = size(puncta_voxels{4},1);
 
 %Define a puncta_set object that can be parallelized
 puncta_set_cell = cell(params.NUM_ROUNDS,1);
@@ -31,7 +29,7 @@ for exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx}));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},params.REGISTRATION_TYPE));
         experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);
     end
     
@@ -55,24 +53,11 @@ for exp_idx = 1:params.NUM_ROUNDS
     
     experiment_set_padded = padarray(experiment_set,[padwidth padwidth padwidth 0],0);
     experiment_set_padded_masked = zeros(size(experiment_set_padded));
-    
+   
+    emptry_subv_ctr =0; 
     for puncta_idx = 1:num_insitu_transcripts
         
-        %Get the puncta_idx in the context of this experimental round
-        moving_puncta_idx = final_punctapaths(puncta_idx,exp_idx);
-        
-        %If this round did not have a match for this puncta, just return
-        %all -1s
-        if moving_puncta_idx==0
-            for c_idx = params.COLOR_VEC
-                puncta_set_cell{exp_idx}{c_idx,subvolume_ctr} = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE)-1;
-            end
-            subvolume_ctr = subvolume_ctr+1;
-            fprintf('No matching puncta for puncta_idx=%i in round %i\n',puncta_idx,exp_idx)
-            continue;
-        end
-        
-        this_centroid = puncta_centroids{exp_idx}(moving_puncta_idx,:);
+        this_centroid = puncta_centroids{exp_idx}(puncta_idx,:);
         
         %Get the centroid's Y X Z
         %NOTE: The centroid position come from the regionprops() call in
@@ -89,7 +74,7 @@ for exp_idx = 1:params.NUM_ROUNDS
         z_indices = Z - params.PUNCTA_SIZE/2 + 1: Z + params.PUNCTA_SIZE/2;
         
         %These are the indices for the puncta in question
-        punctafeinder_indices_for_puncta = punctafeinder_indices{moving_puncta_idx};
+        punctafeinder_indices_for_puncta = punctafeinder_indices{puncta_idx};
         %now converted to 3D in the original coordinate space 
         [i1, i2, i3] = ind2sub(size(experiment_set),punctafeinder_indices_for_puncta);
         %shift the conversions with the padwidth
@@ -103,8 +88,9 @@ for exp_idx = 1:params.NUM_ROUNDS
             pixels_for_puncta_set = experiment_set_padded_masked(y_indices,x_indices,z_indices);
             
             if max(pixels_for_puncta_set(:))==0
-               fprintf('WARNING: subvolume w max value 0 in puncta_idx=%i, color=%i\n',puncta_idx,c_idx);
+               %fprintf('WARNING: subvolume w max value 0 in puncta_idx=%i, color=%i\n',puncta_idx,c_idx);
 %                barf()
+                emptry_subv_ctr = emptry_subv_ctr+1;
             end
             %Then we take the PUNCTA_SIZE region around those pixels only
             puncta_set_cell{exp_idx}{c_idx,subvolume_ctr} = pixels_for_puncta_set;
@@ -120,13 +106,13 @@ for exp_idx = 1:params.NUM_ROUNDS
        pos_per_round(:,subvolume_ctr) = [Y X Z]-padwidth;
         
         subvolume_ctr = subvolume_ctr+1;
-        if mod(subvolume_ctr,400)==0
+        if mod(subvolume_ctr,1000)==0
             fprintf('Rnd %i, Puncta %i processed\n',exp_idx,subvolume_ctr);
         end
     end
     pos_cell{exp_idx} =pos_per_round;
+fprintf('Rnd %i had %i empty subvolumes\n',exp_idx,emptry_subv_ctr);
 end
-
 disp('reducing processed puncta')
 puncta_set = zeros(params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.PUNCTA_SIZE,params.NUM_ROUNDS,params.NUM_CHANNELS,num_insitu_transcripts);
 

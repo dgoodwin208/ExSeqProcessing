@@ -11,31 +11,18 @@ keys_total = [];
 %because params is going to be overwritten when we load the Registation
 %params
 loadParameters;
-
-if ~exist('channels', 'var')
-    channels = params.CHAN_STRS;
-end
-
-if ~exist('registeredImagesDir', 'var')
-    registeredImagesDir = params.registeredImagesDir;
-end
-
-if ~exist('num_rounds', 'var')
-    num_rounds = params.NUM_ROUNDS;
-end
-
-if ~exist('reportingDir', 'var')
-    reportingDir = params.reportingDir;
-end
-
-%reporting_getMaxProjections(registeredImagesDir, channels);
+num_sequencing_rounds = params.NUM_ROUNDS;
+reporting_getMaxProjections(params.registeredImagesDir, channels)
 
 
 %Now calling code from the
 loadExperimentParams;
 figure('Visible','off');
-for sequencing_round = 2:num_rounds
+for sequencing_round =1:params.NUM_ROUNDS%[3,4,5,6,7,8,9,10,12,13,14,15,18,19];
     
+    if sequencing_round==5
+    continue
+    end
     % LOAD KEYS
     output_keys_filename = fullfile(registeredImagesDir,sprintf('globalkeys_%sround%.03i.mat',params.SAMPLE_NAME,sequencing_round));
     load(output_keys_filename);
@@ -71,11 +58,13 @@ for sequencing_round = 2:num_rounds
     
     for idx = 1:length(save_types)
         save_type = save_types{idx};
-        figfilename = fullfile(reportingDir,...
-            sprintf('%s_featuresInRound%.03i.%s',...
+        figfilename = fullfile(params.reportingDir,...
+            sprintf('%s_%s_featuresInRound%.03i.%s',...
             'registration',...
+            params.FILE_BASENAME,...
             sequencing_round,...
             save_type));
         saveas(gcf,figfilename,save_type)
     end
+    fprintf('Saved images to %s\n',figfilename);
 end

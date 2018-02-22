@@ -45,7 +45,8 @@ target_indices = start_idx:end_idx;
 
 try
 
-for register_channel = params.REGISTERCHANNELS
+for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC] 
+
     %Loading the tif file associated with the reference channel (ie,
     %Lectin) for the image specified by run_num
     %The {1} to register_cahnnel is a gross bit of cell matlab code
@@ -143,12 +144,18 @@ for register_channel = params.REGISTERCHANNELS
                 continue
             end
             
-            
+            %If we're calculating a channel just for shape context, then we
+            %only need the keypoint. So we do a check for any channel that
+            %is only in the REGISTERCHANNELS_SC and not in
+            %REGISTERCHANNELS_SIFT
+            regChan = register_channel{1}; 
+            skipDescriptor = ~any(strcmp(params.REGISTERCHANNELS_SIFT,regChan));            
             if exist(outputfilename,'file')>0 %Make sure that the descriptors have been calculated!
+                fprintf('Sees that the file %s already exists, skipping\n',outputfilename);
                 continue;
             else
                 %keys = SWITCH_tile_processing(tile_img);
-                keys = SWITCH_tile_processingInParallel(tile_img);
+                keys = SWITCH_tile_processingInParallel(tile_img,skipDescriptor);
             end
             
             %There is a different terminology for the x,y coordinates that
@@ -198,12 +205,7 @@ for register_channel = params.REGISTERCHANNELS
             final_indices(indices_to_remove)=0;
             keys = keys(logical(final_indices));
             fprintf('Removed %i/%i keypoints from the excess overlapping region\n',length(indices_to_remove),length(keys));
-            
-            
-            
-            
-            
-            
+                        
             save(outputfilename,'keys','ymin','xmin','ymax','xmax', 'params','run_num',...
                 'ymin_overlap','ymax_overlap', 'xmin_overlap','xmax_overlap');
             
