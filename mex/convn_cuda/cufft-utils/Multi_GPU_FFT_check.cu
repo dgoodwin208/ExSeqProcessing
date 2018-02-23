@@ -178,6 +178,8 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
     int batch = 2;
+    int size_of_one_set = N * sizeof(cufftComplex);
+    int size_of_data = size_of_one_set * batch;
     int istride, idist, ostride, odist;
     istride = NULL, idist = NULL, ostride = NULL, odist = NULL;
     result = cufftMakePlanMany(plan_forward_2_gpus, rank, size, 
@@ -195,14 +197,8 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Initialize transform array - to be split among GPU's and transformed in place using cufftX
     cudaLibXtDesc *device_data_input;
     // Allocate data on multiple gpus using the cufft routines
-    result = cufftXtMalloc(plan_forward_2_gpus, (cudaLibXtDesc **)&device_data_input, CUFFT_XT_FORMAT_INPLACE);
+    result = cufftXtMalloc(plan_forward_2_gpus, &device_data_input, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
-
-    printf("Xt memcpy\n");
-    /*FIXME causes seg fault*/
-    // Copy the data from 'host' to device using cufftXt formatting
-    result = cufftXtMemcpy(plan_forward_2_gpus, device_data_input, host_data_input, CUFFT_COPY_HOST_TO_DEVICE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     printf("cudaMalloc\n");
     // set up mem to transfer to one GPU
@@ -212,6 +208,12 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     cudaError_t cuda_status;
     cuda_status = cudaMallocHost ((void **) &GPU0_data_from_GPU1, N * sizeof(cufftComplex));
     if (cuda_status != 0) { printf ("*cudaMallocHost  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }
+
+    printf("Xt memcpy\n");
+    /*FIXME causes seg fault*/
+    // Copy the data from 'host' to device using cufftXt formatting
+    result = cufftXtMemcpy(plan_forward_2_gpus, device_data_input, host_data_input, CUFFT_COPY_HOST_TO_DEVICE);
+    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     // Perform FFT on multiple GPUs
     printf("Forward 3d FFT on multiple GPUs\n");
