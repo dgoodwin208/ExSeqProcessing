@@ -161,9 +161,9 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Create empty plan that will be used for FFT / IFFT
     cufftHandle plan_forward_2_gpus, plan_inverse_1_gpu;
     result = cufftCreate(&plan_forward_2_gpus);
-    if (result != CUFFT_SUCCESS) { printf ("*Create failed\n"); return 1; }
+    if (result != CUFFT_SUCCESS) { printf ("*Create plan failed\n"); return 1; }
     result = cufftCreate(&plan_inverse_1_gpu);
-    if (result != CUFFT_SUCCESS) { printf ("*Create failed\n"); return 1; }
+    if (result != CUFFT_SUCCESS) { printf ("*Create inverse plan failed\n"); return 1; }
 
     // Tell cuFFT which GPUs to use
     result = cufftXtSetGPUs (plan_forward_2_gpus, nGPUs, deviceNum);
@@ -174,15 +174,16 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Allocates memory for the worksize variable, which tells cufft how many GPUs it has to work with
     worksize =(size_t*)malloc(sizeof(size_t) * nGPUs);  
     
+    printf("Make plans\n");
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
     int batch = 2;
-    int inembed[rank], istride, idist, onembed[rank], ostride, odist;
-    inembed[0] = NULL;
-    onembed[0] = NULL; 
+    int istride, idist, ostride, odist;
     istride = NULL, idist = NULL, ostride = NULL, odist = NULL;
-    result = cufftMakePlanMany(plan_forward_2_gpus, rank, size, inembed, istride, idist, 
-            onembed, ostride, odist, CUFFT_C2C, batch, worksize); 
+    result = cufftMakePlanMany(plan_forward_2_gpus, rank, size, 
+            NULL, NULL, NULL, 
+            NULL, NULL, NULL, 
+            CUFFT_C2C, batch, worksize); 
     if (result != CUFFT_SUCCESS) { printf ("*MakePlanMany* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
 
     result = cufftMakePlan3d(plan_inverse_1_gpu, size[0], size[1], size[2], CUFFT_C2C, worksize); 
@@ -190,16 +191,20 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     /*printf("The size of the worksize is %lu\n", worksize[0]);*/
 
+    printf("Allocate mGPU\n");
     // Initialize transform array - to be split among GPU's and transformed in place using cufftX
     cudaLibXtDesc *device_data_input;
     // Allocate data on multiple gpus using the cufft routines
     result = cufftXtMalloc(plan_forward_2_gpus, (cudaLibXtDesc **)&device_data_input, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
 
+    printf("Xt memcpy\n");
+    /*FIXME causes seg fault*/
     // Copy the data from 'host' to device using cufftXt formatting
     result = cufftXtMemcpy(plan_forward_2_gpus, device_data_input, host_data_input, CUFFT_COPY_HOST_TO_DEVICE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
+    printf("cudaMalloc\n");
     // set up mem to transfer to one GPU
     cufftComplex *GPU0_data_from_GPU1;
     int device0 = device_data_input->descriptor->GPUs[0];
@@ -453,7 +458,8 @@ int main (void)
     int algo = 1;
     int benchmark = 0;
     int result;
-    int size[3] = {2048, 2048, 141};
+    /*int size[3] = {2048, 2048, 141};*/
+    int size[3] = {1000, 1000, 100};
     int filterdimA[3] = {10, 10, 10};
     /*int size[3] = {512, 512, 512};*/
     int N = size[0] * size[1] * size[2];
