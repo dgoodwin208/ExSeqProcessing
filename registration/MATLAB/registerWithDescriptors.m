@@ -330,10 +330,6 @@ if isempty(keyF_total) || isempty(keyM_total)
     error('ERROR: all keys removed, consider raising `params.MAXDISTANCE`... exiting');
 end
 
-if ~det(affine_tform)
-    error('ERROR: affine_tform can not be singular for following calcs... exiting')
-end
-
 %Do a global affine transform on the data and keypoints before
 %doing the fine-resolution non-rigid warp
 
@@ -346,6 +342,10 @@ keyF_total_switch = keyF_total(:,[2 1 3]);
 warning('off','all'); 
 affine_tform = findAffineModel(keyM_total_switch, keyF_total_switch);
 warning('on','all')
+
+if ~det(affine_tform)
+    error('ERROR: affine_tform can not be singular for following calcs... exiting')
+end
 
 %Warp the keyM features into the new space
 rF = imref3d(size(imgFixed_total));
