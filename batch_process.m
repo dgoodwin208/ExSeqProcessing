@@ -37,7 +37,15 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                 args = arg_list{job_idx_running};
                 postfix = postfix_list{job_idx_running};
 
-                if strcmp(job.State,'finished')
+                % retry out of memory errors
+                nomem_error = 0;
+                msg = 0;
+                if ~isempty(job.Tasks(1)) && ~isempty(job.Tasks(1).Error) &&...
+                    ~isempty(job.Tasks(1).Error.identifier)
+                    msg = 1;
+                    nomem_error = strcmp(job.Tasks(1).Error.identifier, 'MATLAB:nomem');
+                end
+                if strcmp(job.State,'finished') && ~nomem_error
                     %if isempty(job.Tasks(1).Error) && ~isequal(class(job.Tasks(1).Error), 'ParallelException')
                     if isempty(job.Tasks(1).Error)
                         % batch finished with no error
@@ -67,11 +75,14 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                     running_jobs(job_idx_running) = 0;
                     delete(job);
                     is_finished = 1;
-                elseif strcmp(job.State, 'failed') 
+                elseif strcmp(job.State, 'failed') || nomem_error
                     % batch call failed, retry
-                    disp(['batch (',num2str(job_idx_running),') has ',job.State,', resubmit it.']);
+                    disp(['batch (',num2str(job_idx_running),') has failed, resubmitting...']);
+                    if msg
+                        fprintf('Error caused by:\n%s\n', job.Tasks(1).Error.message);
+                    end
                     diary(job, ['./matlab-', prefix, '-', postfix, '-failed.log']);
-                    %jobs{job_idx_running} = recreate(job);
+                    %jobs{job_idx_running} = recreate(job); % causes misc. errors
                     jobs{job_idx_running} = batch(cluster, func, ... 
                         output_num, args, 'Pool', 2, 'CaptureDiary', true);
                 end
