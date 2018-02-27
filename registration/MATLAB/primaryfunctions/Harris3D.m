@@ -59,6 +59,7 @@ Ixy = Ix.*Iy;
 Ixz = Ix.*Iz;
 Iyz = Iy.*Iz;
 
+clear Ix Iy Iz;
 
 
 tic
@@ -80,7 +81,7 @@ width = size(test_img,2);
 depth = size(test_img,3);
 result = zeros(height,width,depth); 
 %R is the 'Corner response' matrix as defined in the original 1988 paper
-R = zeros(height,width,depth);
+%R = zeros(height,width,depth); %unnecessary mem request
 toc 
 
 tic
