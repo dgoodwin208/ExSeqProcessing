@@ -22,12 +22,13 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
 
     keys_cell = cell(1,length(blur_size_list));
 
-    parfor i = 1:length(blur_size_list)
-        blur_size = blur_size_list(i);
+    % do not parfor full images, causes out of memory issues
+    % additionally small size of blur size list makes parfor less effective
 
+    for i = 1:length(blur_size_list)
+        blur_size = blur_size_list(i);
         %Blurring is done inside the Harris keypoint detection code
         res_vect = Harris3D(img, blur_size);
-
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
         img_blur = convnfft(img,h,'same',[],options);

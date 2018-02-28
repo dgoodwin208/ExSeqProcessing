@@ -309,6 +309,10 @@ else %if we'va already calculated keyM_total and keyF_total, we can just load it
     load(output_keys_filename);
 end
 
+if isempty(keyF_total) || isempty(keyM_total)
+    error('ERROR: zero keys collected... exiting');
+end
+
 fprintf('Using all %i corresondences by ignoring for quantile cutoff\n', size(keyM_total,1));
 
 %If you want to set a maxium warp distance between matching keypoints. This is not currently being used but keeping it in mainly as a reminder that the correspondeces were problematic in the past and code like this can be implemented if need be.
@@ -327,7 +331,7 @@ if (params.MAXDISTANCE>-1)
 end
 
 if isempty(keyF_total) || isempty(keyM_total)
-    error('ERROR: all keys removed, consider raising `params.MAXDISTANCE`... exiting');
+    error('ERROR: all keys removed via distance thresholding, consider raising `params.MAXDISTANCE`... exiting');
 end
 
 %Do a global affine transform on the data and keypoints before
