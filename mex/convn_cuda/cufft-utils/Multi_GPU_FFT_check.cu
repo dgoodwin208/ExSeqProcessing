@@ -200,14 +200,14 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtMalloc(plan_forward_2_gpus, &device_data_input, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
 
-    printf("cudaMalloc\n");
-    // set up mem to transfer to one GPU
-    cufftComplex *GPU0_data_from_GPU1;
-    int device0 = device_data_input->descriptor->GPUs[0];
-    cudaSetDevice(device0);
-    cudaError_t cuda_status;
-    cuda_status = cudaMallocHost ((void **) &GPU0_data_from_GPU1, N * sizeof(cufftComplex));
-    if (cuda_status != 0) { printf ("*cudaMallocHost  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }
+    /*printf("cudaMalloc\n");*/
+    /*// set up mem to transfer to one GPU*/
+    /*cufftComplex *GPU0_data_from_GPU1;*/
+    /*int device0 = device_data_input->descriptor->GPUs[0];*/
+    /*cudaSetDevice(device0);*/
+    /*cudaError_t cuda_status;*/
+    /*cuda_status = cudaMallocHost ((void **) &GPU0_data_from_GPU1, N * sizeof(cufftComplex));*/
+    /*if (cuda_status != 0) { printf ("*cudaMallocHost  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }*/
 
     printf("Xt memcpy\n");
     /*FIXME causes seg fault*/
@@ -220,27 +220,27 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtExecDescriptorC2C(plan_forward_2_gpus, device_data_input, device_data_input, CUFFT_FORWARD);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }
 
-    // transfer to one gpu for matrix multiply
-    cufftComplex *device_data_on_GPU1;
-    device_data_on_GPU1 = (cufftComplex*) (device_data_input->descriptor->data[1]);
-    cuda_status = cudaMemcpy (GPU0_data_from_GPU1, device_data_on_GPU1, N * sizeof(cufftComplex),
-            cudaMemcpyDeviceToDevice);
-    if (cuda_status != 0) { printf ("*cudaMallocHost  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }
+    /*// transfer to one gpu for matrix multiply*/
+    /*cufftComplex *device_data_on_GPU1;*/
+    /*device_data_on_GPU1 = (cufftComplex*) (device_data_input->descriptor->data[1]);*/
+    /*cuda_status = cudaMemcpy (GPU0_data_from_GPU1, device_data_on_GPU1, N * sizeof(cufftComplex),*/
+            /*cudaMemcpyDeviceToDevice);*/
+    /*if (cuda_status != 0) { printf ("*cudaMallocHost  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }*/
 
-    // multiply both ffts and scale output
-    cufftComplex *device_data_on_GPU0;
-    device_data_on_GPU0 = (cufftComplex*) (device_data_input->descriptor->data[0]);
-    cudaSetDevice(device0); // do the computation on the first device
-    RealPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) device_data_on_GPU0, (cufftComplex*) GPU0_data_from_GPU1, N);
+    /*// multiply both ffts and scale output*/
+    /*cufftComplex *device_data_on_GPU0;*/
+    /*device_data_on_GPU0 = (cufftComplex*) (device_data_input->descriptor->data[0]);*/
+    /*cudaSetDevice(device0); // do the computation on the first device*/
+    /*RealPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) device_data_on_GPU0, (cufftComplex*) GPU0_data_from_GPU1, N);*/
 
-    // Perform inverse FFT on multiple GPUs
-    printf("Inverse 3d FFT on multiple GPUs\n");
-    result = cufftExecC2C(plan_inverse_1_gpu, GPU0_data_from_GPU1, GPU0_data_from_GPU1, CUFFT_INVERSE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }
+    /*// Perform inverse FFT on multiple GPUs*/
+    /*printf("Inverse 3d FFT on multiple GPUs\n");*/
+    /*result = cufftExecC2C(plan_inverse_1_gpu, GPU0_data_from_GPU1, GPU0_data_from_GPU1, CUFFT_INVERSE);*/
+    /*if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }*/
 
     // Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)
-    result = cufftXtMemcpy (plan_inverse_1_gpu, host_data_output, GPU0_data_from_GPU1, CUFFT_COPY_DEVICE_TO_HOST);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE); }
+    /*result = cufftXtMemcpy (plan_inverse_1_gpu, host_data_output, GPU0_data_from_GPU1, CUFFT_COPY_DEVICE_TO_HOST);*/
+    /*if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE); }*/
 
     /*// Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
     /*result = cufftXtMemcpy (plan, u_fft, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);*/
