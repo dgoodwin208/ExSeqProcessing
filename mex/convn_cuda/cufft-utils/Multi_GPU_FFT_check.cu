@@ -90,11 +90,10 @@ void scaleResult(int N, cufftComplex *f)
 
 // multiply, scale both arrays, keep product inplace on b
 __global__
-void RealPointwiseMulAndScale(cufftComplex *a, cufftComplex *b, int size)
+void ComplexPointwiseMulAndScale(cufftComplex *a, cufftComplex *b, int size, float scale)
 {
     const int numThreads = blockDim.x * gridDim.x;
     const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
-    float scale = 1.0f / (float) size;
     cufftComplex c;
     for (int i = threadID; i < size; i += numThreads)
     {
@@ -235,7 +234,8 @@ int conv_handler_batch(float* hostI, float* hostF, float* hostO, int algo, int* 
     cufftComplex *device_data_on_GPU0;
     device_data_on_GPU0 = (cufftComplex*) (device_data_input->descriptor->data[0]);
     cudaSetDevice(device0); // do the computation on the first device
-    RealPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) device_data_on_GPU0, (cufftComplex*) GPU0_data_from_GPU1, N);
+    /*FIXME is N the proper size to pass?*/
+    ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) device_data_on_GPU0, (cufftComplex*) GPU0_data_from_GPU1, N, 1.0f / (float) N);
     /*scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);*/
 
     result = cufftMakePlan3d(plan_inverse_1_gpu, size[0], size[1], size[2], CUFFT_C2C, worksize); 
@@ -247,7 +247,6 @@ int conv_handler_batch(float* hostI, float* hostF, float* hostO, int algo, int* 
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
-    // result = cufftXtMemcpy (plan_inverse_1_gpu, host_data_output, GPU0_data_from_GPU1, CUFFT_COPY_DEVICE_TO_HOST);
     cuda_status = cudaMemcpy (host_data_output, GPU0_data_from_GPU1, size_of_one_set, cudaMemcpyDeviceToHost);
     if (cuda_status != 0) { printf ("*cudaMemcpy  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }
 
@@ -362,13 +361,17 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (result != CUFFT_SUCCESS) { printf ("*MakePlan3d* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
 
 
-    printf("Allocate mGPU\n");
-    // Initialize transform array - to be split among GPU's and transformed in place using cufftX
-    cudaLibXtDesc *device_data_input, *device_data_kernel;
     // Allocate data on multiple gpus using the cufft routines
+    // Initialize transform array - to be split among GPU's and transformed in place using cufftX
+    printf("Allocate mGPU\n");
+    cudaLibXtDesc *device_data_input, *device_data_kernel, *input_natural, *kernel_natural;
     result = cufftXtMalloc(plan_fft3, &device_data_input, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
     result = cufftXtMalloc(plan_fft3, &device_data_kernel, CUFFT_XT_FORMAT_INPLACE);
+    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
+    result = cufftXtMalloc(plan_fft3, &input_natural, CUFFT_XT_FORMAT_INPLACE);
+    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
+    result = cufftXtMalloc(plan_fft3, &kernel_natural, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
 
     printf("Xt memcpy\n");
@@ -386,32 +389,39 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_kernel, device_data_kernel, CUFFT_FORWARD);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C kernel failed\n"); exit (EXIT_FAILURE); }
 
+    // cufftXtMemcpy() - Copy the data to natural order on GPUs
+    result = cufftXtMemcpy (plan_input, input_natural, device_data_input, CUFFT_COPY_DEVICE_TO_DEVICE);
+    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE) ; }
+    result = cufftXtMemcpy (plan_input, kernel_natural, device_data_kernel, CUFFT_COPY_DEVICE_TO_DEVICE);
+    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE) ; }
+
     // multiply both ffts and scale output
     for (int i = 0; i<nGPUs; ++i){
-        cudaSetDevice(deviceNum[i]);
+        checkCudaErrors(cudaSetDevice(deviceNum[i]));
         cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;
-        input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
-        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
+        input_data_on_gpu = (cufftComplex*) (input_natural->descriptor->data[deviceNum[i]]);
+        kernel_data_on_gpu = (cufftComplex*) (kernel_natural->descriptor->data[deviceNum[i]]);
         // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
-        RealPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, (cufftComplex*) input_data_on_gpu, N);
-        /*scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);*/
+        //FIXME size to pass?
+        int size_device = int(input_natural->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+        ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N);
     }
 
     // Synchronize GPUs
     for (int i = 0; i<nGPUs; ++i){
-        cudaSetDevice(deviceNum[i]);
+        checkCudaErrors(cudaSetDevice(deviceNum[i]));
         cudaDeviceSynchronize();
+        getCudaLastError("Kernel executuion failed in PointwiseMulAndScale");
     }
 
     // Perform inverse FFT on multiple GPUs
     printf("Inverse 3d FFT on multiple GPUs\n");
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C  failed\n"); exit (EXIT_FAILURE); }
+    if (result != CUFFT_SUCCESS) { printf ("*XtExecDesc inverse failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
-    cudaError_t cuda_status;
-    cuda_status = cudaMemcpy (host_data_output, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
-    if (cuda_status != 0) { printf ("*cudaMemcpy  failed %s\n", cudaGetErrorString(cuda_status)); exit (EXIT_FAILURE); }
+    result = cufftXtMemcpy (plan_fft3, host_data_output, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);
+    if (result != CUFFT_SUCCESS) { printf ("*cufftXtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     // Free malloc'ed variables
     free(worksize);
@@ -432,7 +442,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
 
     return 0;
-
 }
 
 int fft3(float * data, int* size, int* length) {
@@ -605,8 +614,8 @@ int main (void)
     int algo = 1;
     int benchmark = 0;
     int result = 0;
-    int size[3] = {2048, 2048, 141};
-    /*int size[3] = {1000, 1000, 100};*/
+    /*int size[3] = {2048, 2048, 141};*/
+    int size[3] = {1000, 1000, 100};
     int filterdimA[3] = {10, 10, 10};
     /*int size[3] = {512, 512, 512};*/
     int N = size[0] * size[1] * size[2];
