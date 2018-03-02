@@ -81,21 +81,25 @@ compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
 
 function [mini, full, lens] = test_img_size()
 
+    mini = {}; full = {}; 
     fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
     img = load3DTif_uint16(fn);
     %lens = floor(size(img) / 3);
     lens = floor(size(img) ./ [2, 4, 1]);
     img_mini = img(1:lens(1), 1:lens(2), :);
+    tic;
+    result = convn_cuda(single(img_mini), fspecial3('gaussian'));
+    toc;
 
-    [double_times, single_times] = test_convn_dtype(img_mini);
-    mini.double = double_times;
-    mini.single = single_times;
+    %[double_times, single_times] = test_convn_dtype(img_mini);
+    %mini.double = double_times;
+    %mini.single = single_times;
 
-    full = struct;
+    %full = struct;
 
-    [double_times, single_times] = test_convn_dtype(img);
-    full.double = double_times;
-    full.single = single_times;
+    %[double_times, single_times] = test_convn_dtype(img);
+    %full.double = double_times;
+    %full.single = single_times;
 end
 
 function [double_times, single_times] = test_convn_dtype(img)

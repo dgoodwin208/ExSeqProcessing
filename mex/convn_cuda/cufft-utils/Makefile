@@ -1,9 +1,20 @@
+OBJ= convn_impl.o main.exe
 NVCC = /usr/local/cuda/bin/nvcc
-NVCC_FLAGS = -g -G -Xcompiler -Wall --gpu-architecture=sm_61
-CUFFTLIB = -L/usr/local/cuda/lib -lcufft -I/usr/local/cuda/inc
+NVCC_FLAGS = -g -G -Xcompiler -fPIC --gpu-architecture=sm_61
+CUFFTLIB = -L/usr/local/cuda/lib64 -lcufft -I/usr/local/cuda/include
 
-main.exe: Multi_GPU_FFT_check.cu
+all: libcufftutils.a
+
+libcufftutils.a: $(OBJ)
+	ar crs $@ convn_impl.o
+
+%.o: %.cu
+	$(NVCC) $(NVCC_FLAGS) -o $@ $(CUFFTLIB) -c $^ 
+
+main.exe: convn_impl.cu
 	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(CUFFTLIB)
 
 clean:
-	rm -f *.o *.exe
+	rm -rf *.o *.exe *.a
+
+clobber: clean

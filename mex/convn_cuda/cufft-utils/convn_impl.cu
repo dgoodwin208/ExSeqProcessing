@@ -18,45 +18,7 @@
 //CUFFT Header file
 #include <cufftXt.h>
 
-/*namespace cufftutils {*/
-
-int divUp(int a, int b) { return (a + b - 1) / b; }
-
-__device__
-int idxClip(int idx, int idxMax){
-    return idx > (idxMax - 1) ? (idxMax - 1) : (idx < 0 ? 0 : idx);
-}
-
-__device__
-int flatten(int col, int row, int stack, int width, int height, int depth){
-    return idxClip(stack, depth) + idxClip(row, height)*depth + idxClip(col, width)*depth*height;
-    // Note: using column-major indexing format
-}
-
-/*__global__ */
-/*void initialize(int NX_per_GPU, int gpuNum, float* data, cufftComplex *f1, cufftComplex *f2)*/
-/*{*/
-    /*const int i = blockIdx.x * blockDim.x + threadIdx.x;*/
-    /*const int j = blockIdx.y * blockDim.y + threadIdx.y;*/
-    /*const int k = blockIdx.z * blockDim.z + threadIdx.z;*/
-    /*if ((i >= NX_per_GPU) || (j >= NY) || (k >= NZ)) return;*/
-    /*const int idx = flatten(i, j, k, NX, NY, NZ);*/
-
-    /*// Create physical vectors in temporary memory*/
-    /*float x = i * (float)L / NX + (float)gpuNum*NX_per_GPU*L / NX;*/
-    /*float y = j * (float)L / NY;*/
-    /*float z = k * (float)L / NZ;*/
-
-    /*// Initialize starting array*/
-    /*[>f1[idx].x = sin(x)*cos(y)*cos(z);<]*/
-    /*f1[idx].x = data[x][y][z];*/
-    /*f1[idx].y = 0.0;*/
-
-    /*f2[idx].x = 0.0;*/
-    /*f2[idx].y = 0.0;*/
-
-    /*return;*/
-/*}*/
+namespace cufftutils {
 
 __global__ 
 void initialize(int N, float* data, cufftComplex *f1, cufftComplex *f2)
@@ -301,6 +263,12 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
     cufftComplex *host_data_output = (cufftComplex *)malloc(size_of_data);
 
+    float elapsed = 0.0f;
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
     printf("Initialize input and output\n");
     // FIXME do this in par on kernel
     for ( int i = 0; i < N; i++)
@@ -370,9 +338,9 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtMalloc(plan_fft3, &device_data_kernel, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
     result = cufftXtMalloc(plan_fft3, &input_natural, CUFFT_XT_FORMAT_INPLACE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
+    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc input natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
     result = cufftXtMalloc(plan_fft3, &kernel_natural, CUFFT_XT_FORMAT_INPLACE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
+    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc output natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
 
     printf("Xt memcpy\n");
     // Copy the data from 'host' to device using cufftXt formatting
@@ -390,14 +358,15 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C kernel failed\n"); exit (EXIT_FAILURE); }
 
     // cufftXtMemcpy() - Copy the data to natural order on GPUs
-    result = cufftXtMemcpy (plan_input, input_natural, device_data_input, CUFFT_COPY_DEVICE_TO_DEVICE);
+    result = cufftXtMemcpy (plan_fft3, input_natural, device_data_input, CUFFT_COPY_DEVICE_TO_DEVICE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE) ; }
-    result = cufftXtMemcpy (plan_input, kernel_natural, device_data_kernel, CUFFT_COPY_DEVICE_TO_DEVICE);
+    result = cufftXtMemcpy (plan_fft3, kernel_natural, device_data_kernel, CUFFT_COPY_DEVICE_TO_DEVICE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE) ; }
 
     // multiply both ffts and scale output
+    printf("Matrix Multiply on multiple GPUs\n");
     for (int i = 0; i<nGPUs; ++i){
-        checkCudaErrors(cudaSetDevice(deviceNum[i]));
+        cudaSetDevice(deviceNum[i]);
         cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;
         input_data_on_gpu = (cufftComplex*) (input_natural->descriptor->data[deviceNum[i]]);
         kernel_data_on_gpu = (cufftComplex*) (kernel_natural->descriptor->data[deviceNum[i]]);
@@ -409,15 +378,22 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     // Synchronize GPUs
     for (int i = 0; i<nGPUs; ++i){
-        checkCudaErrors(cudaSetDevice(deviceNum[i]));
+        cudaSetDevice(deviceNum[i]);
         cudaDeviceSynchronize();
-        getCudaLastError("Kernel executuion failed in PointwiseMulAndScale");
+        /*getCudaLastError("Kernel executuion failed in PointwiseMulAndScale");*/
     }
 
     // Perform inverse FFT on multiple GPUs
     printf("Inverse 3d FFT on multiple GPUs\n");
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecDesc inverse failed, code: %d\n",result); exit (EXIT_FAILURE); }
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&elapsed, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf(" Full convolution cost %.2f ms\n", elapsed);
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
     result = cufftXtMemcpy (plan_fft3, host_data_output, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);
@@ -609,13 +585,15 @@ int fft3(float * data, int* size, int* length) {
     return 0;
 }
 
+} // namespace cufftutils
+
 int main (void)
 {
     int algo = 1;
     int benchmark = 0;
     int result = 0;
     /*int size[3] = {2048, 2048, 141};*/
-    int size[3] = {1000, 1000, 100};
+    int size[3] = {1001, 1000, 141};
     int filterdimA[3] = {10, 10, 10};
     /*int size[3] = {512, 512, 512};*/
     int N = size[0] * size[1] * size[2];
@@ -637,7 +615,7 @@ int main (void)
     printf("Kernel created\n");
 
     printf("Testing convolution\n");
-    result = conv_handler(data, kernel, data, algo, size,
+    result = cufftutils::conv_handler(data, kernel, data, algo, size,
             filterdimA, benchmark);
 
     /*printf("Testing fft\n");*/
@@ -646,4 +624,3 @@ int main (void)
     return result;
 }
 
-/*} // namespace cufftutils*/
