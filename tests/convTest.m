@@ -26,30 +26,17 @@ ylabel('Time (s)')
 xlabel('Filter size')
 %saveas(gcf, tname);
 
-figure
-plot(filter_size, mini.double.fft, 'b', 'DisplayName', 'double fft', 'LineWidth', lw)
-hold on;
-plot(filter_size, mini.double.fft_gpu, 'r', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
-%plot(filter_size, mini.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
-plot(filter_size, mini.double.imf_gpu, 'g', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
-hold off
-legend('Location', 'northwest');
-tname = sprintf('Double precision %d X %d X %d', lens);
-title(tname)
-ylabel('Time (s)')
-xlabel('Filter size')
-%saveas(gcf, tname);
-
+%% SHOW RESULTS FOR SMALL IMAGE
 figure
 plot(filter_size, mini.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
 hold on;
 plot(filter_size, mini.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
 %plot(filter_size, mini.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
 plot(filter_size, mini.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
-plot(filter_size, mini.double.fft, 'b', 'LineStyle', '--', 'DisplayName', 'double fft', 'LineWidth', lw)
-plot(filter_size, mini.double.fft_gpu, 'r', 'LineStyle', '--', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
-%plot(filter_size, mini.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
-plot(filter_size, mini.double.imf_gpu, 'g', 'LineStyle', '--', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
+%plot(filter_size, mini.double.fft, 'b', 'LineStyle', '--', 'DisplayName', 'double fft', 'LineWidth', lw)
+%plot(filter_size, mini.double.fft_gpu, 'r', 'LineStyle', '--', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
+%%plot(filter_size, mini.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
+%plot(filter_size, mini.double.imf_gpu, 'g', 'LineStyle', '--', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
 hold off
 legend('Location', 'northwest');
 tname = sprintf('Convolve %d X %d X %d', lens);
@@ -58,26 +45,40 @@ ylabel('Time (s)')
 xlabel('Filter size')
 %saveas(gcf, tname);
 
-figure
-plot(filter_size, full.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
-hold on;
-plot(filter_size, full.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
-%plot(filter_size, full.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
-plot(filter_size, full.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
-plot(filter_size, full.double.fft, 'b', 'LineStyle', '--', 'DisplayName', 'double fft', 'LineWidth', lw)
-plot(filter_size, full.double.fft_gpu, 'r', 'LineStyle', '--', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
-%plot(filter_size, full.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
-plot(filter_size, full.double.imf_gpu, 'g', 'LineStyle', '--', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
-hold off
-legend('Location', 'southeast');
-tname = 'Convolve 2048 X 2048 X 141';
-title(tname)
-ylabel('Time (s)')
-xlabel('Filter size')
+%% SHOW RESULTS FOR FULL IMAGE
+%figure
+%plot(filter_size, full.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
+%hold on;
+%plot(filter_size, full.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
+%%plot(filter_size, full.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
+%plot(filter_size, full.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
+%plot(filter_size, full.double.fft, 'b', 'LineStyle', '--', 'DisplayName', 'double fft', 'LineWidth', lw)
+%plot(filter_size, full.double.fft_gpu, 'r', 'LineStyle', '--', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
+%%plot(filter_size, full.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
+%plot(filter_size, full.double.imf_gpu, 'g', 'LineStyle', '--', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
+%hold off
+%legend('Location', 'southeast');
+%tname = 'Convolve 2048 X 2048 X 141';
+%title(tname)
+%ylabel('Time (s)')
+%xlabel('Filter size')
 %saveas(gcf, tname);
 
+%% SHOW DOUBLE PRECISION
+%figure
+%plot(filter_size, mini.double.fft, 'b', 'DisplayName', 'double fft', 'LineWidth', lw)
+%hold on;
+%plot(filter_size, mini.double.fft_gpu, 'r', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
+%%plot(filter_size, mini.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
+%plot(filter_size, mini.double.imf_gpu, 'g', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
+%hold off
+%legend('Location', 'northwest');
+%tname = sprintf('Double precision %d X %d X %d', lens);
+%title(tname)
+%ylabel('Time (s)')
+%xlabel('Filter size')
+%%saveas(gcf, tname);
 
-compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
 
 function [mini, full, lens] = test_img_size()
 
@@ -85,28 +86,28 @@ function [mini, full, lens] = test_img_size()
     fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
     img = load3DTif_uint16(fn);
     %lens = floor(size(img) / 3);
-    lens = floor(size(img) ./ [2, 4, 1]);
+    lens = floor(size(img) ./ [3, 3, 1]);
     img_mini = img(1:lens(1), 1:lens(2), :);
-    tic;
-    result = convn_cuda(single(img_mini), fspecial3('gaussian'));
-    toc;
+
+    mini = struct;
 
     %[double_times, single_times] = test_convn_dtype(img_mini);
     %mini.double = double_times;
     %mini.single = single_times;
 
-    %full = struct;
+    full = struct;
 
-    %[double_times, single_times] = test_convn_dtype(img);
-    %full.double = double_times;
-    %full.single = single_times;
+    [double_times, single_times] = test_convn_dtype(img);
+    full.double = double_times;
+    full.single = single_times;
 end
 
 function [double_times, single_times] = test_convn_dtype(img)
     i_size = size(img);
     fprintf('\n\nTesting with size: %d, %d, %d\n', i_size)
-    double_times = test_convn_fsize(img);
-    tic; fprintf('\n\nConvert to SINGLE / FLOAT precision\n\n'); img = single(img); toc;
+    %double_times = test_convn_fsize(img);
+    double_times = [];
+    fprintf('\n\nConvert to SINGLE / FLOAT precision\n\n'); tic; img = single(img); toc;
     single_times = test_convn_fsize(img);
 end
 
@@ -119,16 +120,20 @@ function [times] = test_convn_fsize(img)
     fft_times_gpu = [];
     imf_times = [];
     imf_times_gpu = [];
+    cuda_times = [];
+    sep_times = [];
 
     for fsize = filter_sizes
         fprintf('\nFilter size: %d\n', fsize);
         h = fspecial3('gaussian', fsize);
-        [t_fft, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h);
+        [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h);
         fft_times = [fft_times t_fft];
+        cuda_times = [cuda_times t_cuda];
         fft_pad_times = [fft_pad_times t_fft_pad];
         fft_times_gpu = [fft_times_gpu t_fft_gpu];
         imf_times = [imf_times t_imf];
         imf_times_gpu = [imf_times_gpu t_imf_gpu];
+        sep_times = [sep_times t_sep];
     end
 
     times = struct;
@@ -137,16 +142,20 @@ function [times] = test_convn_fsize(img)
     times.imf = imf_times;
     times.fft_gpu = fft_times_gpu;
     times.imf_gpu = imf_times_gpu;
+    times.cuda = cuda_times;
+    times.sep = sep_times;
 end
 
-function [t_fft, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h)
+function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h)
 
+    compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
     %fprintf('Type: %s\n', class(img_mini));
     t_fft = 0;
     t_fft_pad = 0;
     t_fft_gpu = 0;
     t_imf = 0;
     t_imf_gpu = 0;
+    t_cuda = 0;
 
     options = {};
     options.Power2Flag = false;
@@ -159,6 +168,32 @@ function [t_fft, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, 
     %profsave(profile('info'), sprintf('pr-convnfft-%s-fsize%d', class(img), fsize(1))); 
     t_fft = toc;
     fprintf('`convnfft` power2flag false %s: %.4f\n', class(img), t_fft)
+
+    %gpuDevice(1); % reset GPU avail mem
+    %tic;
+    %h1d = gpuArray(h(1, :));
+    %img_gpu = gpuArray(img);
+    %img_blur_sep = conv3_sep(img_gpu, h1d);
+    %t_sep = toc;
+    %%err = compute_err(img_blur_sep, img_blur_fft);
+    %err = 0.0;
+    %fprintf('`conv3_sep` %s: %.4f rel. error %.2f\n', class(img_gpu), t_sep, err)
+
+    gpuDevice(1); % reset GPU avail mem
+    tic;
+    h1d = h(1, :);
+    img_blur_seplib = convnsep({h1d, h1d, h1d}, img, 'same', 1500);
+    t_seplib = toc;
+    err = compute_err(img_blur_seplib, img_blur_fft);
+    fprintf('`convsep` %s: %.4f rel. error %.2f\n', class(img_gpu), t_seplib, err)
+
+    %gpuDevice(1); % reset GPU avail mem
+    %tic;
+    %img_blur_cuda = convn_cuda(img, h);
+    %t_cuda = toc;
+    %err = compute_err(img_blur_cuda, img_blur_fft);
+    %fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
+    %gpuDevice();
 
     %options.Power2Flag = true;
     %tic; 
@@ -179,35 +214,37 @@ function [t_fft, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, 
         t_fft_gpu = 0;
         disp('GPU `convnfft` failed, out of memory')
     end
+
     %profile off; 
     %profsave(profile('info'), sprintf('pr-convnfft-gpu-%s-fsize%d', class(img), fsize(1))); 
 
-    gpuDevice(1); % reset GPU avail mem
-    tic; 
-    try
-        img_filter_func = convn_filter(img, h); 
-        t_imf_gpu = toc;
-        fprintf('`imfilter` gpuArray %s: %.4f\n', class(img), t_imf_gpu);
-    catch
-        void = toc;
-        disp('GPU `convn_filter` failed, out of memory')
-        %disp('GPU `convn_filter` failed, out of memory. Timing CPU:')
-        %tic;
-        %try
-            %timeout('imfilter(img, h, ''same'', ''conv'')', timeout_len)
-            %t_imf = toc;
-        %catch
-            %void = toc;
-            %fprintf('`imfilter` exceeded timeout length: %d', timeout_len)
-            %t_imf = 0;
-        %end
-        %fprintf('`imfilter` cpu %s: %.4f\n', class(img), t_imf);
-    end
+    %gpuDevice(1); % reset GPU avail mem
+    %tic; 
+    %try
+        %img_filter_func = convn_filter(img, h); 
+        %t_imf_gpu = toc;
+        %fprintf('`imfilter` gpuArray %s: %.4f\n', class(img), t_imf_gpu);
+    %catch
+        %void = toc;
+        %disp('GPU `convn_filter` failed, out of memory')
+        %%disp('GPU `convn_filter` failed, out of memory. Timing CPU:')
+        %%tic;
+        %%try
+            %%timeout('imfilter(img, h, ''same'', ''conv'')', timeout_len)
+            %%t_imf = toc;
+        %%catch
+            %%void = toc;
+            %%fprintf('`imfilter` exceeded timeout length: %d', timeout_len)
+            %%t_imf = 0;
+        %%end
+        %%fprintf('`imfilter` cpu %s: %.4f\n', class(img), t_imf);
+    %end
     
-    %tic;
-    %imfilter(img, h, 'same', 'conv');
-    %t_imf = toc;
-    %fprintf('`imfilter` cpu %s: %.4f\n', class(img), t_imf);
+    gpuDevice(1);
+    tic;
+    imfilter(gpuArray(img), gpuArray(h), 'same', 'conv');
+    t_imf = toc;
+    fprintf('`imfilter` gpu %s: %.4f\n', class(img), t_imf);
 
 end
 
