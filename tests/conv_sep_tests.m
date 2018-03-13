@@ -34,7 +34,7 @@ tic
 B = convnfft(A,H, 'same', [], options);
 toc
 
-chunks = [500, 750, 1000];
+chunks = [250, 500, 750];
 for chunk=chunks
     tic
     B2 = convnsep({a,a,a}, A, 'same', chunk);
