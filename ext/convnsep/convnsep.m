@@ -14,7 +14,7 @@
 %
 %   Version 1.1, February 26, 2011
 %   TODO: fix handling of even-sized kernels
-function J = convnsep(h,V,type, gpu_chunks)
+function J = convnsep(h,V,type, gpu_chunks, gpu_strategy)
 lh=length(h);
 
 %input validation
@@ -25,7 +25,7 @@ for j=1:lh,
     L(j)=(length(h{j})-1)/2;
 end
 V=padarray(V,L);
-J = convnsepsame(h,V, gpu_chunks);
+J = convnsepsame(h,V, gpu_chunks, gpu_strategy);
 
 %implicit behaviour: if no 'type' input, then type=='full' (don't trim the
 %result)
@@ -45,7 +45,7 @@ end
 
 %Perform convolution while keeping the array size the same (i.e. discarding
 %boundary samples)
-function J = convnsepsame(h,V, gpu_chunks)
+function J = convnsepsame(h,V, gpu_chunks, gpu_strategy)
 J=V;
 sz=size(V);
 n=length(sz);
@@ -69,7 +69,7 @@ for k=1:n
     J = reshape(J,sz(k),prod(sz(otherdims)));
     %3. perform 2D convolution with k-th kernel along the first dimension
     if gpu_chunks % GPU sensitive to memory overflow
-        J = conv2_dist(h{k}, J, gpu_chunks);
+        J = conv2_dist(h{k}, J, gpu_chunks, gpu_strategy);
     else
         J = conv2(h{k},1,J,'same');
     end

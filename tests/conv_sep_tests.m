@@ -27,19 +27,20 @@ H4=reshape(b3,n*ones(1,3));
 %make a test matrix
 A = single(randn(2048,2048,141));
 
-%%compare execution times
-options = {};
-options.Power2Flag = false;
-tic
-B = convnfft(A,H, 'same', [], options);
-toc
+%%%%compare execution times
+%options = {};
+%options.Power2Flag = false;
+%tic
+%B = convnfft(A,H, 'same', [], options);
+%toc
 
-chunks = [250, 500, 750];
+chunks = [1500, 2000, 3000, 5000];
 for chunk=chunks
     tic
-    B2 = convnsep({a,a,a}, A, 'same', chunk);
+    B2 = convnsep({a,a,a}, A, 'same', chunk, 'single');
     toc
 end
 
 %compare error to size of the result of convn
-norm(B(:)-B2(:))/  norm(B(:))
+norm(B(:)-B2(:))
+norm(B(:))
