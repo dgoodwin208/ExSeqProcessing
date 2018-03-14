@@ -12,10 +12,7 @@
 % Date: August 2015
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function  res_vect = Harris3D(test_img,blur_dim)
-
-options = {};
-options.Power2Flag = false;
+function  res_vect = Harris3D(test_img,blur_dim, options)
 
 %Creating 3D sobel filters
 h = [ -1; 2; 1];

@@ -71,8 +71,15 @@ dims = reshape(dims, 1, []); % row (needed for for-loop index)
 
 % GPU enable flag
 GPU = getoption(options, 'GPU', false);
+% cast to single flag
+CastSingle = getoption(options, 'CastSingle', false);
 % Check if Jacket is installed
 GPU = GPU && ~isempty(which('ginfo'));
+
+if CastSingle
+    A = single(A);
+    B = single(B);
+end
 
 % IFUN function will be used later to truncate the result
 % M and N are respectively the length of A and B in some dimension
@@ -204,6 +211,10 @@ if GPU
     else
         A = double(A);
     end
+end
+
+if CastSingle
+    A = double(A);
 end
 
 end % convnfft
