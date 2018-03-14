@@ -1,11 +1,10 @@
-function myhist = buildOriHists(x,y,z,radius,pix,fv)
-global Display_flag nFaces;
+function myhist = buildOriHists(x,y,z,radius,pix,fv,sift_params)
 
-if (Display_flag ==1)
+if (sift_params.Display_flag ==1)
     figure;
     hold on;
     axis equal;
-    for i=1:nFaces
+    for i=1:sift_params.nFaces
         tmp(1,:) = fv.vertices(fv.faces(i,1),:);
         tmp(2,:) = fv.vertices(fv.faces(i,2),:);
         tmp(3,:) = fv.vertices(fv.faces(i,3),:);
@@ -21,7 +20,7 @@ xi = int16(x);
 yi = int16(y);
 zi = int16(z);
 [rows cols slices] = size(pix);
-myhist = zeros(1,nFaces);
+myhist = zeros(1,sift_params.nFaces);
 
 
 for r = xi - radius:xi + radius
@@ -29,13 +28,13 @@ for r = xi - radius:xi + radius
         for s = zi - radius:zi + radius
             %          /* Do not use last row or column, which are not valid. */
             if (r >= 1 && c >= 1 && r < rows - 1 && c < cols - 1 && s >= 1 && s < slices - 1)
-                [mag vect] = GetGradOri_vector(pix,r,c,s);
+                [mag vect] = GetGradOri_vector(pix,r,c,s,sift_params);
                 
                 corr_array = fv.centers * vect';
 
                 [yy ix] = sort(corr_array,'descend');
                 
-                if (Display_flag ==1)
+                if (sift_params.Display_flag ==1)
                     plot3(vect(1),vect(2),vect(3),'k.')
                     plot3(fv.centers(ix(1),1),fv.centers(ix(1),2),fv.centers(ix(1),3),'b*')
                 end
@@ -48,8 +47,8 @@ end
 
 clear tmp;
 
-if (Display_flag == 1)
-    for i=1:nFaces
+if (sift_params.Display_flag == 1)
+    for i=1:sift_params.nFaces
         tmp(1,:) = [0 0 0];
         tmp(2,:) = (myhist(i) / max(myhist)) .* fv.centers(i,:);
         

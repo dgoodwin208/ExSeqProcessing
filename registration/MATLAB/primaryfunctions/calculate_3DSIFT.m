@@ -15,6 +15,8 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
+LoadParams;
+sift_params.pix_size = size(img);
 i = 0;
 offset = 0;
 while 1
@@ -29,7 +31,7 @@ while 1
         
         % Create a 3DSIFT descriptor at the given location
         if ~skipDescriptor
-            [keys{i} reRun] = Create_Descriptor(img,1,1,loc(1),loc(2),loc(3));
+            [keys{i} reRun] = Create_Descriptor(img,1,1,loc(1),loc(2),loc(3),sift_params);
         else         
             clear k; reRun=0;
             k.x = loc(1); k.y = loc(2); k.z = loc(3);

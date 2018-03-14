@@ -1,6 +1,8 @@
-function [mag vect] = GetGradOri_vector(pix,r,c,s)
+function [mag vect] = GetGradOri_vector(pix,r,c,s, sift_params)
 
-[rows cols slices] = size(pix);
+rows = sift_params.pix_size(1);
+cols = sift_params.pix_size(2);
+slices = sift_params.pix_size(3);
 
 if r < 1
     r = 1;

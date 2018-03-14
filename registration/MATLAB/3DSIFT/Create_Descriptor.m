@@ -1,4 +1,4 @@
-function [keypoint reRun] = Create_Descriptor(pix, xyScale, tScale, x, y, z)
+function [keypoint reRun] = Create_Descriptor(pix, xyScale, tScale, x, y, z, sift_params)
 % Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
 % 
 % Inputs:
@@ -15,26 +15,23 @@ function [keypoint reRun] = Create_Descriptor(pix, xyScale, tScale, x, y, z)
 % Example:
 % See Demo.m
 
-
-LoadParams;
-
 reRun = 0;
 
 radius = int16(xyScale * 3.0);
 
-fv = sphere_tri('ico',Tessellation_levels,1);
-myhist = buildOriHists(x,y,z,radius,pix,fv);
+fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
+myhist = buildOriHists(x,y,z,radius,pix,fv,sift_params);
 
 [yy ix] = sort(myhist,'descend');
 % Dom_Peak = ix(1);
 % Sec_Peak = ix(2);
     
-if (TwoPeak_Flag == 1 && dot(fv.centers(ix(1),:),fv.centers(ix(2),:)) > .9 && dot(fv.centers(ix(1),:),fv.centers(ix(3),:)) > .9)
+if (sift_params.TwoPeak_Flag == 1 && dot(fv.centers(ix(1),:),fv.centers(ix(2),:)) > .9 && dot(fv.centers(ix(1),:),fv.centers(ix(3),:)) > .9)
     %disp('MISS : Top 3 orientations within ~25 degree range : Returning with reRun flag set.');
     keypoint = 0;
     reRun = 1;
     return;
 end
 
-keypoint = MakeKeypoint(pix, xyScale, tScale, x, y, z);
+keypoint = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params);
 

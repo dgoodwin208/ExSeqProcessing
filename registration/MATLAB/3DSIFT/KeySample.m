@@ -1,23 +1,20 @@
-function index = KeySample(key, pix)
+function index = KeySample(key, pix, sift_params)
 
-global Tessellation_levels MagFactor IndexSize nFaces;
-
-fv = sphere_tri('ico',Tessellation_levels,1);
-
+fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
 
 irow = int16(key.x);
 icol = int16(key.y);
 islice = int16(key.z);
 
-xySpacing = key.xyScale * MagFactor;
-tSpacing = key.tScale * MagFactor;
+xySpacing = key.xyScale * sift_params.MagFactor;
+tSpacing = key.tScale * sift_params.MagFactor;
 
-xyRadius = 1.414 * xySpacing * (IndexSize + 1) / 2.0;
-tRadius = 1.414 * tSpacing * (IndexSize + 1) / 2.0;
+xyRadius = 1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0;
+tRadius = 1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0;
 xyiradius = int16(xyRadius);
 tiradius = int16(tRadius);
 
-index = zeros(IndexSize,IndexSize,IndexSize,nFaces);
+index = zeros(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces);
 
 for i = -xyiradius:xyiradius
     for j = -xyiradius:xyiradius
@@ -34,18 +31,18 @@ for i = -xyiradius:xyiradius
             v0 = [i2; j2; s2];
 
             
-            i_indx = int16(floor(double((i + xyiradius)) / double((2*xyiradius/IndexSize)))) + 1;
-            j_indx = int16(floor(double((j + xyiradius)) / double((2*xyiradius/IndexSize)))) + 1;
-            s_indx = int16(floor(double((s + tiradius)) / double((2*tiradius/IndexSize)))) + 1;
+            i_indx = int16(floor(double((i + xyiradius)) / double((2*xyiradius/sift_params.IndexSize)))) + 1;
+            j_indx = int16(floor(double((j + xyiradius)) / double((2*xyiradius/sift_params.IndexSize)))) + 1;
+            s_indx = int16(floor(double((s + tiradius)) / double((2*tiradius/sift_params.IndexSize)))) + 1;
             
-            if i_indx > IndexSize
-                i_indx = IndexSize;
+            if i_indx > sift_params.IndexSize
+                i_indx = sift_params.IndexSize;
             end
-            if j_indx > IndexSize
-                j_indx = IndexSize;
+            if j_indx > sift_params.IndexSize
+                j_indx = sift_params.IndexSize;
             end
-            if s_indx > IndexSize
-                s_indx = IndexSize;
+            if s_indx > sift_params.IndexSize
+                s_indx = sift_params.IndexSize;
             end
 
             if (i_indx < 1 || j_indx < 1 || s_indx < 1)
@@ -53,14 +50,14 @@ for i = -xyiradius:xyiradius
             end
             
             %For each pixel, take a neighborhhod of xyradius and tiradius,
-            %bin it down to the IndexSize dimensions
+            %bin it down to the sift_params.IndexSize dimensions
             r = irow + v0(1);
             c = icol + v0(2);
             t = islice + v0(3);
 
             %We've calculated the target index for the 3D histogram
             %Add sample increments the 
-            index = AddSample(index, pix, distsq, r, c, t, i_indx, j_indx, s_indx, fv);
+            index = AddSample(index, pix, distsq, r, c, t, i_indx, j_indx, s_indx, fv, sift_params);
             
         end
     end
@@ -140,7 +137,7 @@ end
 
 %Moving the original histogram space into the rotated space requires one
 %last sum
-rotated_index = zeros(IndexSize,IndexSize,IndexSize,nFaces);
+rotated_index = zeros(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces);
 for j = 1:size(fv.centers)
     rotated_index(:,:,:,j) = rotated_index(:,:,:,j) + index(:,:,:,re_indexed(j));
 end
@@ -204,7 +201,7 @@ Rcb = imref3d(size(subpix));
 
 
 %Now re-run the calculation of the index
-index = zeros(IndexSize,IndexSize,IndexSize,nFaces);
+index = zeros(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces);
 for i = -xyiradius:xyiradius
     for j = -xyiradius:xyiradius
         for s = -tiradius:tiradius
@@ -220,18 +217,18 @@ for i = -xyiradius:xyiradius
             v0 = [i2; j2; s2];
 
             
-            i_indx = int16(floor(double((i + xyiradius)) / double((2*xyiradius/IndexSize)))) + 1;
-            j_indx = int16(floor(double((j + xyiradius)) / double((2*xyiradius/IndexSize)))) + 1;
-            s_indx = int16(floor(double((s + tiradius)) / double((2*tiradius/IndexSize)))) + 1;
+            i_indx = int16(floor(double((i + xyiradius)) / double((2*xyiradius/sift_params.IndexSize)))) + 1;
+            j_indx = int16(floor(double((j + xyiradius)) / double((2*xyiradius/sift_params.IndexSize)))) + 1;
+            s_indx = int16(floor(double((s + tiradius)) / double((2*tiradius/sift_params.IndexSize)))) + 1;
             
-            if i_indx > IndexSize
-                i_indx = IndexSize;
+            if i_indx > sift_params.IndexSize
+                i_indx = sift_params.IndexSize;
             end
-            if j_indx > IndexSize
-                j_indx = IndexSize;
+            if j_indx > sift_params.IndexSize
+                j_indx = sift_params.IndexSize;
             end
-            if s_indx > IndexSize
-                s_indx = IndexSize;
+            if s_indx > sift_params.IndexSize
+                s_indx = sift_params.IndexSize;
             end
 
             if (i_indx < 1 || j_indx < 1 || s_indx < 1)
@@ -239,7 +236,7 @@ for i = -xyiradius:xyiradius
             end
             
             %For each pixel, take a neighborhhod of xyradius and tiradius,
-            %bin it down to the IndexSize dimensions
+            %bin it down to the sift_params.IndexSize dimensions
             r = irow + v0(1);
             c = icol + v0(2);
             t = islice + v0(3);
@@ -302,7 +299,7 @@ return
 % %index = index(:,:,:,re_indexed);
 % %Moving the original histogram space into the rotated space requires one
 % %last sum
-% rotated_index = zeros(IndexSize,IndexSize,IndexSize,nFaces);
+% rotated_index = zeros(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,nFaces);
 % for j = 1:size(fv.centers)
 %     rotated_index(:,:,:,j) = rotated_index(:,:,:,j) + index(:,:,:,re_indexed(j));
 % end

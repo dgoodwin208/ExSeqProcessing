@@ -1,21 +1,21 @@
-function key = MakeKeypoint(pix, xyScale, tScale, x, y, z)
+function key = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params)
     k.x = x;
     k.y = y;
     k.z = z;
     k.xyScale = xyScale;
     k.tScale = tScale;
-    key = MakeKeypointSample(k, pix);
+    key = MakeKeypointSample(k, pix, sift_params);
     return;
 end
 
 
-function key = MakeKeypointSample(key, pix)
+function key = MakeKeypointSample(key, pix, sift_params)
 
 
 MaxIndexVal = 0.2;
 changed = 0;
 
-vec = KeySampleVec(key, pix);
+vec = KeySampleVec(key, pix, sift_params);
 VecLength = length(vec);
 
 vec = NormalizeVec(vec, VecLength);
