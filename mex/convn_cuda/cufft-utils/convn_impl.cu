@@ -252,26 +252,30 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
 
-    int N = size[0] * size[1] * size[2];
+    long N = size[0] * size[1] * size[2];
     printf("Using %d GPUs on a %dx%dx%d grid, N:%d\n",nGPUs, size[0], size[1], size[2], N);
-    int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
-    int size_of_data = N * sizeof(cufftComplex);
+    long N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
+    long size_of_data = N * sizeof(cufftComplex);
 
     //Create complex variables on host
     printf("malloc input and output\n");
     cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_input) { printf("malloc input failed"); }
     cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_kernel) { printf("malloc kernel failed"); }
     cufftComplex *host_data_output = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_output) { printf("malloc output failed"); }
 
     float elapsed = 0.0f;
     cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start, 0);
+    if (benchmark) {
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start, 0);
+    }
 
     printf("Initialize input and output\n");
-    // FIXME do this in par on kernel
-    for ( int i = 0; i < N; i++)
+    for ( long i = 0; i < N; i++)
     { // Initialize the transform memory 
         if (i < N_kernel) {
             host_data_kernel[i].x = hostF[i];
@@ -286,6 +290,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         host_data_output[i].x = 0.0f;
         host_data_output[i].y = 0.0f;
     }
+    printf("Input and output successfully initialized\n");
 
     // Set GPU's to use 
     int deviceNum[nGPUs];
@@ -293,7 +298,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     {
         deviceNum[i] = i;
     }
-
 
     // Launch CUDA kernel to convert to complex
     /*cudaSetDevice(deviceNum[0]);*/
@@ -388,12 +392,14 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecDesc inverse failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsed, start, stop);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-    printf(" Full convolution cost %.2f ms\n", elapsed);
+    if (benchmark) {
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsed, start, stop);
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+        printf(" Full convolution cost %.2f ms\n", elapsed);
+    }
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
     result = cufftXtMemcpy (plan_fft3, host_data_output, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);
@@ -415,6 +421,10 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtFree(device_data_input);
     if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
     result = cufftXtFree(device_data_kernel);
+    if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
+    result = cufftXtFree(input_natural);
+    if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
+    result = cufftXtFree(kernel_natural);
     if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
 
     return 0;
@@ -590,10 +600,10 @@ int fft3(float * data, int* size, int* length) {
 int main (void)
 {
     int algo = 1;
-    int benchmark = 0;
+    int benchmark = 1;
     int result = 0;
-    /*int size[3] = {2048, 2048, 141};*/
-    int size[3] = {1001, 1000, 141};
+    int size[3] = {2048, 2048, 141};
+    /*int size[3] = {1001, 1000, 141};*/
     int filterdimA[3] = {10, 10, 10};
     /*int size[3] = {512, 512, 512};*/
     int N = size[0] * size[1] * size[2];
