@@ -17,6 +17,7 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
     loadExperimentParams;
     options = {};
     options.Power2Flag = false;
+    options.CastSingle = true;
 
     blur_size_list = params.SCALE_PYRAMID;
 
@@ -28,7 +29,7 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
     for i = 1:length(blur_size_list)
         blur_size = blur_size_list(i);
         %Blurring is done inside the Harris keypoint detection code
-        res_vect = Harris3D(img, blur_size);
+        res_vect = Harris3D(img, blur_size, options);
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
         img_blur = convnfft(img,h,'same',[],options);
