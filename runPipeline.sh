@@ -315,6 +315,7 @@ fi
 
 echo "#########################################################################"
 echo "Parameters"
+echo "  Running on host        :  "`hostname`
 echo "  # of rounds            :  ${ROUND_NUM}"
 echo "  file basename          :  ${FILE_BASENAME}"
 echo "  reference round        :  ${REFERENCE_ROUND}"
