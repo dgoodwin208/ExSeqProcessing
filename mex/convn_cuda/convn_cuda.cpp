@@ -63,9 +63,9 @@ void mexFunction(int nlhs, mxArray *plhs[],
     //plhs[0] = mxCreateDoubleMatrix((mwSize)inArraySize,(mwSize)2,mxREAL);
     //plhs[1] = mxCreateNumericArray(filter_dims, (mwSize* ) filter_size, mxSINGLE_CLASS, mxREAL);
     // return pointer to n-d numeric array
-    plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
     //outArray = (float *) mxGetData(mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL));
     // FIXME this probably doesn't work
+    plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
     outArray = (float *) mxGetData(plhs[0]);
 
     // generate params
@@ -75,6 +75,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     float *image = (float *) mxGetData(prhs[0]); // GetData returns type void *
     float *filter = (float *) mxGetData(prhs[1]); // GetData returns type void *
     cufftutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
+    plhs[0] = (float *) mxGetData(prhs[0]);
     //cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
 

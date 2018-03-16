@@ -126,6 +126,9 @@ function [times] = test_convn_fsize(img)
     for fsize = filter_sizes
         fprintf('\nFilter size: %d\n', fsize);
         h = fspecial3('gaussian', fsize);
+        if strcmp(class(h), 'single') % match it
+            h = single(h);
+        end
         [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h);
         fft_times = [fft_times t_fft];
         cuda_times = [cuda_times t_cuda];
@@ -179,21 +182,23 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
     %err = 0.0;
     %fprintf('`conv3_sep` %s: %.4f rel. error %.2f\n', class(img_gpu), t_sep, err)
 
-    gpuDevice(1); % reset GPU avail mem
-    tic;
-    h1d = h(1, :);
-    img_blur_seplib = convnsep({h1d, h1d, h1d}, img, 'same', 1500);
-    t_seplib = toc;
-    err = compute_err(img_blur_seplib, img_blur_fft);
-    fprintf('`convsep` %s: %.4f rel. error %.2f\n', class(img_gpu), t_seplib, err)
-
     %gpuDevice(1); % reset GPU avail mem
     %tic;
+    %h1d = h(1, :);
+    %img_blur_seplib = convnsep({h1d, h1d, h1d}, img, 'same', 1500);
+    %t_seplib = toc;
+    %err = compute_err(img_blur_seplib, img_blur_fft);
+    %fprintf('`convsep` %s: %.4f rel. error %.2f\n', class(img_gpu), t_seplib, err)
+
+    gpuDevice(1); % reset GPU avail mem
+    tic;
     %img_blur_cuda = convn_cuda(img, h);
-    %t_cuda = toc;
+    convn_cuda(img, h);
+    t_cuda = toc;
     %err = compute_err(img_blur_cuda, img_blur_fft);
-    %fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
-    %gpuDevice();
+    err = 0.0;
+    fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
+    gpuDevice();
 
     %options.Power2Flag = true;
     %tic; 
@@ -201,19 +206,19 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
     %t_fft_pad = toc;
     %fprintf('`convnfft` power2flag true %s: %.4f\n', class(img), t_fft_pad)
 
-    options.GPU = true;
-    gpuDevice(1); % reset GPU avail mem
-    %profile on -history; 
-    try
-        tic; 
-        img_blur_fft = convnfft(img, h, 'same', [], options); 
-        t_fft_gpu = toc;
-        fprintf('`convnfft` gpuArray power2flag false %s: %.4f\n', class(img), t_fft_gpu)
-    catch
-        void = toc;
-        t_fft_gpu = 0;
-        disp('GPU `convnfft` failed, out of memory')
-    end
+    %options.GPU = true;
+    %gpuDevice(1); % reset GPU avail mem
+    %%profile on -history; 
+    %try
+        %tic; 
+        %img_blur_fft = convnfft(img, h, 'same', [], options); 
+        %t_fft_gpu = toc;
+        %fprintf('`convnfft` gpuArray power2flag false %s: %.4f\n', class(img), t_fft_gpu)
+    %catch
+        %void = toc;
+        %t_fft_gpu = 0;
+        %disp('GPU `convnfft` failed, out of memory')
+    %end
 
     %profile off; 
     %profsave(profile('info'), sprintf('pr-convnfft-gpu-%s-fsize%d', class(img), fsize(1))); 
@@ -240,11 +245,11 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
         %%fprintf('`imfilter` cpu %s: %.4f\n', class(img), t_imf);
     %end
     
-    gpuDevice(1);
-    tic;
-    imfilter(gpuArray(img), gpuArray(h), 'same', 'conv');
-    t_imf = toc;
-    fprintf('`imfilter` gpu %s: %.4f\n', class(img), t_imf);
+    %gpuDevice(1);
+    %tic;
+    %imfilter(gpuArray(img), gpuArray(h), 'same', 'conv');
+    %t_imf = toc;
+    %fprintf('`imfilter` gpu %s: %.4f\n', class(img), t_imf);
 
 end
 
