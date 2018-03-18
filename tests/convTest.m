@@ -126,7 +126,7 @@ function [times] = test_convn_fsize(img)
     for fsize = filter_sizes
         fprintf('\nFilter size: %d\n', fsize);
         h = fspecial3('gaussian', fsize);
-        if strcmp(class(h), 'single') % match it
+        if strcmp(class(img), 'single') % match it
             h = single(h);
         end
         [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h);
@@ -151,12 +151,14 @@ end
 
 function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h)
 
+    assert(strcmp(class(img), class(h)))
     compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
     %fprintf('Type: %s\n', class(img_mini));
     t_fft = 0;
     t_fft_pad = 0;
     t_fft_gpu = 0;
     t_imf = 0;
+    t_sep = 0;
     t_imf_gpu = 0;
     t_cuda = 0;
 
@@ -192,13 +194,11 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
 
     gpuDevice(1); % reset GPU avail mem
     tic;
-    %img_blur_cuda = convn_cuda(img, h);
-    convn_cuda(img, h);
+    img_blur_cuda = convn_cuda(img, h);
     t_cuda = toc;
-    %err = compute_err(img_blur_cuda, img_blur_fft);
-    err = 0.0;
+    err = compute_err(img_blur_cuda, img_blur_fft);
     fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
-    gpuDevice();
+    %gpuDevice();
 
     %options.Power2Flag = true;
     %tic; 

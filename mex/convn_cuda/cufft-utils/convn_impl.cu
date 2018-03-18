@@ -306,8 +306,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (!host_data_input) { printf("malloc input failed"); }
     cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
     if (!host_data_kernel) { printf("malloc kernel failed"); }
-    /*cufftComplex *host_data_output = (cufftComplex *)malloc(size_of_data);*/
-    /*if (!host_data_output) { printf("malloc output failed"); }*/
 
     float elapsed = 0.0f;
     cudaEvent_t start, stop;
@@ -318,7 +316,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     }
 
     if (benchmark)
-        printf("Initialize input and output\n");
+        printf("Initialize input and output updated\n");
     for ( long i = 0; i < N; i++)
     { // Initialize the transform memory 
         if (i < N_kernel) {
@@ -331,9 +329,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
         host_data_input[i].x = hostI[i];
         host_data_input[i].y = 0.0f; 
-
-        /*host_data_output[i].x = 0.0f;*/
-        /*host_data_output[i].y = 0.0f;*/
     }
     if (benchmark)
         printf("Input and output successfully initialized\n");
@@ -345,7 +340,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         deviceNum[i] = i;
     }
 
-    // Launch CUDA kernel to convert to complex
+    // Launch custom CUDA kernel to convert to complex
     /*cudaSetDevice(deviceNum[0]);*/
     /*initialize<<<N / max_thread + 1, max_thread>>>(N, hostI, u, u_fft);*/
 
@@ -373,7 +368,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     worksize =(size_t*)malloc(sizeof(size_t) * nGPUs);  
     
     if (benchmark)
-        printf("Make plans\n");
+        printf("Make plan 3d\n");
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
     result = cufftMakePlan3d(plan_fft3, size[0], size[1], size[2], CUFFT_C2C, worksize); 
@@ -407,7 +402,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         printf("Forward 3d FFT input on multiple GPUs\n");
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_FORWARD);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C input failed\n"); exit (EXIT_FAILURE); }
-    printf("Forward 3d FFT kernel on multiple GPUs\n");
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_kernel, device_data_kernel, CUFFT_FORWARD);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C kernel failed\n"); exit (EXIT_FAILURE); }
 
@@ -446,6 +440,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     if (benchmark) {
         cudaEventRecord(stop, 0);
+        cudaDeviceSynchronize();
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&elapsed, start, stop);
         cudaEventDestroy(start);
@@ -459,10 +454,10 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (result != CUFFT_SUCCESS) { printf ("*cufftXtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     if (benchmark)
-        printf("Results in place\n");
+        printf("Place results in output\n");
     for ( long i = 0; i < N; i++)
     { // Initialize the transform memory 
-        hostI[i] = host_data_input[i].x;
+        hostO[i] = host_data_input[i].x;
     }
     if (benchmark)
         printf("in place successful\n");
@@ -659,14 +654,22 @@ int fft3(float * data, int* size, int* length) {
 
 } // namespace cufftutils
 
-int main (void)
+int main (int argc, char** argv)
 {
-    int algo = 1;
-    int benchmark = 1;
-    int result = 0;
-    /*int size[3] = {2048, 2048, 500};*/
-    int size[3] = {1000, 1000, 141};
+    int size[3] = {2048, 2048, 500};
     int filterdimA[3] = {10, 10, 10};
+    int benchmark = 1;
+    /*int dims = 3;*/
+    /*if (argc) {*/
+        /*while (dims) {*/
+            /*size[dims - 1] = atol(argv[dims - 1]);*/
+            /*filterdimA[dims + 2] = atol(argv[dims + 2]);*/
+            /*dims--;*/
+        /*}*/
+        /*benchmark = atol(argv[6]);*/
+    /*} */
+    int algo = 1;
+    int result = 0;
     /*int size[3] = {512, 512, 512};*/
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
