@@ -288,7 +288,12 @@ int conv_handler_batch(float* hostI, float* hostF, float* hostO, int algo, int* 
 
 }
 
-int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, int benchmark) {
+// Compute pad length per given dimension lengths
+int get_pad_idxs(int m, int n) {
+    return m + n - 1;
+}
+
+int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, int pad, int benchmark) {
     // hardcoded, func only supports 3D convolutions
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
@@ -299,13 +304,41 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     long N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     long size_of_data = N * sizeof(cufftComplex);
 
-    //Create complex variables on host
-    if (benchmark)
-        printf("malloc input and output\n");
-    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_input) { printf("malloc input failed"); }
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_kernel) { printf("malloc kernel failed"); }
+
+    if (pad) {
+        // Compute pad lengths
+        int pad_lengths[3] = {0, 0, 0};
+        for (int i=0; i < 3; i++) 
+            pad_length[i] = cufftutils::get_pad_idxs(size[i], filterdimA[i]);
+
+        int trim_idxs[3][1] = {{0, 0}, {0, 0}, {0, 0}};
+        for (int i=0; i < 3; i++) {
+            trim_idxs[i][0] = ceil((filterdimA[i] - 1) / 2);
+            trim_idxs[i][1] = size[i] + ceil((filterdimA[i] - 1) / 2) - 1;
+        }
+        long N_padded = pad_lengths[0] * pad_lengths[1] * pad_lengths[2];
+        size_of_data = N_padded * sizeof(cufftComplex);
+
+        //Create complex variables on host
+        if (benchmark)
+            printf("calloc input and output\n");
+        /*FIXME*/
+        cufftComplex *host_data_input = (cufftComplex *) calloc(size_of_data);
+        if (!host_data_input) { printf("calloc input failed"); }
+        cufftComplex *host_data_kernel = (cufftComplex *) calloc(size_of_data);
+        if (!host_data_kernel) { printf("calloc kernel failed"); }
+
+    } else  {
+
+        //Create complex variables on host
+        if (benchmark)
+            printf("malloc input and output\n");
+        cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+        if (!host_data_input) { printf("malloc input failed"); }
+        cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+        if (!host_data_kernel) { printf("malloc kernel failed"); }
+
+    }
 
     float elapsed = 0.0f;
     cudaEvent_t start, stop;
@@ -317,19 +350,39 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     if (benchmark)
         printf("Initialize input and output updated\n");
-    for ( long i = 0; i < N; i++)
-    { // Initialize the transform memory 
-        if (i < N_kernel) {
-            /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
-            host_data_kernel[i].x = hostF[i];
-        } else {
-            host_data_kernel[i].x = 0.0f;
-        }
-        host_data_kernel[i].y = 0.0f; // y is complex component
 
-        host_data_input[i].x = hostI[i];
-        host_data_input[i].y = 0.0f; 
+    if (pad) {
+        // Place in padded matrix, transform to column major order
+        for ( long i = 0; i < N; i++)
+        { // Initialize the transform memory 
+            for (long j = 
+                    if (i < N_kernel) {
+                        /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
+                        host_data_kernel[i].x = hostF[i];
+                    } else {
+                        host_data_kernel[i].x = 0.0f;
+                    }
+                    host_data_kernel[i].y = 0.0f; // y is complex component
+
+                    host_data_input[i].x = hostI[i];
+                    host_data_input[i].y = 0.0f; 
+        }
+    } else {
+        for ( long i = 0; i < N; i++)
+        { // Initialize the transform memory 
+            if (i < N_kernel) {
+                /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
+                host_data_kernel[i].x = hostF[i];
+            } else {
+                host_data_kernel[i].x = 0.0f;
+            }
+            host_data_kernel[i].y = 0.0f; // y is complex component
+
+            host_data_input[i].x = hostI[i];
+            host_data_input[i].y = 0.0f; 
+        }
     }
+
     if (benchmark)
         printf("Input and output successfully initialized\n");
 
@@ -691,7 +744,7 @@ int main (int argc, char** argv)
 
     printf("Testing convolution\n");
     result = cufftutils::conv_handler(data, kernel, data, algo, size,
-            filterdimA, benchmark);
+            filterdimA, pad, benchmark);
 
     /*printf("Testing fft\n");*/
     /*result = fft3(data, size, size);*/

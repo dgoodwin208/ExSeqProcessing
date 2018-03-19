@@ -73,10 +73,11 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     // generate params
     int algo = 0; // forward convolve
+    int pad = 1; // bool for padding the image to m + n -1 per dimension
     /* create a pointer to the real data in the input array,  */
     float *image = (float *) mxGetData(prhs[0]); // GetData returns type void *
     float *filter = (float *) mxGetData(prhs[1]); // GetData returns type void *
-    cufftutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
+    cufftutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, pad, benchmark);
     //plhs[0] = (float *) mxGetData(prhs[0]);
     //cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
 }
