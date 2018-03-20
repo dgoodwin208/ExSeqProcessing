@@ -15,10 +15,11 @@ CUDA_LIB = /usr/local/cuda/lib64
 SPDLOG_DIR = ../../include
 
 UTILS_DIR = ../utils
-CUDAUTILS_DIR = ../cuda-utils
-CUDNNUTILS_DIR = ../cudnn-utils
+CUFFT_DIR = ../cufft-utils
+#CUDAUTILS_DIR = ../cuda-utils
+#CUDNNUTILS_DIR = ../cudnn-utils
 
-TESTS = gtest_utils gtest_cudautils 
+TESTS = gtest_utils gtest_cufftutils # gtest_cudautils  
 
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
@@ -28,8 +29,6 @@ all : $(TESTS)
 
 clean :
 	rm -f $(TESTS) *.o
-	rm -f gtest_utils gtest_cudautils
-
 
 gtest_utils.o : gtest_utils.cpp $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -I$(UTILS_DIR) -c gtest_utils.cpp
@@ -37,8 +36,15 @@ gtest_utils.o : gtest_utils.cpp $(GTEST_HEADERS)
 gtest_utils : gtest_utils.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread $^ -o $@ -L$(UTILS_DIR) -lutils
 
-gtest_cudautils.o : gtest_cudautils.cpp $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) -I$(CUDNNUTILS_DIR) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils.cpp
+gtest_cufftutils.o : gtest_cufftutils.cpp $(GTEST_HEADERS)
+	$(CXX) $(CPPFLAGS) -I$(CUFFT_DIR) -I$(SPDLOG_DIR) -c gtest_cufftutils.cpp
 
-gtest_cudautils : $(CUDAUTILS_DIR)/convn.o $(CUDNNUTILS_DIR)/libcudnnutils.a gtest_cudautils.o
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $(CUDNNUTILS_DIR)/libcudnnutils.a -L$(CUDA_LIB) -lcudnn -lcudart -ltbb
+gtest_cufftutils : $(CUFFT_DIR)/libcufftutils.a gtest_cufftutils.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $< -I$(CUFFT_DIR) -L$(CUDA_LIB) -lcufft -lcudart
+
+#gtest_cudautils.o : gtest_cudautils.cpp $(GTEST_HEADERS)
+	#$(CXX) $(CPPFLAGS) -I$(CUDNNUTILS_DIR) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils.cpp
+
+#gtest_cudautils : $(CUDAUTILS_DIR)/convn.o $(CUDNNUTILS_DIR)/libcudnnutils.a gtest_cudautils.o
+	#$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $(CUDNNUTILS_DIR)/libcudnnutils.a -L$(CUDA_LIB) -lcudnn -lcudart -ltbb
+

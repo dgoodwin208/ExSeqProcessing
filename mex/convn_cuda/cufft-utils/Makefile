@@ -1,4 +1,4 @@
-OBJ= convn_impl.o main.exe
+OBJ= convn_impl.o # main.exe
 NVCC = /usr/local/cuda/bin/nvcc
 NVCC_FLAGS = -g -G -Xcompiler -fPIC --gpu-architecture=sm_61
 CUFFTLIB = -L/usr/local/cuda/lib64 -lcufft -I/usr/local/cuda/include
@@ -11,8 +11,8 @@ libcufftutils.a: $(OBJ)
 %.o: %.cu
 	$(NVCC) $(NVCC_FLAGS) -g -o $@ $(CUFFTLIB) -c $^ 
 
-main.exe: convn_impl.cu
-	$(NVCC) $(NVCC_FLAGS) $^ -g -o $@ $(CUFFTLIB)
+#main.exe: convn_impl.cu
+	#$(NVCC) $(NVCC_FLAGS) $^ -g -o $@ $(CUFFTLIB)
 
 clean:
 	rm -rf *.o *.exe *.a

@@ -16,20 +16,18 @@ void mexFunction(int nlhs, mxArray *plhs[],
     size_t mrows2, ncols2;
     size_t inArraySize;
     int benchmark = 1; //time it
+    int column_order = 0; // data from MATLAB must be treated as column-order
 
     /* Check for proper number of input and output arguments */    
-    if (nrhs != 2) {
-        mexErrMsgIdAndTxt( "convn_cuda:InvalidInput","Two input arguments required.");
-    } 
+    //if (nrhs != 2) {
+        //mexErrMsgIdAndTxt( "convn_cuda:InvalidInput","Two input arguments required.");
+    //} 
     if (nlhs > 1){
         mexErrMsgIdAndTxt( "convn_cuda:InvalidOutput","Only 0 or 1 output arguments.");
     }
 
-    /* make sure input array arguments are type single */
+    /* make sure input array argument is type single */
     if ( !mxIsSingle(prhs[0])) {
-        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type single (float).");
-    }
-    if ( !mxIsSingle(prhs[1])) {
         mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type single (float).");
     }
 
@@ -40,25 +38,21 @@ void mexFunction(int nlhs, mxArray *plhs[],
     if (benchmark)
         printf("image size: %d, %d, %d\n", image_size[0], image_size[1], image_size[2]);
 
-    //const size_t *filter_size;
-    int *filter_size;
-    const mwSize filter_dims = mxGetNumberOfDimensions(prhs[1]);
-    filter_size = (int *) mxGetDimensions(prhs[1]);
+    int lengths[3];
+    lengths[0] = (int)* mxGetPr(prhs[1]);
+    lengths[1] = (int)* mxGetPr(prhs[2]);
+    lengths[2] = (int)* mxGetPr(prhs[3]);
     if (benchmark)
-        printf("filter size: %d, %d, %d\n", filter_size[0], filter_size[1], filter_size[2]);
+        printf("filter lengths: %d, %d, %d\n", lengths[0], lengths[1], lengths[2]);
 
     // create a new single real matrix on the heap to place output data on (wastes memory but is more usable than in-place)
     plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
     outArray = (float *) mxGetData(plhs[0]);
 
     // generate params
-    int algo = 0; // forward convolve
-    int pad = 1; // bool for padding the image to m + n -1 per dimension
     /* create a pointer to the real data in the input array,  */
     float *image = (float *) mxGetData(prhs[0]); // GetData returns type void *
-    float *filter = (float *) mxGetData(prhs[1]); // GetData returns type void *
-    cufftutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, pad, benchmark);
-    //plhs[0] = (float *) mxGetData(prhs[0]);
-    //cudnnutils::conv_handler(image, filter, outArray, algo, image_size, filter_size, benchmark);
+    cufftutils::fft3(image, image_size, lengths, outArray, column_order);
+
 }
 
