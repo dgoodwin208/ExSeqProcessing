@@ -319,26 +319,16 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         long N_padded = pad_lengths[0] * pad_lengths[1] * pad_lengths[2];
         size_of_data = N_padded * sizeof(cufftComplex);
 
-        //Create complex variables on host
-        if (benchmark)
-            printf("calloc input and output\n");
-        /*FIXME*/
-        cufftComplex *host_data_input = (cufftComplex *) calloc(size_of_data);
-        if (!host_data_input) { printf("calloc input failed"); }
-        cufftComplex *host_data_kernel = (cufftComplex *) calloc(size_of_data);
-        if (!host_data_kernel) { printf("calloc kernel failed"); }
-
-    } else  {
-
-        //Create complex variables on host
-        if (benchmark)
-            printf("malloc input and output\n");
-        cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-        if (!host_data_input) { printf("malloc input failed"); }
-        cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-        if (!host_data_kernel) { printf("malloc kernel failed"); }
-
     }
+
+    //Create complex variables on host
+    if (benchmark)
+        printf("malloc input and output\n");
+    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_input) { printf("malloc input failed"); }
+    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_kernel) { printf("malloc kernel failed"); }
+
 
     float elapsed = 0.0f;
     cudaEvent_t start, stop;
@@ -353,19 +343,28 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     if (pad) {
         // Place in padded matrix, transform to column major order
-        for ( long i = 0; i < N; i++)
-        { // Initialize the transform memory 
-            for (long j = 
-                    if (i < N_kernel) {
+        for ( long i = 0; i < pad_lengths[0]; i++) { 
+            for (long j = 0; j < pad_lengths[1]; j++) {
+                for (long k = 0; k < pad_lengths[2]; k++) {
+                    long column_ord_idx = k + j * size[2] + i * size[2] * size[1];
+                    long c_ord_idx = i + j * size[0] + k * size[0] * size[1];
+                    if (column_ord_idx < N_kernel) {
                         /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
-                        host_data_kernel[i].x = hostF[i];
+                        host_data_kernel[c_ord_idx].x = hostF[column_ord_idx];
                     } else {
-                        host_data_kernel[i].x = 0.0f;
+                        host_data_kernel[c_ord_idx].x = 0.0f;
                     }
-                    host_data_kernel[i].y = 0.0f; // y is complex component
+                    host_data_kernel[c_ord_idx].y = 0.0f; // y is complex component
 
-                    host_data_input[i].x = hostI[i];
-                    host_data_input[i].y = 0.0f; 
+                    // convert from Matlab Column-order to C-order
+                    if (column_ord_idx < N) {
+                        host_data_input[c_ord_idx].x = hostI[column_ord_idx];
+                    } else {
+                        host_data_input[c_ord_idx].x = 0.0f;
+                    }
+                    host_data_input[c_ord_idx].y = 0.0f; 
+                }
+            }
         }
     } else {
         for ( long i = 0; i < N; i++)
