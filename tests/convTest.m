@@ -198,6 +198,8 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
     t_cuda = toc;
     err = compute_err(img_blur_cuda, img_blur_fft);
     fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
+    norm(img_blur_fft(:)-img_blur_cuda(:))
+    norm(img_blur_fft(:))
     %gpuDevice();
 
     %options.Power2Flag = true;

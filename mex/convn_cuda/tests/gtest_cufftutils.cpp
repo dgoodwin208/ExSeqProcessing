@@ -26,7 +26,7 @@ static void initImage(float* image, int imageSize) {
 }
 
 TEST_F(ConvnCufftTest, FFTBasicTest) {
-    int size[3] = {204, 204, 50};
+    int size[3] = {200, 200, 50};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
     int pad = 1;
@@ -56,7 +56,8 @@ TEST_F(ConvnCufftTest, FFTBasicTest) {
 }
 
 TEST_F(ConvnCufftTest, ConvnOriginalTest) {
-    int size[3] = {204, 204, 50};
+    int size[3] = {2048, 2048, 141};
+    //int size[3] = {141, 2048, 2048};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
     int pad = 1;

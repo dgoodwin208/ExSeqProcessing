@@ -164,7 +164,7 @@ if GPU
 else
     % inplace product to save 1/3 of the memory
     %inplaceprod(A,B);
-    %Matlab already uses in place
+    %Modern Matlab already uses in place
     A = A.*B;
     clear B
 end
