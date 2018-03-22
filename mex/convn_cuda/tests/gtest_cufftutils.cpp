@@ -1,7 +1,8 @@
 #include "gtest/gtest.h"
 
 #include "cufftutils.h"
-
+#include <complex.h>
+#include <cufft.h>
 #include <vector>
 #include <cstdint>
 #include <random>
@@ -26,41 +27,86 @@ static void initImage(float* image, int imageSize) {
 }
 
 TEST_F(ConvnCufftTest, FFTBasicTest) {
-    int size[3] = {200, 200, 50};
+    int size[3] = {50, 50, 10};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
     int pad = 1;
     int algo = 1;
-    int column_order = 0;
+    bool column_order = 0;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     
-    printf("Initializing cufft sin array\n");
+    //printf("Initializing cufft sin array\n");
     float* data = new float[N]; 
     float* outArray = new float[N]; 
     float* kernel = new float[N_kernel]; 
 
+    //printf("Sin array created\n");
     for (int i=0; i < N; i++)
         data[i] = sin(i);
 
-    printf("Sin array created\n");
 
-    printf("Initializing kernel\n");
+    //printf("Initializing kernel\n");
     for (int i=0; i < N_kernel; i++)
         kernel[i] = sin(i);
 
-    printf("Kernel created\n");
-
-    printf("Testing fft\n");
+    //printf("Testing fft\n");
     cufftutils::fft3(data, size, size, outArray, column_order);
+}
+
+TEST_F(ConvnCufftTest, InitializePadTest) {
+    int size[3] = {3, 3, 4};
+    int filterdimA[3] = {4, 2, 2};
+    int benchmark = 1;
+    bool column_order = 1;
+    int algo = 1;
+    int result = 0;
+    int N = size[0] * size[1] * size[2];
+    int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
+    
+    float* hostI = new float[N]; 
+    float* hostF = new float[N_kernel]; 
+
+    for (int i=0; i < N; i++)
+        hostI[i] = (float) i;
+
+    for (int i=0; i < N_kernel; i++)
+        hostF[i] = (float) i;
+
+    int pad_size[3];
+    int trim_idxs[3][2];
+    cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
+
+    long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
+    long long size_of_data = N_padded * sizeof(cufftComplex);
+
+    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_input) { printf("malloc input failed"); }
+    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_kernel) { printf("malloc kernel failed"); }
+
+    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+
+    // test padding is correct for c-order
+    float val;
+    long long idx;
+    for (int i = 0; i<pad_size[0]; ++i) {
+        for (int j = 0; j<pad_size[1]; ++j) {
+            for (int k = 0; k<pad_size[2]; ++k) {
+                //idx = k + j*size[2] + size[2]*size[1]*i;
+                idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
+                val = hostI[idx];
+                printf("At idx = %d, (%d, %d, %d) the value is %f\n",idx, i, j, k, val);
+            }
+        }
+    }
 }
 
 TEST_F(ConvnCufftTest, ConvnOriginalTest) {
     int size[3] = {2048, 2048, 141};
-    //int size[3] = {141, 2048, 2048};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
-    int pad = 1;
+    bool column_order = 1;
     int algo = 1;
     int result = 0;
     int N = size[0] * size[1] * size[2];
@@ -73,9 +119,9 @@ TEST_F(ConvnCufftTest, ConvnOriginalTest) {
     for (int i=0; i < N; i++)
         data[i] = sin(i);
 
-    printf("Sin array created\n");
+    //printf("Sin array created\n");
 
-    printf("Initializing kernel\n");
+    //printf("Initializing kernel\n");
     for (int i=0; i < N_kernel; i++)
         kernel[i] = sin(i);
 
@@ -83,7 +129,7 @@ TEST_F(ConvnCufftTest, ConvnOriginalTest) {
 
     printf("Testing convolution\n");
     result = cufftutils::conv_handler(data, kernel, data, algo, size,
-            filterdimA, pad, benchmark);
+            filterdimA, column_order, benchmark);
 
 }
 
@@ -91,13 +137,12 @@ TEST_F(ConvnCufftTest, ConvnSampleTest) {
 
     // generate params
     int algo = 0;
-    int pad = 1;
+    bool column_order = 1;
     int benchmark = 0;
     int dimA[] = {500, 500, 100};
     int filterdimA[] = {5, 5, 5};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = dimA[0]*dimA[1]*dimA[2];
-    int outdimA[3] = {500, 500, 100};
     int outsize = insize;
 
     // Create a random filter and image
@@ -113,7 +158,7 @@ TEST_F(ConvnCufftTest, ConvnSampleTest) {
     initImage(hostI, insize);
     initImage(hostF, filtersize);
 
-    cufftutils::conv_handler(hostI, hostF, hostO, algo, dimA, filterdimA, pad, benchmark);
+    cufftutils::conv_handler(hostI, hostF, hostO, algo, dimA, filterdimA, column_order, benchmark);
 
     //TODO test the convolution output hostO
 }
@@ -153,7 +198,7 @@ TEST_F(ConvnCufftTest, ConvnSampleTest) {
     //std::cout << "Kernel Created" << std::endl;
 
     //float* h_output;
-    //cufftutils::conv_handler(image, hostF, hostO, algo, dimA, filterdimA, pad, benchmark);
+    //cufftutils::conv_handler(image, hostF, hostO, algo, dimA, filterdimA, column_order, benchmark);
     //h_output = cufftutils::convn((float *) image, channels, height, width, (float *) kernel, kernel_channels, kernel_height, kernel_width);
    
     //for (int channel = 0; channel < channels; ++channel) {

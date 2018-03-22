@@ -14,8 +14,6 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <cufft.h>
-#include <cuComplex.h>
-//CUFFT Header file
 #include <cufftXt.h>
 
 namespace cufftutils {
@@ -86,25 +84,25 @@ void convolve_host(const cufftComplex *signal, long signal_size,
                       const cufftComplex *filter_kernel, long filter_kernel_size,
                                     cufftComplex *filtered_signal)
 {
-        long minRadius = filter_kernel_size / 2;
-        long maxRadius = filter_kernel_size - minRadius;
+    long minRadius = filter_kernel_size / 2;
+    long maxRadius = filter_kernel_size - minRadius;
 
-        // Loop over output element indices
-        for (int i = 0; i < signal_size; ++i)
+    // Loop over output element indices
+    for (int i = 0; i < signal_size; ++i)
+    {
+        filtered_signal[i].x = filtered_signal[i].y = 0;
+
+        // Loop over convolution indices
+        for (int j = - maxRadius + 1; j <= minRadius; ++j)
         {
-            filtered_signal[i].x = filtered_signal[i].y = 0;
+            int k = i + j;
 
-            // Loop over convolution indices
-            for (int j = - maxRadius + 1; j <= minRadius; ++j)
+            if (k >= 0 && k < signal_size)
             {
-                int k = i + j;
-
-                if (k >= 0 && k < signal_size)
-                {
-                    filtered_signal[i] = ComplexAdd(filtered_signal[i], ComplexMul(signal[k], filter_kernel[minRadius - j]));
-                }
+                filtered_signal[i] = ComplexAdd(filtered_signal[i], ComplexMul(signal[k], filter_kernel[minRadius - j]));
             }
         }
+    }
 }
 
 int conv_handler_batch(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, int benchmark) {
@@ -293,17 +291,81 @@ long get_pad_idx(long m, long n) {
     return m + n - 1;
 }
 
-long long convert_idx(long i, long j, long k, int* matrix_size) {
-    long long column_ord_idx = k + j * matrix_size[2] + ((long long) i) * matrix_size[2] * matrix_size[1];
-    return column_ord_idx;
+long long convert_idx(long i, long j, long k, int* matrix_size, bool column_order) {
+    if (column_order) {
+        return k + j * matrix_size[2] + ((long long) i) * matrix_size[2] * matrix_size[1];
+    } else {
+        return i + j * matrix_size[0] + ((long long) k) * matrix_size[0] * matrix_size[1];
+    }
 }
 
-long long convert_to_c_idx(long i, long j, long k, int* matrix_size) {
-    long long c_ord_idx = i + j * matrix_size[0] + ((long long) k) * matrix_size[0] * matrix_size[1];
-    return c_ord_idx;
+// converts from column order to c-order when column_to_c != 0, otherwise reversed
+void convert_matrix(cufftComplex* matrix, cufftComplex* buffer, int* size, bool column_order) {
+    long long from_idx;
+    long long to_idx;
+    for ( long i = 0; i < size[0]; i++) { 
+        for (long j = 0; j < size[1]; j++) {
+            for (long k = 0; k < size[2]; k++) {
+
+                from_idx = convert_idx(i, j, k, size, column_order);
+                to_idx = convert_idx(i, j, k, size, !column_order);
+
+                buffer[to_idx].x = matrix[from_idx].x;
+            }
+        }
+    }
 }
 
-int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, int pad, int benchmark) {
+void initialize_inputs(float* hostI, float* hostF, cufftComplex* host_data_input, 
+        cufftComplex* host_data_kernel, int* size, int* pad_size, int* filterdimA,
+        bool column_order) {
+    // Place in matrix padded to 0
+    long long idx;
+    long long pad_idx;
+    for ( long i = 0; i < pad_size[0]; i++) { 
+        for (long j = 0; j < pad_size[1]; j++) {
+            for (long k = 0; k < pad_size[2]; k++) {
+
+                idx = convert_idx(i, j, k, size, column_order);
+                pad_idx = convert_idx(i, j, k, pad_size, column_order);
+
+                if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
+                    /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
+                    host_data_kernel[pad_idx].x = hostF[idx];
+                } else {
+                    host_data_kernel[pad_idx].x = 0.0f;
+                }
+                host_data_kernel[pad_idx].y = 0.0f; // y is complex component
+
+                // keep in Matlab Column-order but switch order of dimensions in createPlan
+                // to accomplish c-order FFT transforms
+                if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
+                    host_data_input[pad_idx].x = hostI[idx];
+                } else {
+                    host_data_input[pad_idx].x = 0.0f;
+                }
+                host_data_input[pad_idx].y = 0.0f; 
+            }
+        }
+    }
+}
+
+void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]) {
+    // Compute pad lengths
+    for (int i=0; i < 3; i++) 
+        pad_size[i] = cufftutils::get_pad_idx(size[i], filterdimA[i]);
+
+    for (int i=0; i < 3; i++) {
+        trim_idxs[i][0] = ceil((filterdimA[i] - 1) / 2);
+        trim_idxs[i][1] = size[i] + ceil((filterdimA[i] - 1) / 2);
+        // check for mem alloc issues
+        if ((trim_idxs[i][1] - trim_idxs[i][0]) != size[i] ) 
+            { printf("Error in same size output calculation first: %d, last: %d\n",
+                    trim_idxs[i][0], trim_idxs[i][1]); exit(EXIT_FAILURE); }
+    }
+}
+
+int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, bool column_order, int benchmark) {
     // hardcoded, func only supports 3D convolutions
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
@@ -311,31 +373,17 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     long long N = ((long long) size[0]) * size[1] * size[2];
     if (benchmark)
         printf("Using %d GPUs on a %dx%dx%d grid, N:%d\n",nGPUs, size[0], size[1], size[2], N);
-    long long N_kernel = ((long long) filterdimA[0]) * filterdimA[1] * filterdimA[2];
-    long long size_of_data = N * sizeof(cufftComplex);
+    /*long long N_kernel = ((long long) filterdimA[0]) * filterdimA[1] * filterdimA[2];*/
 
     int pad_size[3];
-    int trim_idxs[3][2] = {{0, 0}, {0, 0}, {0, 0}};
-    if (pad) {
-        // Compute pad lengths
-        /*int pad_size[3] = {0, 0, 0};*/
-        for (int i=0; i < 3; i++) 
-            pad_size[i] = cufftutils::get_pad_idx(size[i], filterdimA[i]);
+    int trim_idxs[3][2];
+    get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
-        long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
-        size_of_data = N_padded * sizeof(cufftComplex);
-        if (benchmark)
-            printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
+    long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
+    long long size_of_data = N_padded * sizeof(cufftComplex);
 
-        for (int i=0; i < 3; i++) {
-            trim_idxs[i][0] = ceil((filterdimA[i] - 1) / 2);
-            trim_idxs[i][1] = size[i] + ceil((filterdimA[i] - 1) / 2);
-            // check for mem alloc issues
-            if ((trim_idxs[i][1] - trim_idxs[i][0]) != size[i] ) 
-                {printf("Error in same size output calculation first: %d, last: %d\n", trim_idxs[i][0], trim_idxs[i][1]);
-                    exit(EXIT_FAILURE); }
-        }
-    }
+    if (benchmark)
+        printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
 
     //Create complex variables on host
     if (benchmark)
@@ -344,7 +392,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (!host_data_input) { printf("malloc input failed"); }
     cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
     if (!host_data_kernel) { printf("malloc kernel failed"); }
-
 
     float elapsed = 0.0f;
     cudaEvent_t start, stop;
@@ -355,63 +402,9 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     }
 
     if (benchmark)
-        printf("Initialize input and output updated\n");
+        printf("Initialize input and kernel\n");
 
-    if (pad) {
-        // Place in matrix padded to 0
-        long long column_ord_idx;
-        long long column_ord_pad_idx;
-        for ( long i = 0; i < pad_size[0]; i++) { 
-            for (long j = 0; j < pad_size[1]; j++) {
-                for (long k = 0; k < pad_size[2]; k++) {
-
-                    column_ord_idx = convert_idx(i, j, k, size);
-                    column_ord_pad_idx = convert_idx(i, j, k, pad_size);
-
-                    if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
-                        /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
-                        host_data_kernel[column_ord_pad_idx].x = hostF[column_ord_idx];
-                    } else {
-                        host_data_kernel[column_ord_pad_idx].x = 0.0f;
-                    }
-                    host_data_kernel[column_ord_pad_idx].y = 0.0f; // y is complex component
-
-                    // keep in Matlab Column-order but switch order of dimensions in createPlan
-                    // to accomplish c-order FFT transforms
-                    if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
-                        host_data_input[column_ord_pad_idx].x = hostI[column_ord_idx];
-                    } else {
-                        host_data_input[column_ord_pad_idx].x = 0.0f;
-                    }
-                    host_data_input[column_ord_pad_idx].y = 0.0f; 
-                }
-            }
-        }
-    } else {
-        for ( long i = 0; i < N; i++)
-        { // Initialize the transform memory 
-            if (i < N_kernel) {
-                /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
-                host_data_kernel[i].x = hostF[i];
-            } else {
-                host_data_kernel[i].x = 0.0f;
-            }
-            host_data_kernel[i].y = 0.0f; // y is complex component
-
-            host_data_input[i].x = hostI[i];
-            host_data_input[i].y = 0.0f; 
-        }
-    }
-
-    if (benchmark)
-        printf("Input and output successfully initialized\n");
-
-    // Set GPU's to use 
-    int deviceNum[nGPUs];
-    for(int i = 0; i<nGPUs; ++i)
-    {
-        deviceNum[i] = i;
-    }
+    initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
 
     // Launch custom CUDA kernel to convert to complex
     /*cudaSetDevice(deviceNum[0]);*/
@@ -423,6 +416,16 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         /*cudaSetDevice(deviceNum[i]);*/
         /*cudaDeviceSynchronize();*/
     /*}*/
+
+    if (benchmark)
+        printf("Input and output successfully initialized\n");
+
+    // Set GPU's to use 
+    int deviceNum[nGPUs];
+    for(int i = 0; i<nGPUs; ++i)
+    {
+        deviceNum[i] = i;
+    }
 
     // Initialize result variable used for error checking
     cufftResult result;
@@ -445,14 +448,12 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         printf("Make plan 3d\n");
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
-    if (pad) { // use padded length, also reverse order such that c-order transforms are accomplished
+    if (column_order) { // use padded length, reverse order such that c-order transforms are accomplished
         result = cufftMakePlan3d(plan_fft3, pad_size[2], pad_size[1], pad_size[0], CUFFT_C2C, worksize); 
-        /*result = cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize); */
-    } else  {
-        result = cufftMakePlan3d(plan_fft3, size[0], size[1], size[2], CUFFT_C2C, worksize); 
+    } else {
+        result = cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize); 
     }
     if (result != CUFFT_SUCCESS) { printf ("*MakePlan3d* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
-
 
     // Allocate data on multiple gpus using the cufft routines
     // Initialize transform array - to be split among GPU's and transformed in place using cufftX
@@ -508,7 +509,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     for (int i = 0; i<nGPUs; ++i){
         cudaSetDevice(deviceNum[i]);
         cudaDeviceSynchronize();
-        /*getCudaLastError("Kernel executuion failed in PointwiseMulAndScale");*/
     }
 
     // Perform inverse FFT on multiple GPUs
@@ -535,27 +535,17 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (benchmark)
         printf("Place results in output\n");
 
-    if (pad) {
-        long long column_ord_idx;
-        long long column_ord_pad_idx;
-        for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {
-            for (long j=trim_idxs[1][0]; i < trim_idxs[1][1]; i++) {
-                for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
-                    column_ord_idx = convert_idx(i - trim_idxs[0][0], j - trim_idxs[1][0], k - trim_idxs[2][0], size);
-                    column_ord_pad_idx = convert_idx(i, j, k, pad_size);
-                    hostO[column_ord_idx] = host_data_input[column_ord_pad_idx].x;
-                }
+    long long idx;
+    long long pad_idx;
+    for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {
+        for (long j=trim_idxs[1][0]; i < trim_idxs[1][1]; i++) {
+            for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
+                idx = convert_idx(i - trim_idxs[0][0], j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
+                pad_idx = convert_idx(i, j, k, pad_size, column_order);
+                hostO[idx] = host_data_input[pad_idx].x;
             }
         }
-    } else  {
-        for ( long i = 0; i < N; i++)
-        { // Initialize the transform memory 
-            hostO[i] = host_data_input[i].x;
-        }
     }
-
-    if (benchmark)
-        printf("in place successful\n");
 
     // Free malloc'ed variables
     free(worksize);
@@ -582,7 +572,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     return 0;
 }
 
-int fft3_test(float * data, int* size, int* length, float* outArray, int column_order) {
+int fft3_test(float * data, int* size, int* length, float* outArray, bool column_order) {
      
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
@@ -747,7 +737,7 @@ int fft3_test(float * data, int* size, int* length, float* outArray, int column_
     return 0;
 }
 
-int fft3(float * data, int* size, int* length, float* outArray, int column_order) {
+int fft3(float * data, int* size, int* length, float* outArray, bool column_order) {
      
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
@@ -873,9 +863,7 @@ int fft3(float * data, int* size, int* length, float* outArray, int column_order
         for (j = 0; j<size[1]; ++j){
             for (k = 0; k<size[2]; ++k){
                 idx = k + j*size[2] + size[2]*size[1]*i;
-                // error += (float)u[idx].x - sin(x)*cos(y)*cos(z);
                 error += abs((float)u[idx].x - (float)u_fft[idx].x);
-                // printf("At idx = %d, the value of the error is %f\n",idx,(float)u[idx].x - (float)u_fft[idx].x);
                 // printf("At idx = %d, the value of the error is %f\n",idx,error);
 
             }
@@ -901,5 +889,7 @@ int fft3(float * data, int* size, int* length, float* outArray, int column_order
 
     return 0;
 }
+
+/*void check_arra*/
 
 } // namespace cufftutils
