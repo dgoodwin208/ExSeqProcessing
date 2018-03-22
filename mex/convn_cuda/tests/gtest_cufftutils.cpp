@@ -26,7 +26,7 @@ static void initImage(float* image, int imageSize) {
     }
 }
 
-TEST_F(ConvnCufftTest, FFTBasicTest) {
+TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
     int size[3] = {50, 50, 10};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
@@ -77,6 +77,15 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     int trim_idxs[3][2];
     cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
+    // test pad size and trim
+    for (int i=0; i < 3; i++) {
+        ASSERT_EQ((size[i] + filterdimA[i] - 1), pad_size[i] ) ;
+        // check for mem alloc issues
+        ASSERT_EQ((trim_idxs[i][1] - trim_idxs[i][0]), size[i] ) ;
+            //{ printf("Error in same size output calculation first: %d, last: %d\n",
+                    //trim_idxs[i][0], trim_idxs[i][1]); exit(EXIT_FAILURE); } 
+    }
+
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
 
@@ -96,13 +105,13 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
                 //idx = k + j*size[2] + size[2]*size[1]*i;
                 idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
                 val = hostI[idx];
-                printf("At idx = %d, (%d, %d, %d) the value is %f\n",idx, i, j, k, val);
+                printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
             }
         }
     }
 }
 
-TEST_F(ConvnCufftTest, ConvnOriginalTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     int size[3] = {2048, 2048, 141};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
@@ -133,13 +142,13 @@ TEST_F(ConvnCufftTest, ConvnOriginalTest) {
 
 }
 
-TEST_F(ConvnCufftTest, ConvnSampleTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnBasicTest) {
 
     // generate params
     int algo = 0;
     bool column_order = 1;
     int benchmark = 0;
-    int dimA[] = {500, 500, 100};
+    int dimA[] = {50, 50, 10};
     int filterdimA[] = {5, 5, 5};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = dimA[0]*dimA[1]*dimA[2];

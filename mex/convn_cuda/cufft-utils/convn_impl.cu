@@ -358,10 +358,6 @@ void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]
     for (int i=0; i < 3; i++) {
         trim_idxs[i][0] = ceil((filterdimA[i] - 1) / 2);
         trim_idxs[i][1] = size[i] + ceil((filterdimA[i] - 1) / 2);
-        // check for mem alloc issues
-        if ((trim_idxs[i][1] - trim_idxs[i][0]) != size[i] ) 
-            { printf("Error in same size output calculation first: %d, last: %d\n",
-                    trim_idxs[i][0], trim_idxs[i][1]); exit(EXIT_FAILURE); }
     }
 }
 
