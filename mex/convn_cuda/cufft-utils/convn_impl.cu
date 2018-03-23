@@ -293,14 +293,14 @@ long get_pad_idx(long m, long n) {
 
 long long convert_idx(long i, long j, long k, int* matrix_size, bool column_order) {
     if (column_order) {
-        return k + j * matrix_size[2] + ((long long) i) * matrix_size[2] * matrix_size[1];
-    } else {
         return i + j * matrix_size[0] + ((long long) k) * matrix_size[0] * matrix_size[1];
+    } else {
+        return k + j * matrix_size[2] + ((long long) i) * matrix_size[2] * matrix_size[1];
     }
 }
 
 // converts from column order to c-order when column_to_c != 0, otherwise reversed
-void convert_matrix(cufftComplex* matrix, cufftComplex* buffer, int* size, bool column_order) {
+void convert_matrix(float* matrix, float* buffer, int* size, bool column_order) {
     long long from_idx;
     long long to_idx;
     for ( long i = 0; i < size[0]; i++) { 
@@ -310,7 +310,7 @@ void convert_matrix(cufftComplex* matrix, cufftComplex* buffer, int* size, bool 
                 from_idx = convert_idx(i, j, k, size, column_order);
                 to_idx = convert_idx(i, j, k, size, !column_order);
 
-                buffer[to_idx].x = matrix[from_idx].x;
+                buffer[to_idx] = matrix[from_idx];
             }
         }
     }
@@ -330,7 +330,6 @@ void initialize_inputs(float* hostI, float* hostF, cufftComplex* host_data_input
                 pad_idx = convert_idx(i, j, k, pad_size, column_order);
 
                 if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
-                    /*printf("hostf[i]: %.2f, i: %d", hostF[i], i);*/
                     host_data_kernel[pad_idx].x = hostF[idx];
                 } else {
                     host_data_kernel[pad_idx].x = 0.0f;
@@ -538,6 +537,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
             for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
                 idx = convert_idx(i - trim_idxs[0][0], j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
                 pad_idx = convert_idx(i, j, k, pad_size, column_order);
+
                 hostO[idx] = host_data_input[pad_idx].x;
             }
         }

@@ -9,7 +9,7 @@ libcufftutils.a: $(OBJ)
 	ar crs $@ convn_impl.o
 
 %.o: %.cu
-	$(NVCC) $(NVCC_FLAGS) -g -o $@ $(CUFFTLIB) -c $^ 
+	$(NVCC) $(NVCC_FLAGS) -o $@ $(CUFFTLIB) -c $^ 
 
 #main.exe: convn_impl.cu
 	#$(NVCC) $(NVCC_FLAGS) $^ -g -o $@ $(CUFFTLIB)

@@ -9,7 +9,7 @@ namespace cufftutils {
 
     long long convert_idx(long i, long j, long k, int* matrix_size, bool column_order);
 
-    void convert_matrix(cufftComplex* matrix, cufftComplex* buffer, int* size, bool column_order);
+    void convert_matrix(float* matrix, float* buffer, int* size, bool column_order);
 
     void initialize_inputs(float* hostI, float* hostF, cufftComplex* host_data_input, 
             cufftComplex* host_data_kernel, int* size, int* pad_size, int* filterdimA,
