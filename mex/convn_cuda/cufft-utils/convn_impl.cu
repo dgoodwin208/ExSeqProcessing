@@ -543,6 +543,9 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         }
     }
 
+    if (benchmark)
+        printf("Cufft completed successfully\n");
+
     // Free malloc'ed variables
     free(worksize);
     // Free malloc'ed variables

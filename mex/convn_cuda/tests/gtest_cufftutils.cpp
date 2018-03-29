@@ -1,14 +1,115 @@
 #include "gtest/gtest.h"
 
 #include "cufftutils.h"
-#include "cuda3Dutils.h"
 #include <complex.h>
+#include <cuda_runtime.h>
 #include <cufft.h>
+
 #include <vector>
 #include <cstdint>
 #include <random>
 
-namespace {
+// 3D FFT on the _device_
+void
+signalFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
+
+  int NRANK, n[] = {NX, NY, NZ};
+  cufftHandle plan;
+
+  NRANK = 3;
+
+  cufftResult result;
+  result = cufftPlanMany(&plan, NRANK, n,
+              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
+              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
+              CUFFT_C2C, 1);
+  if (result != CUFFT_SUCCESS) {
+    printf ("Failed to plan 3D FFT code:%d\n", result);
+    exit(0);
+  }
+
+
+  result = cufftExecC2C(plan, d_signal, d_signal, CUFFT_FORWARD) ; 
+  if (result != CUFFT_SUCCESS){
+    printf ("Failed to exec 3D FFT code %d\n", result);
+    exit (0);
+  }
+
+}
+
+
+// 3D IFFT on the _device_
+void
+signalIFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
+
+  int NRANK, n[] = {NX, NY, NZ};
+  cufftHandle plan;
+
+  NRANK = 3;
+
+  if (cufftPlanMany(&plan, NRANK, n,
+              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
+              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
+              CUFFT_C2C, 1) != CUFFT_SUCCESS){
+    printf ("Failed to plan 3D IFFT\n");
+    exit (0);
+  }
+
+
+  if (cufftExecC2C(plan, d_signal, d_signal, CUFFT_INVERSE) != CUFFT_SUCCESS){
+    printf ("Failed to exec 3D IFFT\n");
+    exit (0);
+  }
+
+}
+
+// Pointwise Multiplication Kernel.
+void
+pwProd(cufftComplex *signal1, int size1, cufftComplex *signal2) {
+
+  cufftComplex temp;
+  for (int i=0; i < size1; i++) {
+    temp.x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    temp.y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+    signal1[i].x = temp.x;
+    signal1[i].y = temp.y;
+  }
+
+}
+
+void
+cudaConvolution3D(cufftComplex *d_signal1, int* size1, cufftComplex *d_signal2,
+                int* size2, dim3 blockSize, dim3 gridSize) {
+
+
+  signalFFT3D(d_signal1, size1[0], size1[1], size1[2]);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("signal 1 fft failed.\n");
+    //exit(1);
+  //}
+
+  signalFFT3D(d_signal2, size2[0], size2[1], size2[2]);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("signal 2 fft failed.\n");
+    //exit(1);
+  //}
+
+  //printDeviceData(d_signal1, size1, "H1 FFT");
+  //printDeviceData(d_signal2, size2, "H2 FFT");
+
+  pwProd(d_signal1, size1[0] * size1[1] * size1[2], d_signal2);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("pwProd kernel failed.\n");
+    //exit(1);
+  //}
+  //printDeviceData(d_signal1, size1, "PwProd");
+
+  signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("signal ifft failed.\n");
+    //exit(1);
+  //}
+}
 
 class ConvnCufftTest : public ::testing::Test {
 protected:
@@ -56,7 +157,7 @@ TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
 }
 
 TEST_F(ConvnCufftTest, ConvnCompareTest) {
-    int size[3] = {200, 200, 300};
+    int size[3] = {100, 100, 50};
     int filterdimA[3] = {2, 2, 2};
     int benchmark = 1;
     bool column_order = false;
@@ -88,10 +189,13 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
         host_data_kernel[i].y = 0;
     }
 
-    printf("Testing convolution\n");
+    printf("mGPU convolution\n");
     cufftutils::conv_handler(hostI, hostF, hostO, algo, size,
             filterdimA, column_order, benchmark);
-    cuda3Dutils::cudaConvolution3D(host_data_input, host_data_kernel, size, filterdimA, 
+    //cuda3Dutils::cudaConvolution3D(host_data_input, size, host_data_kernel, filterdimA, 
+            //32, 256);
+    printf("Check with basic convolution\n");
+    cudaConvolution3D(host_data_input, size, host_data_kernel, filterdimA, 
             32, 256);
 
     //convert back to original then check the two matrices
@@ -289,6 +393,10 @@ TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
 
 }
 
+
+
+
+
 //TEST_F(ConvnCufftTest, ConvnBasicTest) {
     //// process args
     //const int channels = 500;
@@ -337,4 +445,3 @@ TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
     //}
 //}
 
-} // namespace
