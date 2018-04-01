@@ -8,6 +8,8 @@ GTEST_DIR = /mp/nas1/share/lib/googletest/googletest
 
 CPPFLAGS += -std=c++11 -isystem $(GTEST_DIR)/include
 CXXFLAGS += -g -Wall -Wextra -pthread -O3
+NVCC = /usr/local/cuda/bin/nvcc
+NVCC_FLAGS = -g -G -Xcompiler -fPIC --gpu-architecture=sm_61
 
 CUDA_INC = /usr/local/cuda/include
 CUDA_LIB = /usr/local/cuda/lib64
@@ -39,6 +41,7 @@ gtest_utils : gtest_utils.o
 
 gtest_cufftutils.o : gtest_cufftutils.cpp $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) -c gtest_cufftutils.cpp -L$(CUDA_LIB) -lcufft -I$(CUDA_INC) -I$(CUFFT_DIR) -I$(SPDLOG_DIR)
+	#$(NVCC) $(NVCC_FLAGS) $(GTEST_DIR)/include -c gtest_cufftutils.cpp -L$(CUDA_LIB) -lcufft -I$(CUDA_INC) -I$(CUFFT_DIR) -I$(SPDLOG_DIR)
 
 gtest_cufftutils : gtest_cufftutils.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a $(CUFFT_DIR)/libcufftutils.a -I$(CUDA_INC) -I$(CUFFT_DIR) -L$(CUFFT_DIR) -L$(CUDA_LIB) -lcufft -lcudart -lcufftutils -lpthread -o $@ 

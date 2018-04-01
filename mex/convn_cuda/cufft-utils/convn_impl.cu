@@ -18,6 +18,164 @@
 
 namespace cufftutils {
 
+// Pointwise Multiplication Kernel.
+__global__ 
+void pwProd(cufftComplex *signal1, int size1, cufftComplex *signal2) {
+
+  int threadsPerBlock, blockId, globalIdx, i;
+  cufftComplex temp;
+
+  threadsPerBlock = blockDim.x * blockDim.y;
+  blockId = blockIdx.x + (blockIdx.y * gridDim.x);
+  globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
+
+  i = globalIdx;
+
+  if (globalIdx < size1) {
+
+    temp.x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    temp.y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+    signal1[i].x = temp.x / (float) size1;
+    signal1[i].y = temp.y / (float) size1;
+  }
+
+}
+
+
+void printHostData(cufftComplex *a, int size) {
+
+  for (int i = 0; i < size; i++)
+    printf("%f %f\n", a[i].x, a[i].y);
+}
+
+
+void printDeviceData(cufftComplex *a, int size) {
+
+  cufftComplex *h;
+
+  h = (cufftComplex *) malloc(sizeof(cufftComplex) * size);
+
+  cudaMemcpy(h, a, sizeof(cufftComplex) * size, cudaMemcpyDeviceToHost);
+
+  for (int i = 0; i < size; i++)
+    printf("%f %f\n", h[i].x, h[i].y);
+}
+
+
+void product(cufftComplex *signal1, int size1, cufftComplex *signal2, dim3 gridSize, dim3 blockSize) {
+    pwProd<<<gridSize, blockSize>>>(signal1, size1, signal2) ;
+}
+
+// 3D FFT on the _device_
+void signalFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
+
+  int NRANK, n[] = {NX, NY, NZ};
+  cufftHandle plan;
+
+  NRANK = 3;
+
+    // Initializes the worksize variable
+    /*size_t *worksize;                                   */
+    // Allocates memory for the worksize variable, which tells cufft how many GPUs it has to work with
+    /*worksize =(size_t*)malloc(sizeof(size_t) * 1);  */
+
+  cufftResult result;
+    //result = cufftCreate(&plan);
+    //if (result != CUFFT_SUCCESS) { printf ("*Create plan failed\n"); exit(0); }
+  //result = cufftMakePlan3d(plan, NX, NY, NZ, CUFFT_C2C, worksize); 
+  result = cufftPlanMany(&plan, NRANK, n,
+              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
+              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
+              CUFFT_C2C, 1);
+  if (result != CUFFT_SUCCESS) {
+    printf ("Failed to plan 3D FFT code:%d\n", result);
+    exit(0);
+  }
+
+
+  result = cufftExecC2C(plan, d_signal, d_signal, CUFFT_FORWARD) ; 
+  if (result != CUFFT_SUCCESS){
+    printf ("Failed to exec 3D FFT code %d\n", result);
+    exit (0);
+  }
+
+}
+
+
+// 3D IFFT on the _device_
+void signalIFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
+
+  int NRANK, n[] = {NX, NY, NZ};
+  cufftHandle plan;
+
+  NRANK = 3;
+
+  if (cufftPlanMany(&plan, NRANK, n,
+              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
+              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
+              CUFFT_C2C, 1) != CUFFT_SUCCESS){
+    printf ("Failed to plan 3D IFFT\n");
+    exit (0);
+  }
+
+
+  if (cufftExecC2C(plan, d_signal, d_signal, CUFFT_INVERSE) != CUFFT_SUCCESS){
+    printf ("Failed to exec 3D IFFT\n");
+    exit (0);
+  }
+
+}
+
+//// Pointwise Multiplication Kernel.
+//void
+//pwProd(cufftComplex *signal1, int size1, cufftComplex *signal2) {
+
+  //cufftComplex temp;
+  //for (int i=0; i < size1; i++) {
+    //temp.x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    //temp.y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+    //signal1[i].x = temp.x;
+    //signal1[i].y = temp.y;
+  //}
+
+//}
+
+void cudaConvolution3D(cufftComplex *d_signal1, int* size1, cufftComplex *d_signal2,
+                int* size2, dim3 blockSize, dim3 gridSize) {
+
+    int N = size1[0] * size1[1] * size1[2];
+  printf("cudaConvolution3D");
+  cufftutils::signalFFT3D(d_signal1, size1[0], size1[1], size1[2]);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("signal 1 fft failed.\n");
+    //exit(1);
+  //}
+
+  cufftutils::signalFFT3D(d_signal2, size2[0], size2[1], size2[2]);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("signal 2 fft failed.\n");
+    //exit(1);
+  //}
+
+  printf("\n Manual input FFT\n");
+  cufftutils::printDeviceData(d_signal1, N);
+  printf("\n Manual kernel FFT\n");
+  cufftutils::printDeviceData(d_signal2, N);
+
+  cufftutils::product(d_signal1, N, d_signal2, gridSize, blockSize);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("pwProd kernel failed.\n");
+    //exit(1);
+  //}
+  //printDeviceData(d_signal1, size1, "PwProd");
+
+  cufftutils::signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
+  //if ((cudaGetLastError()) != cudaSuccess) {
+    //printf ("signal ifft failed.\n");
+    //exit(1);
+  //}
+}
+
 __global__ 
 void initialize(int N, float* data, cufftComplex *f1, cufftComplex *f2)
 {
@@ -360,6 +518,23 @@ void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]
     }
 }
 
+
+void trim_pad(int trim_idxs[3][2], int* size, int* pad_size, bool column_order, float* hostO, cufftComplex* host_data_input) 
+{
+    long long idx;
+    long long pad_idx;
+    for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {
+        for (long j=trim_idxs[1][0]; i < trim_idxs[1][1]; i++) {
+            for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
+                idx = cufftutils::convert_idx(i - trim_idxs[0][0], j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
+                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
+
+                hostO[idx] = host_data_input[pad_idx].x;
+            }
+        }
+    }
+}
+
 int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, bool column_order, int benchmark) {
     // hardcoded, func only supports 3D convolutions
     int nGPUs;
@@ -372,7 +547,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     int pad_size[3];
     int trim_idxs[3][2];
-    get_pad_trim(size, filterdimA, pad_size, trim_idxs);
+    cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
@@ -399,7 +574,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     if (benchmark)
         printf("Initialize input and kernel\n");
 
-    initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
 
     // Launch custom CUDA kernel to convert to complex
     /*cudaSetDevice(deviceNum[0]);*/
@@ -462,7 +637,8 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtMalloc(plan_fft3, &input_natural, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc input natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
     result = cufftXtMalloc(plan_fft3, &kernel_natural, CUFFT_XT_FORMAT_INPLACE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc output natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
+    if (result != CUFFT_SUCCESS) { 
+        printf ("*XtMalloc output natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
 
     if (benchmark)
         printf("Xt memcpy\n");
@@ -497,7 +673,14 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
         //FIXME size to pass?
         int size_device = int(input_natural->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
-        ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N);
+        printf("\n\nDevice: %d, elements: %d", deviceNum[i], size_device);
+        printf("\ninput FFT\n");
+        cufftutils::printDeviceData(input_data_on_gpu, size_device);
+        printf("\nkernel FFT\n");
+        cufftutils::printDeviceData(kernel_data_on_gpu, size_device);
+
+        ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, 
+                (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N);
     }
 
     // Synchronize GPUs
@@ -509,7 +692,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Perform inverse FFT on multiple GPUs
     if (benchmark)
         printf("Inverse 3d FFT on multiple GPUs\n");
-    result = cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE);
+    result = cufftXtExecDescriptorC2C(plan_fft3, input_natural, input_natural, CUFFT_INVERSE);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecDesc inverse failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     if (benchmark) {
@@ -524,24 +707,13 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
     /*result = cufftXtMemcpy (plan_fft3, host_data_output, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);*/
-    result = cufftXtMemcpy (plan_fft3, host_data_input, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);
+    result = cufftXtMemcpy (plan_fft3, host_data_input, input_natural, CUFFT_COPY_DEVICE_TO_HOST);
     if (result != CUFFT_SUCCESS) { printf ("*cufftXtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     if (benchmark)
         printf("Place results in output\n");
 
-    long long idx;
-    long long pad_idx;
-    for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {
-        for (long j=trim_idxs[1][0]; i < trim_idxs[1][1]; i++) {
-            for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
-                idx = convert_idx(i - trim_idxs[0][0], j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
-                pad_idx = convert_idx(i, j, k, pad_size, column_order);
-
-                hostO[idx] = host_data_input[pad_idx].x;
-            }
-        }
-    }
+    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input);
 
     if (benchmark)
         printf("Cufft completed successfully\n");

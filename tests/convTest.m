@@ -91,15 +91,15 @@ function [mini, full, lens] = test_img_size()
 
     mini = struct;
 
-    %[double_times, single_times] = test_convn_dtype(img_mini);
-    %mini.double = double_times;
-    %mini.single = single_times;
+    [double_times, single_times] = test_convn_dtype(img_mini);
+    mini.double = double_times;
+    mini.single = single_times;
 
-    full = struct;
+    %full = struct;
 
-    [double_times, single_times] = test_convn_dtype(img);
-    full.double = double_times;
-    full.single = single_times;
+    %[double_times, single_times] = test_convn_dtype(img);
+    %full.double = double_times;
+    %full.single = single_times;
 end
 
 function [double_times, single_times] = test_convn_dtype(img)
@@ -198,6 +198,9 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
     t_cuda = toc;
     err = compute_err(img_blur_cuda, img_blur_fft);
     fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
+    size(img_blur_fft)
+    size(img_blur_cuda)
+    assert(isequal(size(img_blur_fft), size(img_blur_cuda)));
     norm(img_blur_fft(:)-img_blur_cuda(:))
     norm(img_blur_fft(:))
     %gpuDevice();

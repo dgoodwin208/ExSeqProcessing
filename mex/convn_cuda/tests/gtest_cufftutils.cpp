@@ -4,112 +4,12 @@
 #include <complex.h>
 #include <cuda_runtime.h>
 #include <cufft.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 #include <vector>
 #include <cstdint>
 #include <random>
-
-// 3D FFT on the _device_
-void
-signalFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
-
-  int NRANK, n[] = {NX, NY, NZ};
-  cufftHandle plan;
-
-  NRANK = 3;
-
-  cufftResult result;
-  result = cufftPlanMany(&plan, NRANK, n,
-              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
-              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
-              CUFFT_C2C, 1);
-  if (result != CUFFT_SUCCESS) {
-    printf ("Failed to plan 3D FFT code:%d\n", result);
-    exit(0);
-  }
-
-
-  result = cufftExecC2C(plan, d_signal, d_signal, CUFFT_FORWARD) ; 
-  if (result != CUFFT_SUCCESS){
-    printf ("Failed to exec 3D FFT code %d\n", result);
-    exit (0);
-  }
-
-}
-
-
-// 3D IFFT on the _device_
-void
-signalIFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
-
-  int NRANK, n[] = {NX, NY, NZ};
-  cufftHandle plan;
-
-  NRANK = 3;
-
-  if (cufftPlanMany(&plan, NRANK, n,
-              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
-              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
-              CUFFT_C2C, 1) != CUFFT_SUCCESS){
-    printf ("Failed to plan 3D IFFT\n");
-    exit (0);
-  }
-
-
-  if (cufftExecC2C(plan, d_signal, d_signal, CUFFT_INVERSE) != CUFFT_SUCCESS){
-    printf ("Failed to exec 3D IFFT\n");
-    exit (0);
-  }
-
-}
-
-// Pointwise Multiplication Kernel.
-void
-pwProd(cufftComplex *signal1, int size1, cufftComplex *signal2) {
-
-  cufftComplex temp;
-  for (int i=0; i < size1; i++) {
-    temp.x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
-    temp.y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
-    signal1[i].x = temp.x;
-    signal1[i].y = temp.y;
-  }
-
-}
-
-void
-cudaConvolution3D(cufftComplex *d_signal1, int* size1, cufftComplex *d_signal2,
-                int* size2, dim3 blockSize, dim3 gridSize) {
-
-
-  signalFFT3D(d_signal1, size1[0], size1[1], size1[2]);
-  //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("signal 1 fft failed.\n");
-    //exit(1);
-  //}
-
-  signalFFT3D(d_signal2, size2[0], size2[1], size2[2]);
-  //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("signal 2 fft failed.\n");
-    //exit(1);
-  //}
-
-  //printDeviceData(d_signal1, size1, "H1 FFT");
-  //printDeviceData(d_signal2, size2, "H2 FFT");
-
-  pwProd(d_signal1, size1[0] * size1[1] * size1[2], d_signal2);
-  //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("pwProd kernel failed.\n");
-    //exit(1);
-  //}
-  //printDeviceData(d_signal1, size1, "PwProd");
-
-  signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
-  //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("signal ifft failed.\n");
-    //exit(1);
-  //}
-}
 
 class ConvnCufftTest : public ::testing::Test {
 protected:
@@ -157,7 +57,9 @@ TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
 }
 
 TEST_F(ConvnCufftTest, ConvnCompareTest) {
-    int size[3] = {100, 100, 50};
+    int size[3] = {50, 50, 5};
+    //int filterdimA[3] = {5, 5, 5};
+    //int size[3] = {5, 6, 5};
     int filterdimA[3] = {2, 2, 2};
     int benchmark = 1;
     bool column_order = false;
@@ -170,6 +72,7 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     
     float* hostI = new float[N]; 
     float* hostO = new float[N]; 
+    float* hostO_manual = new float[N]; 
     float* hostF = new float[N_kernel]; 
 
     cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
@@ -195,8 +98,43 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     //cuda3Dutils::cudaConvolution3D(host_data_input, size, host_data_kernel, filterdimA, 
             //32, 256);
     printf("Check with basic convolution\n");
-    cudaConvolution3D(host_data_input, size, host_data_kernel, filterdimA, 
-            32, 256);
+
+    int pad_size[3];
+    int trim_idxs[3][2];
+    cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
+
+    printf("update pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
+    long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
+    // change size_of_data to match pad
+    size_of_data = N_padded * sizeof(cufftComplex);
+
+    cufftComplex *host_data_input_pad = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_input) { printf("malloc input failed"); }
+    cufftComplex *host_data_kernel_pad = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_kernel) { printf("malloc kernel failed"); }
+
+    printf("Initialize inputs\n");
+    cufftutils::initialize_inputs(hostI, hostF, host_data_input_pad, host_data_kernel_pad, size, pad_size, filterdimA, column_order);
+
+
+    cufftComplex* device_data_input;
+    cufftComplex* device_data_kernel;
+    printf("cudaMalloc\n");
+    cudaMalloc(&device_data_input, size_of_data);
+    cudaMalloc(&device_data_kernel, size_of_data);
+
+    cudaMemcpy(device_data_input, host_data_input_pad, size_of_data, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_data_kernel, host_data_kernel_pad, size_of_data, cudaMemcpyHostToDevice);
+
+    printf("conv3D\n");
+    const dim3 blockSize(16, 16, 1);
+    const dim3 gridSize(N_padded / 16 + 1, N_padded / 16 + 1, 1);
+    cufftutils::cudaConvolution3D(device_data_input, pad_size, device_data_kernel, pad_size, 
+            blockSize, gridSize);
+
+    cudaMemcpy(host_data_input_pad, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
+
+    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO_manual, host_data_input_pad);
 
     //convert back to original then check the two matrices
     long long idx;
@@ -206,7 +144,7 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
                 //val = host_data_input[pad_idx].x; // get the real component
                 //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
-                EXPECT_NEAR(hostO[idx], host_data_input[idx].x, 1.0);
+                ASSERT_NEAR(hostO[idx], hostO_manual[idx], 1.0);
             }
             //printf("\n");
         }
