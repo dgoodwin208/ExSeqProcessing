@@ -168,6 +168,8 @@ void cudaConvolution3D(cufftComplex *d_signal1, int* size1, cufftComplex *d_sign
     //exit(1);
   //}
   //printDeviceData(d_signal1, size1, "PwProd");
+  printf("\n Manual product \n");
+  cufftutils::printDeviceData(d_signal1, N);
 
   cufftutils::signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
   //if ((cudaGetLastError()) != cudaSuccess) {
@@ -674,13 +676,15 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         //FIXME size to pass?
         int size_device = int(input_natural->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
         printf("\n\nDevice: %d, elements: %d", deviceNum[i], size_device);
-        printf("\ninput FFT\n");
+        printf("\ninput FFT deviceNum:%d\n", deviceNum[i]);
         cufftutils::printDeviceData(input_data_on_gpu, size_device);
-        printf("\nkernel FFT\n");
+        printf("\nkernel FFT deviceNum:%d\n", deviceNum[i]);
         cufftutils::printDeviceData(kernel_data_on_gpu, size_device);
 
         ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, 
                 (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N);
+        printf("\nProduct deviceNum:%d\n", deviceNum[i]);
+        cufftutils::printDeviceData(input_data_on_gpu, size_device);
     }
 
     // Synchronize GPUs

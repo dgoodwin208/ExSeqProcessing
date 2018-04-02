@@ -151,7 +151,7 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     }
 }
 
-TEST_F(ConvnCufftTest, InitializePadTest) {
+TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     int size[3] = {2, 2, 3};
     int filterdimA[3] = {2, 2, 2};
     int benchmark = 1;
@@ -256,7 +256,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
 
 }
 
-TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
 
     // generate params
     int algo = 0;
