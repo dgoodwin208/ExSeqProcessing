@@ -15,7 +15,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     size_t mrows1, ncols1;
     size_t mrows2, ncols2;
     size_t inArraySize;
-    int benchmark = 1; //time it, print debugging info
+    int benchmark = 0; //time it, print debugging info
 
     /* Check for proper number of input and output arguments */    
     if (nrhs != 2) {

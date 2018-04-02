@@ -141,41 +141,46 @@ void signalIFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
 //}
 
 void cudaConvolution3D(cufftComplex *d_signal1, int* size1, cufftComplex *d_signal2,
-                int* size2, dim3 blockSize, dim3 gridSize) {
+                int* size2, dim3 blockSize, dim3 gridSize, int benchmark) {
 
     int N = size1[0] * size1[1] * size1[2];
-  printf("cudaConvolution3D");
-  cufftutils::signalFFT3D(d_signal1, size1[0], size1[1], size1[2]);
-  //if ((cudaGetLastError()) != cudaSuccess) {
+    if (benchmark)
+        printf("cudaConvolution3D");
+    cufftutils::signalFFT3D(d_signal1, size1[0], size1[1], size1[2]);
+    //if ((cudaGetLastError()) != cudaSuccess) {
     //printf ("signal 1 fft failed.\n");
     //exit(1);
-  //}
+    //}
 
-  cufftutils::signalFFT3D(d_signal2, size2[0], size2[1], size2[2]);
-  //if ((cudaGetLastError()) != cudaSuccess) {
+    cufftutils::signalFFT3D(d_signal2, size2[0], size2[1], size2[2]);
+    //if ((cudaGetLastError()) != cudaSuccess) {
     //printf ("signal 2 fft failed.\n");
     //exit(1);
-  //}
+    //}
 
-  printf("\n Manual input FFT\n");
-  cufftutils::printDeviceData(d_signal1, N);
-  printf("\n Manual kernel FFT\n");
-  cufftutils::printDeviceData(d_signal2, N);
+    if (benchmark) {
+        printf("\n Manual input FFT\n");
+        cufftutils::printDeviceData(d_signal1, N);
+        printf("\n Manual kernel FFT\n");
+        cufftutils::printDeviceData(d_signal2, N);
+    }
 
-  cufftutils::product(d_signal1, N, d_signal2, gridSize, blockSize);
-  //if ((cudaGetLastError()) != cudaSuccess) {
+    cufftutils::product(d_signal1, N, d_signal2, gridSize, blockSize);
+    //if ((cudaGetLastError()) != cudaSuccess) {
     //printf ("pwProd kernel failed.\n");
     //exit(1);
-  //}
-  //printDeviceData(d_signal1, size1, "PwProd");
-  printf("\n Manual product \n");
-  cufftutils::printDeviceData(d_signal1, N);
+    //}
+    //printDeviceData(d_signal1, size1, "PwProd");
+    if (benchmark) {
+        printf("\n Manual product \n");
+        cufftutils::printDeviceData(d_signal1, N);
+    }
 
-  cufftutils::signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
-  //if ((cudaGetLastError()) != cudaSuccess) {
+    cufftutils::signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
+    //if ((cudaGetLastError()) != cudaSuccess) {
     //printf ("signal ifft failed.\n");
     //exit(1);
-  //}
+    //}
 }
 
 __global__ 
@@ -537,6 +542,96 @@ void trim_pad(int trim_idxs[3][2], int* size, int* pad_size, bool column_order, 
     }
 }
 
+int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, bool column_order, int benchmark) {
+    // hardcoded, func only supports 3D convolutions
+
+    long long N = ((long long) size[0]) * size[1] * size[2];
+    if (benchmark)
+        printf("Using %d GPUs on a %dx%dx%d grid, N:%d\n",1, size[0], size[1], size[2], N);
+
+    int pad_size[3];
+    int trim_idxs[3][2];
+    cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
+
+    long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
+    long long size_of_data = N_padded * sizeof(cufftComplex);
+
+    if (benchmark)
+        printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
+
+    //Create complex variables on host
+    if (benchmark)
+        printf("malloc input and output\n");
+    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_input) { printf("malloc input failed"); }
+    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    if (!host_data_kernel) { printf("malloc kernel failed"); }
+
+    float elapsed = 0.0f;
+    cudaEvent_t start, stop;
+    if (benchmark) {
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start, 0);
+    }
+
+    if (benchmark)
+        printf("Initialize input and kernel\n");
+
+    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+
+    if (benchmark)
+        printf("Input and output successfully initialized\n");
+
+    if (benchmark)
+        printf("cudaMalloc\n");
+    cufftComplex* device_data_input;
+    cufftComplex* device_data_kernel;
+    cudaMalloc(&device_data_input, size_of_data);
+    cudaMalloc(&device_data_kernel, size_of_data);
+
+    if (benchmark)
+        printf("cudaMemcpy\n");
+    // Copy the data from 'host' to device using cufftXt formatting
+    cudaMemcpy(device_data_input, host_data_input, size_of_data, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_data_kernel, host_data_kernel, size_of_data, cudaMemcpyHostToDevice);
+
+    if (benchmark)
+        printf("conv3D\n");
+    const dim3 blockSize(16, 16, 1);
+    const dim3 gridSize(N_padded / 16 + 1, N_padded / 16 + 1, 1);
+    cufftutils::cudaConvolution3D(device_data_input, pad_size, device_data_kernel, pad_size, 
+            blockSize, gridSize, benchmark);
+
+    cudaMemcpy(host_data_input, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
+
+    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input);
+
+
+    if (benchmark) {
+        cudaEventRecord(stop, 0);
+        cudaDeviceSynchronize();
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsed, start, stop);
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+        printf(" Full convolution cost %.2f ms\n", elapsed);
+    }
+
+    if (benchmark)
+        printf("Cufft completed successfully\n");
+
+    // Free malloc'ed variables
+    free(host_data_input);
+    free(host_data_kernel);
+
+    // Free cufftX malloc'ed variables
+    result = cudaFree(device_data_input);
+    result = cudaFree(device_data_kernel);
+
+    return 0;
+}
+
 int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, int* filterdimA, bool column_order, int benchmark) {
     // hardcoded, func only supports 3D convolutions
     int nGPUs;
@@ -673,18 +768,23 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         input_data_on_gpu = (cufftComplex*) (input_natural->descriptor->data[deviceNum[i]]);
         kernel_data_on_gpu = (cufftComplex*) (kernel_natural->descriptor->data[deviceNum[i]]);
         // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
-        //FIXME size to pass?
         int size_device = int(input_natural->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
-        printf("\n\nDevice: %d, elements: %d", deviceNum[i], size_device);
-        printf("\ninput FFT deviceNum:%d\n", deviceNum[i]);
-        cufftutils::printDeviceData(input_data_on_gpu, size_device);
-        printf("\nkernel FFT deviceNum:%d\n", deviceNum[i]);
-        cufftutils::printDeviceData(kernel_data_on_gpu, size_device);
+
+        if (benchmark) {
+            printf("\n\nDevice: %d, elements: %d", deviceNum[i], size_device);
+            printf("\ninput FFT deviceNum:%d\n", deviceNum[i]);
+            cufftutils::printDeviceData(input_data_on_gpu, size_device);
+            printf("\nkernel FFT deviceNum:%d\n", deviceNum[i]);
+            cufftutils::printDeviceData(kernel_data_on_gpu, size_device);
+        }
 
         ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, 
-                (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N);
-        printf("\nProduct deviceNum:%d\n", deviceNum[i]);
-        cufftutils::printDeviceData(input_data_on_gpu, size_device);
+                (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N_padded);
+
+        if (benchmark) {
+            printf("\nProduct deviceNum:%d\n", deviceNum[i]);
+            cufftutils::printDeviceData(input_data_on_gpu, size_device);
+        }
     }
 
     // Synchronize GPUs

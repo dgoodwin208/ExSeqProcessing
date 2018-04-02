@@ -33,7 +33,7 @@ namespace cufftutils {
     void signalIFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ);
 
     void cudaConvolution3D(cufftComplex *d_signal1, int* size1, cufftComplex *d_signal2,
-                    int* size2, dim3 blockSize, dim3 gridSize);
+                    int* size2, dim3 blockSize, dim3 gridSize, int benchmark);
 
 
 }

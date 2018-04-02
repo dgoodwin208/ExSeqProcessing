@@ -56,6 +56,23 @@ TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
     cufftutils::fft3(data, size, size, outArray, column_order);
 }
 
+void matrix_is_equal(float* first, float* second, int* size, bool column_order)  {
+    //convert back to original then check the two matrices
+    long long idx;
+    for (int i = 0; i<size[0]; ++i) {
+        for (int j = 0; j<size[1]; ++j) {
+            for (int k = 0; k<size[2]; ++k) {
+                idx = cufftutils::convert_idx(i, j, k, size, column_order);
+                //val = host_data_input[pad_idx].x; // get the real component
+                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                printf("idx:%d\n", idx);
+                ASSERT_NEAR(first[idx], second[idx], 1.0);
+            }
+            //printf("\n");
+        }
+    }
+}
+
 TEST_F(ConvnCufftTest, ConvnCompareTest) {
     int size[3] = {50, 50, 5};
     //int filterdimA[3] = {5, 5, 5};
@@ -103,7 +120,7 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     int trim_idxs[3][2];
     cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
-    printf("update pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
+    printf("pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     // change size_of_data to match pad
     size_of_data = N_padded * sizeof(cufftComplex);
@@ -114,8 +131,20 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     if (!host_data_kernel) { printf("malloc kernel failed"); }
 
     printf("Initialize inputs\n");
-    cufftutils::initialize_inputs(hostI, hostF, host_data_input_pad, host_data_kernel_pad, size, pad_size, filterdimA, column_order);
 
+    for (int i=0; i < N; i++) {
+        hostI[i] = (float) sin(i);
+        host_data_input[i].x = hostI[i];
+        host_data_input[i].y = 0;
+    }
+
+    for (int i=0; i < N_kernel; i++) {
+        hostF[i] = (float) sin(i);
+        host_data_kernel[i].x = hostF[i];
+        host_data_kernel[i].y = 0;
+    }
+
+    cufftutils::initialize_inputs(hostI, hostF, host_data_input_pad, host_data_kernel_pad, size, pad_size, filterdimA, column_order);
 
     cufftComplex* device_data_input;
     cufftComplex* device_data_kernel;
@@ -130,25 +159,13 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     const dim3 blockSize(16, 16, 1);
     const dim3 gridSize(N_padded / 16 + 1, N_padded / 16 + 1, 1);
     cufftutils::cudaConvolution3D(device_data_input, pad_size, device_data_kernel, pad_size, 
-            blockSize, gridSize);
+            blockSize, gridSize, benchmark);
 
     cudaMemcpy(host_data_input_pad, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
 
     cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO_manual, host_data_input_pad);
 
-    //convert back to original then check the two matrices
-    long long idx;
-    for (int i = 0; i<size[0]; ++i) {
-        for (int j = 0; j<size[1]; ++j) {
-            for (int k = 0; k<size[2]; ++k) {
-                idx = cufftutils::convert_idx(i, j, k, size, column_order);
-                //val = host_data_input[pad_idx].x; // get the real component
-                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
-                ASSERT_NEAR(hostO[idx], hostO_manual[idx], 1.0);
-            }
-            //printf("\n");
-        }
-    }
+    matrix_is_equal(hostO, hostO_manual, size, column_order);
 }
 
 TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
