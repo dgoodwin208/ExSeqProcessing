@@ -21,10 +21,13 @@ protected:
 
 //Generate uniform numbers [0,1)
 static void initImage(float* image, int imageSize) {
-    static unsigned seed = 123456789;
+    //static unsigned seed = 123456789;
     for (int index = 0; index < imageSize; index++) {
-        seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;
-        image[index] = float(seed)*2.3283064e-10; //2^-32
+        //seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;
+        //image[index] = float(seed)*2.3283064e-10; //2^-32
+        image[index] = (float) index;
+        //image[index] = (float) sin(index); //2^-32
+        //printf("image(index) %.4f\n", image[index]);
     }
 }
 
@@ -73,7 +76,7 @@ void matrix_is_equal(float* first, float* second, int* size, bool column_order) 
     }
 }
 
-TEST_F(ConvnCufftTest, ConvnCompareTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnCompareTest) {
     int size[3] = {50, 50, 5};
     //int filterdimA[3] = {5, 5, 5};
     //int size[3] = {5, 6, 5};
@@ -168,7 +171,7 @@ TEST_F(ConvnCufftTest, ConvnCompareTest) {
     matrix_is_equal(hostO, hostO_manual, size, column_order);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
+TEST_F(ConvnCufftTest, InitializePadTest) {
     int size[3] = {2, 2, 3};
     int filterdimA[3] = {2, 2, 2};
     int benchmark = 1;
@@ -181,11 +184,15 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     float* hostI = new float[N]; 
     float* hostF = new float[N_kernel]; 
 
-    for (int i=0; i < N; i++)
-        hostI[i] = (float) i;
+    // Create two random images
+    initImage(hostI, N);
+    initImage(hostF, N_kernel);
 
-    for (int i=0; i < N_kernel; i++)
-        hostF[i] = (float) i;
+    //for (int i=0; i < N; i++)
+        //hostI[i] = (float) i;
+
+    //for (int i=0; i < N_kernel; i++)
+        //hostF[i] = (float) i;
 
     int pad_size[3];
     int trim_idxs[3][2];
@@ -212,6 +219,14 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
 
     cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
 
+    if (benchmark) {
+        printf("\nhost_data_input elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_input, N_padded);
+        printf("\nhost_data_kernel elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_kernel, N_padded);
+    }
+
+
     // test padding is correct for c-order
     float val;
     long long idx;
@@ -222,8 +237,14 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
                 pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
 
-                //val = host_data_input[pad_idx].x; // get the real component
-                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                val = host_data_input[pad_idx].x; // get the real component
+                printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+
+                if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
+                    ASSERT_EQ(host_data_input[pad_idx].x, hostI[idx]);
+                } else {
+                    ASSERT_EQ(host_data_input[pad_idx].x, 0.0f);
+                }
 
                 if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
                     ASSERT_EQ(host_data_kernel[pad_idx].x, hostF[idx]);
@@ -231,13 +252,8 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
                     ASSERT_EQ(host_data_kernel[pad_idx].x, 0.0f);
                 }
 
-                if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
-                    ASSERT_EQ(host_data_input[pad_idx].x, hostI[idx]);
-                } else {
-                    ASSERT_EQ(host_data_input[pad_idx].x, 0.0f);
-                }
             }
-            //printf("\n");
+            printf("\n");
         }
     }
 }
@@ -278,9 +294,9 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
     // generate params
     int algo = 0;
     bool column_order = false;
-    int benchmark = 0;
-    int size[] = {50, 50, 50};
-    int filterdimA[] = {5, 5, 5};
+    int benchmark = 1;
+    int size[] = {50, 50, 5};
+    int filterdimA[] = {2, 2, 2};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = size[0]*size[1]*size[2];
 

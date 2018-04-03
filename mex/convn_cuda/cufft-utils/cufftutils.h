@@ -15,11 +15,14 @@ namespace cufftutils {
 
     void convert_matrix(float* matrix, float* buffer, int* size, bool column_order);
 
-    void initialize_inputs(float* hostI, float* hostF, cufftComplex* host_data_input, 
-            cufftComplex* host_data_kernel, int* size, int* pad_size, int* filterdimA,
+    void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[], 
+            cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
             bool column_order);
 
     int conv_handler(float* hostI, float* hostF, float* hostO, int algo, 
+            int* dimA, int* filterdimA, bool column_order, int benchmark);
+
+    int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, 
             int* dimA, int* filterdimA, bool column_order, int benchmark);
 
     int fft3(float * data, int* size, int* length, float* outArray, bool column_order);

@@ -45,7 +45,7 @@ void pwProd(cufftComplex *signal1, int size1, cufftComplex *signal2) {
 void printHostData(cufftComplex *a, int size) {
 
   for (int i = 0; i < size; i++)
-    printf("%f %f\n", a[i].x, a[i].y);
+    printf("%.1f %.1f\n", a[i].x, a[i].y);
 }
 
 
@@ -481,21 +481,27 @@ void convert_matrix(float* matrix, float* buffer, int* size, bool column_order) 
     }
 }
 
-void initialize_inputs(float* hostI, float* hostF, cufftComplex* host_data_input, 
-        cufftComplex* host_data_kernel, int* size, int* pad_size, int* filterdimA,
+void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[], 
+        cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
         bool column_order) {
     // Place in matrix padded to 0
     long long idx;
+    long long idx_filter;
     long long pad_idx;
+    bool check;
     for ( long i = 0; i < pad_size[0]; i++) { 
         for (long j = 0; j < pad_size[1]; j++) {
             for (long k = 0; k < pad_size[2]; k++) {
 
+                check = (i < size[0]) && (j < size[1]) && (k < size[2]);
                 idx = convert_idx(i, j, k, size, column_order);
+                idx_filter = convert_idx(i, j, k, filterdimA, column_order);
                 pad_idx = convert_idx(i, j, k, pad_size, column_order);
+                printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%.1f, %d\n", 
+                        i, j, k, idx, idx_filter, pad_idx, hostI[idx], check);
 
                 if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
-                    host_data_kernel[pad_idx].x = hostF[idx];
+                    host_data_kernel[pad_idx].x = hostF[idx_filter];
                 } else {
                     host_data_kernel[pad_idx].x = 0.0f;
                 }
@@ -505,6 +511,7 @@ void initialize_inputs(float* hostI, float* hostF, cufftComplex* host_data_input
                 // to accomplish c-order FFT transforms
                 if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
                     host_data_input[pad_idx].x = hostI[idx];
+                    /*printf("\t%.1f\n", host_data_input[pad_idx].x);*/
                 } else {
                     host_data_input[pad_idx].x = 0.0f;
                 }
@@ -626,8 +633,8 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, int* s
     free(host_data_kernel);
 
     // Free cufftX malloc'ed variables
-    result = cudaFree(device_data_input);
-    result = cudaFree(device_data_kernel);
+    cudaFree(device_data_input);
+    cudaFree(device_data_kernel);
 
     return 0;
 }
@@ -672,6 +679,13 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         printf("Initialize input and kernel\n");
 
     cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+
+    if (benchmark) {
+        printf("\nhost_data_input elements:%d\n", N_padded);
+        cufftutils::printDeviceData(host_data_input, N_padded);
+        printf("\nhost_data_kernel elements:%d\n", N_padded);
+        cufftutils::printDeviceData(host_data_kernel, N_padded);
+    }
 
     // Launch custom CUDA kernel to convert to complex
     /*cudaSetDevice(deviceNum[0]);*/
@@ -762,6 +776,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // multiply both ffts and scale output
     if (benchmark)
         printf("Matrix Multiply on multiple GPUs\n");
+
     for (int i = 0; i<nGPUs; ++i){
         cudaSetDevice(deviceNum[i]);
         cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;

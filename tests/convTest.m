@@ -1,5 +1,5 @@
 
-[mini, full, lens] = test_img_size();
+[mini, full, lens, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_img_size();
 save('conv_data_8th.mat', 'mini', 'full')
 
 %if ~exist('conv_data.mat')
@@ -13,37 +13,37 @@ loadExperimentParams;
 filter_size = params.SCALE_PYRAMID;
 lw = 2;
 
-plot(filter_size, mini.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
-hold on;
-plot(filter_size, mini.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
-%plot(filter_size, mini.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
-plot(filter_size, mini.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
-hold off
-legend('Location', 'northwest');
-tname = sprintf('Single precision %d X %d X %d', lens);
-title(tname)
-ylabel('Time (s)')
-xlabel('Filter size')
-%saveas(gcf, tname);
+%plot(filter_size, mini.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
+%hold on;
+%plot(filter_size, mini.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
+%%plot(filter_size, mini.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
+%plot(filter_size, mini.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
+%hold off
+%legend('Location', 'northwest');
+%tname = sprintf('Single precision %d X %d X %d', lens);
+%title(tname)
+%ylabel('Time (s)')
+%xlabel('Filter size')
+%%saveas(gcf, tname);
 
-%% SHOW RESULTS FOR SMALL IMAGE
-figure
-plot(filter_size, mini.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
-hold on;
-plot(filter_size, mini.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
-%plot(filter_size, mini.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
-plot(filter_size, mini.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
-%plot(filter_size, mini.double.fft, 'b', 'LineStyle', '--', 'DisplayName', 'double fft', 'LineWidth', lw)
-%plot(filter_size, mini.double.fft_gpu, 'r', 'LineStyle', '--', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
-%%plot(filter_size, mini.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
-%plot(filter_size, mini.double.imf_gpu, 'g', 'LineStyle', '--', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
-hold off
-legend('Location', 'northwest');
-tname = sprintf('Convolve %d X %d X %d', lens);
-title(tname)
-ylabel('Time (s)')
-xlabel('Filter size')
-%saveas(gcf, tname);
+%%% SHOW RESULTS FOR SMALL IMAGE
+%figure
+%plot(filter_size, mini.single.fft, 'b', 'DisplayName', 'single fft', 'LineWidth', lw)
+%hold on;
+%plot(filter_size, mini.single.fft_gpu, 'r', 'DisplayName', 'single fft gpu', 'LineWidth', lw)
+%%plot(filter_size, mini.single.imf, 'DisplayName', 'single imf', 'LineWidth', lw)
+%plot(filter_size, mini.single.imf_gpu, 'g', 'DisplayName', 'single imf gpu', 'LineWidth', lw)
+%%plot(filter_size, mini.double.fft, 'b', 'LineStyle', '--', 'DisplayName', 'double fft', 'LineWidth', lw)
+%%plot(filter_size, mini.double.fft_gpu, 'r', 'LineStyle', '--', 'DisplayName', 'double fft gpu', 'LineWidth', lw)
+%%%plot(filter_size, mini.double.imf, 'DisplayName', 'double imf', 'LineWidth', lw)
+%%plot(filter_size, mini.double.imf_gpu, 'g', 'LineStyle', '--', 'DisplayName', 'double imf gpu', 'LineWidth', lw)
+%hold off
+%legend('Location', 'northwest');
+%tname = sprintf('Convolve %d X %d X %d', lens);
+%title(tname)
+%ylabel('Time (s)')
+%xlabel('Filter size')
+%%saveas(gcf, tname);
 
 %% SHOW RESULTS FOR FULL IMAGE
 %figure
@@ -79,19 +79,18 @@ xlabel('Filter size')
 %xlabel('Filter size')
 %%saveas(gcf, tname);
 
-
-function [mini, full, lens] = test_img_size()
+function [mini, full, lens, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_img_size()
 
     mini = {}; full = {}; 
     fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
     img = load3DTif_uint16(fn);
-    %lens = floor(size(img) / 3);
-    lens = floor(size(img) ./ [3, 3, 1]);
-    img_mini = img(1:lens(1), 1:lens(2), :);
+    %lens = floor(size(img) ./ [3, 3, 1]);
+    lens = [100, 100, 50];
+    img_mini = img(1:lens(1), 1:lens(2), 1:lens(3));
 
     mini = struct;
 
-    [double_times, single_times] = test_convn_dtype(img_mini);
+    [double_times, single_times, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_convn_dtype(img_mini);
     mini.double = double_times;
     mini.single = single_times;
 
@@ -102,16 +101,16 @@ function [mini, full, lens] = test_img_size()
     %full.single = single_times;
 end
 
-function [double_times, single_times] = test_convn_dtype(img)
+function [double_times, single_times, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_convn_dtype(img)
     i_size = size(img);
     fprintf('\n\nTesting with size: %d, %d, %d\n', i_size)
     %double_times = test_convn_fsize(img);
     double_times = [];
     fprintf('\n\nConvert to SINGLE / FLOAT precision\n\n'); tic; img = single(img); toc;
-    single_times = test_convn_fsize(img);
+    [single_times, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_convn_fsize(img);
 end
 
-function [times] = test_convn_fsize(img)
+function [times, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_convn_fsize(img)
     loadExperimentParams;
     filter_sizes = params.SCALE_PYRAMID;
 
@@ -129,7 +128,7 @@ function [times] = test_convn_fsize(img)
         if strcmp(class(img), 'single') % match it
             h = single(h);
         end
-        [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h);
+        [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_convn_vers(img, h);
         fft_times = [fft_times t_fft];
         cuda_times = [cuda_times t_cuda];
         fft_pad_times = [fft_pad_times t_fft_pad];
@@ -149,7 +148,7 @@ function [times] = test_convn_fsize(img)
     times.sep = sep_times;
 end
 
-function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_convn_vers(img, h)
+function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_convn_vers(img, h)
 
     assert(strcmp(class(img), class(h)))
     compute_err = @(X, ref) sum(sum(sum(abs(X - ref)))) / sum(ref(:));
@@ -198,10 +197,19 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu] = test_c
     t_cuda = toc;
     err = compute_err(img_blur_cuda, img_blur_fft);
     fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
-    size(img_blur_fft)
-    size(img_blur_cuda)
     assert(isequal(size(img_blur_fft), size(img_blur_cuda)));
     norm(img_blur_fft(:)-img_blur_cuda(:))
+    norm(img_blur_fft(:))
+    %gpuDevice();
+
+    gpuDevice(1); % reset GPU avail mem
+    tic;
+    img_blur_cuda_1GPU = convn_1GPU_cuda(img, h);
+    t_cuda_1GPU = toc;
+    err = compute_err(img_blur_cuda_1GPU, img_blur_fft);
+    fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda_1GPU, err)
+    assert(isequal(size(img_blur_fft), size(img_blur_cuda_1GPU)));
+    norm(img_blur_fft(:)-img_blur_cuda_1GPU(:))
     norm(img_blur_fft(:))
     %gpuDevice();
 
