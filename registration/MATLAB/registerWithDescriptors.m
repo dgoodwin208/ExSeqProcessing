@@ -14,6 +14,8 @@
 
 function registerWithDescriptors(moving_run)
 
+profile on;
+
 loadExperimentParams;
 
 params.MOVING_RUN = moving_run;
@@ -50,8 +52,39 @@ end
 
 %------------------------------Load Descriptors -------------------------%
 %Load all descriptors for the MOVING channel
-keys_moving_total = {}; keys_ctr=1;
-for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
+%tic;
+%keys_moving_total = {}; keys_ctr=1;
+%for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
+%    descriptor_output_dir_moving = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
+%        params.MOVING_RUN,register_channel{1}));
+%    
+%    files = dir(fullfile(descriptor_output_dir_moving,'*.mat'));
+%    
+%    for file_idx= 1:length(files)
+%        filename = files(file_idx).name;
+%        
+%        %The data for each tile is keys, xmin, xmax, ymin, ymax
+%        data = load(fullfile(descriptor_output_dir_moving,filename));
+%
+%        for idx=1:length(data.keys)
+%            %copy all the keys into one large vector of cells
+%            %if keys_ctr>1111
+%            %   fprintf('test'); 
+%            %end
+%            keys_moving_total{keys_ctr} = data.keys{idx};
+%            keys_moving_total{keys_ctr}.x = data.keys{idx}.x + data.xmin-1;
+%            keys_moving_total{keys_ctr}.y = data.keys{idx}.y + data.ymin-1;
+%            keys_moving_total{keys_ctr}.channel = register_channel;
+%            keys_ctr = keys_ctr+ 1;
+%        end
+%    end
+%end
+%fprintf('load keys of moving round%03d (orig). ',params.MOVING_RUN);toc;
+
+tic;
+keys_moving_total_sift.pos = [];
+keys_moving_total_sift.ivec = [];
+for register_channel = [params.REGISTERCHANNELS_SIFT]
     descriptor_output_dir_moving = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
         params.MOVING_RUN,register_channel{1}));
     
@@ -62,23 +95,69 @@ for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
         
         %The data for each tile is keys, xmin, xmax, ymin, ymax
         data = load(fullfile(descriptor_output_dir_moving,filename));
-        for idx=1:length(data.keys)
-            %copy all the keys into one large vector of cells
-            %if keys_ctr>1111
-            %   fprintf('test'); 
-            %end
-            keys_moving_total{keys_ctr} = data.keys{idx};
-            keys_moving_total{keys_ctr}.x = data.keys{idx}.x + data.xmin-1;
-            keys_moving_total{keys_ctr}.y = data.keys{idx}.y + data.ymin-1;
-            keys_moving_total{keys_ctr}.channel = register_channel;
-            keys_ctr = keys_ctr+ 1;
-        end
+        keys = vertcat(data.keys{:});
+        pos = [[keys(:).y]'+data.ymin-1,[keys(:).x]'+data.xmin-1,[keys(:).z]'];
+        ivec = vertcat(keys(:).ivec);
+
+        keys_moving_total_sift.pos  = vertcat(keys_moving_total_sift.pos,pos);
+        keys_moving_total_sift.ivec = vertcat(keys_moving_total_sift.ivec,ivec);
     end
 end
+fprintf('load sift keys of moving round%03d (mod). ',params.MOVING_RUN);toc;
+
+tic;
+keys_moving_total_sc.pos = [];
+for register_channel = [params.REGISTERCHANNELS_SC]
+    descriptor_output_dir_moving = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
+        params.MOVING_RUN,register_channel{1}));
+    
+    files = dir(fullfile(descriptor_output_dir_moving,'*.mat'));
+    
+    for file_idx= 1:length(files)
+        filename = files(file_idx).name;
+        
+        %The data for each tile is keys, xmin, xmax, ymin, ymax
+        data = load(fullfile(descriptor_output_dir_moving,filename));
+        keys = vertcat(data.keys{:});
+        pos = [[keys(:).y]'+data.ymin-1,[keys(:).x]'+data.xmin-1,[keys(:).z]'];
+
+        keys_moving_total_sc.pos = vertcat(keys_moving_total_sc.pos,pos);
+    end
+end
+fprintf('load sc keys of moving round%03d (mod). ',params.MOVING_RUN);toc;
 
 %Load all descriptors for the FIXED channel
-keys_fixed_total = {}; keys_ctr=1;
-for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
+%tic;
+%keys_fixed_total = {}; keys_ctr=1;
+%for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
+%    descriptor_output_dir_fixed = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
+%        params.FIXED_RUN,register_channel{1}));
+%    
+%    files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
+%    
+%    for file_idx= 1:length(files)
+%        filename = files(file_idx).name;
+%        %All results from CalculateDescriptorsforTilesAtIndeices saves the
+%        %descriptors in the coords of the tile
+%        
+%        data = load(fullfile(descriptor_output_dir_fixed,filename));
+%        for idx=1:length(data.keys)
+%            %copy all the keys into one large vector of cells
+%            keys_fixed_total{keys_ctr} = data.keys{idx};        %#ok<*AGROW>
+%            keys_fixed_total{keys_ctr}.x = data.keys{idx}.x + data.xmin-1;
+%            keys_fixed_total{keys_ctr}.y = data.keys{idx}.y + data.ymin-1;
+%            keys_fixed_total{keys_ctr}.channel = register_channel;
+%            
+%            keys_ctr = keys_ctr+ 1;
+%        end
+%    end
+%end
+%fprintf('load keys of fixed round%03d (orig). ',params.FIXED_RUN);toc;
+
+tic;
+keys_fixed_total_sift.pos = [];
+keys_fixed_total_sift.ivec = [];
+for register_channel = [params.REGISTERCHANNELS_SIFT]
     descriptor_output_dir_fixed = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
         params.FIXED_RUN,register_channel{1}));
     
@@ -86,21 +165,39 @@ for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
     
     for file_idx= 1:length(files)
         filename = files(file_idx).name;
-        %All results from CalculateDescriptorsforTilesAtIndeices saves the
-        %descriptors in the coords of the tile
         
+        %The data for each tile is keys, xmin, xmax, ymin, ymax
         data = load(fullfile(descriptor_output_dir_fixed,filename));
-        for idx=1:length(data.keys)
-            %copy all the keys into one large vector of cells
-            keys_fixed_total{keys_ctr} = data.keys{idx};        %#ok<*AGROW>
-            keys_fixed_total{keys_ctr}.x = data.keys{idx}.x + data.xmin-1;
-            keys_fixed_total{keys_ctr}.y = data.keys{idx}.y + data.ymin-1;
-            keys_fixed_total{keys_ctr}.channel = register_channel;
-            
-            keys_ctr = keys_ctr+ 1;
-        end
+        keys = vertcat(data.keys{:});
+        pos = [[keys(:).y]'+data.ymin-1,[keys(:).x]'+data.xmin-1,[keys(:).z]'];
+        ivec = vertcat(keys(:).ivec);
+
+        keys_fixed_total_sift.pos  = vertcat(keys_fixed_total_sift.pos,pos);
+        keys_fixed_total_sift.ivec = vertcat(keys_fixed_total_sift.ivec,ivec);
     end
 end
+fprintf('load sift keys of fixed round%03d (mod). ',params.MOVING_RUN);toc;
+
+tic;
+keys_fixed_total_sc.pos = [];
+for register_channel = [params.REGISTERCHANNELS_SC]
+    descriptor_output_dir_fixed = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
+        params.FIXED_RUN,register_channel{1}));
+    
+    files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
+    
+    for file_idx= 1:length(files)
+        filename = files(file_idx).name;
+        
+        %The data for each tile is keys, xmin, xmax, ymin, ymax
+        data = load(fullfile(descriptor_output_dir_fixed,filename));
+        keys = vertcat(data.keys{:});
+        pos = [[keys(:).y]'+data.ymin-1,[keys(:).x]'+data.xmin-1,[keys(:).z]'];
+
+        keys_fixed_total_sc.pos = vertcat(keys_fixed_total_sc.pos,pos);
+    end
+end
+fprintf('load sc keys of fixed round%03d (mod). ',params.MOVING_RUN);toc;
 %------------All descriptors are now loaded as keys_*_total -------------%
 
 
@@ -133,6 +230,7 @@ if ~exist(output_keys_filename,'file')
             
             disp(['Running on row ' num2str(y_idx) ' and col ' num2str(x_idx) ]);
             
+%            tic;
             %the moving code is defined the linspace layout of dimensions above
             ymin_moving = tile_upperleft_y_moving(y_idx);
             ymax_moving = tile_upperleft_y_moving(y_idx+1);
@@ -150,8 +248,20 @@ if ~exist(output_keys_filename,'file')
             %FindRelevant keys not only finds the total keypoints, but converts
             %those keypoints to the scope of the specific tile, not the global
             %position
-            keys_moving = findRelevantKeys(keys_moving_total, ymin_moving, ymax_moving,xmin_moving,xmax_moving);
+%            keys_moving = findRelevantKeys(keys_moving_total, ymin_moving, ymax_moving,xmin_moving,xmax_moving);
+%            fprintf('findRelevantKeys. keys_moving(orig) ');toc;
+
+            tic;
+            keys_moving_sift_index = find(keys_moving_total_sift.pos(:,1)>=ymin_moving & keys_moving_total_sift.pos(:,1)<=ymax_moving & ...
+                keys_moving_total_sift.pos(:,2)>=xmin_moving & keys_moving_total_sift.pos(:,2)<=xmax_moving);
+            keys_moving_sift.pos = keys_moving_total_sift.pos(keys_moving_sift_index,:)-[ymin_moving-1,xmin_moving-1,0];
+            keys_moving_sift.ivec = keys_moving_total_sift.ivec(keys_moving_sift_index,:);
+            keys_moving_sc_index = find(keys_moving_total_sc.pos(:,1)>=ymin_moving & keys_moving_total_sc.pos(:,1)<=ymax_moving & ...
+                keys_moving_total_sc.pos(:,2)>=xmin_moving & keys_moving_total_sc.pos(:,2)<=xmax_moving);
+            keys_moving_sc.pos = keys_moving_total_sc.pos(keys_moving_sc_index,:)-[ymin_moving-1,xmin_moving-1,0];
+            fprintf('findRelevantKeys. keys_moving(mod) ');toc;
             
+%            tic;
             %Loading the fixed tiles is detemined by some extra overlap between
             %the tiles (may not be necessary)
             tile_img_fixed_nopadding = imgFixed_total(tile_upperleft_y_fixed(y_idx):tile_upperleft_y_fixed(y_idx+1), ...
@@ -181,10 +291,23 @@ if ~exist(output_keys_filename,'file')
             %FindRelevant keys not only finds the total keypoints, but converts
             %those keypoints to the scope of the specific tile, not the global
             %position
-            keys_fixed = findRelevantKeys(keys_fixed_total, ymin_fixed, ymax_fixed,xmin_fixed,xmax_fixed);
+%            keys_fixed = findRelevantKeys(keys_fixed_total, ymin_fixed, ymax_fixed,xmin_fixed,xmax_fixed);
+%            fprintf('findRelevantKeys. keys_fixed(orig) ');toc;
+
+            tic;
+            keys_fixed_sift_index = find(keys_fixed_total_sift.pos(:,1)>=ymin_fixed & keys_fixed_total_sift.pos(:,1)<=ymax_fixed & ...
+                keys_fixed_total_sift.pos(:,2)>=xmin_fixed & keys_fixed_total_sift.pos(:,2)<=xmax_fixed);
+            keys_fixed_sift.pos = keys_fixed_total_sift.pos(keys_fixed_sift_index,:)-[ymin_fixed-1,xmin_fixed-1,0];
+            keys_fixed_sift.ivec = keys_fixed_total_sift.ivec(keys_fixed_sift_index,:);
+            keys_fixed_sc_index = find(keys_fixed_total_sc.pos(:,1)>=ymin_fixed & keys_fixed_total_sc.pos(:,1)<=ymax_fixed & ...
+                keys_fixed_total_sc.pos(:,2)>=xmin_fixed & keys_fixed_total_sc.pos(:,2)<=xmax_fixed);
+            keys_fixed_sc.pos = keys_fixed_total_sc.pos(keys_fixed_sc_index,:)-[ymin_fixed-1,xmin_fixed-1,0];
+            fprintf('findRelevantKeys. keys_fixed(mod) ');toc;
             
-            disp(['Sees ' num2str(length(keys_fixed)) ' features for fixed and ' num2str(length(keys_moving)) ' features for moving.']);
-            if length(keys_fixed)==0 || length(keys_moving)==0
+            num_keys_fixed = length(keys_fixed_sift)+length(keys_fixed_sc);
+            num_keys_moving = length(keys_moving_sift)+length(keys_moving_sc);
+            disp(['Sees ' num2str(num_keys_fixed) ' features for fixed and ' num2str(num_keys_moving) ' features for moving.']);
+            if num_keys_fixed==0 || num_keys_moving==0
                 disp('Empty set of descriptors. Skipping')
                 continue;
             end
@@ -192,42 +315,52 @@ if ~exist(output_keys_filename,'file')
             % ----------- SIFT MATCHING AND ROBUST MODEL SELECTION ----------%
             %
             
+            tic;
             %Extract the keypoints-only for the shape context calculation
             %D is for descriptor, M is for moving
-            DM_SIFT = []; %DM_SC is defined later
-            LM_SIFT = []; ctr_sift = 1; ctr_sc = 1; 
-            LM_SC = [];
-            for i = 1:length(keys_moving)
-                %If this channel is to be included in the SIFT_registration
-                if any(strcmp(params.REGISTERCHANNELS_SIFT,keys_moving{i}.channel))
-                    DM_SIFT(ctr_sift,:) = keys_moving{i}.ivec;
-                    LM_SIFT(ctr_sift,:) = [keys_moving{i}.y, keys_moving{i}.x, keys_moving{i}.z];
-                    ctr_sift = ctr_sift+1;
-                end
-                
-                if any(strcmp(params.REGISTERCHANNELS_SC,keys_moving{i}.channel))
-                    LM_SC(ctr_sc,:) = [keys_moving{i}.y, keys_moving{i}.x, keys_moving{i}.z];
-                    ctr_sc = ctr_sc+1; 
-                end
-                
-            end
+%            DM_SIFT = []; %DM_SC is defined later
+%            LM_SIFT = []; ctr_sift = 1; ctr_sc = 1; 
+%            LM_SC = [];
+%            for i = 1:length(keys_moving)
+%                %If this channel is to be included in the SIFT_registration
+%                if any(strcmp(params.REGISTERCHANNELS_SIFT,keys_moving{i}.channel))
+%                    DM_SIFT(ctr_sift,:) = keys_moving{i}.ivec;
+%                    LM_SIFT(ctr_sift,:) = [keys_moving{i}.y, keys_moving{i}.x, keys_moving{i}.z];
+%                    ctr_sift = ctr_sift+1;
+%                end
+%                
+%                if any(strcmp(params.REGISTERCHANNELS_SC,keys_moving{i}.channel))
+%                    LM_SC(ctr_sc,:) = [keys_moving{i}.y, keys_moving{i}.x, keys_moving{i}.z];
+%                    ctr_sc = ctr_sc+1; 
+%                end
+%                
+%            end
+            DM_SIFT = keys_moving_sift.ivec;
+            LM_SIFT = keys_moving_sift.pos;
+            LM_SC = keys_moving_sc.pos;
+            fprintf('prepare keypoints of moving round.');toc;
             
+            tic;
             %F for fixed
-            DF_SIFT = []; 
-            LF_SIFT = []; ctr_sift = 1; ctr_sc = 1; 
-            LF_SC = [];
-            for i = 1:length(keys_fixed)
-                if any(strcmp(params.REGISTERCHANNELS_SIFT,keys_fixed{i}.channel))
-                    DF_SIFT(ctr_sift,:) = keys_fixed{i}.ivec;
-                    LF_SIFT(ctr_sift,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
-                    ctr_sift = ctr_sift+1;
-                end
-            
-                if any(strcmp(params.REGISTERCHANNELS_SC,keys_fixed{i}.channel))
-                    LF_SC(ctr_sc,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
-                    ctr_sc = ctr_sc+1; 
-                end
-            end
+%            DF_SIFT = []; 
+%            LF_SIFT = []; ctr_sift = 1; ctr_sc = 1; 
+%            LF_SC = [];
+%            for i = 1:length(keys_fixed)
+%                if any(strcmp(params.REGISTERCHANNELS_SIFT,keys_fixed{i}.channel))
+%                    DF_SIFT(ctr_sift,:) = keys_fixed{i}.ivec;
+%                    LF_SIFT(ctr_sift,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
+%                    ctr_sift = ctr_sift+1;
+%                end
+%            
+%                if any(strcmp(params.REGISTERCHANNELS_SC,keys_fixed{i}.channel))
+%                    LF_SC(ctr_sc,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
+%                    ctr_sc = ctr_sc+1; 
+%                end
+%            end
+            DF_SIFT = keys_fixed_sift.ivec;
+            LF_SIFT = keys_fixed_sift.pos;
+            LF_SC = keys_fixed_sc.pos;
+            fprintf('prepare keypoints of fixed round.');toc;
             
             % deuplicate any SIFT keypoints
             fprintf('(%i,%i) before dedupe, ',size(LM_SIFT,1),size(LF_SIFT,1));
@@ -244,17 +377,33 @@ if ~exist(output_keys_filename,'file')
             fprintf('(%i,%i) after dedupe\n',size(LM_SC,1),size(LF_SC,1));
             
             
+            fprintf('calculating SIFT correspondences...\n');
+            tic;
+            DM_SIFT = double(DM_SIFT);
+            DF_SIFT = double(DF_SIFT);
             DM_SIFT_norm= DM_SIFT ./ repmat(sum(DM_SIFT,2),1,size(DM_SIFT,2));
             DF_SIFT_norm= DF_SIFT ./ repmat(sum(DF_SIFT,2),1,size(DF_SIFT,2));
-            correspondences_sift = vl_ubcmatch(DM_SIFT_norm',DF_SIFT_norm');
+            size(DM_SIFT_norm)
+            size(DF_SIFT_norm)
+            save('sifts.mat','DM_SIFT_norm','DF_SIFT_norm');
+            %correspondences_sift = vl_ubcmatch(DM_SIFT_norm',DF_SIFT_norm');
+            correspondences_sift = match_3DSIFTDescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
+            toc;
+            size(correspondences_sift)
             
+            fprintf('calculating ShapeContext correspondences...\n');
+            tic;
             %We create a shape context descriptor for the same keypoint
             %that has the SIFT descriptor.
             %So we calculate the SIFT descriptor on the normed channel
             %(summedNorm), and we calculate the Shape Context descriptor
             %using keypoints from all other channels
             [DM_SC,DF_SC]=ShapeContext(LM_SIFT,LM_SC,LF_SIFT,LF_SC);
-            correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);
+            size(DM_SC)
+            size(DF_SC)
+            %correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);
+            correspondences_sc = match_3DSIFTDescriptors_cuda(DM_SC',DF_SC');
+            toc;
 
             fprintf('SIFT-only correspondences get %i matches, SC-only gets %i matches\n',...
                 size(correspondences_sift,2),size(correspondences_sc,2));
@@ -264,7 +413,11 @@ if ~exist(output_keys_filename,'file')
             correspondences = correspondences';
             fprintf('There unique %i matches if we take the union of the two methods\n', size(correspondences,2));
             
-            correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
+            fprintf('calculating SIFT+ShapeContext correspondences...\n');
+            tic;
+            % correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
+            correspondences = match_3DSIFTDescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
+            toc;
             
             %Check for duplicate matches- ie, keypoint A matching to both
             %keypoint B and keypoint C
@@ -427,6 +580,8 @@ for c = 1:length(params.CHANNELS)
     outputfile = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_registered.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
     save3DTif_uint16(outputImage_interp,outputfile);
 end
+
+profile off; profsave(profile('info'),sprintf('profile-results-register-with-desc-%d',moving_run));
 
 end
 
