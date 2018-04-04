@@ -488,17 +488,15 @@ void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[
     long long idx;
     long long idx_filter;
     long long pad_idx;
-    bool check;
     for ( long i = 0; i < pad_size[0]; i++) { 
         for (long j = 0; j < pad_size[1]; j++) {
             for (long k = 0; k < pad_size[2]; k++) {
 
-                check = (i < size[0]) && (j < size[1]) && (k < size[2]);
                 idx = convert_idx(i, j, k, size, column_order);
                 idx_filter = convert_idx(i, j, k, filterdimA, column_order);
                 pad_idx = convert_idx(i, j, k, pad_size, column_order);
-                printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%.1f, %d\n", 
-                        i, j, k, idx, idx_filter, pad_idx, hostI[idx], check);
+                /*printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%.1f, %d\n", */
+                        /*i, j, k, idx, idx_filter, pad_idx, hostI[idx], check);*/
 
                 if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
                     host_data_kernel[pad_idx].x = hostF[idx_filter];
@@ -511,7 +509,6 @@ void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[
                 // to accomplish c-order FFT transforms
                 if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
                     host_data_input[pad_idx].x = hostI[idx];
-                    /*printf("\t%.1f\n", host_data_input[pad_idx].x);*/
                 } else {
                     host_data_input[pad_idx].x = 0.0f;
                 }

@@ -174,7 +174,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnCompareTest) {
 TEST_F(ConvnCufftTest, InitializePadTest) {
     int size[3] = {2, 2, 3};
     int filterdimA[3] = {2, 2, 2};
-    int benchmark = 1;
+    int benchmark = 0;
     bool column_order = false;
     int algo = 1;
     int result = 0;
@@ -203,12 +203,12 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
         ASSERT_EQ((size[i] + filterdimA[i] - 1), pad_size[i] ) ;
         // check for mem alloc issues
         ASSERT_EQ((trim_idxs[i][1] - trim_idxs[i][0]), size[i] ) ;
-            //{ printf("Error in same size output calculation first: %d, last: %d\n",
-                    //trim_idxs[i][0], trim_idxs[i][1]); exit(EXIT_FAILURE); } 
     }
 
-    printf("size %d, %d, %d\n", size[0], size[1], size[2]);
-    printf("pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
+    if (benchmark) {
+        printf("size %d, %d, %d\n", size[0], size[1], size[2]);
+        printf("pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
+    }
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
 
@@ -220,42 +220,55 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
 
     if (benchmark) {
-        printf("\nhost_data_input elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_input, N_padded);
+        //printf("\nhost_data_input elements:%d\n", N_padded);
+        //cufftutils::printHostData(host_data_input, N_padded);
+        printf("\nhostF elements:%d\n", N_kernel);
+        for (int i = 0; i < N_kernel; i++)
+            printf("%.1f\n", hostF[i]);
         printf("\nhost_data_kernel elements:%d\n", N_padded);
         cufftutils::printHostData(host_data_kernel, N_padded);
     }
 
 
     // test padding is correct for c-order
-    float val;
     long long idx;
     long long pad_idx;
+    long long idx_filter;
     for (int i = 0; i<pad_size[0]; ++i) {
         for (int j = 0; j<pad_size[1]; ++j) {
             for (int k = 0; k<pad_size[2]; ++k) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
                 pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
+                idx_filter = cufftutils::convert_idx(i, j, k, filterdimA, column_order);
 
-                val = host_data_input[pad_idx].x; // get the real component
-                printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                if (benchmark) {
+                    printf("pad_idx=%d idx=%d (%d %d %d) %d | ",
+                            pad_idx, idx, i, j, k, (int) host_data_input[pad_idx].x);
+                }
 
                 if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
                     ASSERT_EQ(host_data_input[pad_idx].x, hostI[idx]);
                 } else {
                     ASSERT_EQ(host_data_input[pad_idx].x, 0.0f);
                 }
+                ASSERT_EQ(host_data_input[pad_idx].y, 0.0f);
 
                 if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
-                    ASSERT_EQ(host_data_kernel[pad_idx].x, hostF[idx]);
+                    ASSERT_EQ(host_data_kernel[pad_idx].x, hostF[idx_filter]);
                 } else {
                     ASSERT_EQ(host_data_kernel[pad_idx].x, 0.0f);
                 }
+                ASSERT_EQ(host_data_kernel[pad_idx].y, 0.0f);
 
             }
-            printf("\n");
+            if (benchmark)
+                printf("\n");
         }
     }
+    delete[] hostI;
+    delete[] hostF;
+    free(host_data_input);
+    free(host_data_kernel);
 }
 
 TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
@@ -265,8 +278,8 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     bool column_order = false;
     int algo = 1;
     int result = 0;
-    int N = size[0] * size[1] * size[2];
-    int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
+    long long N = size[0] * size[1] * size[2];
+    long long N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     
     printf("Initializing cufft sin array\n");
     float* data = new float[N]; 
@@ -279,7 +292,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
 
     //printf("Initializing kernel\n");
     for (int i=0; i < N_kernel; i++)
-        kernel[i] = sin(i);
+        kernel[i] = 0.0f;
 
     printf("Kernel created\n");
 
@@ -287,15 +300,18 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     result = cufftutils::conv_handler(data, kernel, data, algo, size,
             filterdimA, column_order, benchmark);
 
+    for (long long i = 0; i < N; i++) {
+        ASSERT_EQ(data[i], 0.0f);
+    }
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
 
     // generate params
     int algo = 0;
     bool column_order = false;
     int benchmark = 1;
-    int size[] = {50, 50, 5};
+    int size[] = {50, 50, 50};
     int filterdimA[] = {2, 2, 2};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = size[0]*size[1]*size[2];
@@ -326,6 +342,16 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
     cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
     cufftutils::convert_matrix(hostI_column, hostI_reverted, size, !column_order);
 
+    if (benchmark) {
+        printf("\nhostF elements:%d\n", filtersize);
+        for (int i = 0; i < filtersize; i++)
+            printf("%.1f\n", hostF[i]);
+        printf("\nhostF_column elements:%d\n", filtersize);
+        for (int i = 0; i < filtersize; i++)
+            printf("%.1f\n", hostF_column[i]);
+    }
+
+
     //convert back to original then check the two matrices
     printf("Check double matrix conversion is equal\n");
     long long idx;
@@ -355,7 +381,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
                 col_idx = cufftutils::convert_idx(i, j, k, size, !column_order);
                 //val = host_data_input[pad_idx].x; // get the real component
                 //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
-                EXPECT_NEAR(hostO[idx], hostO_column[col_idx], 1.0);
+                ASSERT_NEAR(hostO[idx], hostO_column[col_idx], 1.0);
             }
             //printf("\n");
         }
