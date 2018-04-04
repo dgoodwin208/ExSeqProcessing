@@ -18,7 +18,6 @@ SPDLOG_DIR = ../../include
 
 UTILS_DIR = ../utils
 CUFFT_DIR = ../cufft-utils
-CUDA3D_DIR = ../CUDAgoes3D/cuda/src
 #CUDAUTILS_DIR = ../cuda-utils
 #CUDNNUTILS_DIR = ../cudnn-utils
 
