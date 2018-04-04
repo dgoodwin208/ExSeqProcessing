@@ -387,7 +387,7 @@ if ~exist(output_keys_filename,'file')
             size(DF_SIFT_norm)
             save('sifts.mat','DM_SIFT_norm','DF_SIFT_norm');
             %correspondences_sift = vl_ubcmatch(DM_SIFT_norm',DF_SIFT_norm');
-            correspondences_sift = match_3DSIFTDescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
+            correspondences_sift = match_3DSIFTdescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
             toc;
             size(correspondences_sift)
             
@@ -402,7 +402,7 @@ if ~exist(output_keys_filename,'file')
             size(DM_SC)
             size(DF_SC)
             %correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);
-            correspondences_sc = match_3DSIFTDescriptors_cuda(DM_SC',DF_SC');
+            correspondences_sc = match_3DSIFTdescriptors_cuda(DM_SC',DF_SC');
             toc;
 
             fprintf('SIFT-only correspondences get %i matches, SC-only gets %i matches\n',...
@@ -416,7 +416,7 @@ if ~exist(output_keys_filename,'file')
             fprintf('calculating SIFT+ShapeContext correspondences...\n');
             tic;
             % correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
-            correspondences = match_3DSIFTDescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
+            correspondences = match_3DSIFTdescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
             toc;
             
             %Check for duplicate matches- ie, keypoint A matching to both
