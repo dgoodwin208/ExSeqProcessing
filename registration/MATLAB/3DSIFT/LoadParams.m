@@ -16,6 +16,7 @@ sift_params.Smooth_Var = 20;  % Determines amount of smoothing, Default: 20
 % for completeness sake
 sift_params.IgnoreGradSign = 0;
 sift_params.IndexSigma = 5.0;
+sift_params.SigmaScaled = sift_params.IndexSigma * 0.5 * sift_params.IndexSize;
 sift_params.MagFactor = 3;
 
 sift_params.UseHistogramOri = 1;

@@ -4,6 +4,7 @@ rows = sift_params.pix_size(1);
 cols = sift_params.pix_size(2);
 slices = sift_params.pix_size(3);
 
+% clamp r,c,s to the bounds of the img (pix)
 if r < 1
     r = 1;
 end
