@@ -1,4 +1,4 @@
-function [mag vect] = GetGradOri_vector(pix,r,c,s, sift_params)
+function [mag vect precomp_grads] = GetGradOri_vector(pix,r,c,s, sift_params, precomp_grads)
 
 rows = sift_params.pix_size(1);
 cols = sift_params.pix_size(2);
@@ -24,6 +24,13 @@ if s > slices
     s = slices;
 end
 
+% Check if computed the gradient previously before
+key = sub2ind(sift_params.pixel_size, r,c,s);
+if isKey(precomp_grads, key)
+    M(key) = M(key) + 1;
+else
+    M(key) = 1;
+end
 
 if (c == 1)
     xgrad = 2.0 * (double(pix(r,c+1,s)) - double(pix(r,c,s)));

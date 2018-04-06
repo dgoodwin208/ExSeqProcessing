@@ -19,6 +19,7 @@ LoadParams;
 sift_params.pix_size = size(img);
 i = 0;
 offset = 0;
+precomp_grads = containers.Map();
 while 1
 
     reRun = 1;
@@ -31,7 +32,7 @@ while 1
         
         % Create a 3DSIFT descriptor at the given location
         if ~skipDescriptor
-            [keys{i} reRun] = Create_Descriptor(img,1,1,loc(1),loc(2),loc(3),sift_params);
+            [keys{i} reRun precomp_grads] = Create_Descriptor(img,1,1,loc(1),loc(2),loc(3),sift_params, precomp_grads);
         else         
             clear k; reRun=0;
             k.x = loc(1); k.y = loc(2); k.z = loc(3);
@@ -53,6 +54,15 @@ while 1
             break;
     end
 end
+
+recomps = 0
+value_arr = values(M);
+for val=value_arr
+    if val > 1
+        recomps = recomps + val - 1;
+    end
+end
+fprintf(1, '\n%d total recomputed pixels', recomps);
 
 fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
 

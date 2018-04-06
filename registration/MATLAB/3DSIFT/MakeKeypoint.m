@@ -9,13 +9,13 @@ function key = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params)
 end
 
 
-function key = MakeKeypointSample(key, pix, sift_params)
+function [key precomp_grads] = MakeKeypointSample(key, pix, sift_params, precomp_grads)
 
 
 MaxIndexVal = 0.2;
 changed = 0;
 
-vec = KeySampleVec(key, pix, sift_params);
+[vec precomp_grads] = KeySampleVec(key, pix, sift_params, precomp_grads);
 VecLength = length(vec);
 
 vec = NormalizeVec(vec, VecLength);

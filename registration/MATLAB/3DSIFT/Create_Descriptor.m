@@ -1,4 +1,4 @@
-function [keypoint reRun] = Create_Descriptor(pix, xyScale, tScale, x, y, z, sift_params)
+function [keypoint reRun precomp_grads] = Create_Descriptor(pix, xyScale, tScale, x, y, z, sift_params, precomp_grads)
 % Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
 % 
 % Inputs:
@@ -33,5 +33,5 @@ if (sift_params.TwoPeak_Flag == 1 && dot(fv.centers(ix(1),:),fv.centers(ix(2),:)
     return;
 end
 
-keypoint = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params);
+[keypoint precomp_grads] = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params, precomp_grads);
 
