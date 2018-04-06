@@ -20,7 +20,7 @@ reRun = 0;
 radius = int16(xyScale * 3.0);
 
 fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
-myhist = buildOriHists(x,y,z,radius,pix,fv,sift_params);
+myhist = buildOriHists(x,y,z,radius,pix,fv,sift_params, precomp_grads);
 
 [yy ix] = sort(myhist,'descend');
 % Dom_Peak = ix(1);

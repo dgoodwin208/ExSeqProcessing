@@ -25,7 +25,7 @@ if s > slices
 end
 
 % Check if computed the gradient previously before
-key = sub2ind(sift_params.pixel_size, r,c,s);
+key = sub2ind(sift_params.pix_size, r,c,s);
 if isKey(precomp_grads, key)
     M(key) = M(key) + 1;
 else

@@ -19,7 +19,7 @@ LoadParams;
 sift_params.pix_size = size(img);
 i = 0;
 offset = 0;
-precomp_grads = containers.Map();
+precomp_grads = containers.Map(0,0); % initialize to use type double for key, val
 while 1
 
     reRun = 1;
@@ -56,13 +56,15 @@ while 1
 end
 
 recomps = 0
-value_arr = values(M);
-for val=value_arr
+value_arr = values(precomp_grads);
+for i=1:length(value_arr)
+    val = value_arr{i};
     if val > 1
         recomps = recomps + val - 1;
     end
 end
 fprintf(1, '\n%d total recomputed pixels', recomps);
+save('precomp_grads', 'precomp_grads');
 
 fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
 

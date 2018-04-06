@@ -1,10 +1,10 @@
-function key = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params)
+function [key, precomp_grads] = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params, precomp_grads)
     k.x = x;
     k.y = y;
     k.z = z;
     k.xyScale = xyScale;
     k.tScale = tScale;
-    key = MakeKeypointSample(k, pix, sift_params);
+    [key precomp_grads] = MakeKeypointSample(k, pix, sift_params, precomp_grads);
     return;
 end
 

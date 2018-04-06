@@ -1,4 +1,4 @@
-function myhist = buildOriHists(x,y,z,radius,pix,fv,sift_params)
+function [myhist precomp_grads] = buildOriHists(x,y,z,radius,pix,fv,sift_params, precomp_grads)
 
 if (sift_params.Display_flag ==1)
     figure;
@@ -28,7 +28,7 @@ for r = xi - radius:xi + radius
         for s = zi - radius:zi + radius
             %          /* Do not use last row or column, which are not valid. */
             if (r >= 1 && c >= 1 && r < rows - 1 && c < cols - 1 && s >= 1 && s < slices - 1)
-                [mag vect] = GetGradOri_vector(pix,r,c,s,sift_params);
+                [mag vect, precomp_grads] = GetGradOri_vector(pix,r,c,s,sift_params, precomp_grads);
                 
                 corr_array = fv.centers * vect';
 

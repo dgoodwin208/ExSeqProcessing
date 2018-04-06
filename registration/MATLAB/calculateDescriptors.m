@@ -29,6 +29,7 @@ function calculateDescriptors(run_num,varargin)
 %
 %   See also LOADEXPERIMENTPARAMS, PLUS.
 
+profile on -history;
 %Load all the parameters per file
 loadExperimentParams;
 
@@ -214,6 +215,9 @@ for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
         end
     end
 end
+
+profile off;
+profsave(profile('info'), sprintf('profile-calc-desc-%d-%d', start_idx, end_idx));
 
 catch ME
     disp(ME.getReport)

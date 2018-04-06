@@ -1,4 +1,4 @@
-function [index, precomp_grads] = KeySample(key, pix, sift_params, precomp_grads)
+function [index precomp_grads] = KeySample(key, pix, sift_params, precomp_grads)
 
 fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
 
@@ -57,7 +57,7 @@ for i = -xyiradius:xyiradius
 
             %We've calculated the target index for the 3D histogram
             %Add sample increments the 
-            if !(r < 1  ||  r > sift_params.pix_size(1)  ||  c < 1  ||  c > sift_params.pix_size(2) || s < 1 || s > sift_params.pix_size(3))
+            if ~(r < 1  ||  r > sift_params.pix_size(1)  ||  c < 1  ||  c > sift_params.pix_size(2) || s < 1 || s > sift_params.pix_size(3))
                 [index precomp_grads] = AddSample(index, pix, distsq, r, c, t, i_indx, j_indx, s_indx, fv, sift_params, precomp_grads);
             end
             
