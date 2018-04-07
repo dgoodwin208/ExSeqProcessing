@@ -15,11 +15,16 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
+%FIXME limit for testing
+keypts = keypts(1:10, :);
+
 LoadParams;
 sift_params.pix_size = size(img);
 i = 0;
 offset = 0;
-precomp_grads = containers.Map(0,0); % initialize to use type double for key, val
+init_cell = {};
+init_cell.count = -1;
+precomp_grads = containers.Map(0,init_cell); % initialize to use type double for key, cell val
 while 1
 
     reRun = 1;
@@ -55,12 +60,12 @@ while 1
     end
 end
 
-recomps = 0
+recomps = 0;
 value_arr = values(precomp_grads);
 for i=1:length(value_arr)
-    val = value_arr{i};
-    if val > 1
-        recomps = recomps + val - 1;
+    val_cell = value_arr{i};
+    if val_cell.count > 1
+        recomps = recomps + val_cell.count - 1;
     end
 end
 fprintf(1, '\n%d total recomputed pixels', recomps);

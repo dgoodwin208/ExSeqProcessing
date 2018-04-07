@@ -247,7 +247,7 @@ for i = -xyiradius:xyiradius
             %Add sample increments the 
             %Even though key is a parameter (which is now in a differnt
             %coord space, it's not used in the AddSample function)
-            index = AddSample(index, subpix, distsq, r, c, t, i_indx, j_indx, s_indx, fv);
+            [index precomp_grads] = AddSample(index, subpix, distsq, r, c, t, i_indx, j_indx, s_indx, fv, sift_params, precomp_grads) ;
             
         end
     end

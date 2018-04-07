@@ -27,9 +27,13 @@ end
 % Check if computed the gradient previously before
 key = sub2ind(sift_params.pix_size, r,c,s);
 if isKey(precomp_grads, key)
-    M(key) = M(key) + 1;
-else
-    M(key) = 1;
+    val = precomp_grads(key); 
+    val.count = val.count + 1; %increment counter
+    % retrieve the data
+    mag = val.mag;
+    vect = val.vect
+    precomp_grads(key) = val; % save updated before returning
+    return
 end
 
 if (c == 1)
@@ -65,3 +69,10 @@ if mag ~=0
 else
     vect = [1 0 0];
 end
+
+val = {}; % number of times seen 1
+val.count = 1; % number of times seen 1
+val.mag = mag;
+val.vect = vect;
+precomp_grads(key) = val;
+return
