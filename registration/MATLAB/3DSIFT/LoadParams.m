@@ -7,6 +7,7 @@ sift_params.IndexSize = 2;  % Min: 1  Default: 2
 sift_params.Display_flag = 0;  % Display a sphere which can be rotated (Rotate 3D button) to view gradient directions
 sift_params.Tessellation_flag = 1;  % Keep this as 1
 sift_params.Tessellation_levels = 1;  % Min: zero  Default: 1
+sift_params.Tessel_thresh = 3; % take the top nearest tesselations in GetGradOri / PlaceInIndex
 sift_params.nFaces = 20 * ( 4 ^ sift_params.Tessellation_levels );  % Number of faces in the tessellation, not a parameter
 
 sift_params.Smooth_Flag = 1;  % Adds gradient data to surrounding bins in final histogram

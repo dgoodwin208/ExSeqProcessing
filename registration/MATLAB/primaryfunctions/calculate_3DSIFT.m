@@ -15,9 +15,6 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
-%FIXME limit for testing
-keypts = keypts(1:10, :);
-
 LoadParams;
 sift_params.pix_size = size(img);
 i = 0;
@@ -60,16 +57,19 @@ while 1
     end
 end
 
-recomps = 0;
-value_arr = values(precomp_grads);
-for i=1:length(value_arr)
-    val_cell = value_arr{i};
-    if val_cell.count > 1
-        recomps = recomps + val_cell.count - 1;
+if ~skipDescriptor
+    recomps = 0;
+    value_arr = values(precomp_grads);
+    for i=1:length(value_arr)
+        val_cell = value_arr{i};
+        if val_cell.count > 1
+            recomps = recomps + val_cell.count - 1;
+        end
     end
+    fprintf(1, '\n%d redundant pixels of %d total visited, saving 3DSIFTkeys\n', recomps, length(precomp_grads));
+    save('precomp_grads', 'precomp_grads');
+    save('3DSIFTkeys', 'keys');
 end
-fprintf(1, '\n%d total recomputed pixels', recomps);
-save('precomp_grads', 'precomp_grads');
 
 fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
 

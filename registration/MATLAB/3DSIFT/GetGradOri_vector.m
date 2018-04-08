@@ -1,4 +1,4 @@
-function [mag vect precomp_grads] = GetGradOri_vector(pix,r,c,s, sift_params, precomp_grads)
+function [mag vect precomp_grads, yy, ix] = GetGradOri_vector(pix,r,c,s, fv, sift_params, precomp_grads)
 
 rows = sift_params.pix_size(1);
 cols = sift_params.pix_size(2);
@@ -31,7 +31,9 @@ if isKey(precomp_grads, key)
     val.count = val.count + 1; %increment counter
     % retrieve the data
     mag = val.mag;
-    vect = val.vect
+    vect = val.vect;
+    yy = val.yy;
+    ix = val.ix;
     precomp_grads(key) = val; % save updated before returning
     return
 end
@@ -70,9 +72,15 @@ else
     vect = [1 0 0];
 end
 
+%Find the nearest tesselation face indices
+corr_array = fv.centers * vect';
+[yy ix] = sort(corr_array,'descend');
+
 val = {}; % number of times seen 1
 val.count = 1; % number of times seen 1
 val.mag = mag;
 val.vect = vect;
+val.yy = yy(1:sift_params.Tessel_thresh, :);
+val.ix = ix(1:sift_params.Tessel_thresh);
 precomp_grads(key) = val;
 return

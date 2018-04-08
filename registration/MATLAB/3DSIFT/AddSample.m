@@ -10,10 +10,10 @@ sigma = sift_params.SigmaScaled;
 weight = exp(-double(distsq / (2.0 * sigma * sigma)));
 
 %[mag vect] from the immediately neighboring pixels
-[mag vect precomp_grads] = GetGradOri_vector(pix,r,c,s, sift_params, precomp_grads);
+[mag vect precomp_grads, yy, ix] = GetGradOri_vector(pix,r,c,s, fv, sift_params, precomp_grads);
 mag = weight * mag; %scale magnitude by gaussian 
 
-index = PlaceInIndex(index, mag, vect, i_indx, j_indx, s_indx, fv, sift_params);
+index = PlaceInIndex(index, mag, vect, i_indx, j_indx, s_indx, yy, ix, sift_params);
 
 end
  

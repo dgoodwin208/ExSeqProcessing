@@ -5,15 +5,20 @@ function [index precomp_grads] = AddSamplePrecomp(index, pix, distsq, r, c, s, i
 % bin it down to the sift_params.IndexSize dimensions
 % thus, i_indx, j_indx, s_indx represent the binned index within the radius of the keypoint
 
-%FIXME put this in the sift_params file
+%Threshold for nearest tesselation faces to add to
 sigma = sift_params.SigmaScaled;
 weight = exp(-double(distsq / (2.0 * sigma * sigma)));
 
 % Check if computed the gradient previously before
 key = sub2ind(sift_params.pix_size, r,c,s);
 if isKey(precomp_grads, key)
-    cell_val = precomp_grads(key);
-    %precomp_grads(key) = 
+    val = precomp_grads(key); 
+    val.count = val.count + 1; %increment counter
+    % retrieve the data
+    mag = val.mag;
+    yy = val.yy;
+    ix = val.ix;
+    precomp_grads(key) = val; % save updated before returning
 else
 
     rows = sift_params.pix_size(1);
@@ -55,25 +60,31 @@ else
     end
 
 
-    %mag = weight * mag; %scale magnitude by gaussian 
-
     %Find the nearest tesselation face indices
     corr_array = fv.centers * vect';
-
     [yy ix] = sort(corr_array,'descend');
 
-    cell_val = {1, mag_vect};
-    precomp_grads(key) = cell_val;
+    val = {}; % number of times seen 1
+    val.count = 1; % number of times seen 1
+    val.mag = mag;
+    val.vect = vect;
+    val.yy = y(1:sift_params.Tessel_thresh, :);
+    val.ix = x(1:sift_params.Tessel_thresh);
+    precomp_grads(key) = val;
+
 end
+
+% This must be recomputed since weight function of distance from keypoint
+weighted_mag = weight * mag; %scale magnitude by gaussian 
 
 % Add to index
 if (sift_params.Smooth_Flag == 0)
     index(i,j,s,ix(1)) = index(i,j,s,ix(1)) + mag;
 elseif (sift_params.Smooth_Flag == 1)
-    tmpsum = sum(yy(1:3).^sift_params.Smooth_Var);
+    tmpsum = sum(yy(1:sift_params.Tessel_thresh).^sift_params.Smooth_Var);
     %Add to the three nearest tesselation faces
-    for ii=1:3
-        index(i,j,s,ix(ii)) = index(i,j,s,ix(ii)) + ( mag * ( yy(ii) .^ sift_params.Smooth_Var ) / tmpsum );
+    for ii=1:sift_params.Tessel_thresh
+        index(i,j,s,ix(ii)) = index(i,j,s,ix(ii)) + ( weighted_mag * ( yy(ii) .^ sift_params.Smooth_Var ) / tmpsum );
     end
 end
 
