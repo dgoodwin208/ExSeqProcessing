@@ -3,11 +3,11 @@ fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautofr
 len = 400;
 img = load3DTif_uint16(fn);
 
-N = 1;
+N = 10000
 %keypts = zeros(N, 3);
 load res_vect
 
-res_vect_rest = res_vect(1:1000, :);
+res_vect_rest = res_vect(1:N, :);
 
 tic
 new_keys = calculate_3DSIFT(img, res_vect_rest, false);

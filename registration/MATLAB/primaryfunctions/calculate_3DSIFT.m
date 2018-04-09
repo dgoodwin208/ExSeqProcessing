@@ -8,6 +8,7 @@
 
 function  keys = calculate_3DSIFT(img, keypts,skipDescriptor)
 
+profile on -history
 %By default, we calculate the descriptor
 if nargin<3
     skipDescriptor=false;
@@ -57,20 +58,24 @@ while 1
     end
 end
 
-if ~skipDescriptor
-    recomps = 0;
-    value_arr = values(precomp_grads);
-    for i=1:length(value_arr)
-        val_cell = value_arr{i};
-        if val_cell.count > 1
-            recomps = recomps + val_cell.count - 1;
-        end
-    end
-    fprintf(1, '\n%d redundant pixels of %d total visited, saving 3DSIFTkeys\n', recomps, length(precomp_grads));
-    save('precomp_grads', 'precomp_grads');
-    save('3DSIFTkeys', 'keys');
-end
+%if ~skipDescriptor
+    %tic
+    %recomps = 0;
+    %value_arr = values(precomp_grads);
+    %for i=1:length(value_arr)
+        %val_cell = value_arr{i};
+        %if val_cell.count > 1
+            %recomps = recomps + val_cell.count - 1;
+        %end
+    %end
+    %fprintf(1, '\n%d redundant pixels of %d total visited, saving 3DSIFTkeys\n', recomps, length(precomp_grads));
+    %save('precomp_grads', 'precomp_grads');
+    %save('3DSIFTkeys', 'keys');
+    %toc
+%end
 
 fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
+profile off
+profsave(profile('info'), sprintf('salmon-10,000kpts-calc3DSIFT-precomp-opt'))
 
 end
