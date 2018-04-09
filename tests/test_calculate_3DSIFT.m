@@ -7,11 +7,15 @@ N = 1;
 %keypts = zeros(N, 3);
 load res_vect
 
-new_keys = calculate_3DSIFT(img, res_vect, false);
+res_vect_rest = res_vect(1:1000, :);
 
-load 3DSIFTkeys % loads old keys
+tic
+new_keys = calculate_3DSIFT(img, res_vect_rest, false);
+toc
 
-assert(isequal(new_keys, keys))
+%load 3DSIFTkeys % loads old keys
+
+%assert(isequal(new_keys, keys))
 
 %start= 1;
 %for i=1:N
