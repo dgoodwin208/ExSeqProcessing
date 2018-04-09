@@ -19,6 +19,7 @@
 
 namespace cudautils {
 
+// pinned memory on host
 typedef thrust::host_vector<double, thrust::system::cuda::experimental::pinned_allocator<double>> pinnedDblHostVector;
 typedef thrust::host_vector<unsigned int, thrust::system::cuda::experimental::pinned_allocator<unsigned int>> pinnedUIntHostVector;
 
@@ -32,8 +33,82 @@ unsigned int get_delta(const unsigned int total_size, const unsigned int index, 
     return ((index + 1) * delta < total_size ? delta : total_size - index * delta);
 }
 
+__global__
+void sum_squared(
+        unsigned int w,
+        unsigned int k,
+        double *x,
+        double *x2);
+
+__global__
+void calc_squared_norm(
+        unsigned int m,
+        unsigned int n,
+        unsigned int k,
+        double *x,
+        double *y,
+        double *x2,
+        double *y2,
+        double *r);
+
+__global__
+void calc_squared_norm2(
+        unsigned int m,
+        unsigned int n,
+        unsigned int k,
+        double *x,
+        double *y,
+        double *x2,
+        double *y2,
+        double *r);
+
+__global__
+void get_two_mins(
+        unsigned int n,
+        unsigned int idx_start,
+        double *r0,
+        double *r,
+        unsigned int *idx);
+
+__global__
+void get_two_mins_with_index(
+        const unsigned int stride,
+        const unsigned int n,
+        const unsigned int m,
+        double *x,
+        unsigned int *idx);
+
+__global__
+void gather_values_on_blocks(
+        const unsigned int stride,
+        const unsigned int n_size,
+        const unsigned int block_size,
+        const unsigned int m,
+        double *val,
+        unsigned int* idx);
+
+__global__
+void swap_sort(
+        const unsigned int stride,
+        const unsigned int total_size,
+        double *val,
+        unsigned int *idx);
+
 
 class NearestNeighborSearch {
+
+    //   This class provides a function to calculate distances between all the combinations of two sets of vectors,
+    //   and then find two pairs of minimum distances
+    //
+    //   Input:
+    //       two sets of vectors that equal to matrices, x and y;
+    //           the dimension of x is m rows and k columns
+    //           the dimension of y is n rows and k columns
+    //       these matrices are row-major matrices
+    //
+    //   Output:
+    //       a list of two distances and their indices that show the nearest neighbor elements in y from x
+
     const unsigned int m_;
     const unsigned int n_;
     const unsigned int k_;
@@ -43,8 +118,8 @@ class NearestNeighborSearch {
     const unsigned int num_gpus_;
     const unsigned int num_streams_;
 
-    unsigned int num_dm_;
-    unsigned int num_dn_;
+    unsigned int num_dm_;  // (num_dm_-1) * dm_ < m_ <= num_dm_ * dm_
+    unsigned int num_dn_;  // (num_dn_-1) * dn_ < n_ <= num_dn_ * dn_
 
     unsigned int n_blocks_in_two_mins_;
 
@@ -163,7 +238,13 @@ public:
 
 
     template <typename T>
-    void print_matrix_common(const size_t rows, const size_t row_start, const size_t col_start, const size_t drows, const size_t dcols, T& val) {
+    void print_matrix_common(
+            const size_t rows,
+            const size_t row_start,
+            const size_t col_start,
+            const size_t drows,
+            const size_t dcols,
+            T& val) {
 
         std::ostringstream sout;
         sout << "        ";
@@ -185,20 +266,38 @@ public:
     }
 
     template <typename T>
-    void print_matrix(const size_t rows, const size_t row_start, const size_t col_start, const size_t drows, const size_t dcols, thrust::device_vector<T>& val) {
+    void print_matrix(
+            const size_t rows,
+            const size_t row_start,
+            const size_t col_start,
+            const size_t drows,
+            const size_t dcols,
+            thrust::device_vector<T>& val) {
 
         thrust::host_vector<T> h_val(val);
         print_matrix_common(rows, row_start, col_start, drows, dcols, h_val);
     }
 
     template <typename T>
-    void print_matrix(const size_t rows, const size_t row_start, const size_t col_start, const size_t drows, const size_t dcols, thrust::host_vector<T>& val) {
+    void print_matrix(
+            const size_t rows,
+            const size_t row_start,
+            const size_t col_start,
+            const size_t drows,
+            const size_t dcols,
+            thrust::host_vector<T>& val) {
 
         print_matrix_common(rows, row_start, col_start, drows, dcols, val);
     }
 
     template <typename T>
-    void print_matrix(const size_t rows, const size_t row_start, const size_t col_start, const size_t drows, const size_t dcols, thrust::host_vector<T, thrust::system::cuda::experimental::pinned_allocator<T>>& val) {
+    void print_matrix(
+            const size_t rows,
+            const size_t row_start,
+            const size_t col_start,
+            const size_t drows,
+            const size_t dcols,
+            thrust::host_vector<T, thrust::system::cuda::experimental::pinned_allocator<T>>& val) {
 
         print_matrix_common(rows, row_start, col_start, drows, dcols, val);
     }

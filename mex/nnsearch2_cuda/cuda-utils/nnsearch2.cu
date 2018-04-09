@@ -18,8 +18,21 @@
 
 namespace cudautils {
 
+// summation of squared values of each vector in matrix
+//
+//     |<------  k  ----->|
+//     [x1,1 x1,2 ... x1,k]        [x1,1^2 + x1,1^2 + ... + x1,k^2]
+// x = [x2,1 x2,2 ... x2,k]   -->  [x2,1^2 + x2,2^2 + ... + x2,k^2]
+//                ...                                 ...
+//     [xw,1 xw,2 ... xw,k]        [xw,1^2 + xw,2^2 + ... + xw,k^2]
+//
 __global__
-void sum_squared(unsigned int w, unsigned int k, double *x, double *x2) {
+void sum_squared(
+        unsigned int w,
+        unsigned int k,
+        double *x,
+        double *x2) {
+
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= w) return;
 
@@ -30,8 +43,21 @@ void sum_squared(unsigned int w, unsigned int k, double *x, double *x2) {
     x2[i] = sum;
 }
 
+// calculation of squared norms
+//
+// ||x - y||^2 = ||x||^2 + ||y||^2 - 2 x <x, y>
+//
 __global__
-void calc_squared_norm(unsigned int m, unsigned int n, unsigned int k, double *x, double *y, double *x2, double *y2, double *r) {
+void calc_squared_norm(
+        unsigned int m,
+        unsigned int n,
+        unsigned int k,
+        double *x,
+        double *y,
+        double *x2,
+        double *y2,
+        double *r) {
+
     unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= m || j >= n) return;
@@ -46,7 +72,15 @@ void calc_squared_norm(unsigned int m, unsigned int n, unsigned int k, double *x
 }
 
 __global__
-void calc_squared_norm2(unsigned int m, unsigned int n, unsigned int k, double *x, double *y, double *x2, double *y2, double *r) {
+void calc_squared_norm2(
+        unsigned int m,
+        unsigned int n,
+        unsigned int k,
+        double *x,
+        double *y,
+        double *x2,
+        double *y2,
+        double *r) {
 
     const unsigned int block_size = defaults::num_threads_in_calc_sqnorm_func;
     const unsigned int num_sx_blocks = 3;
@@ -66,17 +100,11 @@ void calc_squared_norm2(unsigned int m, unsigned int n, unsigned int k, double *
         }
     }
     __syncthreads();
-//    if (tid == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
-//        for (unsigned int w = 0; w < k; w++) {
-//            printf("sx[%u]=%lf\n",w,sx[w]);
-//        }
-//    }
 
     unsigned int x2_val = x2[i];
     for (unsigned int j = 0; j < n; j += block_size) {
         if (tid + j < n) {
             double norm = x2_val + y2[tid + j];
-//            printf("i=%3u,j=%3u,n=%3u: norm=%lf,  x2=%lf,y2=%lf\n",i,tid+j,n,x2_val,y2[tid+j]);
             for (unsigned int w = 0; w < k; w++) {
                 norm += -2.0 * sx[w] * y[tid + j + w * n];
             }
@@ -86,59 +114,69 @@ void calc_squared_norm2(unsigned int m, unsigned int n, unsigned int k, double *
     }
 }
 
-
+// get two minimums from each block of vectors
+//
+//      |<------  m  ----->|
+//      [r1,1 r1,2 ... r1,m]
+// r0 = [r2,1 r2,2 ... r2,m]   -->  r = [ra,1 rc,2 + ... + ry,m]  idx = [a c ... y]
+//                ...                   [rb,1 rd,2 + ... + rz,m]        [b d ... z]
+//      [rw,1 rw,2 ... rn,m]
+//
 __global__
-void get_two_mins(unsigned int n, unsigned int idx_start, double *r0, double *r, unsigned int *idx) {
+void get_two_mins(
+        unsigned int n,
+        unsigned int idx_start,
+        double *r0,
+        double *r,
+        unsigned int *idx) {
+
     __shared__ double sdist2[2 * defaults::num_threads_in_twotops_func];
     __shared__ unsigned int sindex[2 * defaults::num_threads_in_twotops_func];
-    // num_threads must be 2 to the power of n.
+    // num_threads must be a power of 2.
 
     unsigned int tid  = threadIdx.x;
     unsigned int tid2 = threadIdx.x + defaults::num_threads_in_twotops_func;
     unsigned int i1 = tid  + blockIdx.x * 2 * defaults::num_threads_in_twotops_func;
     unsigned int i2 = tid2 + blockIdx.x * 2 * defaults::num_threads_in_twotops_func;
+    unsigned int block_id = blockIdx.y + blockIdx.z * gridDim.y;
 
-//    if (tid == 0) {
-//        printf("blkIdx.x=%u,blkIdx.y=%u,gridDim.x=%u,blockDim.x=%u,i1=%u,i2=%u,n=%u\n",blockIdx.x,blockIdx.y,gridDim.x,blockDim.x,i1,i2,n);
-//    }
-    sdist2[tid ] = (i1 < n) ? r0[i1 + blockIdx.y * n] : UINT_MAX;
-    sdist2[tid2] = (i2 < n) ? r0[i2 + blockIdx.y * n] : UINT_MAX;
+    sdist2[tid ] = (i1 < n) ? r0[i1 + block_id * n] : UINT_MAX;
+    sdist2[tid2] = (i2 < n) ? r0[i2 + block_id * n] : UINT_MAX;
     sindex[tid ] = (i1 < n) ? i1 + idx_start : UINT_MAX;
     sindex[tid2] = (i2 < n) ? i2 + idx_start : UINT_MAX;
     __syncthreads();
 
     if (i1 >= n) return;
 
-//    unsigned int check_blk_y = 0;
-//    unsigned int check_blk_x = 0;
-//    printf("n=%u,tid=%u,tid2=%u,  i1=%u,i2=%u\n",n,tid,tid2,i1,i2);
-//    if (blockIdx.y == check_blk_y && blockIdx.x == check_blk_x && tid % (2 * blockDim.x) == 0) {
-//        printf("=== start\n");
-//        for (int i = 0; i < 2 * blockDim.x; i++) {
-//            printf("%02d:  %lf,  %u\n",i,sdist2[i],sindex[i]);
-//        }
-//    }
+    // basically, two minimum values are selected from four values using 4 steps below
+    // [a, b, c, d] --> [a, b] < [c, d]
+    //
+    // 1) if a > c, then swap a and c   [a, b, c, d] --> [a] < [c]; [b, d]
+    // 2) if b > d, then swap b and d                --> [a] < [c]; [b] < [d]
+    // 3) if b > c, then swap b and c                --> [a, b] < [c, d]
+    // 4) if b <= c                                  --> [a, b] < [c]; [b] < [d]   (not sure if a < d or d < a)
+    //       && a > d, then swap a and d             --> [a, b] < [c, d]
+    //
+    // simple case: v=1, w=2
+    // addr.0  =0 | a
+    // addr.v  =1 | b
+    // addr.0+w=2 | c
+    // addr.v+w=3 | d
 
     for (unsigned int w = defaults::num_threads_in_twotops_func; w >= 2; w >>= 1) {
         if (tid < w) {
-            // a = sdist2[tid], b = sdist2[tid + w]
+            // a = sdist2[tid], c = sdist2[tid + w]
             if (sdist2[tid] > sdist2[tid + w]) {
                 thrust::swap(sdist2[tid], sdist2[tid + w]);
                 thrust::swap(sindex[tid], sindex[tid + w]);
             }
         }
         __syncthreads();
-//        if (blockIdx.y == check_blk_y && blockIdx.x == check_blk_x && tid % (2 * blockDim.x) == 0) {
-//            printf("=== w=%u, sort\n",w);
-//            for (int i = 0; i < 2 * blockDim.x; i++) {
-//                printf("%02d:  %lf,  %u\n",i,sdist2[i],sindex[i]);
-//            }
-//        }
 
         unsigned int v = w/2;
         if (tid < v) {
-            // a = sdist2[tid], b = sdist2[tid + w]
-            // c = sdist2[tid + v], d = sdist2[tid + w + v]
+            // a = sdist2[tid], c = sdist2[tid + w]
+            // b = sdist2[tid + v], d = sdist2[tid + w + v]
             if (sdist2[tid + w] < sdist2[tid + v]) {
                 thrust::swap(sdist2[tid + w], sdist2[tid + v]);
                 thrust::swap(sindex[tid + w], sindex[tid + v]);
@@ -148,21 +186,14 @@ void get_two_mins(unsigned int n, unsigned int idx_start, double *r0, double *r,
             }
         }
         __syncthreads();
-//        if (blockIdx.y == check_blk_y && blockIdx.x == check_blk_x && tid % (2 * blockDim.x) == 0) {
-//            printf("=== w=%u, swap\n",w);
-//            for (int i = 0; i < 2 * blockDim.x; i++) {
-//                printf("%02d:  %lf,  %u\n",i,sdist2[i],sindex[i]);
-//            }
-//        }
     }
 
     if (tid == 0) {
-//        printf("tid=0,blkIdx.x=%u,blkIdx.y=%u,gridDim.x=%u  %u,%u\n",blockIdx.x,blockIdx.y,gridDim.x,2 * blockIdx.x + blockIdx.y * 2 * gridDim.x,2 * blockIdx.x + 1 + blockIdx.y * 2 * gridDim.x);
-        r[2 * blockIdx.x     + blockIdx.y * 2 * gridDim.x] = sdist2[0];
-        r[2 * blockIdx.x + 1 + blockIdx.y * 2 * gridDim.x] = sdist2[1];
+        r[2 * blockIdx.x     + block_id * 2 * gridDim.x] = sdist2[0];
+        r[2 * blockIdx.x + 1 + block_id * 2 * gridDim.x] = sdist2[1];
 
-        idx[2 * blockIdx.x     + blockIdx.y * 2 * gridDim.x] = sindex[0];
-        idx[2 * blockIdx.x + 1 + blockIdx.y * 2 * gridDim.x] = sindex[1];
+        idx[2 * blockIdx.x     + block_id * 2 * gridDim.x] = sindex[0];
+        idx[2 * blockIdx.x + 1 + block_id * 2 * gridDim.x] = sindex[1];
     }
 }
 
@@ -176,7 +207,7 @@ void get_two_mins_with_index(
 
     __shared__ double sdist2[2 * defaults::num_threads_in_twotops_func];
     __shared__ unsigned int sindex[2 * defaults::num_threads_in_twotops_func];
-    // num_threads must be 2 to the power of n.
+    // num_threads must be a power of 2.
 
     unsigned int tid  = threadIdx.x;
     unsigned int tid2 = threadIdx.x + defaults::num_threads_in_twotops_func;
@@ -186,24 +217,11 @@ void get_two_mins_with_index(
 
     if (block_id >= m) return;
 
-//    if (tid == 0) {
-//        printf("blkIdx.x=%u,blkIdx.y=%u,gridDim.x=%u,blockDim.x=%u,i1=%u,i2=%u,n=%u\n",blockIdx.x,blockIdx.y,gridDim.x,blockDim.x,i1,i2,n);
-//    }
     sdist2[tid ] = (i1 < n) ? x  [i1 + block_id * stride] : UINT_MAX;
     sdist2[tid2] = (i2 < n) ? x  [i2 + block_id * stride] : UINT_MAX;
     sindex[tid ] = (i1 < n) ? idx[i1 + block_id * stride] : UINT_MAX;
     sindex[tid2] = (i2 < n) ? idx[i2 + block_id * stride] : UINT_MAX;
     __syncthreads();
-//    unsigned int check_y = 698;
-//    if (n == 4 && tid == 0) {
-//        printf("n=%u,tid=%u,tid2=%u,  i1=%u,i2=%u\n",n,tid,tid2,i1,i2);
-//    }
-//    if (stride == 4 /*&& blockIdx.y == check_y*/ && tid == 0) {
-//        printf("=== start\n");
-//        for (int i = 0; i < 2 * defaults::num_threads_in_twotops_func; i++) {
-//            printf("%02d:  %lf,  %u\n",i,sdist2[i],sindex[i]);
-//        }
-//    }
 
     if (i1 >= n) return;
 
@@ -216,12 +234,6 @@ void get_two_mins_with_index(
             }
         }
         __syncthreads();
-//        if (blockIdx.y == check_y && tid % (2 * blockDim.x) == 0) {
-//            printf("=== w=%u, sort\n",w);
-//            for (int i = 0; i < 2 * blockDim.x; i++) {
-//                printf("%02d:  %lf,  %u\n",i,sdist2[i],sindex[i]);
-//            }
-//        }
 
         unsigned int v = w/2;
         if (tid < v) {
@@ -236,16 +248,9 @@ void get_two_mins_with_index(
             }
         }
         __syncthreads();
-//        if (blockIdx.y == check_y && tid % (2 * blockDim.x) == 0) {
-//            printf("=== w=%u, swap\n",w);
-//            for (int i = 0; i < 2 * blockDim.x; i++) {
-//                printf("%02d:  %lf,  %u\n",i,sdist2[i],sindex[i]);
-//            }
-//        }
     }
 
     if (tid == 0) {
-//        printf("tid=0,i1=%u,blkIdx.x=%u,blkIdx.y=%u,gridDim.x=%u  %u\n",i1,blockIdx.x,blockIdx.y,gridDim.x,i1 + blockIdx.y * stride);
         x[i1     + block_id * stride] = sdist2[0];
         x[i1 + 1 + block_id * stride] = sdist2[1];
 
@@ -254,13 +259,33 @@ void get_two_mins_with_index(
     }
 }
 
+// gather values on blocks
+//       summary of size               val, idx                          val, idx
+//      _____________         ____________________________      ____________________________
+//       |   |    |         b1| b1,1.top1 | b1,2.top1 |         | b1,1.top1 | b1,2.top1 |
+//       |   | block_size     | b1,1.top2 | b1,2.top2 |         | b1,1.top2 | b1,2.top2 |
+//       |   |____|__         |___________|___________|___      | b2,1.top1 | b2,2.top1 |
+//       |   |              b2| b2,1.top1 | b2,2.top1 |         | b2,1.top2 | b2,2.top2 |
+//       |   |                | b2,1.top2 | b2,2.top2 |         | b3,1.top1 | b3,2.top1 |
+//       |   |_______         |___________|___________|___      | b3,1.top2 | b3,2.top2 |
+//       |   |              b3| b3,1.top1 | b3,2.top1 |         |     ...   |    ...    |
+//       |   |                |           |           |    -->  |           |           |
+//       |   |   ...          |   ...     |   ...     |         | bn,1.top1 | bn,2.top1 |
+//       |   |_______         |___________|___________|___      | bn,1.top2 | bn,2.top2 |
+//       |   |              bn| bn,1.top1 | bn,2.top1 |         |-----------|-----------|---
+//       | n_size             | bn,1.top2 | bn,2.top2 |         |           |           |
+//       |___|_______         |___________|___________|___      |           |           |
+//       |                    |           |           |         |    N/A    |    N/A    |
+//      stride                |    N/A    |    N/A    |         |           |           |
+//      _|___________         |___________|___________|___      |___________|___________|___
+//
 __global__
 void gather_values_on_blocks(
         const unsigned int stride,
         const unsigned int n_size,
         const unsigned int block_size,
         const unsigned int m,
-        double *x,
+        double *val,
         unsigned int* idx) {
 
     __shared__ double sval[2 * defaults::num_threads_in_twotops_func];
@@ -279,28 +304,39 @@ void gather_values_on_blocks(
 
         unsigned int j = (i / 2) * block_size + (i % 2);
 
-        sval[tid]   = x  [j + block_id * stride];
+        sval[tid]   = val[j + block_id * stride];
         sindex[tid] = idx[j + block_id * stride];
         __syncthreads();
 
-        x  [i + block_id * stride] = sval[tid];
+        val[i + block_id * stride] = sval[tid];
         idx[i + block_id * stride] = sindex[tid];
     }
 }
 
+// swap sort
+//       size             val, idx                      val, idx
+//      ______     ________________________      ________________________
+//       |         | b1.val2 | b2.val4 |         | b1.val1 | b2.val3 |
+//       |         | b1.val1 | b2.val3 |         | b1.val2 | b2.val4 |
+//       |         |---------|---------|---      |---------|---------|---
+//       |         |         |         |    -->  |         |         |
+//      stride     |   N/A   |   N/A   |         |   N/A   |   N/A   |
+//      _|____     |_________|_________|___      |_________|_________|___
+//                   b1.val2 > b1.val1, b2.val4 > b2.val3
+//
 __global__
 void swap_sort(
         const unsigned int stride,
         const unsigned int total_size,
-        double *x,
+        double *val,
         unsigned int *idx) {
 
     unsigned int i = (threadIdx.x + blockIdx.x * blockDim.x) * stride;
 
     if (i >= total_size) return;
 
-    if (x[i] > x[i + 1]) {
-        thrust::swap(x[i], x[i + 1]);
+    if (val[i] > val[i + 1]) {
+        thrust::swap(val[i], val[i + 1]);
         thrust::swap(idx[i], idx[i + 1]);
     }
 }
@@ -444,7 +480,6 @@ void NearestNeighborSearch::run() {
 #endif
 #ifdef DEBUG_OUTPUT
     logger_->info("calc {}", timer.get_laptime());
-//    print_matrix(n_, 0, 0, n_, m_, dom_data_->h_r);
 #endif
 
     if (num_dn_ > 1) {
@@ -539,19 +574,6 @@ int NearestNeighborSearch::runOnStream(const unsigned int idx_gpu, const unsigne
                 stream_data->stream);
 #ifdef DEBUG_OUTPUT
         logger_->info("calc dist2 {}", timer.get_laptime());
-//      std::copy(stream_data.r.begin(), stream_data.r.end(), std::ostream_iterator<double>(std::cout, ",")); std::cout << std::endl;
-//        if (x_i == 0 && y_i == 0) {
-//            logger_->info("r (for check)");
-//            print_matrix(n_steps, 0, 0, n_steps, m_steps, stream_data->r);
-//            logger_->info("i=0,j=0, {}", stream_data->r[0 * n_steps + 0]);
-//            logger_->info("i=0,j=1, {}", stream_data->r[0 * n_steps + 1]);
-//            logger_->info("i=1,j=0, {}", stream_data->r[1 * n_steps + 0]);
-//            logger_->info("i=1,j=1, {}", stream_data->r[1 * n_steps + 1]);
-//            logger_->info("i=453,j=10100, {}", stream_data->r[453 * n_steps + 10100]);
-//            logger_->info("i=452,j=10100, {}", stream_data->r[452 * n_steps + 10100]);
-//            logger_->info("i=451,j=10100, {}", stream_data->r[451 * n_steps + 10100]);
-//            logger_->info("i=453,j=10099, {}", stream_data->r[452 * n_steps + 10099]);
-//        }
 
         timer.reset();
         logger_->info("===== get two tops of mins");
@@ -568,24 +590,12 @@ int NearestNeighborSearch::runOnStream(const unsigned int idx_gpu, const unsigne
         timer.reset();
 #endif
         size_t r_i = size_t(y_start) + size_t(x_start) * size_t(n_);
-//        logger_->info("i=453,j=10100, {},    r_i={}", getDist2(453, 10100), r_i);
         cudaMemcpy2DAsync(thrust::raw_pointer_cast(&dom_data_->h_r[r_i]), n_ * sizeof(double),
                 thrust::raw_pointer_cast(stream_data->r.data()), n_steps * sizeof(double), n_steps * sizeof(double), m_steps,
                 cudaMemcpyDeviceToHost, stream_data->stream);
-//        logger_->info("r (for check)");
-//        print_matrix(n_, 0, 0, n_, m_, dom_data_->h_r);
 #ifdef DEBUG_OUTPUT
         logger_->info("transfer d2h {}", timer.get_laptime());
 #endif
-//        if (x_i == 0 && y_i == 0) {
-//            logger_->info("r (for check)");
-//            print_matrix(n_, 0, 0, n_steps, m_steps, dom_data_->h_r);
-//            logger_->info("i=453,j=10100, {}", getDist2(453, 10100));
-//            logger_->info("i=452,j=10100, {}", getDist2(452, 10100));
-//            logger_->info("i=451,j=10100, {}", getDist2(451, 10100));
-//            logger_->info("i=453,j=10099, {}", getDist2(452, 10099));
-//        }
-//        logger_->info("i=453,j=10100, {},    r_i={}", getDist2(453, 10100), r_i);
 #endif
     }
 
@@ -606,8 +616,6 @@ void NearestNeighborSearch::precacheSquaredDistance(
     CudaTimer timer(stream);
 #endif
 
-//    cout << "[n, k]=" << n << ", " << k << endl;
-//    cout << "[dn]=" << dn << endl;
     cudaMemcpy2DAsync(thrust::raw_pointer_cast(y.data()), dn * sizeof(double),
             thrust::raw_pointer_cast(&h_y[y_start]), n * sizeof(double), dn * sizeof(double), k,
             cudaMemcpyHostToDevice, stream);
@@ -618,10 +626,6 @@ void NearestNeighborSearch::precacheSquaredDistance(
             thrust::raw_pointer_cast(y.data()), thrust::raw_pointer_cast(y2.data()));
     cudaStreamSynchronize(stream);
 #ifdef DEBUG_OUTPUT
-//    logger_->info("dev y");
-//    print_matrix(dn, 0, 0, dn, k, y);
-//    logger_->info("dev y2");
-//    print_matrix(1, 0, 0, 1, dn, y2);
     logger_->info("sum_sqrd y {}", timer.get_laptime());
 #endif
 }
@@ -657,10 +661,6 @@ void NearestNeighborSearch::calcSquaredDistanceWithCachedY(
     sum_squared<<<m_blocks, 1024, 0, stream>>>(dm, k,
             thrust::raw_pointer_cast(x.data()), thrust::raw_pointer_cast(x2.data()));
 #ifdef DEBUG_OUTPUT
-//    logger_->info("dev x");
-//    print_matrix(dm, 0, 0, dm, k, x);
-//    logger_->info("dev x2");
-//    print_matrix(1, 0, 0, 1, dm, x2);
     logger_->info("sum_sqrd x {}", timer.get_laptime());
 
     timer.reset();
@@ -677,8 +677,6 @@ void NearestNeighborSearch::calcSquaredDistanceWithCachedY(
         thrust::raw_pointer_cast(x2.data()), thrust::raw_pointer_cast(y2.data()),
         thrust::raw_pointer_cast(r.data()));
 #ifdef DEBUG_OUTPUT
-//    logger_->info("dev r");
-//    print_matrix(dn, 0, 0, dn, dm, r);
     logger_->info("calc sqrd norm {}", timer.get_laptime());
     logger_->info("sub total {}", sub_total_timer.get_laptime());
     logger_->info("=====");
@@ -693,6 +691,7 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
         const unsigned int m_steps,
         const unsigned int n_steps,
         const unsigned int y_start) {
+
     std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[idx_gpu];
     std::shared_ptr<SubDomainDataOnStream> stream_data = subdom_data->stream_data[s_i];
 
@@ -716,12 +715,6 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
 #ifdef DEBUG_OUTPUT
     logger_->info("get two tops of mins (1-1) {}", timer.get_laptime());
 
-//    logger_->info("dev val");
-//    print_matrix(2 * n_blocks, 0, 0, 2 * n_blocks, m_steps, stream_data->val);
-//    logger_->info("dev idx");
-//    print_matrix(2 * n_blocks, 0, 0, 2 * n_blocks, m_steps, stream_data->idx);
-
-
     timer.reset();
     logger_->info("== get two tops of mins (1-2)");
 #endif
@@ -743,12 +736,6 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
                 thrust::raw_pointer_cast(stream_data->val.data()),
                 thrust::raw_pointer_cast(stream_data->idx.data()));
 
-//        std::cout << "dev val1" << std::endl;
-//        print_matrix(n_stride, 0, 0, cur_n_size, m_steps, stream_data->val);
-//        std::cout << "dev idx1" << std::endl;
-//        print_matrix(n_stride, 0, 0, cur_n_size, m_steps, stream_data->idx);
-
-
         gather_values_on_blocks<<<m_steps, n_block_size, 0, stream_data->stream>>>(
                 n_stride,
                 cur_n_size,
@@ -756,11 +743,6 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
                 m_steps,
                 thrust::raw_pointer_cast(stream_data->val.data()),
                 thrust::raw_pointer_cast(stream_data->idx.data()));
-
-//        std::cout << "dev val2" << std::endl;
-//        print_matrix(n_stride, 0, 0, n_block_size, m_steps, stream_data->val);
-//        std::cout << "dev idx2" << std::endl;
-//        print_matrix(n_stride, 0, 0, n_block_size, m_steps, stream_data->idx);
 
         cur_n_size = 2 * n_blocks;
 
@@ -789,10 +771,6 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
 
 #ifdef DEBUG_OUTPUT
         logger_->info("swap sort (1) {}", timer.get_laptime());
-//        logger_->info("dev val");
-//        print_matrix(n_stride, 0, 0, 2 * n_blocks, m_steps, stream_data->val);
-//        logger_->info("dev idx");
-//        print_matrix(n_stride, 0, 0, 2 * n_blocks, m_steps, stream_data->idx);
 #endif
     }
 
@@ -815,8 +793,6 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
 #endif
 
     cudaStreamSynchronize(stream_data->stream);
-//    print_matrix(2 * num_dn_, 0, 0, 2 * num_dn_, m_, dom_data_->h_mins_val);
-//    print_matrix(2 * num_dn_, 0, 0, 2 * num_dn_, m_, dom_data_->h_mins_idx);
 }
 
 void NearestNeighborSearch::getTotalTwoTopsOfMins()
@@ -853,11 +829,6 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
                 thrust::raw_pointer_cast(val.data()),
                 thrust::raw_pointer_cast(idx.data()));
 
-//        print_matrix(n_stride, 0, 0, cur_n_size, m_, val);
-//        std::cout << "dev idx1" << std::endl;
-//        print_matrix(n_stride, 0, 0, cur_n_size, m_, idx);
-
-
         dim3 blocks_gather(num_m_blocks_y, num_m_blocks_z, 1);
 
         gather_values_on_blocks<<<blocks_gather, n_block_size>>>(
@@ -867,10 +838,6 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
                 m_,
                 thrust::raw_pointer_cast(val.data()),
                 thrust::raw_pointer_cast(idx.data()));
-
-//        print_matrix(n_stride, 0, 0, cur_n_size, m_, val);
-//        std::cout << "dev idx2" << std::endl;
-//        print_matrix(n_stride, 0, 0, cur_n_size, m_, idx);
 
         cur_n_size = 2 * next_n_blocks;
 
@@ -912,8 +879,6 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
 #endif
 
     cudaDeviceSynchronize();
-//    print_matrix(2, 0, 0, 2, m_, dom_data_->h_mins_val);
-//    print_matrix(2, 0, 0, 2, m_, dom_data_->h_mins_idx);
 }
 
 bool NearestNeighborSearch::checkResult() {
@@ -976,8 +941,6 @@ bool NearestNeighborSearch::checkResult() {
             num_incorrects++;
             logger_->warn("index is diff. i={}: {}  -  {}", i, idx, dom_data_->h_mins_idx[i * 2]);
         }
-//        cout << "i=" << i << ": " << idx << "-" << min_v << "," << next_v << "     "
-//            << mins_idx[i * 2] << "-" << mins_val[i * 2] << "," << mins_val[1 + i * 2] << endl;
     }
     logger_->info("# of incorrects={}", num_incorrects);
     if (num_incorrects > 0) {

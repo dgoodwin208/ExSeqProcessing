@@ -20,7 +20,7 @@ UTILS_DIR = ../utils
 CUDAUTILS_DIR = ../cuda-utils
 MEXUTILS_DIR = ../mex-utils
 
-TESTS = gtest_cudautils
+TESTS = gtest_cudautils_kernel gtest_cudautils
 
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
@@ -32,8 +32,15 @@ clean :
 	rm -f $(TESTS) *.o
 
 
-gtest_cudautils.o : gtest_cudautils.cpp $(GTEST_HEADERS)
-	nvcc $(CPPFLAGS) $(NVCCFLAGS) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils.cpp
+gtest_cudautils_kernel.o : gtest_cudautils_kernel.cu $(GTEST_HEADERS)
+	nvcc $(CPPFLAGS) $(NVCCFLAGS) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils_kernel.cu
+
+gtest_cudautils_kernel : gtest_cudautils_kernel.o $(CUDAUTILS_DIR)/libcudautils_test.a
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
+
+
+gtest_cudautils.o : gtest_cudautils.cu $(GTEST_HEADERS)
+	nvcc $(CPPFLAGS) $(NVCCFLAGS) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -c gtest_cudautils.cu
 
 gtest_cudautils : gtest_cudautils.o $(CUDAUTILS_DIR)/libcudautils_test.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
