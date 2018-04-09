@@ -1,4 +1,4 @@
-function [mag vect precomp_grads, yy, ix] = GetGradOri_vector(pix,r,c,s, fv, sift_params, precomp_grads)
+function [mag vect precomp_grads yy ix] = GetGradOri_vector(pix,r,c,s, fv, sift_params, precomp_grads)
 
 rows = sift_params.pix_size(1);
 cols = sift_params.pix_size(2);
@@ -25,16 +25,13 @@ if s > slices
 end
 
 % Check if computed the gradient previously before
-key = sub2ind(sift_params.pix_size, r,c,s);
-if isKey(precomp_grads, key)
-    val = precomp_grads(key); 
-    val.count = val.count + 1; %increment counter
+if (precomp_grads.count(r,c,s) > 0)
+    precomp_grads.count(r,c,s) = precomp_grads.count(r,c,s) + 1; %increment counter
     % retrieve the data
-    mag = val.mag;
-    vect = val.vect;
-    yy = val.yy;
-    ix = val.ix;
-    precomp_grads(key) = val; % save updated before returning
+    mag = precomp_grads.mag(r,c,s);
+    vect = precomp_grads.vect(r,c,s, 1, 3);
+    yy = precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1);
+    ix = precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1);
     return
 end
 
@@ -76,11 +73,11 @@ end
 corr_array = fv.centers * vect';
 [yy ix] = sort(corr_array,'descend');
 
-val = {}; % number of times seen 1
-val.count = 1; % number of times seen 1
-val.mag = mag;
-val.vect = vect;
-val.yy = yy(1:sift_params.Tessel_thresh, :);
-val.ix = ix(1:sift_params.Tessel_thresh);
-precomp_grads(key) = val;
+precomp_grads.count(r,c,s) = 1; % number of times seen 1
+precomp_grads.mag(r,c,s) = mag;
+precomp_grads.vect(r,c,s,1, 1:3) = vect; % 1 by 3
+ % Tessel_thresh by 1
+precomp_grads.yy(r,c,s, 1:sift_params.Tessel_thresh, 1) = yy(1:sift_params.Tessel_thresh, :);
+ % Tessel_thresh by 1
+precomp_grads.ix(r,c,s, 1:sift_params.Tessel_thresh, 1) = ix(1:sift_params.Tessel_thresh);
 return

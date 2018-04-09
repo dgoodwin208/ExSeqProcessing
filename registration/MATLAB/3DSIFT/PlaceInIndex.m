@@ -1,4 +1,4 @@
-function index = PlaceInIndex(index, mag, vect, i, j, s, yy, ix, sift_params)
+function index = PlaceInIndex(index, mag, i, j, s, yy, ix, sift_params)
 
 if (sift_params.Smooth_Flag == 0)
     index(i,j,s,ix(1)) = index(i,j,s,ix(1)) + mag;

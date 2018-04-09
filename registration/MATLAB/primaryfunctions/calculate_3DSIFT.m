@@ -8,7 +8,6 @@
 
 function  keys = calculate_3DSIFT(img, keypts,skipDescriptor)
 
-profile on -history
 %By default, we calculate the descriptor
 if nargin<3
     skipDescriptor=false;
@@ -20,9 +19,14 @@ LoadParams;
 sift_params.pix_size = size(img);
 i = 0;
 offset = 0;
-init_cell = {};
-init_cell.count = -1;
-precomp_grads = containers.Map(0,init_cell); % initialize to use type double for key, cell val
+precomp_grads = {};
+precomp_grads.count = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3));
+precomp_grads.mag = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3));
+precomp_grads.ix = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3), ...
+    sift_params.Tessel_thresh, 1);
+precomp_grads.yy = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3), ...
+    sift_params.Tessel_thresh, 1);
+precomp_grads.vect = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3), 1, 3);
 while 1
 
     reRun = 1;
@@ -58,6 +62,7 @@ while 1
     end
 end
 
+% for diagnostics only, runs extremely slow
 %if ~skipDescriptor
     %tic
     %recomps = 0;
@@ -75,7 +80,5 @@ end
 %end
 
 fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
-profile off
-profsave(profile('info'), sprintf('salmon-10,000kpts-calc3DSIFT-precomp-opt'))
 
 end
