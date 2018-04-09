@@ -1,11 +1,9 @@
-function [F1,F2]=ShapeContext(Points1c,Points1,Points2c, Points2)
-%Calaculate ShapeContext vectors around Points1c and Points2c 
-%Points1 is what is calculated in the histogram for Points1c
-%Points2 is what is calcualted in the histogram for Points2c
+function F=ShapeContext_mod1(Pointsc,Points)
+%Calaculate ShapeContext vectors around Pointsc
+%Points is what is calculated in the histogram for Pointsc
 defaultoptions=struct('r_max',3,'r_min',1e-5,'r_bins',10,'a_bins',10,'rotate',0,'method',1,'maxdist',5);
 options=defaultoptions;
-F1=getHistogramFeatures(Points1c,Points1,options);
-F2=getHistogramFeatures(Points2c,Points2,options);
+F=getHistogramFeatures(Pointsc,Points,options);
 return 
 
 %For each point in keypoint, calculate the shapecontext descriptor
@@ -24,7 +22,15 @@ for i=1:size(keypoints,1)
     % relative to the current point
     O=bsxfun(@minus,points,P);
     R=sqrt(sum(O.^2,2));
-    R(R<options.r_min)=options.r_min;
+    R(R<options.r_min)=options.r_min;  % not effective?
+    
+    RMAX = 100; %options.r_max;
+    RMIN = 3; %options.r_min;
+    keep_indices = R<RMAX & R>RMIN;
+    R = R(keep_indices);
+    R = (R-RMIN)/(RMAX-RMIN);
+
+    O = O(keep_indices,:);
     
 %     A = (atan2(O(:,1),O(:,2))+pi)/(2*pi);
 %     r = sqrt(sum(O(:,1:2).^2,2));
@@ -33,14 +39,6 @@ for i=1:size(keypoints,1)
     r = sqrt(sum(O(:,[1 3]).^2,2));
     W = (atan2(O(:,2),r)+pi/2)/pi;
     
-    
-    RMAX = 100; %options.r_max;
-    RMIN = 3; %options.r_min;
-    keep_indices = R<RMAX & R>RMIN;
-    A = A(keep_indices);
-    W = W(keep_indices);
-    R = R(keep_indices);
-    R = (R-RMIN)/(RMAX-RMIN);
     
     % Histogram positions
     Abin=A*(options.a_bins-1e-10)+1;
