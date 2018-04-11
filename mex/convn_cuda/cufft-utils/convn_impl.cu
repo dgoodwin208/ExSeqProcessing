@@ -584,6 +584,13 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, int* s
 
     cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
 
+    if (benchmark) {
+        printf("\n1GPU host_data_input elements:%d\n", N_padded);
+        cufftutils::printDeviceData(host_data_input, N_padded);
+        printf("\n1GPU host_data_kernel elements:%d\n", N_padded);
+        cufftutils::printDeviceData(host_data_kernel, N_padded);
+    }
+
     if (benchmark)
         printf("Input and output successfully initialized\n");
 
@@ -608,6 +615,11 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, int* s
             blockSize, gridSize, benchmark);
 
     cudaMemcpy(host_data_input, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
+
+    if (benchmark) {
+        printf("Print hostO_1GPU final\n");
+        cufftutils::printHostData(host_data_input, N_padded);
+    }
 
     cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input);
 
@@ -679,9 +691,9 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     if (benchmark) {
         printf("\nhost_data_input elements:%d\n", N_padded);
-        cufftutils::printDeviceData(host_data_input, N_padded);
+        cufftutils::printHostData(host_data_input, N_padded);
         printf("\nhost_data_kernel elements:%d\n", N_padded);
-        cufftutils::printDeviceData(host_data_kernel, N_padded);
+        cufftutils::printHostData(host_data_kernel, N_padded);
     }
 
     // Launch custom CUDA kernel to convert to complex
@@ -826,8 +838,12 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtMemcpy (plan_fft3, host_data_input, input_natural, CUFFT_COPY_DEVICE_TO_HOST);
     if (result != CUFFT_SUCCESS) { printf ("*cufftXtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
-    if (benchmark)
+    if (benchmark) {
+        printf("Print hostO final\n");
+        cufftutils::printHostData(host_data_input, N_padded);
         printf("Place results in output\n");
+    }
+
 
     cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input);
 

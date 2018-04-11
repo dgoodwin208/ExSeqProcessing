@@ -19,15 +19,60 @@ protected:
     }
 };
 
+static void initImageVal(float* image, int imageSize, float val) {
+    for (int index = 0; index < imageSize; index++) {
+        image[index] = val;
+    }
+}
+
 //Generate uniform numbers [0,1)
 static void initImage(float* image, int imageSize) {
-    //static unsigned seed = 123456789;
+    static unsigned seed = 123456789;
     for (int index = 0; index < imageSize; index++) {
-        //seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;
-        //image[index] = float(seed)*2.3283064e-10; //2^-32
-        image[index] = (float) index;
+        seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;
+        image[index] = float(seed)*2.3283064e-10; //2^-32
+        //image[index] = (float) index;
         //image[index] = (float) sin(index); //2^-32
         //printf("image(index) %.4f\n", image[index]);
+    }
+}
+
+void matrix_is_zero(float* first, int* size, bool column_order, int benchmark, float tol)  {
+    //convert back to original then check the two matrices
+    long long idx;
+    for (int i = 0; i<size[0]; ++i) {
+        for (int j = 0; j<size[1]; ++j) {
+            for (int k = 0; k<size[2]; ++k) {
+                idx = cufftutils::convert_idx(i, j, k, size, column_order);
+                //val = host_data_input[pad_idx].x; // get the real component
+                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                if (benchmark)
+                    printf("idx:%d\n", idx);
+                ASSERT_NEAR(first[idx], 0.0, tol);
+            }
+            if (benchmark)
+                printf("\n");
+        }
+    }
+}
+
+void matrix_is_equal(float* first, float* second, int* size, bool column_order, 
+        int benchmark, float tol)  {
+    //convert back to original then check the two matrices
+    long long idx;
+    for (int i = 0; i<size[0]; ++i) {
+        for (int j = 0; j<size[1]; ++j) {
+            for (int k = 0; k<size[2]; ++k) {
+                idx = cufftutils::convert_idx(i, j, k, size, column_order);
+                //val = host_data_input[pad_idx].x; // get the real component
+                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                if (benchmark)
+                    printf("idx:%d\n", idx);
+                ASSERT_NEAR(first[idx], second[idx], tol);
+            }
+            if (benchmark)
+                printf("\n");
+        }
     }
 }
 
@@ -59,122 +104,89 @@ TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
     cufftutils::fft3(data, size, size, outArray, column_order);
 }
 
-void matrix_is_equal(float* first, float* second, int* size, bool column_order)  {
-    //convert back to original then check the two matrices
-    long long idx;
-    for (int i = 0; i<size[0]; ++i) {
-        for (int j = 0; j<size[1]; ++j) {
-            for (int k = 0; k<size[2]; ++k) {
-                idx = cufftutils::convert_idx(i, j, k, size, column_order);
-                //val = host_data_input[pad_idx].x; // get the real component
-                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
-                printf("idx:%d\n", idx);
-                ASSERT_NEAR(first[idx], second[idx], 1.0);
-            }
-            //printf("\n");
-        }
+TEST_F(ConvnCufftTest, DISABLED_PrintDeviceDataTest) {
+    long long N = 10;
+    long long size_of_data = sizeof(cufftComplex)*N;
+
+    cufftComplex* device_data_input;
+    cudaMalloc(&device_data_input, size_of_data);
+    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+
+    for (int i=0; i < N; i++) {
+        host_data_input[i].x = i;
+        host_data_input[i].y = i;
     }
+    cudaMemcpy(device_data_input, host_data_input, size_of_data, cudaMemcpyHostToDevice);
+
+    cufftutils::printHostData(host_data_input, N);
+    cufftutils::printDeviceData(device_data_input, N);
+
+    free(host_data_input);
+    cudaFree(device_data_input);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnCompareTest) {
+TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
+    int benchmark = 0;
     int size[3] = {50, 50, 5};
-    //int filterdimA[3] = {5, 5, 5};
-    //int size[3] = {5, 6, 5};
     int filterdimA[3] = {2, 2, 2};
-    int benchmark = 1;
     bool column_order = false;
     int algo = 1;
     int result = 0;
+    float tol = .5;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
-    printf("size %d, %d, %d\n", size[0], size[1], size[2]);
+    if (benchmark)
+        printf("size %d, %d, %d\n", size[0], size[1], size[2]);
     long long size_of_data = N* sizeof(cufftComplex);
     
     float* hostI = new float[N]; 
     float* hostO = new float[N]; 
-    float* hostO_manual = new float[N]; 
+    float* hostO_1GPU = new float[N]; 
     float* hostF = new float[N_kernel]; 
 
-    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_input) { printf("malloc input failed"); }
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_kernel) { printf("malloc kernel failed"); }
+    //cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+    //if (!host_data_input) { printf("malloc input failed"); }
+    //cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    //if (!host_data_kernel) { printf("malloc kernel failed"); }
 
-    for (int i=0; i < N; i++) {
-        hostI[i] = (float) sin(i);
-        host_data_input[i].x = hostI[i];
-        host_data_input[i].y = 0;
-    }
+    initImageVal(hostI, N, 0.0f);
+    initImageVal(hostF, N_kernel, 0.0f);
 
-    for (int i=0; i < N_kernel; i++) {
-        hostF[i] = (float) sin(i);
-        host_data_kernel[i].x = hostF[i];
-        host_data_kernel[i].y = 0;
-    }
-
-    printf("mGPU convolution\n");
+    if (benchmark)
+        printf("mGPU convolution\n");
     cufftutils::conv_handler(hostI, hostF, hostO, algo, size,
             filterdimA, column_order, benchmark);
-    //cuda3Dutils::cudaConvolution3D(host_data_input, size, host_data_kernel, filterdimA, 
-            //32, 256);
-    printf("Check with basic convolution\n");
+    if (benchmark)
+        printf("Check with 1GPU convolution\n");
+    cufftutils::conv_1GPU_handler(hostI, hostF, hostO_1GPU, algo, size,
+            filterdimA, column_order, benchmark);
 
-    int pad_size[3];
-    int trim_idxs[3][2];
-    cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
+    matrix_is_zero(hostO, size, column_order, 0, tol);
+    matrix_is_zero(hostO_1GPU, size, column_order, 0, tol);
+    matrix_is_equal(hostO, hostO_1GPU, size, column_order, benchmark, tol);
 
-    printf("pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
-    long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
-    // change size_of_data to match pad
-    size_of_data = N_padded * sizeof(cufftComplex);
+    if (benchmark)
+        printf("Check with sin values");
+    initImage(hostI, N);
+    initImage(hostF, N_kernel);
 
-    cufftComplex *host_data_input_pad = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_input) { printf("malloc input failed"); }
-    cufftComplex *host_data_kernel_pad = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_kernel) { printf("malloc kernel failed"); }
+    if (benchmark)
+        printf("mGPU convolution\n");
+    cufftutils::conv_handler(hostI, hostF, hostO, algo, size,
+            filterdimA, column_order, benchmark);
+    if (benchmark)
+        printf("Check with 1GPU convolution\n");
+    cufftutils::conv_1GPU_handler(hostI, hostF, hostO_1GPU, algo, size,
+            filterdimA, column_order, benchmark);
 
-    printf("Initialize inputs\n");
-
-    for (int i=0; i < N; i++) {
-        hostI[i] = (float) sin(i);
-        host_data_input[i].x = hostI[i];
-        host_data_input[i].y = 0;
-    }
-
-    for (int i=0; i < N_kernel; i++) {
-        hostF[i] = (float) sin(i);
-        host_data_kernel[i].x = hostF[i];
-        host_data_kernel[i].y = 0;
-    }
-
-    cufftutils::initialize_inputs(hostI, hostF, host_data_input_pad, host_data_kernel_pad, size, pad_size, filterdimA, column_order);
-
-    cufftComplex* device_data_input;
-    cufftComplex* device_data_kernel;
-    printf("cudaMalloc\n");
-    cudaMalloc(&device_data_input, size_of_data);
-    cudaMalloc(&device_data_kernel, size_of_data);
-
-    cudaMemcpy(device_data_input, host_data_input_pad, size_of_data, cudaMemcpyHostToDevice);
-    cudaMemcpy(device_data_kernel, host_data_kernel_pad, size_of_data, cudaMemcpyHostToDevice);
-
-    printf("conv3D\n");
-    const dim3 blockSize(16, 16, 1);
-    const dim3 gridSize(N_padded / 16 + 1, N_padded / 16 + 1, 1);
-    cufftutils::cudaConvolution3D(device_data_input, pad_size, device_data_kernel, pad_size, 
-            blockSize, gridSize, benchmark);
-
-    cudaMemcpy(host_data_input_pad, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
-
-    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO_manual, host_data_input_pad);
-
-    matrix_is_equal(hostO, hostO_manual, size, column_order);
+    matrix_is_equal(hostO, hostO_1GPU, size, column_order, benchmark, tol);
 }
 
 TEST_F(ConvnCufftTest, InitializePadTest) {
-    int size[3] = {2, 2, 3};
-    int filterdimA[3] = {2, 2, 2};
     int benchmark = 0;
+    //int size[3] = {2, 2, 3};
+    int size[3] = {50, 50, 5};
+    int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int algo = 1;
     int result = 0;
@@ -213,18 +225,16 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     long long size_of_data = N_padded * sizeof(cufftComplex);
 
     cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_input) { printf("malloc input failed"); }
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_kernel) { printf("malloc kernel failed"); }
 
-    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+
+    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel,
+            size, pad_size, filterdimA, column_order);
+
 
     if (benchmark) {
-        //printf("\nhost_data_input elements:%d\n", N_padded);
-        //cufftutils::printHostData(host_data_input, N_padded);
-        printf("\nhostF elements:%d\n", N_kernel);
-        for (int i = 0; i < N_kernel; i++)
-            printf("%.1f\n", hostF[i]);
+        printf("\nhost_data_input elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_input, N_padded);
         printf("\nhost_data_kernel elements:%d\n", N_padded);
         cufftutils::printHostData(host_data_kernel, N_padded);
     }
@@ -241,10 +251,10 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
                 pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
                 idx_filter = cufftutils::convert_idx(i, j, k, filterdimA, column_order);
 
-                if (benchmark) {
-                    printf("pad_idx=%d idx=%d (%d %d %d) %d | ",
-                            pad_idx, idx, i, j, k, (int) host_data_input[pad_idx].x);
-                }
+                //if (benchmark) {
+                    //printf("pad_idx=%d idx=%d (%d %d %d) %d | ",
+                            //pad_idx, idx, i, j, k, (int) host_data_input[pad_idx].x);
+                //}
 
                 if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
                     ASSERT_EQ(host_data_input[pad_idx].x, hostI[idx]);
@@ -261,8 +271,8 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
                 ASSERT_EQ(host_data_kernel[pad_idx].y, 0.0f);
 
             }
-            if (benchmark)
-                printf("\n");
+            //if (benchmark)
+                //printf("\n");
         }
     }
     delete[] hostI;
@@ -305,12 +315,12 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     }
 }
 
-TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
 
     // generate params
     int algo = 0;
     bool column_order = false;
-    int benchmark = 1;
+    int benchmark = 0;
     int size[] = {50, 50, 50};
     int filterdimA[] = {2, 2, 2};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
