@@ -56,6 +56,27 @@ void matrix_is_zero(float* first, int* size, bool column_order, int benchmark, f
     }
 }
 
+void matrix_is_equal_complex(cufftComplex* first, cufftComplex* second, int* size, bool column_order, 
+        int benchmark, float tol)  {
+    //convert back to original then check the two matrices
+    long long idx;
+    for (int i = 0; i<size[0]; ++i) {
+        for (int j = 0; j<size[1]; ++j) {
+            for (int k = 0; k<size[2]; ++k) {
+                idx = cufftutils::convert_idx(i, j, k, size, column_order);
+                //val = host_data_input[pad_idx].x; // get the real component
+                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                if (benchmark)
+                    printf("idx:%d\n", idx);
+                ASSERT_NEAR(first[idx].x, second[idx].x, tol);
+                ASSERT_NEAR(first[idx].y, second[idx].y, tol);
+            }
+            if (benchmark)
+                printf("\n");
+        }
+    }
+}
+
 void matrix_is_equal(float* first, float* second, int* size, bool column_order, 
         int benchmark, float tol)  {
     //convert back to original then check the two matrices
@@ -77,7 +98,7 @@ void matrix_is_equal(float* first, float* second, int* size, bool column_order,
 }
 
 TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
-    int size[3] = {50, 50, 10};
+    int size[3] = {50, 50, 5};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
     int pad = 1;
@@ -182,6 +203,9 @@ TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
     matrix_is_equal(hostO, hostO_1GPU, size, column_order, benchmark, tol);
 }
 
+TEST_F(ConvnCufftTest, TrimPadTest) {
+}
+
 TEST_F(ConvnCufftTest, InitializePadTest) {
     int benchmark = 0;
     //int size[3] = {2, 2, 3};
@@ -195,10 +219,18 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     
     float* hostI = new float[N]; 
     float* hostF = new float[N_kernel]; 
+    float* hostI_column = new float[N]; 
+    float* hostF_column = new float[N_kernel]; 
+
 
     // Create two random images
     initImage(hostI, N);
     initImage(hostF, N_kernel);
+
+    if (benchmark)
+        printf("Matrix conversions\n");
+    cufftutils::convert_matrix(hostI, hostI_column, size, column_order);
+    cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
 
     //for (int i=0; i < N; i++)
         //hostI[i] = (float) i;
@@ -225,20 +257,34 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     long long size_of_data = N_padded * sizeof(cufftComplex);
 
     cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-
     cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    cufftComplex *host_data_input_column = (cufftComplex *)malloc(size_of_data);
+    cufftComplex *host_data_kernel_column = (cufftComplex *)malloc(size_of_data);
 
     cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel,
             size, pad_size, filterdimA, column_order);
 
+    //passing column order should still output c-order data
+    cufftutils::initialize_inputs(hostI_column, hostF_column, host_data_input_column,
+            host_data_kernel_column, size, pad_size, filterdimA, !column_order);
 
     if (benchmark) {
         printf("\nhost_data_input elements:%d\n", N_padded);
         cufftutils::printHostData(host_data_input, N_padded);
         printf("\nhost_data_kernel elements:%d\n", N_padded);
         cufftutils::printHostData(host_data_kernel, N_padded);
+
+        printf("\nhost_data_input_column elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_input_column, N_padded);
+        printf("\nhost_data_kernel_column elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_kernel_column, N_padded);
     }
 
+    // Check that initialize inputs put both row and column ordered matrix into c-order
+    matrix_is_equal_complex(host_data_input, host_data_input_column, size, 
+            column_order, benchmark, 0.0);
+    matrix_is_equal_complex(host_data_kernel, host_data_kernel, size, 
+            column_order, benchmark, 0.0);
 
     // test padding is correct for c-order
     long long idx;
@@ -315,13 +361,14 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     }
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
 
     // generate params
+    int benchmark = 1;
+    float tol = .8;
     int algo = 0;
     bool column_order = false;
-    int benchmark = 0;
-    int size[] = {50, 50, 50};
+    int size[3] = {50, 50, 5};
     int filterdimA[] = {2, 2, 2};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = size[0]*size[1]*size[2];
@@ -347,10 +394,11 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
     initImage(hostI, insize);
     initImage(hostF, filtersize);
 
-    printf("Matrix conversions\n");
+    if (benchmark)
+        printf("Matrix conversions\n");
     cufftutils::convert_matrix(hostI, hostI_column, size, column_order);
     cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
-    cufftutils::convert_matrix(hostI_column, hostI_reverted, size, !column_order);
+    //cufftutils::convert_matrix(hostI_column, hostI_reverted, size, !column_order);
 
     if (benchmark) {
         printf("\nhostF elements:%d\n", filtersize);
@@ -362,36 +410,46 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
     }
 
 
-    //convert back to original then check the two matrices
-    printf("Check double matrix conversion is equal\n");
-    long long idx;
-    long long col_idx;
-    for (int i = 0; i<size[0]; ++i) {
-        for (int j = 0; j<size[1]; ++j) {
-            for (int k = 0; k<size[2]; ++k) {
-                idx = cufftutils::convert_idx(i, j, k, size, column_order);
-                //val = host_data_input[pad_idx].x; // get the real component
-                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
-                ASSERT_EQ(hostI[idx], hostI_reverted[idx]);
-            }
-            //printf("\n");
-        }
-    }
+    ////convert back to original then check the two matrices
+    //if (benchmark)
+        //printf("Check double matrix conversion is equal\n");
+    //long long idx;
+    //long long col_idx;
+    //for (int i = 0; i<size[0]; ++i) {
+        //for (int j = 0; j<size[1]; ++j) {
+            //for (int k = 0; k<size[2]; ++k) {
+                //idx = cufftutils::convert_idx(i, j, k, size, column_order);
+                ////val = host_data_input[pad_idx].x; // get the real component
+                ////printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
+                //ASSERT_EQ(hostI[idx], hostI_reverted[idx]);
+            //}
+            ////printf("\n");
+        //}
+    //}
 
-    printf("original order column_order:%d\n", column_order);
+    if (benchmark)
+        printf("\n\noriginal order:%d\n", column_order);
     cufftutils::conv_handler(hostI, hostF, hostO, algo, size, filterdimA, column_order, benchmark);
-    printf("switch order column_order\n", !column_order);
+    if (benchmark)
+        printf("\n\ntest with column_order\n", !column_order);
     cufftutils::conv_handler(hostI_column, hostF_column, hostO_column, algo, size, filterdimA, !column_order, benchmark);
 
+    matrix_is_equal(hostO, hostO_column, size, column_order, benchmark, tol);
+
     //convert back to original then check the two matrices
+    long long idx;
+    long long col_idx;
+    float val;
     for (int i = 0; i<size[0]; ++i) {
         for (int j = 0; j<size[1]; ++j) {
             for (int k = 0; k<size[2]; ++k) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
                 col_idx = cufftutils::convert_idx(i, j, k, size, !column_order);
-                //val = host_data_input[pad_idx].x; // get the real component
-                //printf("idx=%d (%d, %d, %d): %d | ",idx, i, j, k, (int) val);
-                ASSERT_NEAR(hostO[idx], hostO_column[col_idx], 1.0);
+                if (benchmark) {
+                    val = hostO_column[col_idx]; // get the real component
+                    printf("idx=%d (%d, %d, %d): %f | ", idx, i, j, k, val);
+                }
+                ASSERT_NEAR(hostO[idx], hostO_column[col_idx], tol);
             }
             //printf("\n");
         }
@@ -399,56 +457,4 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
 
 
 }
-
-
-
-
-
-//TEST_F(ConvnCufftTest, ConvnBasicTest) {
-    //// process args
-    //const int channels = 500;
-    //const int height = 500;
-    //const int width = 100;
-    //const int image_bytes = channels * height * width * sizeof(float);
-    //std::cout << "Creating image" << std::endl;
-    //float image[channels][height][width];
-    //// TODO change this to a calloc
-    //for (int channel = 0; channel < channels; ++channel) {
-        //for (int row = 0; row < height; ++row) {
-            //for (int col = 0; col < width; ++col) {
-                //// image[batch][channel][row][col] = std::rand();
-                //image[batch][channel][row][col] = 0.0f;
-            //}
-        //}
-    //}
-    //std::cout << "Image created" << std::endl;
-
-    //const int kernel_channels = 5;
-    //const int kernel_height = 5;
-    //const int kernel_width = 5;
-    //float kernel[kernel_height][kernel_width][kernel_channels];
-    //for (int channel = 0; channel < kernel_channels; ++channel) {
-        //for (int row = 0; row < kernel_height; ++row) {
-            //for (int col = 0; col < kernel_width; ++col) {
-                //// image[batch][channel][row][col] = std::rand();
-                //kernel[channel][row][col] = 0.0f;
-            //}
-        //}
-    //}
-
-    //std::cout << "Kernel Created" << std::endl;
-
-    //float* h_output;
-    //cufftutils::conv_handler(image, hostF, hostO, algo, dimA, filterdimA, column_order, benchmark);
-    //h_output = cufftutils::convn((float *) image, channels, height, width, (float *) kernel, kernel_channels, kernel_height, kernel_width);
-   
-    //for (int channel = 0; channel < channels; ++channel) {
-        //for (int row = 0; row < height; ++row) {
-            //for (int col = 0; col < width; ++col) {
-                //// image[batch][channel][row][col] = std::rand();
-                //ASSERT_EQ(image[channel][row][col], 0.0f);
-            //}
-        //}
-    //}
-//}
 

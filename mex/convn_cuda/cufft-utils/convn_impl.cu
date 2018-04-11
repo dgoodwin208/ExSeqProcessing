@@ -494,7 +494,8 @@ void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[
 
                 idx = convert_idx(i, j, k, size, column_order);
                 idx_filter = convert_idx(i, j, k, filterdimA, column_order);
-                pad_idx = convert_idx(i, j, k, pad_size, column_order);
+                // always place into c-order for cuda processing, revert in trim_pad()
+                pad_idx = convert_idx(i, j, k, pad_size, false); 
                 /*printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%.1f, %d\n", */
                         /*i, j, k, idx, idx_filter, pad_idx, hostI[idx], check);*/
 
@@ -530,15 +531,18 @@ void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]
 }
 
 
-void trim_pad(int trim_idxs[3][2], int* size, int* pad_size, bool column_order, float* hostO, cufftComplex* host_data_input) 
+void trim_pad(int trim_idxs[3][2], int* size, int* pad_size, bool column_order,
+        float* hostO, cufftComplex* host_data_input) 
 {
     long long idx;
     long long pad_idx;
     for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {
         for (long j=trim_idxs[1][0]; i < trim_idxs[1][1]; i++) {
             for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
-                idx = cufftutils::convert_idx(i - trim_idxs[0][0], j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
-                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
+                idx = cufftutils::convert_idx(i - trim_idxs[0][0],
+                        j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
+                // data always processed, stored in c-order, see initialize_inputs()
+                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
 
                 hostO[idx] = host_data_input[pad_idx].x;
             }
@@ -738,11 +742,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
         printf("Make plan 3d\n");
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
-    if (column_order) { // use padded length, reverse order such that c-order transforms are accomplished
-        result = cufftMakePlan3d(plan_fft3, pad_size[2], pad_size[1], pad_size[0], CUFFT_C2C, worksize); 
-    } else {
-        result = cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize); 
-    }
+    result = cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize); 
     if (result != CUFFT_SUCCESS) { printf ("*MakePlan3d* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
 
     // Allocate data on multiple gpus using the cufft routines
@@ -1104,11 +1104,7 @@ int fft3(float * data, int* size, int* length, float* outArray, bool column_orde
     
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
-    if (column_order) { // to deal with MATLAB's column order simply reverse ordering
-        result = cufftMakePlan3d(plan, size[2], size[1], size[0], CUFFT_C2C, worksize); 
-    } else {
-        result = cufftMakePlan3d(plan, size[0], size[1], size[2], CUFFT_C2C, worksize); 
-    }
+    result = cufftMakePlan3d(plan, size[0], size[1], size[2], CUFFT_C2C, worksize); 
     if (result != CUFFT_SUCCESS) { printf ("*MakePlan* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
 
     /*printf("The size of the worksize is %lu\n", worksize[0]);*/
