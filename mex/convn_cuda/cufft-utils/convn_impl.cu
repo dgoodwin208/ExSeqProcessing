@@ -59,6 +59,8 @@ void printDeviceData(cufftComplex *a, int size) {
 
   for (int i = 0; i < size; i++)
     printf("%f %f\n", h[i].x, h[i].y);
+
+  free(h);
 }
 
 
@@ -532,19 +534,25 @@ void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]
 
 
 void trim_pad(int trim_idxs[3][2], int* size, int* pad_size, bool column_order,
-        float* hostO, cufftComplex* host_data_input) 
+        float* hostO, cufftComplex* host_data_input, bool benchmark) 
 {
+    if (benchmark) {
+        if (column_order) { printf("column_order true: "); }
+        printf("trim_pad\n");
+    }
     long long idx;
     long long pad_idx;
     for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {
-        for (long j=trim_idxs[1][0]; i < trim_idxs[1][1]; i++) {
-            for (long k=trim_idxs[2][0]; i < trim_idxs[2][1]; i++) {
+        for (long j=trim_idxs[1][0]; j < trim_idxs[1][1]; j++) {
+            for (long k=trim_idxs[2][0]; k < trim_idxs[2][1]; k++) {
                 idx = cufftutils::convert_idx(i - trim_idxs[0][0],
                         j - trim_idxs[1][0], k - trim_idxs[2][0], size, column_order);
                 // data always processed, stored in c-order, see initialize_inputs()
                 pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
 
                 hostO[idx] = host_data_input[pad_idx].x;
+                if (benchmark)
+                    printf("%f\n", host_data_input[pad_idx].x);
             }
         }
     }
@@ -625,8 +633,7 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, int* s
         cufftutils::printHostData(host_data_input, N_padded);
     }
 
-    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input);
-
+    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input, benchmark);
 
     if (benchmark) {
         cudaEventRecord(stop, 0);
@@ -749,16 +756,11 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Initialize transform array - to be split among GPU's and transformed in place using cufftX
     if (benchmark)
         printf("Allocate mGPU\n");
-    cudaLibXtDesc *device_data_input, *device_data_kernel, *input_natural, *kernel_natural;
+    cudaLibXtDesc *device_data_input, *device_data_kernel;
     result = cufftXtMalloc(plan_fft3, &device_data_input, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
     result = cufftXtMalloc(plan_fft3, &device_data_kernel, CUFFT_XT_FORMAT_INPLACE);
     if (result != CUFFT_SUCCESS) { printf ("*XtMalloc kernel failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
-    result = cufftXtMalloc(plan_fft3, &input_natural, CUFFT_XT_FORMAT_INPLACE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMalloc input natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
-    result = cufftXtMalloc(plan_fft3, &kernel_natural, CUFFT_XT_FORMAT_INPLACE);
-    if (result != CUFFT_SUCCESS) { 
-        printf ("*XtMalloc output natural failed, code: %d\n", result); exit (EXIT_FAILURE) ; }
 
     if (benchmark)
         printf("Xt memcpy\n");
@@ -776,12 +778,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtExecDescriptorC2C(plan_fft3, device_data_kernel, device_data_kernel, CUFFT_FORWARD);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecC2C kernel failed\n"); exit (EXIT_FAILURE); }
 
-    // cufftXtMemcpy() - Copy the data to natural order on GPUs
-    result = cufftXtMemcpy (plan_fft3, input_natural, device_data_input, CUFFT_COPY_DEVICE_TO_DEVICE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE) ; }
-    result = cufftXtMemcpy (plan_fft3, kernel_natural, device_data_kernel, CUFFT_COPY_DEVICE_TO_DEVICE);
-    if (result != CUFFT_SUCCESS) { printf ("*XtMemcpy failed\n"); exit (EXIT_FAILURE) ; }
-
     // multiply both ffts and scale output
     if (benchmark)
         printf("Matrix Multiply on multiple GPUs\n");
@@ -789,10 +785,10 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     for (int i = 0; i<nGPUs; ++i){
         cudaSetDevice(deviceNum[i]);
         cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;
-        input_data_on_gpu = (cufftComplex*) (input_natural->descriptor->data[deviceNum[i]]);
-        kernel_data_on_gpu = (cufftComplex*) (kernel_natural->descriptor->data[deviceNum[i]]);
+        input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
+        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
         // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
-        int size_device = int(input_natural->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+        int size_device = int(device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
 
         if (benchmark) {
             printf("\n\nDevice: %d, elements: %d", deviceNum[i], size_device);
@@ -802,6 +798,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
             cufftutils::printDeviceData(kernel_data_on_gpu, size_device);
         }
 
+        // product is in-place for the second matrix passed (input)
         ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, 
                 (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N_padded);
 
@@ -820,7 +817,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Perform inverse FFT on multiple GPUs
     if (benchmark)
         printf("Inverse 3d FFT on multiple GPUs\n");
-    result = cufftXtExecDescriptorC2C(plan_fft3, input_natural, input_natural, CUFFT_INVERSE);
+    result = cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE);
     if (result != CUFFT_SUCCESS) { printf ("*XtExecDesc inverse failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     if (benchmark) {
@@ -834,8 +831,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     }
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
-    /*result = cufftXtMemcpy (plan_fft3, host_data_output, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);*/
-    result = cufftXtMemcpy (plan_fft3, host_data_input, input_natural, CUFFT_COPY_DEVICE_TO_HOST);
+    result = cufftXtMemcpy (plan_fft3, host_data_input, device_data_input, CUFFT_COPY_DEVICE_TO_HOST);
     if (result != CUFFT_SUCCESS) { printf ("*cufftXtMemcpy failed, code: %d\n",result); exit (EXIT_FAILURE); }
 
     if (benchmark) {
@@ -845,7 +841,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     }
 
 
-    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input);
+    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input, benchmark);
 
     if (benchmark)
         printf("Cufft completed successfully\n");
@@ -855,7 +851,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     // Free malloc'ed variables
     free(host_data_input);
     free(host_data_kernel);
-    /*free(host_data_output);*/
 
     // Destroy FFT plan
     // must be destroyed to free enough memory for inverse
@@ -866,10 +861,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
     result = cufftXtFree(device_data_input);
     if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
     result = cufftXtFree(device_data_kernel);
-    if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
-    result = cufftXtFree(input_natural);
-    if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
-    result = cufftXtFree(kernel_natural);
     if (result != CUFFT_SUCCESS) { printf ("*XtFree failed\n"); exit (EXIT_FAILURE); }
 
     return 0;

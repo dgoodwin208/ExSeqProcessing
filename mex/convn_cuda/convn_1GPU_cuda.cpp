@@ -18,10 +18,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     /* Check for proper number of input and output arguments */    
     if (nrhs < 2) {
-        mexErrMsgIdAndTxt( "convn_cuda:InvalidInput","Two input arguments required.");
+        mexErrMsgIdAndTxt( "convn_1GPU_cuda:InvalidInput","Two input arguments required.");
     } 
     if (nlhs > 1){
-        mexErrMsgIdAndTxt( "convn_cuda:InvalidOutput","Only 0 or 1 output arguments.");
+        mexErrMsgIdAndTxt( "convn_1GPU_cuda:InvalidOutput","Only 0 or 1 output arguments.");
     }
 
     int benchmark = 0; //time it, print debugging info
@@ -30,10 +30,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     /* make sure input array arguments are type single */
     if ( !mxIsSingle(prhs[0])) {
-        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type single (float).");
+        mexErrMsgIdAndTxt("convn_1GPU_cuda:InvalidInput","Input array must be type single (float).");
     }
     if ( !mxIsSingle(prhs[1])) {
-        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","Input array must be type single (float).");
+        mexErrMsgIdAndTxt("convn_1GPU_cuda:InvalidInput","Input array must be type single (float).");
     }
 
     // Handle image and filter array sizes
