@@ -1,6 +1,6 @@
 OBJ= convn_impl.o # main.exe
-NVCC = /usr/local/cuda/bin/nvcc
-NVCC_FLAGS = -g -G -Xcompiler -fPIC --gpu-architecture=sm_61
+NVCC = /usr/local/cuda/bin/nvcc 
+NVCC_FLAGS = -g -Xcompiler -fPIC --gpu-architecture=sm_61 -std=c++11
 CUFFTLIB = -L/usr/local/cuda/lib64 -lcufft -I/usr/local/cuda/include
 
 all: libcufftutils.a

@@ -22,6 +22,9 @@ namespace cufftutils {
     int conv_handler(float* hostI, float* hostF, float* hostO, int algo, 
             int* dimA, int* filterdimA, bool column_order, int benchmark);
 
+    int conv_handler(float* hostI, float* hostF, float* hostO, int algo, 
+            int* dimA, int* filterdimA, bool column_order, int benchmark);
+
     int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, 
             int* dimA, int* filterdimA, bool column_order, int benchmark);
 

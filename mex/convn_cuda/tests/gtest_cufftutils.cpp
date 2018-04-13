@@ -308,7 +308,8 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
 }
 
 TEST_F(ConvnCufftTest, ConvnFullImageTest) {
-    int size[3] = {2048, 2048, 141};
+    //int size[3] = {2048, 2048, 5};
+    int size[3] = {141, 2048, 2048}; // User specified an invalid transform size
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 0;
     bool column_order = false;
