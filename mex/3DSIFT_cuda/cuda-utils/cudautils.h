@@ -3,7 +3,7 @@
 
 namespace cudautils {
 
-    //int 3DSIFT_handler();
+    int SIFT_handler();
 
 }
 
