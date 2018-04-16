@@ -1,2 +1,1 @@
-#./runPipeline.sh -N auto -b exseqautoframe7 -c "'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'" -s 'profile-check,color-correction,normalization,registration' -R /home/dgoodwin/ExSeqProcessing/registration/ -B 5 -C /home/dgoodwin/ExSeqProcessing/1_deconvolution/
-./runPipeline.sh -N 20 -b exseqauto-a1 -c "'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'" -R /home/dgoodwin/ExSeqProcessing/registration/ -B 5 #-s "profile-check,color-correction,normalization,calc-descriptors" 
+./runPipeline.sh -N 20 -b exseqauto-xy08 -c "'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'" -R /home/dgoodwin/ExSeqProcessing/registration/ -B 4 -s "profile-check" 

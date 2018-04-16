@@ -44,7 +44,7 @@ end
 target_indices = start_idx:end_idx;
 
 
-for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC] 
+for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]) 
 
     %Loading the tif file associated with the reference channel (ie,
     %Lectin) for the image specified by run_num

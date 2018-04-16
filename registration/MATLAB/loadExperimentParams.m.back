@@ -1,24 +1,30 @@
 
-params.SAMPLE_NAME = 'exseqauto-a3_';
-params.FIXED_RUN = 5;
+params.SAMPLE_NAME = 'exseqauto-xy08_';
+params.FIXED_RUN = 4;
 params.MOVING_RUN = 1;
+
+params.XRES = .17;
+params.YRES = .17;
+params.ZRES = .40;
 
 %Do we want to combine features from multiple channels?
 %keypoints and descriptors
 params.REGISTERCHANNELS_SIFT = {'summedNorm'}; %keypoints and descriptors
 %keypoints only
-params.REGISTERCHANNELS_SC = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
+%params.REGISTERCHANNELS_SC = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
+params.REGISTERCHANNELS_SC = {'summedNorm'};
 
 %What channels do you want to warp after the registration has been calculated?
 params.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'}; 
 
+%If you want to allow a full affine transform, including rotation and shear,
+%set to true. If you want just scale and translation, select false
+params.AFFINE_FULL = true;
 
 %params.INPUTDIR = '/home/dgoodwin/ExSeqProcessing/3_normalization';
 params.INPUTDIR = '/home/dgoodwin/ExSeqProcessing/3_normalization';
-%params.OUTPUTDIR = '/home/dgoodwin/ExSeqProcessing/4_registration';
 params.OUTPUTDIR = '/home/dgoodwin/ExSeqProcessing/4_registration';
-
-params.OVERLAP = .1; %used to be 10%
+%params.OUTPUTDIR = '/home/dgoodwin/ExSeqProcessing/4_registration';
 
 %Set a threshold for maximum displacement distance?
 %(not appropriate for all datasets. Distance in pixels, -1 for ignore this)
@@ -28,6 +34,8 @@ params.DISTANCEQUANTILECUTOFF = .95;
 %how many subsections to calculate the descriptors?
 params.ROWS_DESC = 1;
 params.COLS_DESC = 1;
+%What is the overlap between volumes if we're calculating descriptors in pieces 
+params.OVERLAP = .1; %used to be 10%
 %over how many subsections to calculate the piecewise affine transforms?
 params.ROWS_TFORM = 1;
 params.COLS_TFORM = 1;

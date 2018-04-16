@@ -2,14 +2,20 @@
 loadParameters;
 for roundnum = 1:params.NUM_ROUNDS
     summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,roundnum,'summedNorm',params.REGISTRATION_TYPE)));
- 
+
+    %remove any zeros by just putting the mean of the data in:
+    summed_norm(summed_norm==0) = mean(summed_norm(summed_norm>0)); 
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
     else
-        total_summed_norm = total_summed_norm + summed_norm;
+        %total_summed_norm = total_summed_norm + summed_norm;
+        total_summed_norm = total_summed_norm.*summed_norm;
     end
 
 end
+
+total_summed_norm = total_summed_norm.^(1/params.NUM_ROUNDS);
+
 min_total = min(total_summed_norm(:));
 total_summed_norm_scaled = total_summed_norm - min_total;
 total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
@@ -17,6 +23,7 @@ save3DTif_uint16(total_summed_norm_scaled,fullfile(params.registeredImagesDir,sp
 
 %Note the original size of the data before upscaling to isotropic voxels
 data = total_summed_norm_scaled;
+
 img_origsize = data;
 
 %This requires knowledge of the Z and XY resolutions

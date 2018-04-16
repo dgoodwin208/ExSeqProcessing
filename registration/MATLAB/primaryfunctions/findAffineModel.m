@@ -1,7 +1,8 @@
-function  affine_tform = findAffineModel(key1, key2,noShear)
+function  affine_tform = findAffineModel(key1, key2,doFullAffine)
 
 if nargin==2
-    noShear=true;
+    loadExperimentParams;
+    doFullAffine=params.AFFINE_FULL;
 end
 num_samples = size(key1,1);
 
@@ -10,7 +11,7 @@ x1 = [key1, ones(num_samples,1)];
 
 %Format the data into a matrix that we will take the pseudo inverse of
 %If we only want translation and scaling
-if noShear
+if ~doFullAffine
     for i = 1:num_samples
         A(3*(i-1)+1:3*i, :) = [ x1(i,1) 0 0 1 zeros(1,8); zeros(1,4), 0 x1(i,2) 0 1 , zeros(1,4); zeros(1,8), 0 0 x1(i,3:4)];
     end

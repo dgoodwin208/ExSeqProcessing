@@ -51,7 +51,7 @@ end
 %------------------------------Load Descriptors -------------------------%
 %Load all descriptors for the MOVING channel
 keys_moving_total = {}; keys_ctr=1;
-for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
+for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC])
     descriptor_output_dir_moving = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
         params.MOVING_RUN,register_channel{1}));
     
@@ -78,7 +78,7 @@ end
 
 %Load all descriptors for the FIXED channel
 keys_fixed_total = {}; keys_ctr=1;
-for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
+for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC])
     descriptor_output_dir_fixed = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME, ...
         params.FIXED_RUN,register_channel{1}));
     
@@ -253,19 +253,28 @@ if ~exist(output_keys_filename,'file')
             %So we calculate the SIFT descriptor on the normed channel
             %(summedNorm), and we calculate the Shape Context descriptor
             %using keypoints from all other channels
+            
             [DM_SC,DF_SC]=ShapeContext(LM_SIFT,LM_SC,LF_SIFT,LF_SC);
+            
+            if 0
             correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);
 
             fprintf('SIFT-only correspondences get %i matches, SC-only gets %i matches\n',...
                 size(correspondences_sift,2),size(correspondences_sc,2));
-
+  
             correspondences_combine = [correspondences_sc,correspondences_sift]';
             [correspondences,~,~] = unique(correspondences_combine,'rows');
             correspondences = correspondences';
             fprintf('There unique %i matches if we take the union of the two methods\n', size(correspondences,2));
-            
-            correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
-            
+  
+          end
+    
+    if 0          
+        correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
+    end
+    if 1
+        correspondences=correspondences_sift;
+    end        
             %Check for duplicate matches- ie, keypoint A matching to both
             %keypoint B and keypoint C
             
@@ -336,7 +345,7 @@ keyF_total_switch = keyF_total(:,[2 1 3]);
 
 %The old way was calculating the affine tform
 warning('off','all'); 
-affine_tform = findAffineModel(keyM_total_switch, keyF_total_switch);
+affine_tform = findAffineModel(keyM_total_switch, keyF_total_switch,params.AFFINE_FULL)
 warning('on','all')
 
 %Warp the keyM features into the new space
@@ -373,7 +382,7 @@ for c = 1:length(params.CHANNELS)
     save3DTif_uint16(imgMoving_total_affine,output_affine_filename);
 end
 
-%fprintf('Ending the registration after the affine\n');return;
+fprintf('Ending the registration after the affine\n');return;
 %barfTemp();
 disp('set up cluster and parpool')
 tic;

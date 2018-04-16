@@ -15,6 +15,7 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
+keys = cell(size(keypts,1),1);
 i = 0;
 offset = 0;
 while 1
@@ -51,6 +52,8 @@ while 1
             break;
     end
 end
+%remove any pre-initialized descriptors that weren't used
+keys(i:end)=[];
 
 fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
 

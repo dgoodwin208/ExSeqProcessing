@@ -403,7 +403,7 @@ echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r " for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end;exit;"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r " for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; fprintf('POC FAIL, CATCH:\n'); colorcorrection_3D(i); end; end;exit;"
 else
     echo "Skip!"
 fi
@@ -516,7 +516,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
         for((i=1; i<=${ROUND_NUM}; i++))
         do
-            if [${REFERENCE_ROUND} -eq $i]; then
+            if [ ${REFERENCE_ROUND} -eq $i ]; then
             echo "Skipping registration of the reference round"
             continue   
             fi

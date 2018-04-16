@@ -17,6 +17,13 @@ fprintf('Starting processing of round %i\n',roundnum);
 %Load all channels, normalize them, calculate the cross corr of 
 %channels 1-3 vs 4
 tic; disp('load file 1');
+
+if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)),'file' );
+fprintf('SEES ch03SHIFT file in the output directory. Skipping\n');
+return
+end
+
+
 try
 chan1 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME,roundnum)));
 catch
