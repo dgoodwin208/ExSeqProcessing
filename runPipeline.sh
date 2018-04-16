@@ -355,15 +355,14 @@ stage_idx=$(( $stage_idx + 1 ))
 
 # setup for Registration
 
-sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
-    -e "s#\(params.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
-    -e "s#\(params.REGISTERCHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
-    -e "s#\(params.CHANNELS\) *= *.*;#\1 = {${REGISTRATION_WARP_CHANNELS}};#" \
-    -e "s#\(params.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
-    -e "s#\(params.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
-    -e "s#\(params.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
+sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
+    -e "s#\(regparams.REGISTERCHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
+    -e "s#\(regparams.CHANNELS\) *= *.*;#\1 = {${REGISTRATION_WARP_CHANNELS}};#" \
+    -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
+    -e "s#\(regparams.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
+    -e "s#\(regparams.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -i.back \
-    "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m
+    ./loadParameters.m
 
 # setup for segmentation using Raj lab image tools
 
@@ -396,18 +395,29 @@ EOF
 ERR_HDL_PRECODE='try;'
 ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
 
+echo "========================================================================="
+echo "Downsampling"; date
+echo
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample.log -r "run('downsample_all.m');exit;"
+
+
 # color correction
 echo "========================================================================="
 echo "Color correction"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r " for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; fprintf('POC FAIL, CATCH:\n'); colorcorrection_3D(i); end; end;exit;"
 else
     echo "Skip!"
 fi
 echo
+
+echo "========================================================================="
+echo "Applying color correction to downsample"; date
+echo
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample.log -r "run('downsample_applycolorshiftstofullres.m');exit;"
+
 
 stage_idx=$(( $stage_idx + 1 ))
 

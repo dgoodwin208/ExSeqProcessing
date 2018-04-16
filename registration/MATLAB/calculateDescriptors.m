@@ -30,33 +30,40 @@ function calculateDescriptors(run_num,varargin)
 %   See also LOADEXPERIMENTPARAMS, PLUS.
 
 %Load all the parameters per file
-loadExperimentParams;
-
+% loadExperimentParams;
+loadParameters;
 if size(varargin,2)==1
     error('ERROR: You must specify both a start and an end index');
 elseif size(varargin,2)==2
     start_idx = varargin{1}; end_idx = varargin{2};
 else
-    start_idx = 1; end_idx = params.COLS_DESC*params.ROWS_DESC;
+    start_idx = 1; end_idx = regparams.COLS_DESC*regparams.ROWS_DESC;
+end
+
+if params.DO_DOWNSAMPLE
+    filename_root = sprintf('%s-downsample_',params.FILE_BASENAME);
+else
+    filename_root = sprintf('%s_',params.FILE_BASENAME);
 end
 
 
 target_indices = start_idx:end_idx;
 
 
-for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]) 
+for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTERCHANNELS_SC]) 
 
+    regChan = register_channel{1}; 
     %Loading the tif file associated with the reference channel (ie,
     %Lectin) for the image specified by run_num
     %The {1} to register_cahnnel is a gross bit of cell matlab code
-    filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',...
-        params.SAMPLE_NAME,run_num,register_channel{1}));
+    filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.tif',...
+        filename_root,run_num,regChan));
     img = load3DTif_uint16(filename);
     
     
     %chop the image up into grid
-    tile_upperleft_y = floor(linspace(1,size(img,1),params.ROWS_DESC+1));
-    tile_upperleft_x = floor(linspace(1,size(img,2),params.COLS_DESC+1));
+    tile_upperleft_y = floor(linspace(1,size(img,1),regparams.ROWS_DESC+1));
+    tile_upperleft_x = floor(linspace(1,size(img,2),regparams.COLS_DESC+1));
     
     % Commenting out this optimization from Atsushi, only because I don't
     % understand how/why this beneficial
@@ -99,8 +106,8 @@ for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANN
     
     tile_counter = 0; %create a manual counter to be used in the data partitioning
     
-    for x_idx=1:params.COLS_DESC
-        for y_idx=1:params.ROWS_DESC
+    for x_idx=1:regparams.COLS_DESC
+        for y_idx=1:regparams.ROWS_DESC
             tile_counter = tile_counter+1;
             
             % only run kypts+descriptors for specified indices
@@ -111,7 +118,7 @@ for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANN
             disp(['Running on row ' num2str(y_idx) ' and col ' num2str(x_idx) ]);
             
             %Make sure the folders for the descriptor outputs exist:
-            descriptor_output_dir = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s/',params.SAMPLE_NAME,run_num,register_channel{1}));
+            descriptor_output_dir = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root,run_num,register_channel{1}));
             if exist(descriptor_output_dir,'dir')==0
                 mkdir(descriptor_output_dir);
             end
@@ -125,10 +132,10 @@ for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANN
             % create overlap region for calcuating features
             % will remove all points in the overlap region after calculation
             % but this avoids edge effects on any boundaries of
-            ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(params.OVERLAP/2)*(ymax-ymin),1));
-            ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(params.OVERLAP/2)*(ymax-ymin),size(img,1)));
-            xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(params.OVERLAP/2)*(xmax-xmin),1));
-            xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(params.OVERLAP/2)*(xmax-xmin),size(img,2)));
+            ymin_overlap = floor(max(tile_upperleft_y(y_idx)-(regparams.OVERLAP/2)*(ymax-ymin),1));
+            ymax_overlap = floor(min(tile_upperleft_y(y_idx+1)+(regparams.OVERLAP/2)*(ymax-ymin),size(img,1)));
+            xmin_overlap = floor(max(tile_upperleft_x(x_idx)-(regparams.OVERLAP/2)*(xmax-xmin),1));
+            xmax_overlap = floor(min(tile_upperleft_x(x_idx+1)+(regparams.OVERLAP/2)*(xmax-xmin),size(img,2)));
             
             %Calculate the features on the larger (overlapping) regions
 %             if length(img_cache) > 0
@@ -141,7 +148,7 @@ for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANN
                 [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
             
             %Before calculating any features, make sure the tile is not empty
-            if checkIfTileEmpty(tile_img,params.EMPTY_TILE_THRESHOLD)
+            if checkIfTileEmpty(tile_img,regparams.EMPTY_TILE_THRESHOLD)
                 disp('This subregion is empty. Skipping');
                 continue
             end
@@ -150,8 +157,8 @@ for register_channel = unique([params.REGISTERCHANNELS_SIFT,params.REGISTERCHANN
             %only need the keypoint. So we do a check for any channel that
             %is only in the REGISTERCHANNELS_SC and not in
             %REGISTERCHANNELS_SIFT
-            regChan = register_channel{1}; 
-            skipDescriptor = ~any(strcmp(params.REGISTERCHANNELS_SIFT,regChan));            
+
+            skipDescriptor = ~any(strcmp(regparams.REGISTERCHANNELS_SIFT,regChan));            
             if exist(outputfilename,'file')>0 %Make sure that the descriptors have been calculated!
                 fprintf('Sees that the file %s already exists, skipping\n',outputfilename);
                 continue;
