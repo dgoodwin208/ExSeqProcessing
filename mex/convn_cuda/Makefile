@@ -1,4 +1,4 @@
-TARGET=lib-cufft-utils lib-tests convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 lib-tests 
+TARGET=lib-cufft-utils lib-utils lib-tests convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 lib-tests 
 
 SOURCES := $(wildcard convn_cuda.cpp fft3_cuda.cpp)
 OBJS := $(SOURCES:.cpp=.o)
@@ -32,6 +32,9 @@ convn_1GPU_cuda.o: convn_1GPU_cuda.cpp
 lib-cufft-utils:
 	make -C cufft-utils
 
+lib-utils:
+	make -C utils
+
 #.cpp.o: $(SOURCES)
 	#mex -compatibleArrayDims -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUFFT_DIR)
 	##mex -compatibleArrayDims -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUDNN_DIR)
@@ -61,8 +64,8 @@ clean:
 	-rm ../convn_1GPU_cuda.mexa64
 	-rm ../fft3_cuda.mexa64
 	@make -C tests clean
+	@make -C utils clean
 	@make -C cufft-utils clean
-	#-rm ../convn_cuda.mexa64
 	#-rm ../convn_arrayfire.mexa64
 	#@make -C cuda-utils clean
 	#@make -C cudnn-utils clean

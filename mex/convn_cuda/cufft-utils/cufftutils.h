@@ -11,9 +11,15 @@ namespace cufftutils {
 
     void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]);
 
+    __device__ __host__
     long long convert_idx(long i, long j, long k, int* matrix_size, bool column_order);
 
     void convert_matrix(float* matrix, float* buffer, int* size, bool column_order);
+
+    __global__
+    void initialize_inputs_par(float* hostI, float* hostF, cufftComplex host_data_input[], 
+            cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
+            bool column_order, int benchmark);
 
     void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[], 
             cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,

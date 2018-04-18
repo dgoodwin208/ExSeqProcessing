@@ -450,6 +450,7 @@ long get_pad_idx(long m, long n) {
     return m + n - 1;
 }
 
+__device__ __host__
 long long convert_idx(long i, long j, long k, int* matrix_size, bool column_order) {
     if (column_order) {
         return i + j * matrix_size[0] + ((long long) k) * matrix_size[0] * matrix_size[1];
@@ -475,19 +476,57 @@ void convert_matrix(float* matrix, float* buffer, int* size, bool column_order) 
     }
 }
 
-/*__global__*/
-void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[], 
+__global__
+void initialize_inputs_par(float* hostI, float* hostF, cufftComplex host_data_input[], 
         cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
-        bool column_order) {
+        bool column_order, int benchmark) {
+    if (benchmark)
+        printf("initialize_inputs_par\n");
     // Place in matrix padded to 0
-    /*int index = blockIdx.x * blockDim.x + threadIdx.x;*/
-    /*int stride = blockDim.x * gridDim.x*/
-    /*int index = threadIdx.x;*/
-    /*int stride = blockDim.x;*/
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int k = blockIdx.z * blockDim.z + threadIdx.z;
+    if (benchmark)
+        printf("%d,%d,%d\n", i, j, k);
     long long idx;
     long long idx_filter;
     long long pad_idx;
     /*for ( long i = index; i < pad_size[0]; i += stride) { */
+    if ((i < pad_size[0]) && (j < pad_size[1]) && ( k < pad_size[3])) { 
+
+        idx = convert_idx(i, j, k, size, column_order);
+        idx_filter = convert_idx(i, j, k, filterdimA, column_order);
+        // always place into c-order for cuda processing, revert in trim_pad()
+        pad_idx = convert_idx(i, j, k, pad_size, false); 
+        if (benchmark)
+            printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
+                    i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
+
+        if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
+            host_data_kernel[pad_idx].x = hostF[idx_filter];
+        } else {
+            host_data_kernel[pad_idx].x = 0.0f;
+        }
+        host_data_kernel[pad_idx].y = 0.0f; // y is complex component
+
+        // keep in Matlab Column-order but switch order of dimensions in createPlan
+        // to accomplish c-order FFT transforms
+        if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
+            host_data_input[pad_idx].x = hostI[idx];
+        } else {
+            host_data_input[pad_idx].x = 0.0f;
+        }
+        host_data_input[pad_idx].y = 0.0f; 
+    }
+}
+
+void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[], 
+        cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
+        bool column_order) {
+    // Place in matrix padded to 0
+    long long idx;
+    long long idx_filter;
+    long long pad_idx;
     for ( long i = 0; i < pad_size[0]; i += 1) { 
         for (long j = 0; j < pad_size[1]; j++) {
             for (long k = 0; k < pad_size[2]; k++) {
@@ -496,8 +535,6 @@ void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[
                 idx_filter = convert_idx(i, j, k, filterdimA, column_order);
                 // always place into c-order for cuda processing, revert in trim_pad()
                 pad_idx = convert_idx(i, j, k, pad_size, false); 
-                /*printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%.1f, %d\n", */
-                        /*i, j, k, idx, idx_filter, pad_idx, hostI[idx], check);*/
 
                 if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
                     host_data_kernel[pad_idx].x = hostF[idx_filter];
@@ -1043,6 +1080,12 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, int* size, 
 
     if (benchmark)
         printf("Cufft completed successfully\n");
+
+    // Synchronize GPUs
+    for (int i = 0; i<nGPUs; ++i){
+        cudaSetDevice(deviceNum[i]);
+        cudaDeviceSynchronize();
+    }
 
     // Free malloc'ed variables
     free(worksize);

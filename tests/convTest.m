@@ -1,6 +1,10 @@
 
-[mini, full, lens, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_img_size();
-save('conv_data_8th.mat', 'mini', 'full')
+%shortcut to save matlab workspace memory
+test_img_size();
+
+%actual
+%[mini, full, lens, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = test_img_size();
+%save('conv_data_8th.mat', 'mini', 'full')
 
 %if ~exist('conv_data.mat')
     %[mini, full, lens] = test_img_size();
@@ -85,8 +89,9 @@ function [mini, full, lens, img_blur_fft, img_blur_cuda, img_blur_cuda_1GPU] = t
     fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
     img = load3DTif_uint16(fn);
     %lens = floor(size(img) ./ [3, 3, 1]);
-    %lens = [100, 100, 50];
-    lens = [50, 50, 5];
+    %lens = [2048, 2048, 141];
+    lens = [2048, 2048, 141];
+    %lens = [50, 50, 5];
     img_mini = img(1:lens(1), 1:lens(2), 1:lens(3));
 
     mini = struct;
@@ -192,27 +197,28 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu, img_blur
     %err = compute_err(img_blur_seplib, img_blur_fft);
     %fprintf('`convsep` %s: %.4f rel. error %.2f\n', class(img_gpu), t_seplib, err)
 
+    % Multi GPU section
     gpuDevice(1); % reset GPU avail mem
     tic;
-    img_blur_cuda_1GPU = convn_1GPU_cuda(img, h, 1);
-    t_cuda_1GPU = toc;
-    err = compute_err(img_blur_cuda_1GPU, img_blur_fft);
-    fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda_1GPU, err)
-    assert(isequal(size(img_blur_fft), size(img_blur_cuda_1GPU)));
-    norm(img_blur_fft(:)-img_blur_cuda_1GPU(:))
-    norm(img_blur_fft(:))
-    gpuDevice();
-
-    gpuDevice(1); % reset GPU avail mem
-    tic;
-    img_blur_cuda = convn_cuda(img, h, 1);
+    img_blur_cuda = convn_cuda(img, h);
     t_cuda = toc;
     err = compute_err(img_blur_cuda, img_blur_fft);
-    fprintf('`convn_cuda` %s: %.4f rel. error %.2f\n', class(img), t_cuda, err)
+    norm_err = norm(img_blur_fft(:)-img_blur_cuda(:)) / norm(img_blur_fft(:))
+    fprintf('`convn_cuda` %s: %.4f r err %e n err. %e\n', class(img), t_cuda, err, norm_err)
     assert(isequal(size(img_blur_fft), size(img_blur_cuda)));
-    norm(img_blur_fft(:)-img_blur_cuda(:))
-    norm(img_blur_fft(:))
     gpuDevice();
+
+    %% 1 GPU section
+    %gpuDevice(1); % reset GPU avail mem
+    %tic;
+    %img_blur_cuda_1GPU = convn_1GPU_cuda(img, h);
+    %t_cuda_1GPU = toc;
+    %err = compute_err(img_blur_cuda_1GPU, img_blur_fft);
+    %norm_err = norm(img_blur_fft(:)-img_blur_cuda_1GPU(:)) / norm(img_blur_fft(:))
+    %fprintf('`convn_1GPU_cuda` %s: %.4f r err %e n err. %e\n', class(img), t_cuda_1GPU, err, norm_err)
+    %assert(isequal(size(img_blur_fft), size(img_blur_cuda_1GPU)));
+    %norm(img_blur_fft(:)-img_blur_cuda_1GPU(:))/ norm(img_blur_fft(:))
+    %gpuDevice();
 
     %options.Power2Flag = true;
     %tic; 
