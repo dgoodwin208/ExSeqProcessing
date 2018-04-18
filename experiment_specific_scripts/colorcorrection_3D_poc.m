@@ -17,8 +17,8 @@ fprintf('Starting processing of round %i\n',roundnum);
 %channels 1-3 vs 4
 tic; disp('load file 1');
 
-if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)),'file' );
-    fprintf('SEES ch03SHIFT file in the output directory. Skipping\n');
+if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)),'file' );
+    fprintf('SEES ch02SHIFT file in the output directory. Skipping\n');
     return
 end
 

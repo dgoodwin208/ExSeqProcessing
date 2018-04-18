@@ -5,10 +5,13 @@ if ~params.DO_DOWNSAMPLE
     return;
 end
 
+OUTPUTDIR = params.colorCorrectionImagesDir;
+params = params;
+%clear all;
 for rnd_indx = 1:params.NUM_ROUNDS
     
-
     chan1_inname = fullfile(params.deconvolutionImagesDir,sprintf('%s_round%.03i_ch00.tif',params.FILE_BASENAME,rnd_indx));
+    
     if ~exist(chan1_inname,'file')
         fprintf('Skipping missing round %i \n',rnd_indx);
         continue
@@ -18,13 +21,21 @@ for rnd_indx = 1:params.NUM_ROUNDS
     if ~exist(filename_colorShifts,'file')
         fprintf('Skipping missing shifts file %s \n',filename_colorShifts);
         continue;
+    end 
+   
+    chan4_outname = fullfile(params.colorCorrectionImagesDir,...
+        sprintf('%s_round%.03i_ch03SHIFT.tif',params.FILE_BASENAME,rnd_indx));
+    if exist(chan4_outname,'file')
+        fprintf('Skipping round which has already been done %i \n',rnd_indx);
+        continue;
     end    
+    load(filename_colorShifts);    
     
     %Create the symlink of chan1 to the new directory
     chan1_outname = fullfile(params.colorCorrectionImagesDir,...
         sprintf('%s_round%.03i_ch00.tif',params.FILE_BASENAME,rnd_indx));
     command = sprintf('ln -s %s %s',chan1_inname,chan1_outname);
-    system(command)
+    system(command);
     fprintf('Created symlink %s \n',chan1_outname);
     
     chan2 = load3DTif_uint16(fullfile(params.deconvolutionImagesDir,sprintf('%s_round%.03i_ch01.tif',params.FILE_BASENAME,rnd_indx)));
@@ -41,8 +52,6 @@ for rnd_indx = 1:params.NUM_ROUNDS
     
     chan4 = load3DTif_uint16(fullfile(params.deconvolutionImagesDir,sprintf('%s_round%.03i_ch03.tif',params.FILE_BASENAME,rnd_indx)));
     chan4_shift = imtranslate3D(chan4,real(round(chan4_offsets*params.DOWNSAMPLE_RATE)));
-    chan4_outname = fullfile(params.colorCorrectionImagesDir,...
-        sprintf('%s_round%.03i_ch03SHIFT.tif',params.FILE_BASENAME,rnd_indx));
     save3DTif_uint16(chan4_shift,chan4_outname);
     
     

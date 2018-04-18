@@ -398,25 +398,32 @@ ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
 echo "========================================================================="
 echo "Downsampling"; date
 echo
-matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample.log -r "run('downsample_all.m');exit;"
 
 
 # color correction
-echo "========================================================================="
-echo "Color correction"; date
-echo
+#echo "========================================================================="
+#echo "Color correction"; date
+#echo
+
+
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample.log -r "run('downsample_all.m');exit;"
+
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r " for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; fprintf('POC FAIL, CATCH:\n'); colorcorrection_3D(i); end; end;exit;"
+
+
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample.log -r "run('downsample_applycolorshiftstofullres.m');exit;"
+
 else
     echo "Skip!"
 fi
 echo
 
-echo "========================================================================="
-echo "Applying color correction to downsample"; date
-echo
-matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample.log -r "run('downsample_applycolorshiftstofullres.m');exit;"
+#echo "========================================================================="
+#echo "Applying color correction to downsample"; date
+#echo
 
 
 stage_idx=$(( $stage_idx + 1 ))
@@ -457,7 +464,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     echo
 
     reg_stage_idx=0
-    if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
+    #if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
         #rounds=$(seq -s' ' 1 ${ROUND_NUM})
         ## calculateDescriptors for all rounds in parallel
         #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
@@ -467,6 +474,42 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         #else
         #    echo "No log files."
         #fi
+    if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
+        
+        # prepare normalized channel images for warp
+        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
+        do
+            for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
+            do
+                round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+                if [ $round_num -eq 0 ]; then
+                    echo "round number is wrong."
+                fi
+
+                normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+
+                if [ ! -f $normalized_ch_file ]; then
+                    ln -s $f $normalized_ch_file
+                fi
+            done
+        done
+        # prepare downsampled normalized channel images for warp
+        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
+        do
+            for f in $(\ls ${COLOR_CORRECTION_DIR}/*downsample*_${CHANNEL_ARRAY[i]}.tif)
+            do
+                round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+                if [ $round_num -eq 0 ]; then
+                    echo "round number is wrong."
+                fi
+
+                normalized_ch_downsample_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}-downsample_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+
+                if [ ! -f $normalized_ch_downsample_file ]; then
+                    ln -s $f $normalized_ch_downsample_file
+                fi
+            done
+        done
 
         for((i=1; i<=${ROUND_NUM}; i+=2))
         do
@@ -494,31 +537,13 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     echo
 
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        # prepare normalized channel images for warp
-        for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
-        do
-            for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
-            do
-                round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
-                if [ $round_num -eq 0 ]; then
-                    echo "round number is wrong."
-                fi
-
-                normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
-
-                if [ ! -f $normalized_ch_file ]; then
-                    ln -s $f $normalized_ch_file
-                fi
-            done
-        done
-
         
         # make symbolic links of round-5 images because it is not necessary to warp them
         #TODO: Change this to be any round, currently hardcoding to 5
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
-            normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round005_${ch}.tif
-            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round005_${ch}_registered.tif
+            normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round004_${ch}.tif
+            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round004_${ch}_registered.tif
             if [ ! -f $registered_file ]; then
                 ln -s $normalized_file $registered_file
             fi
@@ -531,7 +556,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             continue   
             fi
             # registerWithDescriptors for ${REFERENCE_ROUND} and i
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} registerWithDescriptors(${i}); ${ERR_HDL_POSTCODE}"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} calcCorrespondences(${$i});registerWithCorrespondences(${i}); ${ERR_HDL_POSTCODE}"
 
         done
     else

@@ -14,6 +14,10 @@ OUTPUTDIR = params.colorCorrectionImagesDir;
 
 
 
+if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)),'file' );
+    fprintf('SEES ch02SHIFT file in the output directory. Skipping\n');
+    return
+end
 
 fprintf('Starting processing of round %i\n',roundnum);
 %Load all channels, normalize them, calculate the cross corr of 
@@ -36,13 +40,13 @@ chan2_beads = chan2(:,:,params.BEAD_ZSTART :end);
 chan4_beads = chan4(:,:,params.BEAD_ZSTART :end);
 
 tic; disp('crossCorr3D 4');
-xcorr_scores4to1 = crossCorr3D(chan1_beads,chan4_beads,offsets3D);  
+xcorr_scores4to1 = crossCorr3D(chan1_beads,chan4_beads,params.COLOR_OFFSETS3D);  
 toc
 
 mval = max(xcorr_scores4to1(:));
 idx = find(mval==xcorr_scores4to1(:));
 [x_max,y_max,z_max] = ind2sub(size(xcorr_scores4to1),idx);
-chan4_offsets = [x_max,y_max,z_max] - (offsets3D+1);
+chan4_offsets = [x_max,y_max,z_max] - (params.COLOR_OFFSETS3D+1);
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum,4,chan4_offsets(1),chan4_offsets(2),chan4_offsets(3));
 tic; disp('translate 4');
 chan4_shift = imtranslate3D(chan4,chan4_offsets);
@@ -53,12 +57,12 @@ toc
 
 chan4_shift_beads = chan4_shift(:,:,params.BEAD_ZSTART :end);
 tic; disp('crossCorr3D 2');
-xcorr_scores2to1 = crossCorr3D(chan1_beads+chan4_shift_beads,chan2_beads,offsets3D);
+xcorr_scores2to1 = crossCorr3D(chan1_beads+chan4_shift_beads,chan2_beads,params.COLOR_OFFSETS3D);
 toc
 mval = max(xcorr_scores2to1(:));
 idx = find(mval==xcorr_scores2to1(:));
 [x_max,y_max,z_max] = ind2sub(size(xcorr_scores2to1),idx);
-chan2_offsets = [x_max,y_max,z_max] - (offsets3D+1);
+chan2_offsets = [x_max,y_max,z_max] - (params.COLOR_OFFSETS3D+1);
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum,2,chan2_offsets(1),chan2_offsets(2),chan2_offsets(3));
 tic; disp('translate 2');
 chan2_shift = imtranslate3D(chan2,chan2_offsets);
@@ -90,12 +94,12 @@ fixed_chans_norm = (chan1_norm + chan2_norm + chan4_norm)/3;
 clear data_cols data_cols_norm
 
 tic; disp('crossCorr3D 3');
-xcorr_scores3to1 = crossCorr3D(fixed_chans_norm,chan3_norm,offsets3D);
+xcorr_scores3to1 = crossCorr3D(fixed_chans_norm,chan3_norm,params.COLOR_OFFSETS3D);
 toc
 mval = max(xcorr_scores3to1(:));
 idx = find(mval==xcorr_scores3to1(:));
 [x_max,y_max,z_max] = ind2sub(size(xcorr_scores3to1),idx);
-chan3_offsets = [x_max,y_max,z_max] - (offsets3D+1);
+chan3_offsets = [x_max,y_max,z_max] - (params.COLOR_OFFSETS3D+1);
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum, 3,chan3_offsets(1),chan3_offsets(2),chan3_offsets(3));
 
 tic; disp('translate 3');
