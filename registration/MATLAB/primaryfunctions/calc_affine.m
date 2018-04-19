@@ -43,7 +43,7 @@ while trial_iter_count < N || trial_iter_count<min_trial_limit
     keyF = keypointsF(random_indices,:);
 
     %Fit the model for points in Moving image to points in Fixed image 
-    affine_tform = findAffineModel(keyM, keyF,params.AFFINE_FULL);
+    affine_tform = findAffineModel(keyM, keyF,regparams.AFFINE_FULL);
 
     inliers = [];
     

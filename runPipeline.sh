@@ -464,16 +464,6 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     echo
 
     reg_stage_idx=0
-    #if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        #rounds=$(seq -s' ' 1 ${ROUND_NUM})
-        ## calculateDescriptors for all rounds in parallel
-        #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
-    
-        #if ls *.log > /dev/null 2>&1; then
-        #    mv matlab-calcDesc-*.log ${LOG_DIR}/
-        #else
-        #    echo "No log files."
-        #fi
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
         
         # prepare normalized channel images for warp
@@ -482,6 +472,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
             do
                 round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+        	if [[ $f = *"downsample"* ]]; then
+  		    #Only create links to full-res images in this loop
+ 		    #echo "picked up a downsample on accident!, skipping"
+                    continue
+		fi 
                 if [ $round_num -eq 0 ]; then
                     echo "round number is wrong."
                 fi
@@ -543,9 +538,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
             normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round004_${ch}.tif
-            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round004_${ch}_registered.tif
-            if [ ! -f $registered_file ]; then
-                ln -s $normalized_file $registered_file
+            registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round004_${ch}_registered.tif
+            registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round004_${ch}_affine.tif
+            if [ ! -f $registered_affine_file ]; then
+                ln -s $normalized_file $registered_affine_file
+                ln -s $normalized_file $registered_tps_file
             fi
         done
 
@@ -556,7 +553,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             continue   
             fi
             # registerWithDescriptors for ${REFERENCE_ROUND} and i
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} calcCorrespondences(${$i});registerWithCorrespondences(${i}); ${ERR_HDL_POSTCODE}"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} calcCorrespondences(${i});registerWithCorrespondences(${i}); ${ERR_HDL_POSTCODE}"
 
         done
     else

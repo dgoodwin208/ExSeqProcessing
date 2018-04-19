@@ -117,8 +117,8 @@ output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%sround%
 %correspondences
 if ~exist(output_keys_filename,'file')
     
-    for x_idx=1:params.COLS_TFORM
-        for y_idx=1:params.ROWS_TFORM
+    for x_idx=1:regparams.COLS_TFORM
+        for y_idx=1:regparams.ROWS_TFORM
             
             disp(['Running on row ' num2str(y_idx) ' and col ' num2str(x_idx) ]);
             
@@ -230,11 +230,11 @@ if ~exist(output_keys_filename,'file')
 %             fprintf('(%i,%i) after dedupe\n',size(LM_SIFT,1),size(LF_SIFT,1));
             
             % deuplicate any ShapeContext keypoints
-            fprintf('(%i,%i) before dedupe, ',size(LM_SC,1),size(LF_SC,1));
-            [LM_SC,~,~] = unique(LM_SC,'rows');
-            [LF_SC,~,~] = unique(LF_SC,'rows');
-            fprintf('(%i,%i) after dedupe\n',size(LM_SC,1),size(LF_SC,1));
-            
+            %fprintf('(%i,%i) before dedupe, ',size(LM_SC,1),size(LF_SC,1));
+            %[LM_SC,~,~] = unique(LM_SC,'rows');
+            %[LF_SC,~,~] = unique(LF_SC,'rows');
+            %fprintf('(%i,%i) after dedupe\n',size(LM_SC,1),size(LF_SC,1));
+            %--end removal of deduplication code
             
             DM_SIFT_norm= DM_SIFT ./ repmat(sum(DM_SIFT,2),1,size(DM_SIFT,2));
             DF_SIFT_norm= DF_SIFT ./ repmat(sum(DF_SIFT,2),1,size(DF_SIFT,2));

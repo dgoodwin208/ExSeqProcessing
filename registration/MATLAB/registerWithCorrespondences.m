@@ -25,12 +25,15 @@ end
 % regparams.MOVING_RUN = moving_run;
 
 fprintf('RegWithCorr ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
-
+output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',params.FILE_BASENAME,moving_run,regparams.CHANNELS{end}));
+if exist(output_affine_filename,'file')
+    fprintf('Already sees the last output file, skipping!\n');
+    return;
+end
 %Load a full-res image 
 filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',...
     params.FILE_BASENAME,regparams.FIXED_RUN,regparams.CHANNELS{1} ));
 imgFixed_total = load3DTif_uint16(filename);
-
 %Loading the keys, possibly from the downsampled data
 output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
 
@@ -133,15 +136,11 @@ for c = 1:length(regparams.CHANNELS)
     %Load the data to be warped
     disp('load 3D file to be warped')
     tic;
-    data_channel = params.CHANNELS{c};
+    data_channel = regparams.CHANNELS{c};
     filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',params.FILE_BASENAME,moving_run,data_channel));
     imgToWarp = load3DTif_uint16(filename);
     toc;
     
-    %we loaded the bounds_moving data at the very beginning of this file
-    if exist(cropfilename,'file')==2
-        imgToWarp = imgToWarp(bounds_moving(1):bounds_moving(2),bounds_moving(3):bounds_moving(4),:);
-    end
     [ outputImage_interp ] = TPS3DApply(in1D_total,out1D_total,imgToWarp,size(imgFixed_total));
     
     outputfile = fullfile(params.OUTPUTDIR,sprintf('%s_round%03d_%s_%s.tif',params.FILE_BASENAME,moving_run,data_channel,regparams.REGISTRATION_TYPE));
