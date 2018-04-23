@@ -17,8 +17,19 @@ namespace cufftutils {
     void convert_matrix(float* matrix, float* buffer, int* size, bool column_order);
 
     __global__
+    void complex_point_mul_scale_par(cufftComplex *a, cufftComplex *b, long long size, float scale);
+
+    __global__
+    void trim_pad_par(int trim_idxs00, int trim_idxs01, int trim_idxs10, 
+            int trim_idxs11, int trim_idxs20, int trim_idxs21, int size0, int
+            size1, int size2, int pad_size0, int pad_size1, int pad_size2, bool
+            column_order, float* hostO, cufftComplex* host_data_input, bool
+            benchmark) ;
+
+    __global__
     void initialize_inputs_par(float* hostI, float* hostF, cufftComplex host_data_input[], 
-            cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
+            cufftComplex host_data_kernel[], int size0, int size1, int size2, int pad_size0, 
+            int pad_size1, int pad_size2, int filterdimA0, int filterdimA1, int filterdimA2,
             bool column_order, int benchmark);
 
     void initialize_inputs(float* hostI, float* hostF, cufftComplex host_data_input[], 

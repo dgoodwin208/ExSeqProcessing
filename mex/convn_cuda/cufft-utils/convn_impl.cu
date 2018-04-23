@@ -208,6 +208,20 @@ void scaleResult(int N, cufftComplex *f)
 }
 
 // multiply, scale both arrays, keep product inplace on b
+// caller must guarantee each point is reach via ample choice of gridSize, blockSize
+__global__
+void complex_point_mul_scale_par(cufftComplex *a, cufftComplex *b, long long size, float scale)
+{
+    long long i = ((long long) blockIdx.x) * blockDim.x + threadIdx.x;
+    cufftComplex c;
+    if (i < size) { // protect from overallocation of threads
+        c = cuCmulf(a[i], b[i]);
+        b[i] = make_cuFloatComplex(scale*cuCrealf(c), scale*cuCimagf(c) );
+    }
+    return;
+}
+
+// multiply, scale both arrays, keep product inplace on b
 __global__
 void ComplexPointwiseMulAndScale(cufftComplex *a, cufftComplex *b, int size, float scale)
 {
@@ -397,7 +411,6 @@ int conv_handler_batch(float* hostI, float* hostF, float* hostO, int algo, int* 
     cudaSetDevice(device0); // do the computation on the first device
     /*FIXME is N the proper size to pass?*/
     ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) device_data_on_GPU0, (cufftComplex*) GPU0_data_from_GPU1, N, 1.0f / (float) N);
-    /*scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);*/
 
     result = cufftMakePlan3d(plan_inverse_1_gpu, size[0], size[1], size[2], CUFFT_C2C, worksize); 
     if (result != CUFFT_SUCCESS) { printf ("*MakePlan3d* failed: code %d \n",(int)result); exit (EXIT_FAILURE) ; }
@@ -478,28 +491,32 @@ void convert_matrix(float* matrix, float* buffer, int* size, bool column_order) 
 
 __global__
 void initialize_inputs_par(float* hostI, float* hostF, cufftComplex host_data_input[], 
-        cufftComplex host_data_kernel[], int* size, int* pad_size, int* filterdimA,
+        cufftComplex host_data_kernel[], int size0, int size1, int size2, int pad_size0, 
+        int pad_size1, int pad_size2, int filterdimA0, int filterdimA1, int filterdimA2,
         bool column_order, int benchmark) {
-    if (benchmark)
-        printf("initialize_inputs_par\n");
+    
     // Place in matrix padded to 0
+    int pad_size[3] = {pad_size0, pad_size1, pad_size2};
+    int filterdimA[3] = {filterdimA0, filterdimA1, filterdimA2};
+    int size[3] = {size0, size1, size2};
+
+    // identify corresponding index
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     int k = blockIdx.z * blockDim.z + threadIdx.z;
-    if (benchmark)
-        printf("%d,%d,%d\n", i, j, k);
+
     long long idx;
     long long idx_filter;
     long long pad_idx;
     /*for ( long i = index; i < pad_size[0]; i += stride) { */
-    if ((i < pad_size[0]) && (j < pad_size[1]) && ( k < pad_size[3])) { 
+    if ((i < pad_size[0]) && (j < pad_size[1]) && ( k < pad_size[2])) { 
 
         idx = convert_idx(i, j, k, size, column_order);
         idx_filter = convert_idx(i, j, k, filterdimA, column_order);
         // always place into c-order for cuda processing, revert in trim_pad()
         pad_idx = convert_idx(i, j, k, pad_size, false); 
         if (benchmark)
-            printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
+            printf("asdf %d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
                     i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
 
         if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
@@ -567,14 +584,43 @@ void get_pad_trim(int* size, int* filterdimA, int* pad_size, int trim_idxs[3][2]
     }
 }
 
+__global__
+void trim_pad_par(int trim_idxs00, int trim_idxs01, int trim_idxs10, 
+        int trim_idxs11, int trim_idxs20, int trim_idxs21, int size0, int
+        size1, int size2, int pad_size0, int pad_size1, int pad_size2, bool
+        column_order, float* hostO, cufftComplex* host_data_input, bool
+        benchmark) 
+{
+    // identify corresponding index
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int k = blockIdx.z * blockDim.z + threadIdx.z;
+
+    int pad_size[3] = {pad_size0, pad_size1, pad_size2};
+    int size[3] = {size0, size1, size2};
+
+    long long idx;
+    long long pad_idx;
+    // FIXME check these ifs are legal in C
+    if (trim_idxs00 <= i < trim_idxs01) {
+        if (trim_idxs10 <= j < trim_idxs11) {
+            if (trim_idxs20 <= k < trim_idxs21) {
+                idx = cufftutils::convert_idx(i - trim_idxs00,
+                        j - trim_idxs10, k - trim_idxs20, size, column_order);
+                // data always processed, stored in c-order, see initialize_inputs()
+                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
+
+                hostO[idx] = host_data_input[pad_idx].x;
+                if (benchmark)
+                    printf("%f\n", host_data_input[pad_idx].x);
+            }
+        }
+    }
+}
 
 void trim_pad(int trim_idxs[3][2], int* size, int* pad_size, bool column_order,
         float* hostO, cufftComplex* host_data_input, bool benchmark) 
 {
-    if (benchmark) {
-        if (column_order) { printf("column_order true: "); }
-        printf("trim_pad\n");
-    }
     long long idx;
     long long pad_idx;
     for (long i=trim_idxs[0][0]; i < trim_idxs[0][1]; i++) {

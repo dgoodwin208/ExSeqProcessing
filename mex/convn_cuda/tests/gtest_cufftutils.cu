@@ -90,6 +90,11 @@ void matrix_is_equal(float* first, float* second, int* size, bool column_order,
     }
 }
 
+__global__
+void print_thread() {
+    printf("threadIdx.x=%d\n", threadIdx.x);
+}
+
 TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
     int size[3] = {50, 50, 5};
     int filterdimA[3] = {5, 5, 5};
@@ -188,8 +193,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
 }
 
 TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
-    int benchmark = 1;
-    //int size[3] = {2, 2, 3};
+    int benchmark = 0;
     int size[3] = {50, 50, 5};
     int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
@@ -205,11 +209,11 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     initImage(hostI, N);
     initImage(hostF, N_kernel);
 
-    if (benchmark) {
-        printf("\nhostI elements:%d\n", N);
-        for (long i = 0; i < N; i++)
-           printf("%f\n", hostI[i]);
-    }
+    /*if (benchmark) {*/
+        /*printf("\nhostI elements:%d\n", N);*/
+        /*for (long i = 0; i < N; i++)*/
+           /*printf("%f\n", hostI[i]);*/
+    /*}*/
 
     if (benchmark)
         printf("Matrix conversions\n");
@@ -255,29 +259,41 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cudaMemcpy(devI_column, hostI_column, float_size, cudaMemcpyHostToDevice);
     cudaMemcpy(devF_column, hostF_column, float_size, cudaMemcpyHostToDevice);
 
-    if (benchmark) {
-        printf("\ndevI elements:%d\n", N);
-        float *h;
+    /*if (benchmark) {*/
+        /*printf("\ndevI elements:%d\n", N);*/
+        /*float *h = (float *) malloc(float_size);*/
+        /*cudaMemcpy(h, devI, float_size, cudaMemcpyDeviceToHost);*/
+        /*for (long long i = 0; i < N; i++) {*/
+            /*printf("%f\n", h[i]);*/
+        /*}*/
+        /*free(h);*/
+    /*}*/
 
-        h = (float *) malloc(float_size);
+    dim3 blockSize(32, 32, 1);
+    // round up
+    dim3 gridSize((pad_size[0] + blockSize.x - 1) / blockSize.x, 
+            (pad_size[1] + blockSize.y - 1) / blockSize.y, (pad_size[2] + blockSize.z - 1) / blockSize.z);
+    if (benchmark)
+        printf("gridSize %d,%d,%d\n", gridSize.x, gridSize.y, gridSize.z);
+    ASSERT_LE(blockSize.x * blockSize.y * blockSize.z, 1024);
+    ASSERT_GE(gridSize.x * blockSize.x, pad_size[0]);
+    ASSERT_GE(gridSize.y * blockSize.y, pad_size[1]);
+    ASSERT_GE(gridSize.z * blockSize.z, pad_size[2]);
 
-        cudaMemcpy(h, devI, float_size, cudaMemcpyDeviceToHost);
-
-        for (long long i = 0; i < N; i++) {
-            printf("%f\n", h[i]);
-        }
-
-        free(h);
-    }
-
-    dim3 blockSize(32, 32, 2);
-    dim3 gridSize(ceil(pad_size[0] / blockSize.x), ceil(pad_size[1] / blockSize.y), ceil(pad_size[2] / blockSize.z));
-
-    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI, devF, device_data_input, device_data_kernel, size, pad_size, filterdimA, column_order, benchmark);
+    if (benchmark)
+        printf("check pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
+    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI, devF, device_data_input, 
+            device_data_kernel, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
+    cudaDeviceSynchronize();
 
     //passing column order should still output c-order data
-    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI_column, devF_column, device_data_input_column,
-            device_data_kernel_column, size, pad_size, filterdimA, !column_order, benchmark);
+    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI_column, devF_column, 
+            device_data_input_column, device_data_kernel_column, size[0],
+            size[1], size[2], pad_size[0], pad_size[1], pad_size[2],
+            filterdimA[0], filterdimA[1], filterdimA[2], !column_order,
+            benchmark);
+    cudaDeviceSynchronize();
 
     if (benchmark)
         printf("Copy back to host for error checking");
@@ -489,9 +505,7 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
 }
 
 TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
-    //int size[3] = {2048, 2048, 141};
-    //int size[3] = {141, 2048, 2048};
-    int size[3] = {50, 50, 5};
+    int size[3] = {200, 2048, 2048};
     int filterdimA[3] = {5, 5, 5};
     int benchmark = 0;
     bool column_order = false;
