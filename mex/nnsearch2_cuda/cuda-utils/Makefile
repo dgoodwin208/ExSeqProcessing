@@ -2,6 +2,7 @@
 .PHONY: clean
 
 SOURCES := $(wildcard *.cu)
+HEADERS := $(wildcard *.h)
 OBJS := $(SOURCES:.cu=.o)
 TEST_OBJS := $(patsubst %.cu,test/%.o,$(SOURCES))
 
@@ -16,11 +17,11 @@ libcudautils.a: $(OBJS)
 libcudautils_test.a: test $(TEST_OBJS)
 	ar crs $@ $(TEST_OBJS)
 
-.cu.o: $(SOURCES)
-	nvcc -std=c++11 $(NVCC_FLAGS) -Xcompiler -fPIC -c -o $*.o $< -lcudart -I$(SPDLOG_INCLUDE)
+.cu.o: $(SOURCES) $(HEADERS)
+	nvcc -std=c++11 $(NVCC_FLAGS) -Xcompiler -fPIC -c -o $*.o $< -I$(SPDLOG_INCLUDE) -I..
 
 test/%.o: %.cu
-	nvcc -std=c++11 $(NVCC_FLAGS) -D DEBUG_DIST_CHECK -Xcompiler -fPIC -c -o $@ $< -lcudart -I$(SPDLOG_INCLUDE)
+	nvcc -g -std=c++11 $(NVCC_FLAGS) -D DEBUG_DIST_CHECK -Xcompiler -fPIC -c -o $@ $< -I$(SPDLOG_INCLUDE) -I..
 
 test:
 	mkdir -p test

@@ -11,11 +11,13 @@
 #include <thrust/device_vector.h>
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
+#include "cuda_task.h"
+
 #include "spdlog/spdlog.h"
 
 //#define DEBUG_OUTPUT
+//#define DEBUG_TIMER_OUTPUT
 //#define DEBUG_DIST_CHECK
-//#define DEBUG_NO_THREADING
 
 namespace cudautils {
 
@@ -95,7 +97,7 @@ void swap_sort(
         unsigned int *idx);
 
 
-class NearestNeighborSearch {
+class NearestNeighborSearch : public parallelutils::CudaTask {
 
     //   This class provides a function to calculate distances between all the combinations of two sets of vectors,
     //   and then find two pairs of minimum distances
@@ -104,7 +106,7 @@ class NearestNeighborSearch {
     //       two sets of vectors that equal to matrices, x and y;
     //           the dimension of x is m rows and k columns
     //           the dimension of y is n rows and k columns
-    //       these matrices are row-major matrices
+    //       these matrices are colomn-major matrices
     //
     //   Output:
     //       a list of two distances and their indices that show the nearest neighbor elements in y from x
@@ -156,8 +158,6 @@ class NearestNeighborSearch {
 
         thrust::device_vector<double> val;
         thrust::device_vector<unsigned int> idx;
-
-        std::future<int> future;
     };
 
     struct SubDomainDataOnGPU {
@@ -165,8 +165,6 @@ class NearestNeighborSearch {
 
         thrust::device_vector<double> y;
         thrust::device_vector<double> y2;
-
-        std::future<int> future;
 
         std::vector<std::shared_ptr<SubDomainDataOnStream>> stream_data;
     };
@@ -185,18 +183,30 @@ public:
             const unsigned int num_gpus,
             const unsigned int num_streams);
 
-    ~NearestNeighborSearch();
+    virtual ~NearestNeighborSearch();
 
 
     void generateSequences();
     void setInput(double* in_x, double* in_y);
-    void getResult(double** out_mins_val, unsigned int** out_mins_idx);
+    void setInput(std::vector<double>& in_x, std::vector<double>& in_y);
+    void getResult(double* out_mins_val, unsigned int* out_mins_idx);
+    void getResult(std::vector<double>& out_mins_val, std::vector<unsigned int>& out_mins_idx);
     void getDist2(double** out_dist2);
     double getDist2(size_t i, size_t j);
 
-    void run();
-    int runOnGPU(const unsigned int idx_gpu);
-    int runOnStream(const unsigned int idx_gpu, const unsigned int s_i, const unsigned int y_i);
+    virtual int getNumOfGPUTasks(const int gpu_id);
+    virtual int getNumOfStreamTasks(const int gpu_id, const int stream_id);
+
+    virtual void prerun() {}
+    virtual void postrun();
+
+    virtual void runOnGPU(const int gpu_id, const unsigned int gpu_task_id);
+    virtual void postrunOnGPU(const int gpu_id, const unsigned int gpu_task_id) {}
+    virtual void runOnStream( const int gpu_id, const int stream_id, const unsigned int gpu_task_id);
+
+//    void run();
+//    int runOnGPU(const unsigned int idx_gpu, const unsigned int task_id);
+//    int runOnStream(const unsigned int idx_gpu, const unsigned int s_i, const unsigned int y_i);
 
 
     void precacheSquaredDistance(
