@@ -14,7 +14,7 @@
 
 function registerWithDescriptors(moving_run)
 
-profile on;
+%profile on;
 
 loadExperimentParams;
 
@@ -581,7 +581,7 @@ for c = 1:length(params.CHANNELS)
     save3DTif_uint16(outputImage_interp,outputfile);
 end
 
-profile off; profsave(profile('info'),sprintf('profile-results-register-with-desc-%d',moving_run));
+%profile off; profsave(profile('info'),sprintf('profile-results-register-with-desc-%d',moving_run));
 
 end
 

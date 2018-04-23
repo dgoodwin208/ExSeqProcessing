@@ -1,41 +1,30 @@
-#TARGET=lib-cuda-utils lib-mex-utils lib-utils nnsearch2_cuda.mexa64
-#TARGET=lib-cuda-utils nnsearch2_cuda.mexa64
-TARGET=nnsearch2_cuda.mexa64
+TARGET=nnsearch2_cuda.mexa64 nnsearch2_cuda
 
-#SOURCES := $(wildcard *.cpp)
-SOURCES := $(wildcard nnsearch2_*.cpp)
-OBJS := $(SOURCES:.cpp=.o)
-
-MATLAB_GPU_INC=/usr/local/MATLAB/R2017a/toolbox/distcomp/gpu/extern/include
+MATLAB_GPU_INC=/usr/local/MATLAB/R2018a/toolbox/distcomp/gpu/extern/include
 CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64
 
 all: $(TARGET)
 
-nnsearch2_cuda.mexa64: $(OBJS) cuda-utils/libcudautils.a
-	mex -output $@ $(OBJS) -L./cuda-utils -lcudautils -lmwgpu -L$(CUDA_LIB) -lcudart
+nnsearch2_cuda.mexa64: nnsearch2_cuda.o cuda_task_executor.o cuda-utils/libcudautils.a
+	mex -output $@ $^ -L./cuda-utils -lcudautils -lmwgpu -L$(CUDA_LIB) -lcudart
 	@cp -a $@ ../
 
-#nnsearch2_cuda.mexa64: $(OBJS) cuda-utils/libcudautils.a mex-utils/libmexutils.a utils/libutils.a
-#	mex -output $@ $(OBJS) -L./cuda-utils -lcudautils -L./mex-utils -lmexutils -L./utils -lutils -lmwgpu -L$(CUDA_LIB) -lcudart -ltbb
-#	@cp -a $@ ../
+nnsearch2_cuda.o: nnsearch2_cuda.cpp
+	mex -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I.
 
-.cpp.o: $(SOURCES)
-	mex -c $< -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
+.cpp.o: cmd_nnsearch2_cuda.cpp cuda_task_executor.cpp
+	g++ -std=c++11 -fPIC -c -o $@ $< -I../include -I$(CUDA_INC) -I.
 
 #lib-cuda-utils:
-cuda-utils/libcudautils.a:
+cuda-utils/libcudautils.a: cuda-utils/*.cu cuda-utils/*.h
 	make -C cuda-utils
 
-#lib-mex-utils:
-#	make -C mex-utils
-#
-#lib-utils:
-#	make -C utils
+
+nnsearch2_cuda: cmd_nnsearch2_cuda.o cuda_task_executor.o cuda-utils/libcudautils.a
+	g++ -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 
 clean:
-	-rm *.mexa64 *.o
+	-rm -f *.mexa64 *.o
 	@make -C cuda-utils clean
-#	@make -C mex-utils clean
-#	@make -C utils clean
 

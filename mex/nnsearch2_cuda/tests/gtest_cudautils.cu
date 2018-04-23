@@ -2,12 +2,14 @@
 
 #include "gpudevice.h"
 #include "nnsearch2.h"
+#include "cuda_task_executor.h"
 
 #include "spdlog/spdlog.h"
 
 #include <iostream>
 #include <vector>
 #include <string>
+#include <memory>
 #include <cstdint>
 #include <random>
 
@@ -15,8 +17,13 @@ namespace {
 
 class GpuDeviceTest : public ::testing::Test {
 protected:
+    std::shared_ptr<spdlog::logger> logger_;
+
     GpuDeviceTest() {
-        auto logger = spdlog::basic_logger_mt("mex_logger", "mex.log");
+        logger_ = spdlog::get("console");
+        if (! logger_) {
+            logger_ = spdlog::stdout_logger_mt("console");
+        }
     }
     virtual ~GpuDeviceTest() {
     }
@@ -66,17 +73,20 @@ TEST_F(NearestNeighborSearchTest, SmallSize1Test) {
     unsigned int dm = 6;
     unsigned int dn = 4;
 
-    unsigned int num_gpus = 1;
-    unsigned int num_streams = 1;
+    int num_gpus = 1;
+    int num_streams = 1;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, SmallSize2Test) {
@@ -88,17 +98,20 @@ TEST_F(NearestNeighborSearchTest, SmallSize2Test) {
     unsigned int dm = 3;
     unsigned int dn = 2;
 
-    unsigned int num_gpus = 1;
-    unsigned int num_streams = 1;
+    int num_gpus = 1;
+    int num_streams = 1;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, SmallSize3Test) {
@@ -110,17 +123,20 @@ TEST_F(NearestNeighborSearchTest, SmallSize3Test) {
     unsigned int dm = 3;
     unsigned int dn = 2;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 1;
+    int num_gpus = 2;
+    int num_streams = 1;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, SmallSize4Test) {
@@ -132,17 +148,20 @@ TEST_F(NearestNeighborSearchTest, SmallSize4Test) {
     unsigned int dm = 3;
     unsigned int dn = 2;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 2;
+    int num_gpus = 2;
+    int num_streams = 2;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, SmallSize5Test) {
@@ -154,17 +173,20 @@ TEST_F(NearestNeighborSearchTest, SmallSize5Test) {
     unsigned int dm = 20;
     unsigned int dn = 40;
 
-    unsigned int num_gpus = 1;
-    unsigned int num_streams = 1;
+    int num_gpus = 1;
+    int num_streams = 1;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, MiddleSize1Test) {
@@ -176,17 +198,20 @@ TEST_F(NearestNeighborSearchTest, MiddleSize1Test) {
     unsigned int dm = 200;
     unsigned int dn = 200;
 
-    unsigned int num_gpus = 1;
-    unsigned int num_streams = 1;
+    int num_gpus = 1;
+    int num_streams = 1;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, MiddleSize2Test) {
@@ -198,17 +223,20 @@ TEST_F(NearestNeighborSearchTest, MiddleSize2Test) {
     unsigned int dm = 20;
     unsigned int dn = 20;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 4;
+    int num_gpus = 2;
+    int num_streams = 4;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, MiddleSize3Test) {
@@ -220,17 +248,20 @@ TEST_F(NearestNeighborSearchTest, MiddleSize3Test) {
     unsigned int dm = 20;
     unsigned int dn = 30;
 
-    unsigned int num_gpus = 1;
-    unsigned int num_streams = 1;
+    int num_gpus = 1;
+    int num_streams = 1;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, MiddleSize4Test) {
@@ -242,17 +273,20 @@ TEST_F(NearestNeighborSearchTest, MiddleSize4Test) {
     unsigned int dm = 20;
     unsigned int dn = 150;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 4;
+    int num_gpus = 2;
+    int num_streams = 4;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 
@@ -265,17 +299,20 @@ TEST_F(NearestNeighborSearchTest, LargeSize1Test) {
     unsigned int dm = 1000;
     unsigned int dn = 1000;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 2;
+    int num_gpus = 2;
+    int num_streams = 2;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, LargeSize2Test) {
@@ -287,17 +324,20 @@ TEST_F(NearestNeighborSearchTest, LargeSize2Test) {
     unsigned int dm = 1000;
     unsigned int dn = 1000;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 4;
+    int num_gpus = 2;
+    int num_streams = 4;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.generateSequences();
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->generateSequences();
 
-    ASSERT_TRUE(nns.checkResult());
+    executor.run();
+
+    ASSERT_TRUE(nns->checkResult());
 }
 
 TEST_F(NearestNeighborSearchTest, LargeSize3Test) {
@@ -348,15 +388,18 @@ TEST_F(NearestNeighborSearchTest, LargeSize3Test) {
     unsigned int dm = 1000;
     unsigned int dn = 50000;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 10;
+    int num_gpus = 2;
+    int num_streams = 10;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.setInput(data1, data2);
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->setInput(data1, data2);
+
+    executor.run();
 
     std::string file = testdata_dir_ + "testdata01/sift_dist2_dim.bin";
     FILE *fp = fopen(file.c_str(), "rb");
@@ -378,7 +421,7 @@ TEST_F(NearestNeighborSearchTest, LargeSize3Test) {
 //        std::cout << "dist2[" << i << "]=" << dist2[i] << std::endl;
 //    }
 
-    ASSERT_TRUE(nns.checkDist2(dist2));
+    ASSERT_TRUE(nns->checkDist2(dist2));
 //    double *val = new double[2 * m];
 //    unsigned int *idx = new unsigned int[2 * m];
 //
@@ -432,15 +475,18 @@ TEST_F(NearestNeighborSearchTest, LargeSize4Test) {
     unsigned int dm = 1000;
     unsigned int dn = (n > 50000) ? 50000 : n;
 
-    unsigned int num_gpus = 2;
-    unsigned int num_streams = 10;
+    int num_gpus = 2;
+    int num_streams = 10;
 
     print_parameters(m, n, k, dm, dn, num_gpus, num_streams);
-    cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+    std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+        std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-    nns.setInput(data1, data2);
+    parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-    nns.run();
+    nns->setInput(data1, data2);
+
+    executor.run();
 
     std::string file = testdata_dir_ + "testdata02/sift_dist2_dim.bin";
     FILE *fp = fopen(file.c_str(), "rb");
@@ -462,7 +508,7 @@ TEST_F(NearestNeighborSearchTest, LargeSize4Test) {
 //        std::cout << "dist2[" << i << "]=" << dist2[i] << std::endl;
 //    }
 
-    ASSERT_TRUE(nns.checkDist2(dist2));
+    ASSERT_TRUE(nns->checkDist2(dist2));
 
 
 //    for (unsigned int i = 0; i < m; i++) {

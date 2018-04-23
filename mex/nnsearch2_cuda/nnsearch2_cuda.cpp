@@ -14,20 +14,19 @@
  *=================================================================*/
  
 
-#include <thread>
-#include <chrono>
-#include <iomanip>
 #include <fstream>
 #include <vector>
-#include <set>
-#include <tuple>
+#include <string>
 
 #include "spdlog/spdlog.h"
 #include "cuda-utils/nnsearch2.h"
 #include "cuda-utils/gpudevice.h"
+#include "cuda_task_executor.h"
 
 #include "mex.h"
 #include "matrix.h"
+#include "gpu/mxGPUArray.h"
+
 
 void
 mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
@@ -94,18 +93,22 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
         unsigned int dm = 1000;
         unsigned int dn = (n > 50000) ? 50000 : n;
-        unsigned int num_streams = 10;
+        int num_streams = 10;
+        //unsigned int num_streams = 1;
 
         //TODO check the max of GPU memory usage!
 
         try {
-            cudautils::NearestNeighborSearch nns(m, n, k, dm, dn, num_gpus, num_streams);
+            std::shared_ptr<cudautils::NearestNeighborSearch> nns =
+                std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-            nns.setInput(inMatrix[0], inMatrix[1]);
+            parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
-            nns.run();
+            nns->setInput(inMatrix[0], inMatrix[1]);
 
-            nns.getResult(&outMinsVal, &outMinsIdx);
+            executor.run();
+
+            nns->getResult(outMinsVal, outMinsIdx);
         } catch (...) {
             mexErrMsgIdAndTxt("MATLAB:nnsearch2_impl:unknownError", "internal unknown error occurred");
         }

@@ -298,11 +298,10 @@ void gather_values_on_blocks(
 
     for (unsigned int base_idx = 0; base_idx < n_size; base_idx += block_size) {
         unsigned int i = tid + base_idx;
-        if (i >= n_size) {
+        unsigned int j = (i / 2) * block_size + (i % 2);
+        if (i >= n_size || j >= n_size) {
             continue;
         }
-
-        unsigned int j = (i / 2) * block_size + (i % 2);
 
         sval[tid]   = val[j + block_id * stride];
         sindex[tid] = idx[j + block_id * stride];
@@ -358,6 +357,11 @@ NearestNeighborSearch::NearestNeighborSearch(
     if (! logger_) {
         logger_ = spdlog::stdout_logger_mt("console");
     }
+#ifdef DEBUG_OUTPUT
+    spdlog::set_level(spdlog::level::debug);
+#else
+    logger_->set_level(spdlog::level::off);
+#endif
 
     size_t log_q_size = 4096;
     spdlog::set_async_mode(log_q_size);
@@ -395,6 +399,11 @@ NearestNeighborSearch::NearestNeighborSearch(
         }
     }
     cudaSetDevice(0);
+
+    for (unsigned int y_i = 0; y_i < num_dn_; y_i++) {
+        unsigned int gpu_id = y_i % num_gpus_;
+        subdom_data_[gpu_id]->y_i_list.push_back(y_i);
+    }
 }
 
 NearestNeighborSearch::~NearestNeighborSearch() {
@@ -423,11 +432,25 @@ void NearestNeighborSearch::setInput(double* in_x, double* in_y) {
     thrust::copy(in_y, in_y + n_ * k_, dom_data_->h_y.begin());
 }
 
-void NearestNeighborSearch::getResult(double** out_mins_val, unsigned int** out_mins_idx) {
+void NearestNeighborSearch::setInput(std::vector<double>& in_x, std::vector<double>& in_y) {
+    thrust::copy(in_x.begin(), in_x.end(), dom_data_->h_x.begin());
+    thrust::copy(in_y.begin(), in_y.end(), dom_data_->h_y.begin());
+}
+
+void NearestNeighborSearch::getResult(double* out_mins_val, unsigned int* out_mins_idx) {
     for (unsigned int j = 0; j < 2; j++) {
         for (unsigned int i = 0; i < m_; i++) {
-            (*out_mins_val)[i + j * m_] = dom_data_->h_mins_val[j + i * 2];
-            (*out_mins_idx)[i + j * m_] = dom_data_->h_mins_idx[j + i * 2] + 1;
+            out_mins_val[i + j * m_] = dom_data_->h_mins_val[j + i * 2];
+            out_mins_idx[i + j * m_] = dom_data_->h_mins_idx[j + i * 2] + 1;
+        }
+    }
+}
+
+void NearestNeighborSearch::getResult(std::vector<double>& out_mins_val, std::vector<unsigned int>& out_mins_idx) {
+    for (unsigned int j = 0; j < 2; j++) {
+        for (unsigned int i = 0; i < m_; i++) {
+            out_mins_val[i + j * m_] = dom_data_->h_mins_val[j + i * 2];
+            out_mins_idx[i + j * m_] = dom_data_->h_mins_idx[j + i * 2] + 1;
         }
     }
 }
@@ -450,107 +473,81 @@ double NearestNeighborSearch::getDist2(size_t i, size_t j) {
 #endif
 }
 
-
-void NearestNeighborSearch::run() {
-#ifdef DEBUG_OUTPUT
-    CudaTimer timer;
-#endif
-    for (unsigned int y_i = 0; y_i < num_dn_; y_i++) {
-        unsigned int idx_gpu = y_i % num_gpus_;
-        subdom_data_[idx_gpu]->y_i_list.push_back(y_i);
-    }
-
-    std::vector<std::future<int>> futures;
-    for (unsigned int idx_gpu = 0; idx_gpu < num_gpus_; idx_gpu++) {
-#ifndef DEBUG_NO_THREADING
-        futures.push_back(std::async(std::launch::async, &NearestNeighborSearch::runOnGPU, this, idx_gpu));
-#else
-        runOnGPU(idx_gpu);
-#endif
-    }
-
-#ifndef DEBUG_NO_THREADING
-    for (auto& future : futures) {
-        int ret = future.get();
-        if (ret == -1) {
-            std::cout << "Thread has failed." << std::endl;
-            return;//TODO change to throw
-        }
-    }
-#endif
-#ifdef DEBUG_OUTPUT
-    logger_->info("calc {}", timer.get_laptime());
-#endif
-
-    if (num_dn_ > 1) {
-#ifdef DEBUG_OUTPUT
-        timer.reset();
-        logger_->info("===== get total two tops of mins");
-#endif
-        getTotalTwoTopsOfMins();
-#ifdef DEBUG_OUTPUT
-        logger_->info("get total two tops of mins ", timer.get_laptime());
-#endif
-    }
+int NearestNeighborSearch::getNumOfGPUTasks(const int gpu_id) {
+    return subdom_data_[gpu_id]->y_i_list.size();
 }
 
-int NearestNeighborSearch::runOnGPU(const unsigned int idx_gpu) {
-    cudaSetDevice(idx_gpu);
-
-    std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[idx_gpu];
-    for (auto it = subdom_data->y_i_list.begin(); it != subdom_data->y_i_list.end(); ++it) {
-        unsigned int y_i = *it;
-
-        unsigned int y_start = y_i * dn_;
-        unsigned int n_steps = get_delta(n_, y_i, dn_);
-#ifdef DEBUG_OUTPUT
-        logger_->info("y_i={},n_steps={}", y_i, n_steps);
-#endif
-
-        precacheSquaredDistance(n_, k_, n_steps, y_start,
-                dom_data_->h_y, subdom_data->y, subdom_data->y2, subdom_data->stream_data[0]->stream);
-
-        cudaStreamSynchronize(subdom_data->stream_data[0]->stream);
-
-        for (unsigned int x_i = 0; x_i < num_dm_; x_i++) {
-            unsigned int s_i = x_i % num_streams_;
-#ifdef DEBUG_OUTPUT
-            logger_->info("x_i={},y_i={}", x_i, y_i);
-#endif
-            subdom_data->stream_data[s_i]->x_i_list.push_back(x_i);
-        }
-
-        std::vector<std::future<int>> futures;
-        for (unsigned int s_i = 0; s_i < num_streams_; s_i++) {
-#ifndef DEBUG_NO_THREADING
-            futures.push_back(std::async(std::launch::async, &NearestNeighborSearch::runOnStream, this, idx_gpu, s_i, y_i));
-#else
-            runOnStream(idx_gpu, s_i, y_i);
-#endif
-
-        }
-
-#ifndef DEBUG_NO_THREADING
-        for (auto& future : futures) {
-            int ret = future.get();
-            if (ret == -1) {
-                std::cout << "Thread has failed." << std::endl;
-                return -1;//TODO change to throw
-            }
-        }
-#endif
-    }
-
+int NearestNeighborSearch::getNumOfStreamTasks(
+        const int gpu_id,
+        const int stream_id) {
     return 1;
 }
 
-int NearestNeighborSearch::runOnStream(const unsigned int idx_gpu, const unsigned int s_i, const unsigned int y_i) {
-    cudaSetDevice(idx_gpu);
+void NearestNeighborSearch::postrun() {
 
-    std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[idx_gpu];
-    std::shared_ptr<SubDomainDataOnStream> stream_data = subdom_data->stream_data[s_i];
+    try {
 
+        if (num_dn_ > 1) {
+#ifdef DEBUG_OUTPUT
+            CudaTimer timer;
+            logger_->info("===== get total two tops of mins");
+#endif
+            getTotalTwoTopsOfMins();
+#ifdef DEBUG_OUTPUT
+            logger_->info("get total two tops of mins ", timer.get_laptime());
+#endif
+        }
+    } catch (...) {
+        logger_->error("postrun() has exception.");
+    }
+}
+
+void NearestNeighborSearch::runOnGPU(
+        const int gpu_id,
+        const unsigned int gpu_task_id) {
+
+    cudaSetDevice(gpu_id);
+
+    std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[gpu_id];
+
+    unsigned int y_i = subdom_data->y_i_list[gpu_task_id];
+
+    unsigned int y_start = y_i * dn_;
+    unsigned int n_steps = get_delta(n_, y_i, dn_);
+#ifdef DEBUG_OUTPUT
+    logger_->info("y_i={},n_steps={}", y_i, n_steps);
+#endif
+
+    precacheSquaredDistance(n_, k_, n_steps, y_start,
+            dom_data_->h_y, subdom_data->y, subdom_data->y2, subdom_data->stream_data[0]->stream);
+
+    cudaStreamSynchronize(subdom_data->stream_data[0]->stream);
+
+    for (unsigned int x_i = 0; x_i < num_dm_; x_i++) {
+        unsigned int s_i = x_i % num_streams_;
+#ifdef DEBUG_OUTPUT
+        logger_->info("x_i={},y_i={}", x_i, y_i);
+#endif
+
+        subdom_data->stream_data[s_i]->x_i_list.push_back(x_i);
+    }
+}
+
+void NearestNeighborSearch::runOnStream(
+        const int gpu_id,
+        const int stream_id,
+        const unsigned int gpu_task_id) {
+
+    cudaSetDevice(gpu_id);
+
+    std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[gpu_id];
+    std::shared_ptr<SubDomainDataOnStream> stream_data = subdom_data->stream_data[stream_id];
+
+    unsigned int y_i = subdom_data->y_i_list[gpu_task_id];
+
+#ifdef DEBUG_OUTPUT
     CudaTimer timer(stream_data->stream);
+#endif
 
     unsigned int y_start = y_i * dn_;
     unsigned int n_steps = get_delta(n_, y_i, dn_);
@@ -561,9 +558,8 @@ int NearestNeighborSearch::runOnStream(const unsigned int idx_gpu, const unsigne
         unsigned int x_start = x_i * dm_;
         unsigned int m_steps = get_delta(m_, x_i, dm_);
 #ifdef DEBUG_OUTPUT
-        logger_->info("idx_gpu={},s_i={},y_i={},x_i={},m_steps={},n_steps={}", idx_gpu, s_i, y_i, x_i, m_steps, n_steps);
+        logger_->info("gpu_id={},stream_id={},y_i={},x_i={},m_steps={},n_steps={}", gpu_id, stream_id, y_i, x_i, m_steps, n_steps);
         logger_->info("setup dist2 {}", timer.get_laptime());
-
         timer.reset();
         logger_->info("===== calc dist2");
 #endif
@@ -574,11 +570,10 @@ int NearestNeighborSearch::runOnStream(const unsigned int idx_gpu, const unsigne
                 stream_data->stream);
 #ifdef DEBUG_OUTPUT
         logger_->info("calc dist2 {}", timer.get_laptime());
-
         timer.reset();
         logger_->info("===== get two tops of mins");
 #endif
-        getTwoTopsOfMinsInBlock(idx_gpu, s_i, x_i, y_i, m_steps, n_steps, y_start);
+        getTwoTopsOfMinsInBlock(gpu_id, stream_id, x_i, y_i, m_steps, n_steps, y_start);
 #ifdef DEBUG_OUTPUT
         logger_->info("get two tops of mins {}", timer.get_laptime());
 #endif
@@ -598,8 +593,6 @@ int NearestNeighborSearch::runOnStream(const unsigned int idx_gpu, const unsigne
 #endif
 #endif
     }
-
-    return 1;
 }
 
 void NearestNeighborSearch::precacheSquaredDistance(
@@ -655,16 +648,16 @@ void NearestNeighborSearch::calcSquaredDistanceWithCachedY(
     unsigned int n_blocks = get_num_blocks(dn, 1024);
 #ifdef DEBUG_OUTPUT
     logger_->info("setup (device) {}", timer.get_laptime());
-
     timer.reset();
 #endif
+
     sum_squared<<<m_blocks, 1024, 0, stream>>>(dm, k,
             thrust::raw_pointer_cast(x.data()), thrust::raw_pointer_cast(x2.data()));
 #ifdef DEBUG_OUTPUT
     logger_->info("sum_sqrd x {}", timer.get_laptime());
-
     timer.reset();
 #endif
+
     m_blocks = get_num_blocks(dm, 32);
     n_blocks = get_num_blocks(dn, 32);
     dim3 blocks_norm = dim3(n_blocks, m_blocks, 1);
@@ -672,6 +665,7 @@ void NearestNeighborSearch::calcSquaredDistanceWithCachedY(
 #ifdef DEBUG_OUTPUT
     logger_->info("m_blocks={},n_blocks={}", m_blocks, n_blocks);
 #endif
+
     calc_squared_norm<<<blocks_norm, threads_norm, 0, stream>>>(dm, dn, k,
         thrust::raw_pointer_cast(x.data()), thrust::raw_pointer_cast(y.data()),
         thrust::raw_pointer_cast(x2.data()), thrust::raw_pointer_cast(y2.data()),
@@ -684,7 +678,7 @@ void NearestNeighborSearch::calcSquaredDistanceWithCachedY(
 }
 
 void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
-        const unsigned int idx_gpu,
+        const unsigned int gpu_id,
         const unsigned int s_i,
         const unsigned int x_i,
         const unsigned int y_i,
@@ -692,7 +686,7 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
         const unsigned int n_steps,
         const unsigned int y_start) {
 
-    std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[idx_gpu];
+    std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[gpu_id];
     std::shared_ptr<SubDomainDataOnStream> stream_data = subdom_data->stream_data[s_i];
 
 #ifdef DEBUG_OUTPUT
@@ -706,6 +700,7 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
     logger_->info("== get two tops of mins (1-1)");
     logger_->info("n_blocks={},m_steps={},n_steps={},y_start={}", n_blocks, m_steps, n_steps, y_start);
 #endif
+
     get_two_mins<<<blocks_two_mins, defaults::num_threads_in_twotops_func, 0, stream_data->stream>>>(
             n_steps,
             y_start,
@@ -714,10 +709,10 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
             thrust::raw_pointer_cast(stream_data->idx.data()));
 #ifdef DEBUG_OUTPUT
     logger_->info("get two tops of mins (1-1) {}", timer.get_laptime());
-
     timer.reset();
     logger_->info("== get two tops of mins (1-2)");
 #endif
+
     unsigned int n_stride = 2 * n_blocks;
     unsigned int cur_n_size = 2 * n_blocks;
     unsigned int count = 1;
@@ -726,6 +721,7 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
 #ifdef DEBUG_OUTPUT
         logger_->info("[{}] n_stride={},n_blocks={},cur_n_size={}", count++, n_stride, n_blocks, cur_n_size);
 #endif
+
         //CAUTION: n_blocks and m_steps should be under 65535
         blocks_two_mins = dim3(n_blocks, m_steps, 1);
 
@@ -782,9 +778,9 @@ void NearestNeighborSearch::getTwoTopsOfMinsInBlock(
             cudaMemcpyDeviceToHost, stream_data->stream);
 #ifdef DEBUG_OUTPUT
     logger_->info("copy dev to host (val) {}", timer.get_laptime());
-
     timer.reset();
 #endif
+
     cudaMemcpy2DAsync(thrust::raw_pointer_cast(&dom_data_->h_mins_idx[2 * y_i + x_i * 2 * num_dn_ * dm_]), 2 * num_dn_ * sizeof(unsigned int),
             thrust::raw_pointer_cast(stream_data->idx.data()), n_stride * sizeof(unsigned int), 2 * sizeof(unsigned int), m_steps,
             cudaMemcpyDeviceToHost, stream_data->stream);
@@ -801,6 +797,7 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
     CudaTimer timer;
     logger_->info("===== gather results in sub domains");
 #endif
+
     thrust::device_vector<double> val(dom_data_->h_mins_val);
     thrust::device_vector<unsigned int> idx(dom_data_->h_mins_idx);
 
@@ -813,6 +810,7 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
 #ifdef DEBUG_OUTPUT
         logger_->info("== get two tops of min (2)");
 #endif
+
         next_n_blocks = get_num_blocks(cur_n_size, n_block_size);
 #ifdef DEBUG_OUTPUT
         logger_->info("[{}] n_stride={},next_n_blocks={},cur_n_size={}", count++, n_stride, next_n_blocks, cur_n_size);
@@ -820,6 +818,11 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
 
         unsigned int num_m_blocks_z = get_num_blocks(m_, defaults::num_blocks_y_in_twotops_func);
         unsigned int num_m_blocks_y = (num_m_blocks_z == 1) ? m_ : defaults::num_blocks_y_in_twotops_func;
+#ifdef DEBUG_OUTPUT
+        logger_->info("[{}] num_m_blocks_y={},num_m_blocks_z={}", count, num_m_blocks_y, num_m_blocks_z);
+        logger_->info("[{}] val_size={}", count, val.size());
+#endif
+
         dim3 blocks_two_mins(next_n_blocks, num_m_blocks_y, num_m_blocks_z);
 
         get_two_mins_with_index<<<blocks_two_mins, defaults::num_threads_in_twotops_func, 0, 0>>>(
@@ -860,22 +863,22 @@ void NearestNeighborSearch::getTotalTwoTopsOfMins()
             thrust::raw_pointer_cast(idx.data()));
 #ifdef DEBUG_OUTPUT
     logger_->info("swap sort (2) {}", timer.get_laptime());
-
     timer.reset();
 #endif
+
     cudaMemcpy2D(thrust::raw_pointer_cast(&dom_data_->h_mins_val[0]), 2 * sizeof(double),
             thrust::raw_pointer_cast(val.data()), n_stride * sizeof(double), 2 * sizeof(double), m_,
             cudaMemcpyDeviceToHost);
 #ifdef DEBUG_OUTPUT
-    logger_->info("copy dev to host (val) {}", timer.get_laptime());
-
+    logger_->info("copy dev to host (all val) {}", timer.get_laptime());
     timer.reset();
 #endif
+
     cudaMemcpy2D(thrust::raw_pointer_cast(&dom_data_->h_mins_idx[0]), 2 * sizeof(unsigned int),
             thrust::raw_pointer_cast(idx.data()), n_stride * sizeof(unsigned int), 2 * sizeof(unsigned int), m_,
             cudaMemcpyDeviceToHost);
 #ifdef DEBUG_OUTPUT
-    logger_->info("copy dev to host (idx) {}", timer.get_laptime());
+    logger_->info("copy dev to host (all idx) {}", timer.get_laptime());
 #endif
 
     cudaDeviceSynchronize();
@@ -963,10 +966,6 @@ bool NearestNeighborSearch::checkResult() {
 bool NearestNeighborSearch::checkDist2(double *dist2) {
     size_t count = 0;
 #ifdef DEBUG_DIST_CHECK
-    logger_->info("i={},j={}  dist2[{}]={}", 453, 10100, 453 + 10100 * m_, dist2[453 + 10100 * m_]);
-    logger_->info("i={},j={}  dist2[{}]={}", 452, 10100, 452 + 10100 * m_, dist2[452 + 10100 * m_]);
-    logger_->info("i={},j={}  dist2[{}]={}", 451, 10100, 451 + 10100 * m_, dist2[451 + 10100 * m_]);
-    logger_->info("i={},j={}  dist2[{}]={}", 452, 10099, 452 + 10099 * m_, dist2[452 + 10099 * m_]);
     for (size_t i = 0; i < m_; i++) {
         for (size_t j = 0; j < n_; j++) {
             double diff = dist2[i + j * m_] - dom_data_->h_r[j + i * n_];
