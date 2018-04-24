@@ -7,7 +7,7 @@
 #include "spdlog/spdlog.h"
 
 
-namespace parallelutils {
+namespace cudautils {
 
 CudaTaskExecutor::CudaTaskExecutor(
         const int num_gpus,
@@ -18,8 +18,6 @@ CudaTaskExecutor::CudaTaskExecutor(
     if (! logger_) {
         logger_ = spdlog::stdout_logger_mt("console");
     }
-//    spdlog::set_level(spdlog::level::debug);
-    spdlog::set_level(spdlog::level::warn);
 }
 
 int CudaTaskExecutor::run() {

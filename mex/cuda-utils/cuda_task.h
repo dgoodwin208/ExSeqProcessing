@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 
-namespace parallelutils {
+namespace cudautils {
 
 class CudaTask {
 

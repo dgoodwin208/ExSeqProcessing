@@ -5,7 +5,6 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
-#include <future>
 
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -97,7 +96,7 @@ void swap_sort(
         unsigned int *idx);
 
 
-class NearestNeighborSearch : public parallelutils::CudaTask {
+class NearestNeighborSearch : public cudautils::CudaTask {
 
     //   This class provides a function to calculate distances between all the combinations of two sets of vectors,
     //   and then find two pairs of minimum distances
@@ -203,10 +202,6 @@ public:
     virtual void runOnGPU(const int gpu_id, const unsigned int gpu_task_id);
     virtual void postrunOnGPU(const int gpu_id, const unsigned int gpu_task_id) {}
     virtual void runOnStream( const int gpu_id, const int stream_id, const unsigned int gpu_task_id);
-
-//    void run();
-//    int runOnGPU(const unsigned int idx_gpu, const unsigned int task_id);
-//    int runOnStream(const unsigned int idx_gpu, const unsigned int s_i, const unsigned int y_i);
 
 
     void precacheSquaredDistance(

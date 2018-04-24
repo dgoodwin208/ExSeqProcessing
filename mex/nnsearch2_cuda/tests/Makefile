@@ -6,50 +6,45 @@
 
 .SUFFIXES: .cu
 
-GTEST_DIR = /mp/nas1/share/lib/googletest/googletest
+GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
 
-CPPFLAGS += -g -std=c++11 -isystem $(GTEST_DIR)/include
-CXXFLAGS += -g -Wall -Wextra -pthread
-NVCCFLAGS = -arch=sm_61
+CUDA_INC=/usr/local/cuda/include
+CUDA_LIB=/usr/local/cuda/lib64
 
-CUDA_INC = /usr/local/cuda/include
-CUDA_LIB = /usr/local/cuda/lib64
+SPDLOG_DIR=../../include
+CUDA_UTILS_DIR=../../cuda-utils
 
-SPDLOG_DIR = ../../include
+CPPFLAGS+=-isystem $(GTEST_DIR)/include -I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR) -I..
+CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread
+NVCCFLAGS=-g -std=c++11 --gpu-architecture=sm_61
 
-UTILS_DIR = ../utils
-CUDAUTILS_DIR = ../cuda-utils
-MEXUTILS_DIR = ../mex-utils
+TESTS=gtest_cudautils_kernel gtest_cudautils
 
-TESTS = gtest_cudautils_kernel gtest_cudautils
-
-GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
-                $(GTEST_DIR)/include/gtest/internal/*.h
+GTEST_HEADERS=$(GTEST_DIR)/include/gtest/*.h \
+              $(GTEST_DIR)/include/gtest/internal/*.h
+GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
 
 
-all : $(TESTS)
+all: $(TESTS)
 
-clean :
+clean:
 	rm -f $(TESTS) *.o
 
 
-gtest_cudautils_kernel.o : gtest_cudautils_kernel.cu $(GTEST_HEADERS)
-	nvcc $(CPPFLAGS) $(NVCCFLAGS) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -I.. -c $<
+nnsearch2_test.o: ../nnsearch2.cu ../nnsearch2.h
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -D DEBUG_DIST_CHECK -Xcompiler -fPIC -c -o $@ $<
 
-gtest_cudautils_kernel : gtest_cudautils_kernel.o $(CUDAUTILS_DIR)/libcudautils_test.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
+gtest_cudautils_kernel.o: gtest_cudautils_kernel.cu $(GTEST_HEADERS)
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -c $<
 
-
-gtest_cudautils.o : gtest_cudautils.cu $(GTEST_HEADERS)
-	nvcc $(CPPFLAGS) $(NVCCFLAGS) -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -I.. -c $<
-
-gtest_cudautils : gtest_cudautils.o ../cuda_task_executor.o $(CUDAUTILS_DIR)/libcudautils_test.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
+gtest_cudautils_kernel: gtest_cudautils_kernel.o nnsearch2_test.o $(CUDA_UTILS_DIR)/libcudautils.a
+	$(CXX) $(CXXFLAGS) $(GTEST_LIBS) -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
 
 
-#gtest_parallelutils.o : gtest_parallelutils.cpp $(GTEST_HEADERS)
-#	g++ $(CPPFLAGS)  -I$(CUDAUTILS_DIR) -I$(SPDLOG_DIR) -I.. -c $<
-#
-#gtest_parallelutils : gtest_parallelutils.o ../cuda_task_executor.o
-#	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $^
+gtest_cudautils.o: gtest_cudautils.cu $(GTEST_HEADERS)
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -c $<
+
+gtest_cudautils: gtest_cudautils.o nnsearch2_test.o $(CUDA_UTILS_DIR)/libcudautils.a
+	$(CXX) $(CXXFLAGS) $(GTEST_LIBS) -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
+
 

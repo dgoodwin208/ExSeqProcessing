@@ -18,8 +18,8 @@
 #include <cmath>
 
 #include "spdlog/spdlog.h"
-#include "cuda-utils/nnsearch2.h"
-#include "cuda-utils/gpudevice.h"
+#include "nnsearch2.h"
+#include "gpudevice.h"
 #include "cuda_task_executor.h"
 
 
@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
             std::shared_ptr<cudautils::NearestNeighborSearch> nns =
                 std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
 
-            parallelutils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
+            cudautils::CudaTaskExecutor executor(num_gpus, num_streams, nns);
 
             nns->setInput(in_data1,in_data2);
 

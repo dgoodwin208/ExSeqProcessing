@@ -9,7 +9,7 @@
 
 #include "spdlog/spdlog.h"
 
-namespace parallelutils {
+namespace cudautils {
 
 #define DEBUG_NO_THREADING
 
