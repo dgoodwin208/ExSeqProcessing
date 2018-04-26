@@ -41,3 +41,5 @@ params.WAIT_SEC = 10;
 params.REG_POOL_SIZE = 2;
 params.PUNCTA_POOL_SIZE = 4;
 params.MAX_RUN_JOBS = 30;
+params.REG_DESC_MAX_RUN_JOBS = 10;
+params.TRANSF_IMG_MAX_RUN_JOBS = 2;

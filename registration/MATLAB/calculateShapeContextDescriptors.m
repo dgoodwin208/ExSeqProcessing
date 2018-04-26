@@ -6,6 +6,44 @@ loadExperimentParams;
 
 disp(['FIXED: ' num2str(fixed_run)])
 
+all_sc_existed = true;
+for x_idx=1:params.COLS_TFORM
+    for y_idx=1:params.ROWS_TFORM
+        df_sift_norm_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_norm_r%uc%u.bin',...
+            params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+        if ~exist(df_sift_norm_filename)
+            disp([df_sift_norm_filename,' is not existed.']);
+            all_sc_existed = false;
+            break;
+        end
+
+        df_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sc_r%uc%u.bin',...
+            params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+        if ~exist(df_sc_filename)
+            disp([df_sc_filename,' is not existed.']);
+            all_sc_existed = false;
+            break;
+        end
+
+        df_sift_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_sc_r%uc%u.bin',...
+            params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+        if ~exist(df_sift_sc_filename)
+            disp([df_sift_sc_filename,' is not existed.']);
+            all_sc_existed = false;
+            break;
+        end
+    end
+end
+
+if all_sc_existed
+    lf_sift_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
+        params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+    if exist(lf_sift_filename)
+        disp('all sift sc files are existed.');
+        return;
+    end
+end
+
 filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',...
     params.SAMPLE_NAME,fixed_run,params.CHANNELS{1} ));
 
@@ -44,7 +82,7 @@ for register_channel = [params.REGISTERCHANNELS_SIFT]
         keys_fixed_total_sift.ivec = vertcat(keys_fixed_total_sift.ivec,ivec);
     end
 end
-fprintf('load sift keys of fixed round%03d (mod). ',params.MOVING_RUN);toc;
+fprintf('load sift keys of fixed round%03d (mod). ',fixed_run);toc;
 
 tic;
 keys_fixed_total_sc.pos = [];
@@ -65,7 +103,7 @@ for register_channel = [params.REGISTERCHANNELS_SC]
         keys_fixed_total_sc.pos = vertcat(keys_fixed_total_sc.pos,pos);
     end
 end
-fprintf('load sc keys of fixed round%03d (mod). ',params.MOVING_RUN);toc;
+fprintf('load sc keys of fixed round%03d (mod). ',fixed_run);toc;
 %------------All descriptors are now loaded as keys_*_total -------------%
 
 
@@ -169,9 +207,45 @@ for x_idx=1:params.COLS_TFORM
         DF_SC=ShapeContext(LF_SIFT,LF_SC);
         toc;
 
-        filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_sift_sc_r%uc%u.mat',...
+        tic;
+        lf_sift_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
             params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
-        save(filename,'LF_SIFT','DF_SIFT_norm','DF_SC','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');
+%        save(lf_sift_filename,'LF_SIFT','DF_SIFT_norm','DF_SC','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');
+        save(lf_sift_filename,'LF_SIFT','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');
+
+        tic;
+        df_sift_norm_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_norm_r%uc%u.bin',...
+            params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+        fid = fopen(df_sift_norm_filename,'w');
+        DF_SIFT_norm_size1 = size(DF_SIFT_norm,1);
+        DF_SIFT_norm_size2 = size(DF_SIFT_norm,2);
+        fwrite(fid,DF_SIFT_norm_size1,'integer*4');
+        fwrite(fid,DF_SIFT_norm_size2,'integer*4');
+        fwrite(fid,DF_SIFT_norm,'double');
+        fclose(fid);
+        fprintf('save DF_SIFT_norm data ');toc;
+
+        tic;
+        df_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sc_r%uc%u.bin',...
+            params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+        fid = fopen(df_sc_filename,'w');
+        DF_SC_size1 = size(DF_SC,1);
+        DF_SC_size2 = size(DF_SC,2);
+        fwrite(fid,DF_SC_size2,'integer*4');
+        fwrite(fid,DF_SC_size1,'integer*4');
+        fwrite(fid,DF_SC','double');
+        fclose(fid);
+        fprintf('save DF_SC data ');toc;
+
+        tic;
+        df_sift_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_sc_r%uc%u.bin',...
+            params.SAMPLE_NAME,fixed_run,y_idx,x_idx));
+        fid = fopen(df_sift_sc_filename,'w');
+        fwrite(fid,DF_SIFT_norm_size1,'integer*4');
+        fwrite(fid,DF_SIFT_norm_size2+DF_SC_size1,'integer*4');
+        fwrite(fid,[DF_SC; DF_SIFT_norm']','double');
+        fclose(fid);
+        fprintf('save DF_SC+DF_SIFT_norm data ');toc;
     end
 end
 
