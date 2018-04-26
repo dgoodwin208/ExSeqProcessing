@@ -253,42 +253,36 @@ NearestInterp::~NearestInterp() {
 
 void NearestInterp::setImage(const double *img)
 {
-    assert((x_size_ * y_size_ * z_size_) == dom_data_->h_image.size());
-
-    thrust::copy(img, img + (x_size_ * y_size_ * z_size_), dom_data_->h_image.begin());
+    thrust::copy(img, img + (x_size_ * y_size_ * z_size_), dom_data_->h_image);
 }
 
 void NearestInterp::setImage(const std::vector<double>& img)
 {
-    assert((x_size_ * y_size_ * z_size_) == dom_data_->h_image.size());
-    assert(img.size() == dom_data_->h_image.size());
+    assert((x_size_ * y_size_ * z_size_) == img.size());
 
-    thrust::copy(img.begin(), img.end(), dom_data_->h_image.begin());
+    thrust::copy(img.begin(), img.end(), dom_data_->h_image);
 }
 
 void NearestInterp::setMapToBeInterpolated(const int8_t *map)
 {
-    assert((x_size_ * y_size_ * z_size_) == dom_data_->h_map.size());
-
-    thrust::copy(map, map + (x_size_ * y_size_ * z_size_), dom_data_->h_map.begin());
+    thrust::copy(map, map + (x_size_ * y_size_ * z_size_), dom_data_->h_map);
 }
 
 void NearestInterp::setMapToBeInterpolated(const std::vector<int8_t>& map)
 {
-    assert((x_size_ * y_size_ * z_size_) == dom_data_->h_map.size());
-    assert(map.size() == dom_data_->h_map.size());
+    assert((x_size_ * y_size_ * z_size_) == map.size());
 
-    thrust::copy(map.begin(), map.end(), dom_data_->h_map.begin());
+    thrust::copy(map.begin(), map.end(), dom_data_->h_map);
 }
 
 void NearestInterp::getImage(double *img)
 {
-    thrust::copy(dom_data_->h_image.begin(), dom_data_->h_image.end(), img);
+    thrust::copy(dom_data_->h_image, dom_data_->h_image + x_size_ * y_size_ * z_size_, img);
 }
 
 void NearestInterp::getImage(std::vector<double>& img)
 {
-    thrust::copy(dom_data_->h_image.begin(), dom_data_->h_image.end(), img.begin());
+    thrust::copy(dom_data_->h_image, dom_data_->h_image + x_size_ * y_size_ * z_size_, img.begin());
 }
 
 
@@ -336,8 +330,14 @@ void NearestInterp::runOnGPU(
     logger_->debug("base_x_sub={},base_y_sub={}", base_x_sub, base_y_sub);
 #endif
 
-    thrust::host_vector<int8_t> padded_sub_map  (x_sub_stride_ * y_sub_stride_ * z_stride_, -1);
-    thrust::host_vector<double> padded_sub_image(x_sub_stride_ * y_sub_stride_ * z_stride_);
+    size_t padded_sub_volume_size = x_sub_stride_ * y_sub_stride_ * z_stride_;
+
+    int8_t *padded_sub_map;
+    double *padded_sub_image;
+    cudaHostAlloc(&padded_sub_map,   padded_sub_volume_size * sizeof(int8_t), cudaHostAllocPortable);
+    cudaHostAlloc(&padded_sub_image, padded_sub_volume_size * sizeof(double), cudaHostAllocPortable);
+
+    thrust::fill(padded_sub_map, padded_sub_map + padded_sub_volume_size, -1);
 
     for (unsigned int k = 0; k < z_size_; k++) {
         for (unsigned int j = 0; j < padding_y_sub_delta; j++) {
@@ -354,12 +354,12 @@ void NearestInterp::runOnGPU(
         }
     }
 
-    thrust::fill(subdom_data->padded_image.begin(), subdom_data->padded_image.end(), 0.0);
+    thrust::fill(thrust::device, subdom_data->padded_image, subdom_data->padded_image + padded_sub_volume_size, 0.0);
 
     cudaMemcpyAsync(
-            thrust::raw_pointer_cast(subdom_data->padded_image.data()),
-            thrust::raw_pointer_cast(padded_sub_image.data()),
-            x_sub_stride_ * y_sub_stride_ * z_stride_ * sizeof(double),
+            subdom_data->padded_image,
+            padded_sub_image,
+            padded_sub_volume_size * sizeof(double),
             cudaMemcpyHostToDevice, stream_data0->stream);
 
 #ifdef DEBUG_OUTPUT
@@ -369,16 +369,16 @@ void NearestInterp::runOnGPU(
 #ifdef DEBUG_OUTPUT_MATRIX
     logger_->info("===== dev image");
     print_matrix3d(logger_, x_size_, y_size_, 0, 0, 0, x_size_, y_size_, z_size_, dom_data_->h_image);
-    print_matrix3d(logger_, x_sub_stride_, y_sub_stride_, 0, 0, 0, x_sub_stride_, y_sub_stride_, z_stride_, subdom_data->padded_image);
+    print_matrix3d_dev(logger_, x_sub_stride_, y_sub_stride_, z_stride_, 0, 0, 0, x_sub_stride_, y_sub_stride_, z_stride_, subdom_data->padded_image);
 #endif
 
     timer.reset();
 #endif
 
     cudaMemcpyAsync(
-            thrust::raw_pointer_cast(subdom_data->padded_map.data()),
-            thrust::raw_pointer_cast(padded_sub_map.data()),
-            x_sub_stride_ * y_sub_stride_ * z_stride_ * sizeof(int8_t),
+            subdom_data->padded_map,
+            padded_sub_map,
+            padded_sub_volume_size * sizeof(int8_t),
             cudaMemcpyHostToDevice, stream_data0->stream);
 
 #ifdef DEBUG_OUTPUT
@@ -388,24 +388,25 @@ void NearestInterp::runOnGPU(
 #ifdef DEBUG_OUTPUT_MATRIX
     logger_->debug("===== dev map");
     print_matrix3d(logger_, x_size_, y_size_, 0, 0, 0, x_size_, y_size_, z_size_, dom_data_->h_map);
-    print_matrix3d(logger_, x_sub_stride_, y_sub_stride_, 0, 0, 0, x_sub_stride_, y_sub_stride_, z_stride_, subdom_data->padded_map);
+    print_matrix3d_dev(logger_, x_sub_stride_, y_sub_stride_, z_stride_, 0, 0, 0, x_sub_stride_, y_sub_stride_, z_stride_, subdom_data->padded_map);
 #endif
 
     timer.reset();
 #endif
 
-    thrust::fill(subdom_data->padded_map_idx.begin(), subdom_data->padded_map_idx.end(), 0.0);
+    thrust::fill(thrust::device, subdom_data->padded_map_idx, subdom_data->padded_map_idx + padded_sub_volume_size, 0.0);
 
     auto end_itr = thrust::copy_if(
+            thrust::device,
             thrust::make_counting_iterator<unsigned int>(0),
-            thrust::make_counting_iterator<unsigned int>(x_sub_stride_ * y_sub_stride_ * z_stride_),
-            subdom_data->padded_map.begin(),
-            subdom_data->padded_map_idx.begin(),
+            thrust::make_counting_iterator<unsigned int>(padded_sub_volume_size),
+            subdom_data->padded_map,
+            subdom_data->padded_map_idx,
             thrust::logical_not<int8_t>());
 
-    subdom_data->padded_map_idx_size = end_itr - subdom_data->padded_map_idx.begin();
+    subdom_data->padded_map_idx_size = end_itr - subdom_data->padded_map_idx;
 
-    thrust::replace(subdom_data->padded_map.begin(), subdom_data->padded_map.end(), -1, 0);
+    thrust::replace(thrust::device, subdom_data->padded_map, subdom_data->padded_map + padded_sub_volume_size, -1, 0);
 
 #ifdef DEBUG_OUTPUT
     cudaStreamSynchronize(stream_data0->stream);
@@ -435,6 +436,9 @@ void NearestInterp::runOnGPU(
         }
     }
     cudaStreamSynchronize(stream_data0->stream);
+
+    cudaFreeHost(padded_sub_map);
+    cudaFreeHost(padded_sub_image);
 }
 
 void NearestInterp::runOnStream(
@@ -472,21 +476,24 @@ void NearestInterp::runOnStream(
 #ifdef DEBUG_OUTPUT
         logger_->info("dx_i={}, dy_i={}", dx_i, dy_i);
         logger_->info("x=({},{},{}) y=({},{},{}), dw={}", dx_start, dx_delta, dx_end, dy_start, dy_delta, dy_end, dw_);
+        logger_->info("padded_map_idx_size={}", subdom_data->padded_map_idx_size);
 #endif
 
 
-        thrust::device_vector<unsigned int> padded_map_idx(dx_delta * dy_delta * z_size_);
+        unsigned int *padded_map_idx;
+        cudaMalloc(&padded_map_idx, subdom_data->padded_map_idx_size * sizeof(unsigned int));
 
         RangeCheck range_check { x_sub_stride_, y_sub_stride_,
             dx_start + dw_, dx_end + dw_, dy_start + dw_, dy_end + dw_, dw_, z_size_ + dw_ };
 
         auto end_itr = thrust::copy_if(
-                subdom_data->padded_map_idx.begin(),
-                subdom_data->padded_map_idx.begin() + subdom_data->padded_map_idx_size,
-                padded_map_idx.begin(),
+                thrust::device,
+                subdom_data->padded_map_idx,
+                subdom_data->padded_map_idx + subdom_data->padded_map_idx_size,
+                padded_map_idx,
                 range_check);
 
-        unsigned int padded_map_idx_size = end_itr - padded_map_idx.begin();
+        unsigned int padded_map_idx_size = end_itr - padded_map_idx;
 
 #ifdef DEBUG_OUTPUT
         logger_->info("padded_map_idx_size={}", padded_map_idx_size);
@@ -494,8 +501,10 @@ void NearestInterp::runOnStream(
 
         cudaStreamSynchronize(stream_data->stream);
 
-        for (auto map_idx_itr = padded_map_idx.begin(); map_idx_itr != end_itr; map_idx_itr++) {
-            logger_->debug("h_padded_map_idx={}", *map_idx_itr);
+        thrust::device_vector<unsigned int> dbg_d_padded_map_idx(padded_map_idx, padded_map_idx + padded_map_idx_size);
+        thrust::host_vector<unsigned int> dbg_h_padded_map_idx(dbg_d_padded_map_idx);
+        for (unsigned int i = 0; i < padded_map_idx_size; i++) {
+            logger_->debug("padded_map_idx={}", dbg_h_padded_map_idx[i]);
         }
         timer.reset();
 #endif
@@ -506,7 +515,8 @@ void NearestInterp::runOnStream(
             continue;
         }
 
-        thrust::device_vector<double> interpolated_values(padded_map_idx_size);
+        double *interpolated_values;
+        cudaMalloc(&interpolated_values, padded_map_idx_size * sizeof(double));
 
 
         unsigned int num_blocks = get_num_blocks(padded_map_idx_size, 1024);
@@ -516,10 +526,10 @@ void NearestInterp::runOnStream(
 
         interpolate_volumes<<<num_blocks, 1024, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, padded_map_idx_size,
-                thrust::raw_pointer_cast(padded_map_idx.data()),
-                thrust::raw_pointer_cast(subdom_data->padded_map.data()),
-                thrust::raw_pointer_cast(subdom_data->padded_image.data()),
-                thrust::raw_pointer_cast(interpolated_values.data()));
+                padded_map_idx,
+                subdom_data->padded_map,
+                subdom_data->padded_image,
+                interpolated_values);
 
 #ifdef DEBUG_OUTPUT
         logger_->info("interpolate volumes {}", timer.get_laptime());
@@ -534,19 +544,21 @@ void NearestInterp::runOnStream(
         timer.reset();
 #endif
 
-        pinnedDblHostVector h_interpolated_values(padded_map_idx_size);
+        double *h_interpolated_values;
+        cudaHostAlloc(&h_interpolated_values, padded_map_idx_size * sizeof(double), cudaHostAllocPortable);
 
         cudaMemcpyAsync(
-                thrust::raw_pointer_cast(h_interpolated_values.data()),
-                thrust::raw_pointer_cast(interpolated_values.data()),
+                h_interpolated_values,
+                interpolated_values,
                 padded_map_idx_size * sizeof(double),
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
-        pinnedUIntHostVector h_padded_map_idx(padded_map_idx_size);
+        unsigned int *h_padded_map_idx;
+        cudaHostAlloc(&h_padded_map_idx, padded_map_idx_size * sizeof(unsigned int), cudaHostAllocPortable);
 
         cudaMemcpyAsync(
-                thrust::raw_pointer_cast(h_padded_map_idx.data()),
-                thrust::raw_pointer_cast(padded_map_idx.data()),
+                h_padded_map_idx,
+                padded_map_idx,
                 padded_map_idx_size * sizeof(unsigned int),
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
@@ -560,6 +572,12 @@ void NearestInterp::runOnStream(
 
             dom_data_->h_image[idx] = h_interpolated_values[i];
         }
+
+        cudaFree(padded_map_idx);
+        cudaFree(interpolated_values);
+
+        cudaFreeHost(h_interpolated_values);
+        cudaFreeHost(h_padded_map_idx);
 
 #ifdef DEBUG_OUTPUT
         logger_->info("transfer d2h and copy interpolated values {}", timer.get_laptime());
