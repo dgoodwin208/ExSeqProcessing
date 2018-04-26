@@ -438,10 +438,20 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     
 cp 1_deconvolution/*ch00.tif 2_color-correction/
 
-matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+#Process the full-resolution data
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},false); ${ERR_HDL_POSTCODE}"
+
+   if ls matlab-normalization-*.log > /dev/null 2>&1; then
+        mv matlab-normalization-*.log ${LOG_DIR}/
+    else
+        echo "No job log files."
+    fi
+
+#Process the downsampled data, if specified
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} loadParameters; if params.DO_DOWNSAMPLE; normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},true);end; ${ERR_HDL_POSTCODE}"
 
     if ls matlab-normalization-*.log > /dev/null 2>&1; then
-        mv matlab-normalization-*.log ${LOG_DIR}/
+        mv matlab-normalization-downsample*.log ${LOG_DIR}/
     else
         echo "No job log files."
     fi
@@ -538,6 +548,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
             normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_round004_${ch}.tif
+q
             registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round004_${ch}_registered.tif
             registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_round004_${ch}_affine.tif
             if [ ! -f $registered_affine_file ]; then
@@ -546,16 +557,19 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             fi
         done
 
-        for((i=1; i<=${ROUND_NUM}; i++))
-        do
-            if [ ${REFERENCE_ROUND} -eq $i ]; then
-            echo "Skipping registration of the reference round"
-            continue   
-            fi
-            # registerWithDescriptors for ${REFERENCE_ROUND} and i
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} calcCorrespondences(${i});registerWithCorrespondences(${i}); ${ERR_HDL_POSTCODE}"
+#Because the matching is currently single-threaded, we can parpool it in one loop
+matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
 
-        done
+        #ifor((i=1; i<=${ROUND_NUM}; i++))
+        #do
+        #    if [ ${REFERENCE_ROUND} -eq $i ]; then
+        #    echo "Skipping registration of the reference round"
+        #    continue   
+        #    fi
+        #    # registerWithDescriptors for ${REFERENCE_ROUND} and i
+        #    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} calcCorrespondences(${i});registerWithCorrespondences(${i}); ${ERR_HDL_POSTCODE}"
+
+        #done
     else
         echo "Skip!"
     fi

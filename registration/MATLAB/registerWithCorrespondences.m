@@ -12,26 +12,26 @@
 % Date: August 2015
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function registerWithCorrespondences(moving_run)
+function registerWithCorrespondences(moving_run,do_downsample)
 
 loadParameters;
 
-if params.DO_DOWNSAMPLE
-    filename_root = sprintf('%s-downsample_',params.FILE_BASENAME);
+if do_downsample
+    filename_root = sprintf('%s-downsample',params.FILE_BASENAME);
 else
-    filename_root = sprintf('%s_',params.FILE_BASENAME);
+    filename_root = sprintf('%s',params.FILE_BASENAME);
 end
 
 % regparams.MOVING_RUN = moving_run;
 
 fprintf('RegWithCorr ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
-output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',params.FILE_BASENAME,moving_run,regparams.CHANNELS{end}));
+output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',filename_root,moving_run,regparams.CHANNELS{end}));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
 end
 %Load a full-res image 
-filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.tif',...
+filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1} ));
 imgFixed_total = load3DTif_uint16(filename);
 %Loading the keys, possibly from the downsampled data
@@ -42,11 +42,13 @@ output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%sround%
 load(output_keys_filename);
 
 %This is quick hack as we figure out how to design the interface for when to apply the downsample. 
-%if params.DO_DOWNSAMPLE
-    %Scale the points of correspondence pairs back into original size
- %   keyM_total = keyM_total*params.DOWNSAMPLE_RATE;
- %   keyF_total = keyF_total*params.DOWNSAMPLE_RATE;
-%end
+%If we're applying the warp that was calcualted from downsampled data, but
+%we're applying it to the full-res data
+if ~do_downsample && params.DO_DOWNSAMPLE
+   % Scale the points of correspondence pairs back into original size
+   keyM_total = keyM_total*params.DOWNSAMPLE_RATE;
+   keyF_total = keyF_total*params.DOWNSAMPLE_RATE;
+end
 
 %First we do do a global affine transform on the data and keypoints before
 %doing the fine-resolution non-rigid warp
@@ -86,11 +88,11 @@ for c = 1:length(regparams.CHANNELS)
     data_channel = regparams.CHANNELS{c};
     fprintf('load 3D file for affine transform on %s channel\n',data_channel);
     %filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',params.FILE_BASENAME,moving_run,data_channel));
-    filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.tif',filename_root,moving_run,data_channel));
+    filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',filename_root,moving_run,data_channel));
     imgToWarp = load3DTif_uint16(filename);
     toc;
     
-    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s_affine.tif',...
+    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',...
         filename_root,moving_run,data_channel));
     
     imgMoving_total_affine = imwarp(imgToWarp,affine3d(affine_tform'),'OutputView',rF);
