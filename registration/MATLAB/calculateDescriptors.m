@@ -146,7 +146,7 @@ for register_channel = [params.REGISTERCHANNELS_SIFT,params.REGISTERCHANNELS_SC]
             end
             
             %If we're calculating a channel just for shape context, then we
-            %only need the keypoint. So we do a check for any channel that
+            %only need the keypoint and not the descriptor. So we do a check for any channel that
             %is only in the REGISTERCHANNELS_SC and not in
             %REGISTERCHANNELS_SIFT
             regChan = register_channel{1}; 
