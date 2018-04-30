@@ -162,8 +162,85 @@ void print_matrix3d(
         thrust::host_vector<T, thrust::system::cuda::experimental::pinned_allocator<T>>& val) {
 
     print_matrix3d_common(logger, x_size, y_size, x_start, y_start, z_start, dx, dy, dz, val);
+
 }
 
+template <typename T>
+void print_matrix3d(
+        std::shared_ptr<spdlog::logger> logger,
+        const size_t x_size,
+        const size_t y_size,
+        const size_t x_start,
+        const size_t y_start,
+        const size_t z_start,
+        const size_t dx,
+        const size_t dy,
+        const size_t dz,
+        T *val) {
+
+    std::ostringstream sout;
+    sout << "        ";
+    for (size_t j = 0; j < dy; j++) {
+        sout << std::setw(6) << y_start + j << ",";
+    }
+    logger->debug("{}", sout.str());
+
+    for (size_t k = 0; k < dz; k++) {
+        logger->debug("[{}]", k);
+        for (size_t i = 0; i < dx; i++) {
+            sout.str("");
+            sout.clear();
+            sout << std::setw(6) << i << "| ";
+            for (size_t j = 0; j < dy; j++) {
+                size_t idx = x_start + i + (y_start + j) * x_size + (z_start + k) * x_size * y_size;
+                sout << std::setw(6);
+                sout.operator<<(val[idx]);
+                sout << ",";
+            }
+            logger->debug("{}", sout.str());
+        }
+    }
+}
+
+template <typename T>
+void print_matrix3d_dev(
+        std::shared_ptr<spdlog::logger> logger,
+        const size_t x_size,
+        const size_t y_size,
+        const size_t z_size,
+        const size_t x_start,
+        const size_t y_start,
+        const size_t z_start,
+        const size_t dx,
+        const size_t dy,
+        const size_t dz,
+        T *val) {
+    thrust::device_vector<T> d_val(val, val + x_size * y_size * z_size);
+    thrust::host_vector<T> h_val(d_val);
+
+    std::ostringstream sout;
+    sout << "        ";
+    for (size_t j = 0; j < dy; j++) {
+        sout << std::setw(6) << y_start + j << ",";
+    }
+    logger->debug("{}", sout.str());
+
+    for (size_t k = 0; k < dz; k++) {
+        logger->debug("[{}]", k);
+        for (size_t i = 0; i < dx; i++) {
+            sout.str("");
+            sout.clear();
+            sout << std::setw(6) << i << "| ";
+            for (size_t j = 0; j < dy; j++) {
+                size_t idx = x_start + i + (y_start + j) * x_size + (z_start + k) * x_size * y_size;
+                sout << std::setw(6);
+                sout.operator<<(h_val[idx]);
+                sout << ",";
+            }
+            logger->debug("{}", sout.str());
+        }
+    }
+}
 
 }
 

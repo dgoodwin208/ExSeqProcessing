@@ -160,16 +160,21 @@ class NearestInterp : public cudautils::CudaTask {
     struct DomainDataOnHost {
         Sub2Ind sub2ind;
 
-        pinnedDblHostVector h_image;
-        pinnedInt8HostVector h_map;
+        double *h_image;
+        int8_t *h_map;
 
         DomainDataOnHost(
                 const unsigned int x_size,
                 const unsigned int y_size,
                 const unsigned int z_size)
-            : sub2ind(x_size, y_size, z_size),
-              h_image(x_size * y_size * z_size),
-              h_map(x_size * y_size * z_size) {
+            : sub2ind(x_size, y_size, z_size) {
+            size_t volume_size = x_size * y_size * z_size;
+            cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable);
+            cudaHostAlloc(&h_map,   volume_size * sizeof(int8_t), cudaHostAllocPortable);
+        }
+        ~DomainDataOnHost() {
+            cudaFreeHost(h_image);
+            cudaFreeHost(h_map);
         }
     };
 
@@ -199,9 +204,9 @@ class NearestInterp : public cudautils::CudaTask {
         std::vector<unsigned int> x_sub_i_list;
         std::vector<unsigned int> y_sub_i_list;
 
-        thrust::device_vector<double> padded_image;
-        thrust::device_vector<int8_t> padded_map;
-        thrust::device_vector<unsigned int> padded_map_idx;
+        double *padded_image;
+        int8_t *padded_map;
+        unsigned int *padded_map_idx;
         unsigned int padded_map_idx_size;
 
         std::vector<std::shared_ptr<SubDomainDataOnStream>> stream_data;
@@ -211,11 +216,17 @@ class NearestInterp : public cudautils::CudaTask {
                 const unsigned int y_sub_stride,
                 const unsigned int z_stride,
                 const unsigned int num_streams)
-            : pad_sub2ind(x_sub_stride, y_sub_stride, z_stride),
-              padded_image(x_sub_stride * y_sub_stride * z_stride),
-              padded_map(x_sub_stride * y_sub_stride * z_stride),
-              padded_map_idx(x_sub_stride * y_sub_stride * z_stride),
-              stream_data(num_streams) {
+            : pad_sub2ind(x_sub_stride, y_sub_stride, z_stride), stream_data(num_streams) {
+            size_t padded_sub_volume_size = x_sub_stride * y_sub_stride * z_stride;
+            cudaMalloc(&padded_image,   padded_sub_volume_size * sizeof(double));
+            cudaMalloc(&padded_map,     padded_sub_volume_size * sizeof(int8_t));
+            cudaMalloc(&padded_map_idx, padded_sub_volume_size * sizeof(unsigned int));
+        }
+
+        ~SubDomainDataOnGPU() {
+            cudaFree(padded_image);
+            cudaFree(padded_map);
+            cudaFree(padded_map_idx);
         }
     };
 

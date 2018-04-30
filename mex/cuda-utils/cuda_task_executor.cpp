@@ -39,7 +39,7 @@ int CudaTaskExecutor::run() {
         for (size_t i = 0; i < futures.size(); i++) {
             int ret = futures[i].get();
             if (ret != 1) {
-                logger_->error("res_id[{}] has failed in thread.", i);
+                logger_->error("gpu_id[{}] has failed in thread.", i);
                 throw std::string("run() thread faild."); //TODO
             }
         }
@@ -76,7 +76,7 @@ int CudaTaskExecutor::runOnGPU(const int gpu_id) {
             for (size_t i = 0; i < futures.size(); i++) {
                 int ret = futures[i].get();
                 if (ret != 1) {
-                    logger_->error("res_id[{}] has failed in thread.", i);
+                    logger_->error("stream_id[{}] has failed in thread.", i);
                     throw std::string("runOnGPU() thread faild."); //TODO
                 }
             }

@@ -550,7 +550,12 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         if ls matlab-regDesc-*.log > /dev/null 2>&1; then
             mv matlab-regDesc-*.log ${LOG_DIR}/
         else
-            echo "No log files."
+            echo "No regDesc-log files."
+        fi
+        if ls matlab-transformImg-*.log > /dev/null 2>&1; then
+            mv matlab-transformImg-*.log ${LOG_DIR}/
+        else
+            echo "No transformImg-log files."
         fi
 
     else

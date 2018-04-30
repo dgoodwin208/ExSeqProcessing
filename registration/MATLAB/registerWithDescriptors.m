@@ -16,11 +16,16 @@ function registerWithDescriptors(moving_run)
 
 %profile on;
 
+semaphore('/gr','open',1);
+
+loadParameters;
 loadExperimentParams;
 
 params.MOVING_RUN = moving_run;
 
 disp(['RUNNING ON MOVING: ' num2str(params.MOVING_RUN) ', FIXED: ' num2str(params.FIXED_RUN)])
+
+maxNumCompThreads(params.REG_DESC_MAX_THREADS);
 
 
 filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',...
@@ -88,8 +93,6 @@ fprintf('load sc keys of moving round%03d (mod). ',params.MOVING_RUN);toc;
 %------------All descriptors are now loaded as keys_*_total -------------%
 
 
-calculateShapeContextDescriptors(params.FIXED_RUN);
-
 %chop the image up into grid
 tile_upperleft_y_moving = floor(linspace(1,size(imgMoving_total,1),params.ROWS_TFORM+1));
 tile_upperleft_x_moving = floor(linspace(1,size(imgMoving_total,2),params.COLS_TFORM+1));
@@ -145,14 +148,14 @@ if ~exist(output_keys_filename,'file')
             fprintf('findRelevantKeys. keys_moving(mod) ');toc;
 
 
-            filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_sift_sc_r%uc%u.mat',...
+            filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
                 params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
             if (~exist(filename))
                 fprintf('ShapeContext of fixed image is not calculated.\n');
                 exit
             end
             load(filename);
-            % 'LF_SIFT','DF_SIFT_norm','DF_SC','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed'
+            % 'LF_SIFT','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed'
 
 
             num_keys_moving = length(keys_moving_sift)+length(keys_moving_sc);
@@ -188,13 +191,42 @@ if ~exist(output_keys_filename,'file')
             
             
             fprintf('calculating SIFT correspondences...\n');
-            tic;
             DM_SIFT = double(DM_SIFT);
             DM_SIFT_norm= DM_SIFT ./ repmat(sum(DM_SIFT,2),1,size(DM_SIFT,2));
             clear DM_SIFT;
             size(DM_SIFT_norm)
-            correspondences_sift = match_3DSIFTdescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
+
+            tic;
+            dm_sift_norm_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_dm_sift_norm_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.MOVING_RUN,y_idx,x_idx));
+            fid = fopen(dm_sift_norm_filename,'w');
+            DM_SIFT_norm_size1 = size(DM_SIFT_norm,1);
+            DM_SIFT_norm_size2 = size(DM_SIFT_norm,2);
+            fwrite(fid,DM_SIFT_norm_size1,'integer*4');
+            fwrite(fid,DM_SIFT_norm_size2,'integer*4');
+            fwrite(fid,DM_SIFT_norm,'double');
+            fclose(fid);
+            fprintf('save DM_SIFT_norm data ');toc;
+
+            df_sift_norm_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_norm_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
+
+            sift_norm_sqdist_idx_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d-%03d_sift_norm_sqdist_idx_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.MOVING_RUN,params.FIXED_RUN,y_idx,x_idx));
+
+            while true
+                ret = semaphore('/gr','trywait');
+                if ret == 0
+                    break;
+                else
+                    pause(1);
+                end
+            end
+            tic;
+%            correspondences_sift = match_3DSIFTdescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
+            correspondences_sift = match_3DSIFTdescriptors_cuda(dm_sift_norm_filename,df_sift_norm_filename,sift_norm_sqdist_idx_filename);
             toc;
+            ret = semaphore('/gr','post');
             
             fprintf('calculating ShapeContext descriptors...\n');
             tic;
@@ -204,10 +236,40 @@ if ~exist(output_keys_filename,'file')
             %(summedNorm), and we calculate the Shape Context descriptor
             %using keypoints from all other channels
             DM_SC=ShapeContext(LM_SIFT,LM_SC);
+            %save("data_sc.mat",'DM_SC','DF_SC');
+%            load("data_sc.mat");
+            tic;
+            dm_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_dm_sc_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.MOVING_RUN,y_idx,x_idx));
+            fid = fopen(dm_sc_filename,'w');
+            DM_SC_size1 = size(DM_SC,1);
+            DM_SC_size2 = size(DM_SC,2);
+            fwrite(fid,DM_SC_size2,'integer*4');
+            fwrite(fid,DM_SC_size1,'integer*4');
+            fwrite(fid,DM_SC','double');
+            fclose(fid);
+            fprintf('save DM_SC data ');toc;
+
+            df_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sc_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
+
+            sc_sqdist_idx_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d-%03d_sc_sqdist_idx_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.MOVING_RUN,params.FIXED_RUN,y_idx,x_idx));
+
+            while true
+                ret = semaphore('/gr','trywait');
+                if ret == 0
+                    break;
+                else
+                    pause(1);
+                end
+            end
             toc;
             fprintf('calculating ShapeContext correspondences...\n');
-            correspondences_sc = match_3DSIFTdescriptors_cuda(DM_SC',DF_SC');
+%            correspondences_sc = match_3DSIFTdescriptors_cuda(DM_SC',DF_SC');
+            correspondences_sc = match_3DSIFTdescriptors_cuda(dm_sc_filename,df_sc_filename,sc_sqdist_idx_filename);
             toc;
+            ret = semaphore('/gr','post');
 
             fprintf('SIFT-only correspondences get %i matches, SC-only gets %i matches\n',...
                 size(correspondences_sift,2),size(correspondences_sc,2));
@@ -217,10 +279,36 @@ if ~exist(output_keys_filename,'file')
             correspondences = correspondences';
             fprintf('There unique %i matches if we take the union of the two methods\n', size(correspondences,2));
             
+            tic;
+            dm_sift_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_dm_sift_sc_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.MOVING_RUN,y_idx,x_idx));
+            fid = fopen(dm_sift_sc_filename,'w');
+            fwrite(fid,DM_SIFT_norm_size1,'integer*4');
+            fwrite(fid,DM_SIFT_norm_size2+DM_SC_size1,'integer*4');
+            fwrite(fid,[DM_SC; DM_SIFT_norm']','double');
+            fclose(fid);
+            fprintf('save DM_SC+SIFT_norm data ');toc;
+
+            df_sift_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_sc_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
+
+            sift_sc_sqdist_idx_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d-%03d_sift_sc_sqdist_idx_r%uc%u.bin',...
+                params.SAMPLE_NAME,params.MOVING_RUN,params.FIXED_RUN,y_idx,x_idx));
+
+            while true
+                ret = semaphore('/gr','trywait');
+                if ret == 0
+                    break;
+                else
+                    pause(1);
+                end
+            end
             fprintf('calculating SIFT+ShapeContext correspondences...\n');
             tic;
-            correspondences = match_3DSIFTdescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
+%            correspondences = match_3DSIFTdescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
+            correspondences = match_3DSIFTdescriptors_cuda(dm_sift_sc_filename,df_sift_sc_filename,sift_sc_sqdist_idx_filename);
             toc;
+            ret = semaphore('/gr','post');
             
             %Check for duplicate matches- ie, keypoint A matching to both
             %keypoint B and keypoint C
@@ -255,143 +343,34 @@ if ~exist(output_keys_filename,'file')
             keyF_total = [keyF_total; keyF(:,1) + ymin_fixed-1, keyF(:,2) + xmin_fixed-1, keyF(:,3)];
             
             
-            clear LM_SIFT DM_SIFT_norm DM_SC LF_SIFT DF_SIFT_norm DF_SC;
+            clear LM_SIFT DM_SIFT_norm DM_SC LF_SIFT;
             % ----------- END ---------- %
         end
     end
     
     save(output_keys_filename,'keyM_total','keyF_total');
-else %if we'va already calculated keyM_total and keyF_total, we can just load it
-    disp('KeyM_total and KeyF_total already calculated. Loading.');
-    load(output_keys_filename);
-end
-
-if isempty(keyF_total) || isempty(keyM_total)
-    error('ERROR: zero keys collected... exiting');
-end
-
-fprintf('Using all %i corresondences by ignoring for quantile cutoff\n', size(keyM_total,1));
-
-%If you want to set a maxium warp distance between matching keypoints. This is not currently being used but keeping it in mainly as a reminder that the correspondeces were problematic in the past and code like this can be implemented if need be.
-if (params.MAXDISTANCE>-1)
-    remove_indices = [];
-    for match_idx = 1:size(keyF_total,1)
-        if norm(keyF_total(match_idx,:)-keyM_total(match_idx,:))>params.MAXDISTANCE
-            norm(keyF_total(match_idx,:)-keyM_total(match_idx,:));
-            remove_indices = [remove_indices match_idx];
-        end
-    end
-    keyF_total(remove_indices,:) = [];
-    keyM_total(remove_indices,:) = [];
-
-    clear remove_indices;
-end
-
-if isempty(keyF_total) || isempty(keyM_total)
-    error('ERROR: all keys removed via distance thresholding, consider raising `params.MAXDISTANCE`... exiting');
-end
-
-%Do a global affine transform on the data and keypoints before
-%doing the fine-resolution non-rigid warp
-
-%Because of the annoying switching between XY/YX conventions,
-%we have to switch XY components for the affine calcs, then switch back
-keyM_total_switch = keyM_total(:,[2 1 3]);
-keyF_total_switch = keyF_total(:,[2 1 3]);
-
-%The old way was calculating the affine tform
-warning('off','all'); 
-affine_tform = findAffineModel(keyM_total_switch, keyF_total_switch);
-warning('on','all')
-
-if ~det(affine_tform)
-    error('ERROR: affine_tform can not be singular for following calcs... exiting')
-end
-
-%Warp the keyM features into the new space
-%rF = imref3d(size(imgFixed_total));
-rF = imref3d(imgFixed_total_size);
-%Key total_affine is now with the switched XY
-keyM_total_affine = [keyM_total_switch, ones(size(keyM_total_switch,1),1)]*affine_tform';
-%keyM_total is now switched
-keyM_total=keyM_total_affine(:,1:3);
-%keyF_total = keyF_total_switch;
-%Remove any keypoints which are now outside the bounds of the image
-filtered_correspondence_indices = (keyM_total(:,1) <1 | keyM_total(:,2)<1 | keyM_total(:,3)<1 | ...
-    keyM_total(:,1) > imgFixed_total_size(2) | ...
-    keyM_total(:,2) > imgFixed_total_size(1) | ...
-    keyM_total(:,3) > imgFixed_total_size(3) );
-fprintf('Losing %i features after affine warp\n',sum(filtered_correspondence_indices));
-keyM_total(filtered_correspondence_indices,:) = [];
-keyF_total(filtered_correspondence_indices,:) = [];
-
-%switch keyM back to the other format for the TPS calcs
-keyM_total = keyM_total(:,[2 1 3]);
-
-for c = 1:length(params.CHANNELS)
-    %Load the data to be warped
-    tic;
-    data_channel = params.CHANNELS{c};
-    fprintf('load 3D file for affine transform on %s channel\n',data_channel);
-    filename = fullfile(params.INPUTDIR,sprintf('%sround%03d_%s.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-    imgToWarp = load3DTif_uint16(filename);
-    toc;
-    
-    output_affine_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_affine.tif',...
-        params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-    imgMoving_total_affine = imwarp(imgToWarp,affine3d(affine_tform'),'OutputView',rF);
-    save3DTif_uint16(imgMoving_total_affine,output_affine_filename);
-end
-
-output_TPS_filename = fullfile(params.OUTPUTDIR,sprintf('TPSMap_%sround%03d.mat',params.SAMPLE_NAME,params.MOVING_RUN));
-if exist(output_TPS_filename,'file')==0
-    %        [in1D_total,out1D_total] = TPS3DWarpWhole(keyM_total,keyF_total, ...
-    
-    [in1D_total,out1D_total] = TPS3DWarpWholeInParallel(keyM_total,keyF_total, ...
-        size(imgMoving_total), imgFixed_total_size);
-    disp('save TPS file')
-    tic;
-    save(output_TPS_filename,'in1D_total','out1D_total','-v7.3');
-    toc;
-else
-    %load in1D_total and out1D_total
-    disp('load TPS file')
-    tic;
-    load(output_TPS_filename);
-    toc;
-    %Experiments 7 and 8 may have been saved with zeros in the 1D vectors
-    %so this removes it
-    [ValidIdxs,I] = find(in1D_total>0);
-    in1D_total = in1D_total(ValidIdxs);
-    out1D_total = out1D_total(ValidIdxs);
-end
-
-
-
-
-%Warp all three channels of the experiment once the index mapping has been
-%created
-for c = 1:length(params.CHANNELS)
-    %Load the data to be warped
-    disp('load 3D file to be warped')
-    tic;
-    data_channel = params.CHANNELS{c};
-    filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_affine.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-    imgToWarp = load3DTif_uint16(filename);
-    toc;
-    
-    %we loaded the bounds_moving data at the very beginning of this file
-    if exist(cropfilename,'file')==2
-        imgToWarp = imgToWarp(bounds_moving(1):bounds_moving(2),bounds_moving(3):bounds_moving(4),:);
-    end
-    [ outputImage_interp ] = TPS3DApply(in1D_total,out1D_total,imgToWarp,imgFixed_total_size);
-    
-    outputfile = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_%s_registered.tif',params.SAMPLE_NAME,params.MOVING_RUN,data_channel));
-    save3DTif_uint16(outputImage_interp,outputfile);
 end
 
 %profile off; profsave(profile('info'),sprintf('profile-results-register-with-desc-%d',moving_run));
 
 end
+
+%function idx_gpu = selectGPU()
+%    idx_gpu = 0;
+%    for i = 1:gpuDeviceCount
+%        ret = semaphore(['/gr' num2str(i)],'trywait');
+%        if ret == 0
+%            idx_gpu = i;
+%            break
+%        end
+%    end
+%end
+%
+%function unselectGPU(idx_gpu)
+%    ret = semaphore(['/gr' num2str(idx_gpu)],'post');
+%    if ret == -1
+%        fprintf('unselect [/gr%d] failed.\n',idx_gpu);
+%    end
+%end
 
 
