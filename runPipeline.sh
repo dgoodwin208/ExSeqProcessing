@@ -556,6 +556,16 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         else
             echo "No transformImg-log files."
         fi
+        if ls matlab-calc3DTPSWarp-*.log > /dev/null 2>&1; then
+            mv matlab-calc3DTPSWarp-*.log ${LOG_DIR}/
+        else
+            echo "No calc3DTPSWarp-log files."
+        fi
+        if ls matlab-apply3DTPSWarp-*.log > /dev/null 2>&1; then
+            mv matlab-apply3DTPSWarp-*.log ${LOG_DIR}/
+        else
+            echo "No apply3DTPSWarp-log files."
+        fi
 
     else
         echo "Skip!"

@@ -23,14 +23,21 @@ function success_code = registerWithDescriptorsInParallel(run_num_list)
 
     max_jobs = length(run_num_list);
 
+    disp('===== register-with-descriptors');
     [success_code, output] = batch_process('regDesc', @registerWithDescriptors, run_num_list, arg_list, ...
         postfix_list, params.REG_DESC_MAX_POOL_SIZE, max_jobs, params.REG_DESC_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 
-%    for run_num = run_num_list
-%        transformImagesWithAffineAnd3DTPS(run_num);
-%    end
-    [success_code, output] = batch_process('transformImg', @transformImagesWithAffineAnd3DTPS, run_num_list, arg_list, ...
-        postfix_list, params.TRANSF_IMG_MAX_POOL_SIZE, max_jobs, params.TRANSF_IMG_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
+    disp('===== perform-affine-transforms');
+    [success_code, output] = batch_process('transformImg', @performAffineTransforms, run_num_list, arg_list, ...
+        postfix_list, params.AFFINE_MAX_POOL_SIZE, max_jobs, params.AFFINE_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
+
+    disp('===== calculate-3DTPS-warping');
+    [success_code, output] = batch_process('calc3DTPSWarp', @calculate3DTPSWarping, run_num_list, arg_list, ...
+        postfix_list, params.TPS3DWARP_MAX_POOL_SIZE, max_jobs, params.TPS3DWARP_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
+
+    disp('===== apply-3DTPS-warping');
+    [success_code, output] = batch_process('apply3DTPSWarp', @apply3DTPSWarping, run_num_list, arg_list, ...
+        postfix_list, params.APPLY3DTPS_MAX_POOL_SIZE, max_jobs, params.APPLY3DTPS_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 
     semaphore('/gr','unlink');
 

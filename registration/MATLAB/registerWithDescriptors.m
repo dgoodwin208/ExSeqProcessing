@@ -16,14 +16,14 @@ function registerWithDescriptors(moving_run)
 
 %profile on;
 
-semaphore('/gr','open',1);
+semaphore('/gr','open',1); % it is no effective if the semaphore is already open
 
 loadParameters;
 loadExperimentParams;
 
 params.MOVING_RUN = moving_run;
 
-disp(['RUNNING ON MOVING: ' num2str(params.MOVING_RUN) ', FIXED: ' num2str(params.FIXED_RUN)])
+disp(['[REG DESC] RUNNING ON MOVING: ' num2str(params.MOVING_RUN) ', FIXED: ' num2str(params.FIXED_RUN)])
 
 maxNumCompThreads(params.REG_DESC_MAX_THREADS);
 
@@ -68,7 +68,7 @@ for register_channel = [params.REGISTERCHANNELS_SIFT]
         keys_moving_total_sift.ivec = vertcat(keys_moving_total_sift.ivec,ivec);
     end
 end
-fprintf('load sift keys of moving round%03d (mod). ',params.MOVING_RUN);toc;
+fprintf('load sift keys of moving round%03d. ',params.MOVING_RUN);toc;
 
 tic;
 keys_moving_total_sc.pos = [];
@@ -89,7 +89,7 @@ for register_channel = [params.REGISTERCHANNELS_SC]
         keys_moving_total_sc.pos = vertcat(keys_moving_total_sc.pos,pos);
     end
 end
-fprintf('load sc keys of moving round%03d (mod). ',params.MOVING_RUN);toc;
+fprintf('load sc keys of moving round%03d. ',params.MOVING_RUN);toc;
 %------------All descriptors are now loaded as keys_*_total -------------%
 
 
@@ -155,7 +155,7 @@ if ~exist(output_keys_filename,'file')
                 exit
             end
             load(filename);
-            % 'LF_SIFT','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed'
+            % 'LF_SIFT','DF_SIFT_norm','DF_SC','imgFixed_total_size','num_keys_fixed','ymin_fixed','xmin_fixed'
 
 
             num_keys_moving = length(keys_moving_sift)+length(keys_moving_sc);
@@ -196,24 +196,6 @@ if ~exist(output_keys_filename,'file')
             clear DM_SIFT;
             size(DM_SIFT_norm)
 
-            tic;
-            dm_sift_norm_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_dm_sift_norm_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.MOVING_RUN,y_idx,x_idx));
-            fid = fopen(dm_sift_norm_filename,'w');
-            DM_SIFT_norm_size1 = size(DM_SIFT_norm,1);
-            DM_SIFT_norm_size2 = size(DM_SIFT_norm,2);
-            fwrite(fid,DM_SIFT_norm_size1,'integer*4');
-            fwrite(fid,DM_SIFT_norm_size2,'integer*4');
-            fwrite(fid,DM_SIFT_norm,'double');
-            fclose(fid);
-            fprintf('save DM_SIFT_norm data ');toc;
-
-            df_sift_norm_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_norm_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
-
-            sift_norm_sqdist_idx_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d-%03d_sift_norm_sqdist_idx_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.MOVING_RUN,params.FIXED_RUN,y_idx,x_idx));
-
             while true
                 ret = semaphore('/gr','trywait');
                 if ret == 0
@@ -223,38 +205,17 @@ if ~exist(output_keys_filename,'file')
                 end
             end
             tic;
-%            correspondences_sift = match_3DSIFTdescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
-            correspondences_sift = match_3DSIFTdescriptors_cuda(dm_sift_norm_filename,df_sift_norm_filename,sift_norm_sqdist_idx_filename);
+            correspondences_sift = match_3DSIFTdescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
             toc;
             ret = semaphore('/gr','post');
             
             fprintf('calculating ShapeContext descriptors...\n');
-            tic;
             %We create a shape context descriptor for the same keypoint
             %that has the SIFT descriptor.
             %So we calculate the SIFT descriptor on the normed channel
             %(summedNorm), and we calculate the Shape Context descriptor
             %using keypoints from all other channels
             DM_SC=ShapeContext(LM_SIFT,LM_SC);
-            %save("data_sc.mat",'DM_SC','DF_SC');
-%            load("data_sc.mat");
-            tic;
-            dm_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_dm_sc_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.MOVING_RUN,y_idx,x_idx));
-            fid = fopen(dm_sc_filename,'w');
-            DM_SC_size1 = size(DM_SC,1);
-            DM_SC_size2 = size(DM_SC,2);
-            fwrite(fid,DM_SC_size2,'integer*4');
-            fwrite(fid,DM_SC_size1,'integer*4');
-            fwrite(fid,DM_SC','double');
-            fclose(fid);
-            fprintf('save DM_SC data ');toc;
-
-            df_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sc_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
-
-            sc_sqdist_idx_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d-%03d_sc_sqdist_idx_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.MOVING_RUN,params.FIXED_RUN,y_idx,x_idx));
 
             while true
                 ret = semaphore('/gr','trywait');
@@ -264,10 +225,9 @@ if ~exist(output_keys_filename,'file')
                     pause(1);
                 end
             end
-            toc;
+            tic;
             fprintf('calculating ShapeContext correspondences...\n');
-%            correspondences_sc = match_3DSIFTdescriptors_cuda(DM_SC',DF_SC');
-            correspondences_sc = match_3DSIFTdescriptors_cuda(dm_sc_filename,df_sc_filename,sc_sqdist_idx_filename);
+            correspondences_sc = match_3DSIFTdescriptors_cuda(DM_SC',DF_SC');
             toc;
             ret = semaphore('/gr','post');
 
@@ -278,22 +238,6 @@ if ~exist(output_keys_filename,'file')
             [correspondences,~,~] = unique(correspondences_combine,'rows');
             correspondences = correspondences';
             fprintf('There unique %i matches if we take the union of the two methods\n', size(correspondences,2));
-            
-            tic;
-            dm_sift_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_dm_sift_sc_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.MOVING_RUN,y_idx,x_idx));
-            fid = fopen(dm_sift_sc_filename,'w');
-            fwrite(fid,DM_SIFT_norm_size1,'integer*4');
-            fwrite(fid,DM_SIFT_norm_size2+DM_SC_size1,'integer*4');
-            fwrite(fid,[DM_SC; DM_SIFT_norm']','double');
-            fclose(fid);
-            fprintf('save DM_SC+SIFT_norm data ');toc;
-
-            df_sift_sc_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d_df_sift_sc_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.FIXED_RUN,y_idx,x_idx));
-
-            sift_sc_sqdist_idx_filename = fullfile(params.OUTPUTDIR,sprintf('%sround%03d-%03d_sift_sc_sqdist_idx_r%uc%u.bin',...
-                params.SAMPLE_NAME,params.MOVING_RUN,params.FIXED_RUN,y_idx,x_idx));
 
             while true
                 ret = semaphore('/gr','trywait');
@@ -305,8 +249,7 @@ if ~exist(output_keys_filename,'file')
             end
             fprintf('calculating SIFT+ShapeContext correspondences...\n');
             tic;
-%            correspondences = match_3DSIFTdescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
-            correspondences = match_3DSIFTdescriptors_cuda(dm_sift_sc_filename,df_sift_sc_filename,sift_sc_sqdist_idx_filename);
+            correspondences = match_3DSIFTdescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
             toc;
             ret = semaphore('/gr','post');
             
@@ -354,23 +297,5 @@ end
 %profile off; profsave(profile('info'),sprintf('profile-results-register-with-desc-%d',moving_run));
 
 end
-
-%function idx_gpu = selectGPU()
-%    idx_gpu = 0;
-%    for i = 1:gpuDeviceCount
-%        ret = semaphore(['/gr' num2str(i)],'trywait');
-%        if ret == 0
-%            idx_gpu = i;
-%            break
-%        end
-%    end
-%end
-%
-%function unselectGPU(idx_gpu)
-%    ret = semaphore(['/gr' num2str(idx_gpu)],'post');
-%    if ret == -1
-%        fprintf('unselect [/gr%d] failed.\n',idx_gpu);
-%    end
-%end
 
 
