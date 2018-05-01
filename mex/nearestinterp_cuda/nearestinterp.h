@@ -18,7 +18,6 @@
 
 //#define DEBUG_OUTPUT
 //#define DEBUG_OUTPUT_MATRIX
-//#define DEBUG_DIST_CHECK
 //#define DEBUG_NO_THREADING
 
 namespace cudautils {
@@ -189,6 +188,9 @@ class NearestInterp : public cudautils::CudaTask {
         std::vector<unsigned int> dx_i_list;
         std::vector<unsigned int> dy_i_list;
 
+        std::vector<size_t> interpolated_map_idx;
+        std::vector<double> interpolated_values;
+
         SubDomainDataOnStream(
                 const unsigned int dx_stride,
                 const unsigned int dy_stride,
@@ -261,7 +263,7 @@ public:
     virtual int getNumOfStreamTasks(const int gpu_id, const int stream_id);
 
     virtual void prerun() {}
-    virtual void postrun() {}
+    virtual void postrun();
 
     virtual void runOnGPU(const int gpu_id, const unsigned int gpu_task_id);
     virtual void postrunOnGPU(const int gpu_id, const unsigned int gpu_task_id) {}

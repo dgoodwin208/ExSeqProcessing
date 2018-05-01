@@ -1,5 +1,5 @@
 #include <iostream>
-#include <future>
+#include <cassert>
 
 #include <thrust/copy.h>
 #include <thrust/replace.h>
@@ -296,6 +296,23 @@ int NearestInterp::getNumOfStreamTasks(
     return 1;
 }
 
+void NearestInterp::postrun() {
+    for (int gpu_id = 0; gpu_id < num_gpus_; gpu_id++) {
+        std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[gpu_id];
+
+        for (int stream_id = 0; stream_id < num_streams_; stream_id++) {
+            std::shared_ptr<SubDomainDataOnStream> stream_data = subdom_data->stream_data[stream_id];
+
+            assert(stream_data->interpolated_map_idx.size() == stream_data->interpolated_values.size());
+            for (size_t i = 0; i < stream_data->interpolated_map_idx.size(); i++) {
+                size_t idx = stream_data->interpolated_map_idx[i];
+                double val = stream_data->interpolated_values[i];
+                dom_data_->h_image[idx] = val;
+            }
+        }
+    }
+}
+
 void NearestInterp::runOnGPU(
         const int gpu_id,
         const unsigned int gpu_task_id) {
@@ -413,13 +430,18 @@ void NearestInterp::runOnGPU(
     logger_->info("calculate map idx {}", timer.get_laptime());
 
     logger_->info("padded_map_idx_size={}", subdom_data->padded_map_idx_size);
-//    logger_->debug("===== padded_map idx");
-//    std::copy(subdom_data->padded_map_idx.begin(), end_itr, std::ostream_iterator<unsigned int>(std::cout, ","));
-//    std::cout << std::endl;
+    logger_->debug("===== padded_map idx");
+    thrust::host_vector<unsigned int> dbg_padded_map_idx(thrust::device_vector<unsigned int>(subdom_data->padded_map_idx, subdom_data->padded_map_idx + subdom_data->padded_map_idx_size));
+    std::copy(dbg_padded_map_idx.begin(), dbg_padded_map_idx.end(), std::ostream_iterator<unsigned int>(std::cout, ","));
+    std::cout << std::endl;
 
     timer.reset();
 #endif
 
+    for (int i = 0; i < num_streams_; i++) {
+        subdom_data->stream_data[i]->dx_i_list.clear();
+        subdom_data->stream_data[i]->dy_i_list.clear();
+    }
 
     unsigned int num_dx = get_num_blocks(x_sub_delta, dx_);
     unsigned int num_dy = get_num_blocks(y_sub_delta, dy_);
@@ -455,6 +477,8 @@ void NearestInterp::runOnStream(
     unsigned int y_sub_i = subdom_data->y_sub_i_list[gpu_task_id];
     unsigned int x_sub_delta = get_delta(x_size_, x_sub_i, x_sub_size_);
     unsigned int y_sub_delta = get_delta(y_size_, y_sub_i, y_sub_size_);
+    unsigned int x_sub_start = x_sub_i * x_sub_size_;
+    unsigned int y_sub_start = y_sub_i * y_sub_size_;
 
 #ifdef DEBUG_OUTPUT
     CudaTimer timer(stream_data->stream);
@@ -477,6 +501,11 @@ void NearestInterp::runOnStream(
         logger_->info("dx_i={}, dy_i={}", dx_i, dy_i);
         logger_->info("x=({},{},{}) y=({},{},{}), dw={}", dx_start, dx_delta, dx_end, dy_start, dy_delta, dy_end, dw_);
         logger_->info("padded_map_idx_size={}", subdom_data->padded_map_idx_size);
+
+        logger_->debug("===== all padded_map idx");
+        thrust::host_vector<unsigned int> dbg_all_padded_map_idx(thrust::device_vector<unsigned int>(subdom_data->padded_map_idx, subdom_data->padded_map_idx + subdom_data->padded_map_idx_size));
+        std::copy(dbg_all_padded_map_idx.begin(), dbg_all_padded_map_idx.end(), std::ostream_iterator<unsigned int>(std::cout, ","));
+        std::cout << std::endl;
 #endif
 
 
@@ -501,8 +530,7 @@ void NearestInterp::runOnStream(
 
         cudaStreamSynchronize(stream_data->stream);
 
-        thrust::device_vector<unsigned int> dbg_d_padded_map_idx(padded_map_idx, padded_map_idx + padded_map_idx_size);
-        thrust::host_vector<unsigned int> dbg_h_padded_map_idx(dbg_d_padded_map_idx);
+        thrust::host_vector<unsigned int> dbg_h_padded_map_idx(thrust::device_vector<unsigned int>(padded_map_idx, padded_map_idx + padded_map_idx_size));
         for (unsigned int i = 0; i < padded_map_idx_size; i++) {
             logger_->debug("padded_map_idx={}", dbg_h_padded_map_idx[i]);
         }
@@ -568,9 +596,10 @@ void NearestInterp::runOnStream(
             unsigned int padding_y;
             unsigned int padding_z;
             ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);
-            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
+            size_t idx = dom_data_->sub2ind(x_sub_start + padding_x - dw_, y_sub_start + padding_y - dw_, padding_z - dw_);
 
-            dom_data_->h_image[idx] = h_interpolated_values[i];
+            stream_data->interpolated_map_idx.push_back(idx);
+            stream_data->interpolated_values.push_back(h_interpolated_values[i]);
         }
 
         cudaFree(padded_map_idx);

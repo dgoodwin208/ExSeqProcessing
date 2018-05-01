@@ -1175,7 +1175,7 @@ TEST_F(NearestInterpTest, NearestInterpMiddleImage_7Test) {
     const unsigned int dw = 2;
 
     const unsigned int num_gpus = 1;
-    const unsigned int num_streams = 2;
+    const unsigned int num_streams = 1;
 
     std::shared_ptr<cudautils::NearestInterp> ni =
         std::make_shared<cudautils::NearestInterp>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams);
@@ -1188,7 +1188,7 @@ TEST_F(NearestInterpTest, NearestInterpMiddleImage_7Test) {
 
     cudautils::Sub2Ind sub2ind(x_size, y_size, z_size);
     for (unsigned int k = 0; k < 3; k++) {
-        for (unsigned int j = 4; j < 7; j++) {
+        for (unsigned int j = 14; j < 17; j++) {
             for (unsigned int i = 4; i < 7; i++) {
                 img[sub2ind(i, j, k)] = 0.0;
                 map[sub2ind(i, j, k)] = 0;
@@ -1218,6 +1218,50 @@ TEST_F(NearestInterpTest, NearestInterpMiddleImage_8Test) {
     const unsigned int dy = 5;
     const unsigned int dw = 2;
 
+    const unsigned int num_gpus = 1;
+    const unsigned int num_streams = 2;
+
+    std::shared_ptr<cudautils::NearestInterp> ni =
+        std::make_shared<cudautils::NearestInterp>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams);
+
+    cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
+
+    thrust::host_vector<double> img(x_size * y_size * z_size);
+    thrust::host_vector<int8_t> map(x_size * y_size * z_size, 1);
+    thrust::sequence(img.begin(), img.end());
+
+    cudautils::Sub2Ind sub2ind(x_size, y_size, z_size);
+    for (unsigned int k = 0; k < 3; k++) {
+        for (unsigned int j = 4; j < 7; j++) {
+            for (unsigned int i = 14; i < 17; i++) {
+                img[sub2ind(i, j, k)] = 0.0;
+                map[sub2ind(i, j, k)] = 0;
+            }
+        }
+    }
+
+    ni->setImage(thrust::raw_pointer_cast(img.data()));
+    ni->setMapToBeInterpolated(thrust::raw_pointer_cast(map.data()));
+
+    executor.run();
+
+    thrust::host_vector<double> interpolated_image(x_size * y_size * z_size);
+    ni->getImage(thrust::raw_pointer_cast(interpolated_image.data()));
+
+    check_results(sub2ind, x_size, y_size, z_size, map, img, interpolated_image);
+}
+
+TEST_F(NearestInterpTest, NearestInterpMiddleImage_9Test) {
+
+    const unsigned int x_size = 20;
+    const unsigned int y_size = 20;
+    const unsigned int z_size = 5;
+    const unsigned int x_sub_size = 10;
+    const unsigned int y_sub_size = 10;
+    const unsigned int dx = 5;
+    const unsigned int dy = 5;
+    const unsigned int dw = 2;
+
     const unsigned int num_gpus = 2;
     const unsigned int num_streams = 2;
 
@@ -1233,7 +1277,7 @@ TEST_F(NearestInterpTest, NearestInterpMiddleImage_8Test) {
     cudautils::Sub2Ind sub2ind(x_size, y_size, z_size);
     for (unsigned int k = 0; k < 3; k++) {
         for (unsigned int j = 4; j < 7; j++) {
-            for (unsigned int i = 4; i < 7; i++) {
+            for (unsigned int i = 8; i < 12; i++) {
                 img[sub2ind(i, j, k)] = 0.0;
                 map[sub2ind(i, j, k)] = 0;
             }

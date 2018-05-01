@@ -15,7 +15,7 @@ CUDA_LIB=/usr/local/cuda/lib64
 SPDLOG_DIR=../include
 CUDA_UTILS_DIR=../cuda-utils
 
-CPPFLAGS+=-I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR)
+CPPFLAGS+=-DNDEBUG -I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR)
 CXXFLAGS+=-std=c++11 -Wall -Wextra -pthread
 NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 
