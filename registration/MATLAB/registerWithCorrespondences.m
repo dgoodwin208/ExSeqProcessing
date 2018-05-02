@@ -35,7 +35,7 @@ filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1} ));
 imgFixed_total = load3DTif_uint16(filename);
 %Loading the keys, possibly from the downsampled data
-output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
+output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
 
 %The globalkeys file loads the keyM and keyF matrices that are used to
 %calculate the warps
