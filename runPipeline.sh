@@ -41,9 +41,14 @@ TRANSCRIPT_DIR=6_transcripts
 REGISTRATION_PROJ_DIR=registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
 RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
-TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ./loadParameters.m.template)
 REPORTING_DIR=logs/imgs
 LOG_DIR=logs
+
+if [ -f ./loadParameters.m ]; then
+    TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ./loadParameters.m)
+else
+    TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ./loadParameters.m.template)
+fi
 
 FILE_BASENAME=exseqautoframea1
 CHANNELS="'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'"
@@ -53,7 +58,7 @@ REGISTRATION_CHANNEL=summedNorm
 PUNCTA_EXTRACT_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
-USE_GPUS=0
+USE_GPUS=false
 
 ###### getopts
 
@@ -112,7 +117,7 @@ do
             ;;
         s)  ARG_SKIP_STAGES=$OPTARG
             ;;
-        G)  USE_GPUS=1
+        G)  USE_GPUS=true
             ;;
         y)  QUESTION_ANSW='yes'
             ;;
@@ -318,6 +323,7 @@ echo "  reference round        :  ${REFERENCE_ROUND}"
 echo "  processing channels    :  ${CHANNELS}"
 echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
+echo "  use GPUs               :  ${USE_GPUS}"
 echo
 echo "Stages"
 for((i=0; i<${#STAGES[*]}; i++))
@@ -473,33 +479,35 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     popd
 #    cp 1_deconvolution/*ch00.tif 2_color-correction/
 
-    if [ ${USE_GPUS} -eq 1 ]; then
+    if [ ${USE_GPUS} == "true" ]; then
         matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+
+        if ls matlab-normalization-*.log > /dev/null 2>&1; then
+            mv matlab-normalization-*.log ${LOG_DIR}/
+        else
+            echo "No job log files."
+        fi
     else
         #Process the full-resolution data
         matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},false); ${ERR_HDL_POSTCODE}"
-    fi
 
-    if ls matlab-normalization-*.log > /dev/null 2>&1; then
-        mv matlab-normalization-*.log ${LOG_DIR}/
-    else
-        echo "No job log files."
-    fi
+        if ls matlab-normalization-*.log > /dev/null 2>&1; then
+            mv matlab-normalization-*.log ${LOG_DIR}/
+        else
+            echo "No job log files."
+        fi
 
-    if [ ${USE_GPUS} -eq 1 ]; then
-        # TODO: implement downsample version
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization-downsample.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
-    else
         #Process the downsampled data, if specified
         matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization-downsample.log -r "${ERR_HDL_PRECODE} loadParameters; if params.DO_DOWNSAMPLE; normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},true);end; ${ERR_HDL_POSTCODE}"
+
+        if ls matlab-normalization-*.log > /dev/null 2>&1; then
+            mkdir -p ${LOG_DIR}/downsample
+            mv matlab-normalization-*.log ${LOG_DIR}/downsample/
+        else
+            echo "No job log files."
+        fi
     fi
 
-    if ls matlab-normalization-*.log > /dev/null 2>&1; then
-        mkdir -p ${LOG_DIR}/downsample
-        mv matlab-normalization-*.log ${LOG_DIR}/downsample/
-    else
-        echo "No job log files."
-    fi
 
     # prepare normalized channel images for warp
     for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
@@ -587,8 +595,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         echo "Skipping registration of the reference round"
         echo $rounds
         # registerWithDescriptors for ${REFERENCE_ROUND} and i
-        if [ ${USE_GPUS} -eq 1 ]; then
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+        if [ ${USE_GPUS} == "true" ]; then
+            echo "GPU version has not yet implemented"
         else
             #Because the matching is currently single-threaded, we can parpool it in one loop
             #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"

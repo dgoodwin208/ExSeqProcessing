@@ -30,6 +30,21 @@ function success_code = normalization_cuda(src_folder_name,dst_folder_name,filer
 
     quantilenorm_cuda_final(length(num_sem_gpus), length(num_sem_cores));
 
+    if ~params.DO_DOWNSAMPLE
+        return
+    end
+
+    arg_list_downsample = {};
+    for run_num = run_num_list
+        arg_list_downsample{end+1} = {src_folder_name,dst_folder_name,[fileroot_name,'-downsample'],channels, run_num};
+    end
+
+    quantilenorm_cuda_init(num_sem_gpus,num_sem_cores);
+
+    [success_code, output] = batch_process('normalization-downsample', @normalizeImage_cuda, run_num_list, arg_list_downsample, ...
+        postfix_list, params.NORM_EACH_JOB_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
+
+    quantilenorm_cuda_final(length(num_sem_gpus), length(num_sem_cores));
 end
 
 
