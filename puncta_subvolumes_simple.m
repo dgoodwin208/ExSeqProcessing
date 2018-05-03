@@ -6,7 +6,7 @@ load(filename_centroids,'puncta_centroids','puncta_voxels')
 %% Make the 10x10x10 subvolumes we started this with, but now only with the pixels from the puncta!
 
 %Load a sample round 
-filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,4,'ch00',params.REGISTRATION_TYPE));
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,4,'ch00',regparams.REGISTRATION_TYPE));
 sample_img = load3DTif_uint16(filename_in);
 data_height = size(sample_img,1);
 data_width = size(sample_img,2);
@@ -29,7 +29,7 @@ for exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},params.REGISTRATION_TYPE));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE));
         experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);
     end
     
@@ -39,10 +39,8 @@ for exp_idx = 1:params.NUM_ROUNDS
     
     pos_per_round = zeros(3,num_insitu_transcripts);
     %the puncta indices are here in linear form for a specific round
-    punctafeinder_indices = puncta_voxels{exp_idx};
-    
-    
-    puncta_mov = puncta_centroids{exp_idx};
+    punctafeinder_indices = puncta_voxels;
+    puncta_mov = puncta_centroids;
     
     subvolume_ctr = 1;
     
@@ -57,7 +55,7 @@ for exp_idx = 1:params.NUM_ROUNDS
     emptry_subv_ctr =0; 
     for puncta_idx = 1:num_insitu_transcripts
         
-        this_centroid = puncta_centroids{exp_idx}(puncta_idx,:);
+        this_centroid = puncta_centroids(puncta_idx,:);
         
         %Get the centroid's Y X Z
         %NOTE: The centroid position come from the regionprops() call in

@@ -1,15 +1,27 @@
 
 loadParameters;
 for roundnum = 1:params.NUM_ROUNDS
-    summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,roundnum,'summedNorm',params.REGISTRATION_TYPE)));
- 
+    try
+    summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
+    catch
+	fprintf('Failed to load round %i\n',roundnum)
+        continue;
+    end
+    %remove any zeros by just putting the mean of the data in:
+    summed_norm(summed_norm==0) = mean(summed_norm(summed_norm>0)); 
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
     else
         total_summed_norm = total_summed_norm + summed_norm;
+        %geometric meean exploration:
+        %total_summed_norm = total_summed_norm.*summed_norm;
     end
 
 end
+
+%If geometric mean
+%total_summed_norm = total_summed_norm.^(1/params.NUM_ROUNDS);
+
 min_total = min(total_summed_norm(:));
 total_summed_norm_scaled = total_summed_norm - min_total;
 total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
@@ -17,10 +29,12 @@ save3DTif_uint16(total_summed_norm_scaled,fullfile(params.registeredImagesDir,sp
 
 %Note the original size of the data before upscaling to isotropic voxels
 data = total_summed_norm_scaled;
+
 img_origsize = data;
 
 %This requires knowledge of the Z and XY resolutions
-Z_upsample_factor = .5/.175;
+%Z_upsample_factor = .5/.175;
+Z_upsample_factor = params.ZRES/params.XRES;
 
 indices_orig = 1:size(data,3); %Note the indices of the original size of the image
 query_pts_interp = 1:1/Z_upsample_factor:size(data,3); %Query points for interpolation
@@ -80,7 +94,7 @@ for y = 1:size(data,1)
         fprintf('\t%i/%i rows processed\n',y,size(data,1));
     end
 end
-L_origsize = data_interpolated;
+L_origsize = uint32(data_interpolated);
 
 %Extract the puncta from the watershed output (no longer interpolated)
 params.PUNCTA_SIZE_THRESHOLD = 10; 
@@ -112,7 +126,7 @@ save3DTif_uint16(output_img,filename_out);
 
 %Creating the list of voxels and centroids per round is entirely
 %unnecessary, but keeping it in for now for easy of processing
-for rnd_idx=1:params.NUM_ROUNDS
+%for rnd_idx=1:params.NUM_ROUNDS
     num_puncta_per_round = length(filtered_puncta);
     
     %initialize the vectors for the particular round
@@ -125,9 +139,9 @@ for rnd_idx=1:params.NUM_ROUNDS
         centroids_per_round(ctr,:) = filtered_puncta(ctr).WeightedCentroid;
     end
     
-    puncta_centroids{rnd_idx} = centroids_per_round;
-    puncta_voxels{rnd_idx} = voxels_per_round;
-end
+    puncta_centroids = centroids_per_round;
+    puncta_voxels = voxels_per_round;
+%end
 
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 save(filename_centroids, 'puncta_centroids','puncta_voxels', '-v7.3');

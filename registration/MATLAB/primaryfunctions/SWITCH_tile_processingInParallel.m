@@ -14,7 +14,7 @@
 
 function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
     
-    loadExperimentParams;
+    loadParameters;
     options = {};
     options.Power2Flag = false;
     options.CastSingle = true;

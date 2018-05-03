@@ -1,7 +1,5 @@
 function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum)
 
-    loadParameters;
-
     if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1}))) || ...
         exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2}))) || ...
         exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3}))) || ...
@@ -20,42 +18,37 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
         fprintf('%s already exists, skipping\n',outputfile);
         return
     end
+    chan1 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})));
+    chan2 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})));
+    chan3 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})));
+    chan4 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
+    size_chan1 = size(chan1);
+    size_chan2 = size(chan2);
+    size_chan3 = size(chan3);
+    size_chan4 = size(chan4);
+
+    data_cols(:,1) = reshape(chan1,[],1);
+    data_cols(:,2) = reshape(chan2,[],1);
+    data_cols(:,3) = reshape(chan3,[],1);
+    data_cols(:,4) = reshape(chan4,[],1);
+    clearvars chan1 chan2 chan3 chan4;
 
     % Normalize the data
-    basename = sprintf('%s_round%03d',fileroot_name,roundnum);
-    ret = ...
-        quantilenorm_cuda(params.tempDir,basename, { ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})) });
+    data_cols_norm = quantilenorm(data_cols);
+    clearvars data_cols;
 
-    chan1_norm_fname = ret{1};
-    chan2_norm_fname = ret{2};
-    chan3_norm_fname = ret{3};
-    chan4_norm_fname = ret{4};
-    image_height = ret{5};
-    image_width  = ret{6};
+    % reshape the normed results back into 3d images
+    chan1_norm = reshape(data_cols_norm(:,1),size_chan1);
+    chan2_norm = reshape(data_cols_norm(:,2),size_chan2);
+    chan3_norm = reshape(data_cols_norm(:,3),size_chan3);
+    chan4_norm = reshape(data_cols_norm(:,4),size_chan4);
+    clearvars data_cols_norm;
 
-    summed_file = sprintf('%s_round%03d_5_summed.bin',fileroot_name,roundnum);
-    sumbinfiles(params.tempDir,{ chan1_norm_fname,chan2_norm_fname,chan3_norm_fname,chan4_norm_fname },summed_file);
 
-    summed_norm = load_binary_image(params.tempDir,summed_file,image_height,image_width);
+    summed_norm = chan1_norm+chan2_norm+chan3_norm+chan4_norm;
+    clearvars chan1_norm chan2_norm chan3_norm chan4_norm;
 
     save3DTif_uint16(summed_norm,outputfile);
 
-end
-
-function image = load_binary_image(outputdir,image_fname,image_height,image_width)
-    fid = fopen(fullfile(outputdir,image_fname),'r');
-    count = 1;
-    while ~feof(fid)
-        sub_image = fread(fid,[image_height,image_width],'double');
-        if ~isempty(sub_image)
-            image(:,:,count) = sub_image;
-            count = count + 1;
-        end
-    end
-    fclose(fid);
 end
 

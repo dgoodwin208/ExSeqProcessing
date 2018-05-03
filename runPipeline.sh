@@ -18,6 +18,7 @@ usage() {
     echo "  -i    reporting directory"
     echo "  -T    temp directory"
     echo "  -L    log directory"
+    echo "  -G    use GPUs"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  profile-check,color-correction,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
@@ -52,9 +53,11 @@ REGISTRATION_CHANNEL=summedNorm
 PUNCTA_EXTRACT_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
+USE_GPUS=0
+
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:yh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:Gyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -108,6 +111,8 @@ do
         e)  ARG_EXEC_STAGES=$OPTARG
             ;;
         s)  ARG_SKIP_STAGES=$OPTARG
+            ;;
+        G)  USE_GPUS=1
             ;;
         y)  QUESTION_ANSW='yes'
             ;;
@@ -181,15 +186,6 @@ echo "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh
 if [ ! -f "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh ]; then
     echo "No 'import_cluster_profiles.sh'"
     exit 1
-fi
-
-if [ ! -f "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m.template ]; then
-    echo "No 'loadExperimentParams.m.template' in Registration MATLAB"
-    exit 1
-fi
-if [ ! -f "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m ]; then
-    echo "No 'loadExperimentParams.m' in Registration MATLAB. Copy from a template file"
-    cp -a "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m{.template,}
 fi
 
 if [ ! -f ./loadParameters.m.template ]; then
@@ -397,15 +393,14 @@ stage_idx=$(( $stage_idx + 1 ))
 
 # setup for Registration
 
-sed -e "s#\(params.SAMPLE_NAME\) *= *.*;#\1 = '${REGISTRATION_SAMPLE}';#" \
-    -e "s#\(params.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
-    -e "s#\(params.REGISTERCHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
-    -e "s#\(params.CHANNELS\) *= *.*;#\1 = {${REGISTRATION_WARP_CHANNELS}};#" \
-    -e "s#\(params.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
-    -e "s#\(params.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
-    -e "s#\(params.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
+sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
+    -e "s#\(regparams.REGISTERCHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
+    -e "s#\(regparams.CHANNELS\) *= *.*;#\1 = {${REGISTRATION_WARP_CHANNELS}};#" \
+    -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
+    -e "s#\(regparams.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
+    -e "s#\(regparams.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -i.back \
-    "${REGISTRATION_PROJ_DIR}"/MATLAB/loadExperimentParams.m
+    ./loadParameters.m
 
 # setup for segmentation using Raj lab image tools
 
@@ -441,19 +436,24 @@ EOF
 ERR_HDL_PRECODE='try;'
 ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
 
-# color correction
+# downsampling and color correction
 echo "========================================================================="
-echo "Color correction"; date
+echo "Downsampling"; date
 echo
 
+
+
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-all.log -r "${ERR_HDL_PRECODE} run('downsample_all.m'); ${ERR_HDL_POSTCODE}"
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-apply.log -r "${ERR_HDL_PRECODE} run('downsample_applycolorshiftstofullres.m'); ${ERR_HDL_POSTCODE}"
 else
     echo "Skip!"
 fi
 echo
+
 
 stage_idx=$(( $stage_idx + 1 ))
 
@@ -463,8 +463,22 @@ echo "Normalization"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-#    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    pushd ${COLOR_CORRECTION_DIR}
+    for f in ${DECONVOLUTION_DIR}/*downsample*ch00.tif
+    do
+        if [ ! -f $(basename $f) ]; then
+            ln -s $f
+        fi
+    done
+    popd
+#    cp 1_deconvolution/*ch00.tif 2_color-correction/
+
+    if [ ${USE_GPUS} -eq 1 ]; then
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    else
+        #Process the full-resolution data
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},false); ${ERR_HDL_POSTCODE}"
+    fi
 
     if ls matlab-normalization-*.log > /dev/null 2>&1; then
         mv matlab-normalization-*.log ${LOG_DIR}/
@@ -472,7 +486,22 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         echo "No job log files."
     fi
 
-    # prepare normalized channel images for registration
+    if [ ${USE_GPUS} -eq 1 ]; then
+        # TODO: implement downsample version
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization-downsample.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    else
+        #Process the downsampled data, if specified
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization-downsample.log -r "${ERR_HDL_PRECODE} loadParameters; if params.DO_DOWNSAMPLE; normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},true);end; ${ERR_HDL_POSTCODE}"
+    fi
+
+    if ls matlab-normalization-*.log > /dev/null 2>&1; then
+        mkdir -p ${LOG_DIR}/downsample
+        mv matlab-normalization-*.log ${LOG_DIR}/downsample/
+    else
+        echo "No job log files."
+    fi
+
+    # prepare normalized channel images for warp
     for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
     do
         for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
@@ -482,14 +511,23 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
                 echo "round number is wrong."
             fi
 
-            normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+            if [[ $f = *"downsample"* ]]; then
+                # prepare downsampled normalized channel images for warp
+                normalized_ch_downsample_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}-downsample_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
 
-            if [ ! -f $normalized_ch_file ]; then
-                ln -s $f $normalized_ch_file
+                if [ ! -f $normalized_ch_downsample_file ]; then
+                    ln -s $f $normalized_ch_downsample_file
+                fi
+            else
+                # prepare full-sized normalized channel images for warp
+                normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+
+                if [ ! -f $normalized_ch_file ]; then
+                    ln -s $f $normalized_ch_file
+                fi
             fi
         done
     done
-
 else
     echo "Skip!"
 fi
@@ -529,30 +567,39 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     echo
 
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        # make symbolic links of round-1 images because it is not necessary to warp them
+        # make symbolic links of reference-round images because it is not necessary to warp them
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
             ref_round=$(printf "round%03d" $REFERENCE_ROUND)
             normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}.tif
-            registered_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_registered.tif
-            if [ ! -f $registered_file ]; then
-                ln -s $normalized_file $registered_file
+            registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_affine.tif
+            registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_registered.tif
+            if [ ! -f $registered_affine_file ]; then
+                ln -s $normalized_file $registered_affine_file
+            fi
+            if [ ! -f $registered_tps_file ]; then
+                ln -s $normalized_file $registered_tps_file
             fi
         done
 
-        rounds=$(seq -s' ' 1 ${ROUND_NUM})
+        rounds=$(seq -s' ' 1 ${ROUND_NUM})' '
         rounds=${rounds/$REFERENCE_ROUND /}
         echo "Skipping registration of the reference round"
         echo $rounds
         # registerWithDescriptors for ${REFERENCE_ROUND} and i
-        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+        if [ ${USE_GPUS} -eq 1 ]; then
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+        else
+            #Because the matching is currently single-threaded, we can parpool it in one loop
+            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+        fi
 
         if ls matlab-regDesc-*.log > /dev/null 2>&1; then
             mv matlab-regDesc-*.log ${LOG_DIR}/
         else
             echo "No log files."
         fi
-
     else
         echo "Skip!"
     fi

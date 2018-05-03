@@ -3,11 +3,6 @@
 
 % Author: Daniel Goodwin, Aug 2015 dgoodwin208@gmail.com
 
-
-XRES = .18;
-YRES = .18;
-ZRES = .18;
-
 %Create new A, calcuate the transformed values, get the distance from the
 %target points as defined by the correspondences
 keypointsM = [];
@@ -22,7 +17,7 @@ for idx = 1:length(correspondences)
 end
 
 %RANSAC params
-threshold = 1.; %In microns how close does an inlier have to be 
+threshold = 2.; %In microns how close does an inlier have to be 
 best_score = -1;
 best_inliers = [];
 best_tform = [];
@@ -48,7 +43,7 @@ while trial_iter_count < N || trial_iter_count<min_trial_limit
     keyF = keypointsF(random_indices,:);
 
     %Fit the model for points in Moving image to points in Fixed image 
-    affine_tform = findAffineModel(keyM, keyF);
+    affine_tform = findAffineModel(keyM, keyF,regparams.AFFINE_FULL);
 
     inliers = [];
     
@@ -63,7 +58,7 @@ while trial_iter_count < N || trial_iter_count<min_trial_limit
         key_est = homogeneous_res(1:3);    
         %disp([mat2str(key_act) ' ' mat2str(key_est)])
         
-        dist = sqrt((XRES^2)*(key_act(1)-key_est(1))^2 + (YRES^2)*(key_act(2)-key_est(2))^2 + (ZRES^2)*(key_act(3)-key_est(3))^2 );
+        dist = sqrt((params.XRES^2)*(key_act(1)-key_est(1))^2 + (params.YRES^2)*(key_act(2)-key_est(2))^2 + (params.ZRES^2)*(key_act(3)-key_est(3))^2 );
         if dist <= threshold
            inliers = [inliers; i]; 
         end

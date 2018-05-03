@@ -23,7 +23,7 @@ function keys = SWITCH_tile_processing(img)
     options.Power2Flag = false;
     options.CastSingle = true;
 
-    loadExperimentParams;
+    loadParameters;
     
     for blur_size= params.SCALE_PYRAMID
         

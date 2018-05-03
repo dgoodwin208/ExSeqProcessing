@@ -102,7 +102,7 @@ end
 transcript_objects = cell(size(base_calls_quickzscore,1),1);
 
 output_cell = {}; ctr = 1;
-
+discarded_puncta = []; discard_ctr = 1;
 for p_idx = 1:size(base_calls_quickzscore,1)
 
     transcript = struct;
@@ -134,7 +134,9 @@ for p_idx = 1:size(base_calls_quickzscore,1)
     if any(sum(intensities>0,2)==0)
         fprintf('Discarding puncta at (%i,%i,%i) bc empty round\n',...
             final_positions(p_idx,1),final_positions(p_idx,2),final_positions(p_idx,3));
-        continue;
+       discarded_puncta(discard_ctr) = p_idx;
+       discard_ctr = discard_ctr+1;
+       continue;
     end
     %Assuming the groundtruth options are de-duplicated
     %Is there a perfect match to the (unique ) best-fit
@@ -184,5 +186,8 @@ fprintf(fileID,output_csv);
 fclose(fileID);
 
 %%
+%remove the transcripts that had an empty round, likely because of the registration
+transcript_objects(discarded_puncta) = [];
+
 save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)),'transcript_objects','-v7.3');
 fprintf('Saved transcript_matches_objects!\n');

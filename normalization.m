@@ -1,12 +1,15 @@
 % normalization
 
-function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,total_round_num)
+function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,total_round_num,do_downsample)
 
     if length(channels) ~= 4
         disp('# of channels is not 4.')
         return
     end
-
+    
+    if do_downsample
+        fileroot_name = sprintf('%s-%s',fileroot_name, 'downsample');
+    end
     cluster = parcluster('local_96workers');
 
     tic;

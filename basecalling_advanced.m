@@ -4,6 +4,9 @@
 load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)));
 load('groundtruth_dictionary.mat');
 %% First remove any empty rounds
+discarded_puncta = find(cellfun(@isempty,transcript_objects));
+transcript_objects(discarded_puncta) = [];
+
 allIntensitiesPerTranscriptCell = cellfun(@(x) [squeeze(x.img_transcript_absValuePixel)], transcript_objects,'UniformOutput',0);
 
 puncta_indices_with_empty_vols = [];
@@ -26,8 +29,10 @@ for p = 1:length(allIntensitiesPerTranscriptCell)
     allIntensitiesPerTranscript(p,:,:) = allIntensitiesPerTranscriptCell{p};
 end
 
-needsToBeReCalled = cell2mat(cellfun(@(x) [x.hamming_score>1], transcript_objects,'UniformOutput',0));
-
+%If we want to do a hybrid of the naive and slightly advanced base call
+%needsToBeReCalled = cell2mat(cellfun(@(x) [x.hamming_score>1], transcript_objects,'UniformOutput',0));
+%Or we just re-call eveerything:
+needsToBeReCalled = ones(length(transcript_objects),1);
 %First we base-call the two ligation round
 
 transcripts_new = zeros(size(allIntensitiesPerTranscript,1),20);

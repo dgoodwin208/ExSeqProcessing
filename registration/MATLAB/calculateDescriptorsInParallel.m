@@ -3,10 +3,10 @@
 function success_code = calculateDescriptorsInParallel(run_num_list)
 
     % get max_jobs
-    loadExperimentParams;
+    loadParameters;
 
     run_num_list_size = length(run_num_list);
-    desc_size = params.ROWS_DESC * params.COLS_DESC;
+    desc_size = regparams.ROWS_DESC * regparams.COLS_DESC;
     max_jobs  = run_num_list_size * desc_size;
 
     arg_list = {};

@@ -1,34 +1,93 @@
-% Data loading a storage parameteres
-params.deconvolutionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/1_deconvolution';
-params.colorCorrectionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/2_color-correction';
-params.registeredImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/4_registration';
-params.punctaSubvolumeDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/5_puncta-extraction';
-params.transcriptResultsDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/6_transcripts';
 
-params.FILE_BASENAME = 'exseqautoframea1';
+params.FILE_BASENAME = 'exseqauto-xy01';
+
+% Data loading a storage parameteres
+params.deconvolutionImagesDir = '/home/kajita/works/ExSeqProcessing-merge/1_deconvolution';
+params.colorCorrectionImagesDir = '/home/kajita/works/ExSeqProcessing-merge/2_color-correction';
+params.normalizedImagesDir = '/home/dgoodwin/ExSeqProcessing/3_normalization';
+params.registeredImagesDir = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
+params.punctaSubvolumeDir = '/home/kajita/works/ExSeqProcessing-merge/5_puncta-extraction';
+params.transcriptResultsDir = '/home/kajita/works/ExSeqProcessing-merge/6_transcripts';
+params.reportingDir = '/home/kajita/works/ExSeqProcessing-merge/logs/imgs';
+
+%Microscope parameters
+params.XRES = .17;
+params.YRES = .17;
+params.ZRES = .4;
+
 
 %Experimental parameters
-params.REFERENCE_ROUND_WARP=5;
-params.REFERENCE_ROUND_PUNCTA = 5;
+params.REFERENCE_ROUND_WARP = 4;
+params.REFERENCE_ROUND_PUNCTA = 4;
 params.NUM_ROUNDS = 4;
 params.NUM_CHANNELS = 4;
+
+%Used for color correction
+%Assuming beads are at the top of the stack, when do they start?
+params.BEAD_ZSTART = 100; %goes to :end
+params.COLOR_OFFSETS3D = [6,6,6];
+
+
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 params.CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
-
-params.REGISTRATION_TYPE = 'registered';
-%RajLab filtering parameters:
-params.PUNCTA_PRESENT_THRESHOLD = 18; %Number of rounds to agree on
-params.PUNCTA_SIZE_THRESHOLD = 10; %Number of rounds to agree on
-params.EPSILON_TARGET = 4; %Radius of neighborhood for puncta to agree across rounds
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
 
-params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
+params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise 
 
-%Reporting directories
-params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing/logs/imgs';
+%Do we need to downsample the first few steps of the pipeline?
+params.DO_DOWNSAMPLE = true;
+params.DOWNSAMPLE_RATE = 2.;
+
+% Define parameters for registration, titled regparams for clarity
+regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
+regparams.FIXED_RUN = 4;
+
+%When calculating RANSAC, do we consider all possible affine warps (true)
+%Or just translation+scale (false)
+regparams.AFFINE_FULL = true;
+%Do we want to combine features from multiple channels?
+%keypoints and descriptors
+regparams.REGISTERCHANNELS_SIFT = {'summedNorm'}; %keypoints and descriptors
+%keypoints only
+regparams.REGISTERCHANNELS_SC = {'summedNorm'};%'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
+
+%In the Murray et al 2015 this was {'Lectin', 'DAPI', 'Data}
+%Which channels do we warp?
+regparams.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'}; 
+
+regparams.INPUTDIR = '/home/kajita/works/ExSeqProcessing-merge/3_normalization';
+regparams.OUTPUTDIR = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
+
+regparams.OVERLAP = .1; %used to be 10%
+
+%Set a threshold for maximum displacement distance?
+%(not appropriate for all datasets. Distance in pixels, -1 for ignore this)
+regparams.DISTANCEQUANTILECUTOFF = .95;
+
+%how many subsections to calculate the descriptors?
+regparams.ROWS_DESC = 1;
+regparams.COLS_DESC = 1;
+%over how many subsections to calculate the piecewise affine transforms?
+regparams.ROWS_TFORM = 1;
+regparams.COLS_TFORM = 1;
+
+%if more than this percentage of pixels doesn't change in a tile
+%consider it an empty tile and skip it
+regparams.EMPTY_TILE_THRESHOLD = .95;
+
+% SCALE_PYRAMID: Create a set of blurs to create a "scale pyramid", or in 
+% non-computervision speak:
+% Blurring by a progressive set of gaussians to adjust for puncta flucutations    
+% Using the documentation in fspecial3.m, the standard deviations of 
+% the gaussian is defined as SIZE/2/2.354 so that FWHM equals half filter 
+% size (http://en.wikipedia.org/wiki/FWHM).The blur_size values are chosen 
+% with assumptions of the width of the Lectin vessels 
+% (5-20 pixels at 2um/pix res) observed and assumption of minor scale 
+% disparities (ie <20%)
+params.SCALE_PYRAMID = [5];
 
 %# of Jobs in normalization
 params.NORM_MAX_RUN_JOBS = 20;
