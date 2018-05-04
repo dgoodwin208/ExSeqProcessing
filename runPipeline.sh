@@ -580,6 +580,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         do
             ref_round=$(printf "round%03d" $REFERENCE_ROUND)
             normalized_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}.tif
+
             registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_affine.tif
             registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_registered.tif
             if [ ! -f $registered_affine_file ]; then
