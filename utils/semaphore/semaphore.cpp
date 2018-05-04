@@ -14,7 +14,7 @@
 void print_help() {
     std::cout << "semaphore SEMAPHORE_NAMES COMMAND [ARGUMENTS].." << std::endl;
     std::cout << "    SEMAPHORE_NAMES : a list of semaphore names with comma separators" << std::endl;
-    std::cout << "    COMMAND         : open, wait, post, close, unlink" << std::endl;
+    std::cout << "    COMMAND         : open, wait, trywait, post, close, unlink" << std::endl;
     std::cout << "    ARGUMENTS       : arguments for 'open' command" << std::endl;
 }
 
