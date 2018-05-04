@@ -493,11 +493,12 @@ echo "Normalization"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+    cwd=$PWD
     pushd ${COLOR_CORRECTION_DIR}
-    for f in ${DECONVOLUTION_DIR}/*downsample*ch00.tif
+    for f in ${DECONVOLUTION_DIR}/*ch00.tif
     do
         if [ ! -f $(basename $f) ]; then
-            ln -s ${f/$PWD/..}
+            ln -s ${f/$cwd/..}
         fi
     done
     popd
