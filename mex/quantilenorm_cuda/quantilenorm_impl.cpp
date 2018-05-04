@@ -931,10 +931,13 @@ QuantileNormImpl::substituteToNormValues(const size_t idx) {
             } else {
                 vals_for_mean.push_back(cur_summed_val);
 
-                double sum = 0.0;
-                for_each(vals_for_mean.begin(), vals_for_mean.end(),
-                    [&sum] (unsigned int v) { sum += (double)v; });
-                double mean_val = sum / (double)vals_for_mean.size() / num_channels;
+                size_t mid_i = vals_for_mean.size() / 2;
+                double mean_val = 0.0;
+                if (vals_for_mean.size() % 2 == 0) {
+                    mean_val = (double)(vals_for_mean[mid_i] + vals_for_mean[mid_i-1]) * 0.5 / num_channels;
+                } else {
+                    mean_val = (double)vals_for_mean[mid_i] / num_channels;
+                }
 
                 for (size_t i = 0; i < vals_for_mean.size(); i++) {
                     subst_fb_writer.set(mean_val);
