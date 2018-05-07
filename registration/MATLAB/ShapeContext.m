@@ -1,4 +1,4 @@
-function F=ShapeContext_mod1(Pointsc,Points)
+function F=ShapeContext(Pointsc,Points)
 %Calaculate ShapeContext vectors around Pointsc
 %Points is what is calculated in the histogram for Pointsc
 defaultoptions=struct('r_max',3,'r_min',1e-5,'r_bins',10,'a_bins',10,'rotate',0,'method',1,'maxdist',5);
