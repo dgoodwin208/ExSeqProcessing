@@ -2,12 +2,15 @@
 #include <future>
 
 #include <thrust/copy.h>
+#include <thrust/sort.h>
+#include <thrust/execution_policy.h>
 #include <thrust/replace.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 
 #include <cuda_runtime.h>
 #include <cmath>
+#include <numeric> //std::inner_product
 
 #include "sift.h"
 #include "matrix_helper.h"
@@ -18,28 +21,40 @@
 
 namespace cudautils {
 
-struct FV {
-    double* vertices;
-    double* faces;
-    double* centers;
-}
-
 struct Keypoint {
     int x;
     int y;
     int z;
     double xyScale;
     double tScale;
-    double* ivec; //stores the flattened descriptor vector
+    int* ivec; //stores the flattened descriptor vector
 };
 
 struct SiftParams {
     double MagFactor;
     int IndexSize;
     int nFaces;
-}
+    int Tessellation_levels;
+    int Smooth_Flag;
+    double SigmaScaled;
+    double Tessel_thresh;
+    double Smooth_Var;
+    int TwoPeak_Flag;
+    double xyScale;
+    double tScale;
+    double MaxIndexVal;
+    //FIXME must be in row order
+    double* fv_centers;
+    int fv_centers_len;
+};
 
-FV sphere_tri(int maxlevel, int r) {
+/*struct FV {*/
+    /*double* vertices;*/
+    /*double* faces;*/
+    /*double* centers;*/
+/*};*/
+
+/*FV sphere_tri(int maxlevel, int r) {*/
     /*
      sphere_tri - generate a triangle mesh approximating a sphere
     
@@ -56,7 +71,7 @@ FV sphere_tri(int maxlevel, int r) {
      The function uses recursive subdivision.  The first
      approximation is an icosahedron. Each level of refinement
      subdivides each triangle face by a factor of 4 (see also
-     mesh_refine).  At each refinement, the vertices are
+     mesh_refine). At each refinement, the vertices are
      projected to the sphere surface (see sphere_project).
     
      A recursion level of 3 or 4 is a good sphere surface, if
@@ -84,103 +99,106 @@ FV sphere_tri(int maxlevel, int r) {
     
     */
 
-    // default maximum subdivision level
-    if (maxlevel < 0)
-        maxlevel = 0;
+    /*// default maximum subdivision level*/
+    /*if (maxlevel < 0)*/
+        /*maxlevel = 0;*/
 
-    // default radius
-    if (r < 0)
-        r = 1;
+    /*// default radius*/
+    /*if (r < 0)*/
+        /*r = 1;*/
 
-    // define the icosehedron
+    /*// define the icosehedron*/
 
-    // Twelve vertices of icosahedron on unit sphere
-    double tau = 0.8506508084; // t=(1+sqrt(5))/2, tau=t/sqrt(1+t^2)
-    double one = 0.5257311121; // one=1/sqrt(1+t^2) , unit sphere
+    /*// Twelve vertices of icosahedron on unit sphere*/
+    /*double tau = 0.8506508084; // t=(1+sqrt(5))/2, tau=t/sqrt(1+t^2)*/
+    /*double one = 0.5257311121; // one=1/sqrt(1+t^2) , unit sphere*/
 
-    FV fv;
+    /*FV fv;*/
     
-    // store the vertices in column (Matlab) order 
-    fv.vertices( 1,:) = [  tau,  one,    0 ]; // ZA
-    fv.vertices( 2,:) = [ -tau,  one,    0 ]; // ZB
-    fv.vertices( 3,:) = [ -tau, -one,    0 ]; // ZC
-    fv.vertices( 4,:) = [  tau, -one,    0 ]; // ZD
-    fv.vertices( 5,:) = [  one,   0 ,  tau ]; // YA
-    fv.vertices( 6,:) = [  one,   0 , -tau ]; // YB
-    fv.vertices( 7,:) = [ -one,   0 , -tau ]; // YC
-    fv.vertices( 8,:) = [ -one,   0 ,  tau ]; // YD
-    fv.vertices( 9,:) = [   0 ,  tau,  one ]; // XA
-    fv.vertices(10,:) = [   0 , -tau,  one ]; // XB
-    fv.vertices(11,:) = [   0 , -tau, -one ]; // XC
-    fv.vertices(12,:) = [   0 ,  tau, -one ]; // XD
+    /*// store the vertices in column (Matlab) order */
+    /*fv.vertices = new double[12][3];*/
+    /*fv.vertices[ 0] = {  tau,  one,    0 }; // ZA*/
+    /*fv.vertices[ 1] = { -tau,  one,    0 }; // ZB*/
+    /*fv.vertices[ 2] = { -tau, -one,    0 }; // ZC*/
+    /*fv.vertices[ 3] = {  tau, -one,    0 }; // ZD*/
+    /*fv.vertices[ 4] = {  one,   0 ,  tau }; // YA*/
+    /*fv.vertices[ 5] = {  one,   0 , -tau }; // YB*/
+    /*fv.vertices[ 6] = { -one,   0 , -tau }; // YC*/
+    /*fv.vertices[ 7] = { -one,   0 ,  tau }; // YD*/
+    /*fv.vertices[ 8] = {   0 ,  tau,  one }; // XA*/
+    /*fv.vertices[ 9] = {   0,  -tau,  one }; // XB*/
+    /*fv.vertices[10] = {   0 , -tau, -one }; // XC*/
+    /*fv.vertices[11] = {   0 ,  tau, -one }; // XD*/
     
-    // Structure for unit icosahedron
-    fv.faces = [  5,  8,  9 ;
-               5, 10,  8 ;
-               6, 12,  7 ;
-               6,  7, 11 ;
-               1,  4,  5 ;
-               1,  6,  4 ;
-               3,  2,  8 ;
-               3,  7,  2 ;
-               9, 12,  1 ;
-               9,  2, 12 ;
-              10,  4, 11 ;
-              10, 11,  3 ;
-               9,  1,  5 ;
-              12,  6,  1 ;
-               5,  4, 10 ;
-               6, 11,  4 ;
-               8,  2,  9 ;
-               7, 12,  2 ;
-               8, 10,  3 ;
-               7,  3, 11 ];
+    /*// Structure for unit icosahedron*/
+    /*// Fixme check this is in correct col order*/
+    /*// previous matlab code was in ; order*/
+    /*fv.faces = {  5,  8,  9 ,*/
+               /*5, 10,  8 ,*/
+               /*6, 12,  7 ,*/
+               /*6,  7, 11 ,*/
+               /*1,  4,  5 ,*/
+               /*1,  6,  4 ,*/
+               /*3,  2,  8 ,*/
+               /*3,  7,  2 ,*/
+               /*9, 12,  1 ,*/
+               /*9,  2, 12 ,*/
+              /*10,  4, 11 ,*/
+              /*10, 11,  3 ,*/
+               /*9,  1,  5 ,*/
+              /*12,  6,  1 ,*/
+               /*5,  4, 10 ,*/
+               /*6, 11,  4 ,*/
+               /*8,  2,  9 ,*/
+               /*7, 12,  2 ,*/
+               /*8, 10,  3 ,*/
+               /*7,  3, 11 };*/
     
 
 
-    // -----------------
-    // refine the starting shapes with subdivisions
-    if maxlevel,
+    /*// -----------------*/
+    /*// refine the starting shapes with subdivisions*/
+    /*if maxlevel,*/
         
-        // Subdivide each starting triangle (maxlevel) times
-        for level = 1:maxlevel,
+        /*// Subdivide each starting triangle (maxlevel) times*/
+        /*for level = 1:maxlevel,*/
             
-            // Subdivide each triangle and normalize the new points thus
-            // generated to lie on the surface of a sphere radius r.
-            fv = mesh_refine_tri4(fv);
-            fv.vertices = sphere_project(fv.vertices,r);
+            /*// Subdivide each triangle and normalize the new points thus*/
+            /*// generated to lie on the surface of a sphere radius r.*/
+            /*fv = mesh_refine_tri4(fv);*/
+            /*fv.vertices = sphere_project(fv.vertices,r);*/
             
-            // An alternative might be to define a min distance
-            // between vertices and recurse or use fminsearch
+            /*// An alternative might be to define a min distance*/
+            /*// between vertices and recurse or use fminsearch*/
             
-        end
-    end
+        /*end*/
+    /*end*/
 
-    for (int i=0; i < length(fv.faces); i++) {
-        fv.centers(i,:) = mean(fv.vertices(fv.faces(i,:),:));
-        // Unit Normalization
-        fv.centers(i,:) = fv.centers(i,:) ./ sqrt(dot(fv.centers(i,:),fv.centers(i,:)));
-    }
-}
+    /*for (int i=0; i < length(fv.faces); i++) {*/
+        /*fv.centers(i,:) = mean(fv.vertices(fv.faces(i,:),:));*/
+        /*// Unit Normalization*/
+        /*fv.centers(i,:) = fv.centers(i,:) ./ sqrt(dot(fv.centers(i,:),fv.centers(i,:)));*/
+    /*}*/
+/*}*/
 
 __device__
 place_in_index(double* index, double mag, int i, int j, int s, 
         double* yy, double* ix, double* sift_params) {
 
-    double tmpsum;
+    double tmpsum = 0.0;
     /*FIXME*/
     /*int bin_index = bin_sub2ind(i,j,s);*/
     if (sift_params.Smooth_Flag) {
-        tmpsum = sum(yy(1:sift_params.Tessel_thresh).^sift_params.Smooth_Var);
-        // Add to the three nearest tesselation faces
+        for (int tessel = 0; tessel < sift_params.Tessel_thresh; tessel++) {
+            tmpsum += pow(yy[tessel], sift_params.Smooth_Var);
+        }
+
+        // Add three nearest tesselation faces
         for (int ii=0; ii<sift_params.Tessel_thresh; ii++) {
-            /*FIXME*/
-            /*int bin_index = bin_sub2ind(i,j,s);*/
-            index[bin_index] = index[bin_index] + ( mag * pow( yy(ii),
-                        sift_params.Smooth_Var ) / tmpsum );
+            index[bin_index] +=  mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum;
         }
     }
-        index[bin_index] = index[bin_index] + mag;
+        index[bin_index] += mag;
     }
 
 }
@@ -191,7 +209,9 @@ place_in_index(double* index, double mag, int i, int j, int s,
 /*bin it down to the sift_params.IndexSize dimensions*/
 /*thus, i_indx, j_indx, s_indx represent the binned index within the radius of the keypoint*/
 __device__
-void add_sample(double* index, double* image, double distsq, int r, int c, int s, int i_indx, int j_indx, int s_indx, FV fv, SiftParams sift_params) {
+void add_sample(double* index, double* image, double distsq, int
+        r, int c, int s, int i_indx, int j_indx, int s_indx, FV
+        SiftParams sift_params) {
 
     double sigma = sift_params.SigmaScaled;
     double weight = exp(-(distsq / (2.0 * sigma * sigma)));
@@ -199,7 +219,7 @@ void add_sample(double* index, double* image, double distsq, int r, int c, int s
     double mag;
     double* vect, yy, ix;
     /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
-    get_grad_ori_vector(image,r,c,s, fv, mag, vect, yy, ix, sift_params);
+    get_grad_ori_vector(image,r,c,s, mag, vect, yy, ix, sift_params);
     double mag = weight * mag; // scale magnitude by gaussian 
 
     place_in_index(index, mag, i_indx, j_indx, s_indx, yy, ix, sift_params);
@@ -207,11 +227,12 @@ void add_sample(double* index, double* image, double distsq, int r, int c, int s
 
 // assumes r,c,s lie within accessible image boundaries
 __device__
-void get_grad_ori_vector(double* image, int r, int c, int s, FV fv, 
+void get_grad_ori_vector(double* image, int r, int c, int s, 
         double mag, double* vect, double* yy, double* ix, SiftParams sift_params) {
 
     //FIXME subscripts to linear ind
     double xgrad = image[r,c+1,s] - image[r,c-1,s];
+    //FIXME is this correct direction?
     double ygrad = image[r-1,c,s] - image[r+1,c,s];
     double zgrad = image[r,c,s+1] - image[r,c,s-1];
 
@@ -224,79 +245,199 @@ void get_grad_ori_vector(double* image, int r, int c, int s, FV fv,
     end
 
     //Find the nearest tesselation face indices
-    //FIXME this needs to be done in c++
-    corr_array = fv.centers * vect';
-    //FIXME this needs to be done in c++
-    [yy ix] = sort(corr_array,'descend');
+    //FIXME cublasSgemm() higher performance
+    int N = sift_params.fv_centers_len;
+    double corr_array[N];
+    for (int i=0; i < N; i++) {
+        corr_array[i] = std::inner_product(sift_params.fv_centers[i],
+                sift_params.fv_centers[i] + 3,
+                vect, 0.0);
+    }
+    int ix[N]; 
+    ix = thrust::sequence(thrust::host, ix, ix + N);
+    // descending order by ori_hist
+    thrust::sort_by_key(thrust::host, ix, ix + N, corr_array, thrust::greater<int>());
+    yy = corr_array;
 }
 
-double* KeySample(key, image, sift_params) {
+// floor quotient, add 1
+// clamp bin idx to IndexSize
+inline int get_bin_idx(int orig, int radius, int IndexSize) {
+    int idx = (int) 1 + ((orig + radius) / (2.0 * radius / IndexSize));
+    if (idx > IndexSize)
+        idx = IndexSize;
+    return idx;
+}
 
-    FV fv = sphere_tri(sift_params.Tessellation_levels,1);
+double* key_sample(key, image, sift_params) {
 
-    irow = int16(key.x);
-    icol = int16(key.y);
-    islice = int16(key.z);
+    /*FV fv = sphere_tri(sift_params.Tessellation_levels,1);*/
 
     xySpacing = key.xyScale * sift_params.MagFactor;
     tSpacing = key.tScale * sift_params.MagFactor;
 
-    xyRadius = 1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0;
-    tRadius = 1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0;
-    xyiradius = int16(xyRadius);
-    tiradius = int16(tRadius);
+    int xyiradius = round(1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0);
+    int tiradius = round(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
 
-    index = zeros(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces);
+    int N = sift_params.IndexSize * sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
+    double* index = (double*) calloc(N, sizeof(double));
 
-    for i = -xyiradius:xyiradius
-        for j = -xyiradius:xyiradius
-            for s = -tiradius:tiradius
+    int r, c, t;
+    for (int i = -xyiradius; i <= xyiradius; i++) {
+        for (int j = -xyiradius; j <= xyiradius; j++) {
+            for (int k = -tiradius; j <= tiradius; k++) {
 
-                % This is redundant and probably slows down the code, but at
-                % some point this solved a major overflow headache, so leaving
-                % as-is for now
-                i2 = double(i);
-                j2 = double(j);
-                s2 = double(s);
-                distsq = double(i2^2 + j2^2 + s2^2);
+                distsq = (double) i^2 + j^2 + s^2;
 
-                v0 = [i2; j2; s2];
-
+                // Find bin idx
+                // FIXME check correct
+                i_bin = get_bin_idx(i, xyiradius, sift_params.IndexSize);
+                j_bin = get_bin_idx(j, xyiradius, sift_params.IndexSize);
+                k_bin = get_bin_idx(k, tiradius, sift_params.IndexSize);
                 
-                i_indx = int16(floor(double((i + xyiradius)) / double((2*xyiradius/sift_params.IndexSize)))) + 1;
-                j_indx = int16(floor(double((j + xyiradius)) / double((2*xyiradius/sift_params.IndexSize)))) + 1;
-                s_indx = int16(floor(double((s + tiradius)) / double((2*tiradius/sift_params.IndexSize)))) + 1;
-                
-                if i_indx > sift_params.IndexSize
-                    i_indx = sift_params.IndexSize;
-                end
-                if j_indx > sift_params.IndexSize
-                    j_indx = sift_params.IndexSize;
-                end
-                if s_indx > sift_params.IndexSize
-                    s_indx = sift_params.IndexSize;
-                end
+                // Find original image pixel idx
+                r = key.x + i;
+                c = key.y + j;
+                t = key.z + k;
 
-                %if (i_indx < 1 || j_indx < 1 || s_indx < 1)
-                    %disp('Something wrong with the sub-histogram index');
-                %end
-                
-                %For each pixel, take a neighborhhod of xyradius and tiradius,
-                %bin it down to the sift_params.IndexSize dimensions
-                r = irow + v0(1);
-                c = icol + v0(2);
-                t = islice + v0(3);
-
-                // within image range
-                if !(r < 1  ||  r > sift_params.image_size(1)  ||  c < 1  ||  c >
-                        sift_params.image_size(2) || s < 1 || s > sift_params.image_size(3)) {
-                    AddSample(index, image, distsq, r, c, t, i_indx, j_indx, s_indx, fv, sift_params, precomp_grads);
+                // only add if within image range
+                if !(r < 0  ||  r >= sift_params.image_size[0] ||
+                        c < 0  ||  c >= sift_params.image_size[1]
+                        || t < 0 || t >= sift_params.image_size[2]) {
+                    add_sample(index, image, distsq, r, c, t,
+                            i_bin, j_bin, k_bin, sift_params);
                 }
             }
         }
     }
 
     return index;
+}
+
+double* build_ori_hists(x, y, z, radius, image, sift_params) {
+
+    double* ori_hist = (double*) calloc(sift_params.nFaces,sizeof(double));
+
+    double mag;
+    double* vect, yy, ix;
+    int r, c, t;
+    for (int i = -radius; i <= radius; i++) {
+        for (int j = -radius; j <= radius; j++) {
+            for (int k = -radius; j <= radius; k++) {
+                // Find original image pixel idx
+                r = x + i;
+                c = y + j;
+                t = z + k;
+
+                // only add if within image range
+                if !(r < 0  ||  r >= sift_params.image_size[0] ||
+                        c < 0  ||  c >= sift_params.image_size[1]
+                        || t < 0 || t >= sift_params.image_size[2]) {
+                    /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
+                    get_grad_ori_vector(image,r,c,t, mag, vect, yy, ix, sift_params);
+                    ori_hist[ix[0]] += mag;
+                }
+            }
+        }
+    }
+    return ori_hist;
+}
+
+void normalize_vec(double* vec, int len) {
+
+    double sqlen = 0.0;
+    for (int i=0; i < len; i++) {
+        sqlen += vec[i] * vec[i];
+    }
+
+    double fac = 1.0 / sqrt(sqlen);
+    for (int i=0; i < len; i++) {
+        vec[i] = vec[i] * fac;
+    }
+}
+
+Keypoint make_keypoint_sample(key, image, sift_params) {
+
+    //FIXME add to sift_params from Matlab side
+    sift_params.MaxIndexVal = 0.2;
+    changed = 0;
+
+    //FIXME make sure vec is in column order
+    double* vec = key_sample(key, image, sift_params);
+    VecLength = length(vec);
+
+    vec = normalize_vec(vec, VecLength);
+
+    for (int i=0; i < VecLength; i++) {
+        if (vec[i] > sift_params.MaxIndexVal)
+            vec[i] = sift_params.MaxIndexVal;
+            changed = 1;
+        }
+    }
+
+    if (changed) {
+        vec = normalize_vec(vec, VecLength);
+    }
+
+    int intval;
+    for (int i=0; i < VecLength; i++) {
+        intval = round(512.0 * vec[i]);
+        key.ivec[i] = (int) min(255, intval);
+    }
+}
+
+
+Keypoint make_keypoint(double* image, int x, int y, int z, SiftParams sift_params) {
+    k.x = x;
+    k.y = y;
+    k.z = z;
+    k.xyScale = sift_params.xyScale;
+    k.tScale = sift_params.tScale;
+    return make_keypoint_sample(k, image, sift_params);
+}
+
+
+/* Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
+
+Inputs:
+image - a 3 dimensional matrix of double
+xyScale and tScale - affects both the scale and the resolution, these are
+usually set to 1 and scaling is done before calling this function
+x, y, and z - the location of the center of the keypoint where a descriptor is requested
+
+Outputs:
+keypoint - the descriptor, varies in size depending on values in LoadParams.m
+reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
+descriptive enough for a good keypoint
+*/
+Keypoint create_descriptor(double* image, int x, int y, 
+        int z, SiftParams sift_params) {
+
+    reRun = 0;
+
+    int radius = round(sift_params.xyScale * 3.0);
+
+    /*FV fv = sphere_tri(sift_params.Tessellation_levels, 1);*/
+    int ori_hist_len = sift_params.nFaces;
+    int ix[ori_hist_len]; 
+    ix = thrust::sequence(thrust::host, ix, ix + ori_hist_len);
+    double* ori_hist = build_ori_hists(x, y, z, radius, image, sift_params);
+    // descending order by ori_hist
+    thrust::sort_by_key(thrust::host, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
+        
+    if (sift_params.TwoPeak_Flag &&
+            //FIXME must be in row order
+            std::inner_product(sift_params.fv_centers[ix[0]],
+                sift_params.fv_centers[ix[0]]
+                + 3, sift_params.fv_centers[ix[1]], 0.0) > .9 &&
+            std::inner_product(sift_params.fv_centers[ix[0]],
+                sift_params.fv_centers[ix[0]] + 3, 
+                sift_params.fv_centers[ix[2]], 0.0) > .9) {
+        reRun = 1;
+        return Null;
+    }
+
+    return make_keypoint(image, x, y, z, sift_params);
 }
 
 // interpolate image data
@@ -314,6 +455,7 @@ void interpolate_volumes(
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= map_idx_size) return;
 
+    /*map_idx[i] linear idx of 0 value for this thread's 0 element */
     unsigned int idx_zplane = map_idx[i] - 1 - x_stride - (x_stride * y_stride); // move current pos idx by (-1, -1, -1)
     unsigned int idx = idx_zplane;
 
@@ -619,6 +761,7 @@ void Sift::runOnGPU(
     cudaHostAlloc(&padded_sub_map,   padded_sub_volume_size * sizeof(int8_t), cudaHostAllocPortable);
     cudaHostAlloc(&padded_sub_image, padded_sub_volume_size * sizeof(double), cudaHostAllocPortable);
 
+    // First set all values to -1
     thrust::fill(padded_sub_map, padded_sub_map + padded_sub_volume_size, -1);
 
     for (unsigned int k = 0; k < z_size_; k++) {
@@ -676,6 +819,7 @@ void Sift::runOnGPU(
     timer.reset();
 #endif
 
+    // clear previous result to zero
     thrust::fill(thrust::device, subdom_data->padded_map_idx, subdom_data->padded_map_idx + padded_sub_volume_size, 0.0);
 
     auto end_itr = thrust::copy_if(
@@ -688,6 +832,8 @@ void Sift::runOnGPU(
 
     subdom_data->padded_map_idx_size = end_itr - subdom_data->padded_map_idx;
 
+    // set all padded map boundaries to 0 for correctness to
+    // distinguish boundaries
     thrust::replace(thrust::device, subdom_data->padded_map, subdom_data->padded_map + padded_sub_volume_size, -1, 0);
 
 #ifdef DEBUG_OUTPUT
@@ -703,6 +849,8 @@ void Sift::runOnGPU(
 #endif
 
 
+    // Each GPU each subdom_data
+    // this set the dx and dy start idx for each stream
     unsigned int num_dx = get_num_blocks(x_sub_delta, dx_);
     unsigned int num_dy = get_num_blocks(y_sub_delta, dy_);
     unsigned int stream_id = 0;
@@ -762,12 +910,16 @@ void Sift::runOnStream(
 #endif
 
 
+        // for each subdomain of stream of this for loop
         unsigned int *padded_map_idx;
         cudaMalloc(&padded_map_idx, subdom_data->padded_map_idx_size * sizeof(unsigned int));
 
         RangeCheck range_check { x_sub_stride_, y_sub_stride_,
             dx_start + dw_, dx_end + dw_, dy_start + dw_, dy_end + dw_, dw_, z_size_ + dw_ };
 
+        // copy the relevant (in range) idx elements from the
+        // global GPU padded_map_idx to the local padded_map_idx for each
+        // sub stream (subdom_data->padded_map_idx[stream_id])
         auto end_itr = thrust::copy_if(
                 thrust::device,
                 subdom_data->padded_map_idx,
@@ -808,8 +960,8 @@ void Sift::runOnStream(
 
         interpolate_volumes<<<num_blocks, 1024, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, padded_map_idx_size,
-                padded_map_idx,
-                subdom_data->padded_map,
+                padded_map_idx,//substream map
+                subdom_data->padded_map,//global map for GPU
                 subdom_data->padded_image,
                 interpolated_values);
 
