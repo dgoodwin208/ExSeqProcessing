@@ -20,8 +20,10 @@ function clear_semaphores() {
 }
 
 function trap_handle() {
-    if [ -n "$(jobs -p)" ]; then
-        kill $(jobs -p)
+    job_list=$(jobs -p)
+    if [ -n "$job_list" ]; then
+        echo "killing.. $job_list"
+        kill $job_list
     fi
     clear_semaphores
     exit
@@ -627,7 +629,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         echo $rounds
         # registerWithDescriptors for ${REFERENCE_ROUND} and i
         if [ ${USE_GPUS} == "true" ]; then
-            echo "GPU version has not yet implemented"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesCUDAInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         else
             #Because the matching is currently single-threaded, we can parpool it in one loop
             #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
@@ -637,7 +639,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         if ls matlab-regDesc-*.log > /dev/null 2>&1; then
             mv matlab-regDesc-*.log ${LOG_DIR}/
         else
-            echo "No log files."
+            echo "No regDesc-log files."
         fi
         ) & wait
     else

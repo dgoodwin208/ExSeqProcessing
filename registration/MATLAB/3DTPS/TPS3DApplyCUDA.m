@@ -1,4 +1,4 @@
-function [ outputImage_interp ] = TPS3DApply(in1D,out1D,imgToWarp,outdim)
+function [ outputImage_interp ] = TPS3DApplyCUDA(in1D,out1D,imgToWarp,outdim,data_channel)
 %TPS3DAPPLY applies the warp to a vectorized version of the image data,
 %then returns an interpolated version of the data
 
@@ -21,7 +21,7 @@ in1D = [];
 out1D = [];
 
 %interpolate
-outputImage_interp = interpolateVolume(outputImage);
+outputImage_interp = interpolateVolumeCUDA(outputImage,data_channel);
 outputImage = [];
 
 %remove the nominal offset

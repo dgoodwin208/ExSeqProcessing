@@ -60,6 +60,8 @@ if isempty(yi_arr) == false
 
         disp(['wind=' num2str(yixL) ',' num2str(yixU) ';' num2str(xixL) ',' num2str(xixU) ';' num2str(zixL) ',' num2str(zixU)])
     end
+    imgw = [];
+    map = [];
 
     out_cell = cell(1,stepsize);
 

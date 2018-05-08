@@ -104,13 +104,13 @@ if strcmp(regparams.REGISTRATION_TYPE,'affine')
     return;
 end
 
-fprintf('Setting up cluster and parpool for TPS warp')
-tic;
-cluster = parcluster('local');
-parpool(cluster) %Don't check these changes, this is local hacks
-toc;
+%fprintf('Setting up cluster and parpool for TPS warp')
+%tic;
+%cluster = parcluster('local');
+%parpool(cluster) %Don't check these changes, this is local hacks
+%toc;
 
-output_TPS_filename = fullfile(regparams.OUTPUTDIR,sprintf('TPSMap_%s_round%03d.mat',params.FILE_BASENAME,moving_run));
+output_TPS_filename = fullfile(regparams.OUTPUTDIR,sprintf('TPSMap_%s_round%03d.mat',filename_root,moving_run));
 if exist(output_TPS_filename,'file')==0
     
     %These keypoints have now been modified by the affine warp, so are in
@@ -141,13 +141,13 @@ for c = 1:length(regparams.CHANNELS)
     disp('load 3D file to be warped')
     tic;
     data_channel = regparams.CHANNELS{c};
-    filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',params.FILE_BASENAME,moving_run,data_channel));
+    filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',filename_root,moving_run,data_channel));
     imgToWarp = load3DTif_uint16(filename);
     toc;
     
     [ outputImage_interp ] = TPS3DApply(in1D_total,out1D_total,imgToWarp,size(imgFixed_total));
     
-    outputfile = fullfile(params.OUTPUTDIR,sprintf('%s_round%03d_%s_%s.tif',params.FILE_BASENAME,moving_run,data_channel,regparams.REGISTRATION_TYPE));
+    outputfile = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_%s.tif',filename_root,moving_run,data_channel,regparams.REGISTRATION_TYPE));
     save3DTif_uint16(outputImage_interp,outputfile);
 end
 

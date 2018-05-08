@@ -1,4 +1,4 @@
-function outputImage = interpolateVolume(inputImage)
+function outputImage = interpolateVolumeCUDA(inputImage,data_channel)
 
 %Assumes that there are 0s in the input image where the original image was
 %not able to warp into. To ensure this, a nominal f
@@ -51,8 +51,11 @@ inputImage = [];
 %Empirically, interp_radius of 1 creates some artifacts (mainly visible
 %around areas of high contrast). interp_radius of 2 is slower (within one order of magnitude) 
 %but has better results
-interp_radius = 2;
-interpolated_rect = nearestInterpInParallel(rect_section, map, interp_radius );
+
+tic;
+fprintf('calculating nearest-interpolation...\n');
+interpolated_rect = nearestinterp_cuda(rect_section, map);
+toc;
 
 rect_section = [];
 map = [];

@@ -246,7 +246,9 @@ if ~exist(output_keys_filename,'file')
             %(summedNorm), and we calculate the Shape Context descriptor
             %using keypoints from all other channels
             
-            [DM_SC,DF_SC]=ShapeContext(LM_SIFT,LM_SC,LF_SIFT,LF_SC);
+            DM_SC=ShapeContext(LM_SIFT,LM_SC);
+            DF_SC=ShapeContext(LF_SIFT,LF_SC);
+            %[DM_SC,DF_SC]=ShapeContext(LM_SIFT,LM_SC,LF_SIFT,LF_SC);
             
             if 0
                 correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);

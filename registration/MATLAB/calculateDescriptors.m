@@ -69,7 +69,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     img_cache = containers.Map('KeyType','int32','ValueType','any');
     
     if length(target_indices) < regparams.ROWS_DESC*regparams.COLS_DESC*0.5 % magic number
-        for x_idx=1:params.COLS_DESC
+        for x_idx=1:regparams.COLS_DESC
             for y_idx=1:regparams.ROWS_DESC
                 tile_counter = (x_idx-1)*regparams.ROWS_DESC+y_idx;
     
