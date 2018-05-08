@@ -396,7 +396,6 @@ Keypoint make_keypoint(double* image, int x, int y, int z, SiftParams sift_param
     return make_keypoint_sample(k, image, sift_params);
 }
 
-
 /* Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
 
 Inputs:
