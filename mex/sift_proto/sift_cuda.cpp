@@ -27,8 +27,8 @@
 void
 mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 { 
-    Keypoint_store kp;
-    SIFT3D_Descriptor_store desc;
+    //Keypoint_store kp;
+    //SIFT3D_Descriptor_store desc;
     std::shared_ptr<spdlog::logger> logger;
     try {
         spdlog::set_async_mode(4096, spdlog::async_overflow_policy::block_retry, nullptr, std::chrono::seconds(2));

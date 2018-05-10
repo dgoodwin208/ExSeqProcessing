@@ -1,8 +1,8 @@
 .SUFFIXES: .cu
 
-TARGET=nearestinterp_cuda.mexa64 nearestinterp_cuda
+TARGET=sift_cuda.mexa64 sift_cuda
 
-SRCS := $(wildcard nearestinterp_*.cpp)
+SRCS := $(wildcard sift_*.cpp)
 OBJS := $(SRCS:.cpp=.o)
 CU_SRCS := $(wildcard *.cu)
 CU_OBJS := $(CU_SRCS:.cu=.o)
@@ -21,7 +21,7 @@ NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 
 all: $(TARGET)
 
-nearestinterp_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
+sift_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
 	mex -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread
 	@cp -a $@ ../
 
@@ -35,7 +35,7 @@ $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
 %.o: %.cu $(CU_SRCS)
 	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -c -o $@ $<
 
-nearestinterp_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
+sift_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
 	g++ -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 
 clean:

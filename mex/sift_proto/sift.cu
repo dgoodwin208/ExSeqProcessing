@@ -10,7 +10,7 @@
 
 #include <cuda_runtime.h>
 #include <cmath>
-#include <numeric> //std::inner_product
+/*#include <numeric> //std::inner_product*/
 
 #include "sift.h"
 #include "matrix_helper.h"
@@ -46,6 +46,7 @@ struct SiftParams {
     //FIXME must be in row order
     double* fv_centers;
     int fv_centers_len;
+    int* image_size;
 };
 
 /*struct FV {*/
@@ -182,14 +183,15 @@ struct SiftParams {
 /*}*/
 
 __device__
-place_in_index(double* index, double mag, int i, int j, int s, 
-        double* yy, double* ix, double* sift_params) {
+void place_in_index(double* index, double mag, int i, int j, int s, 
+        double* yy, int* ix, cudautils::SiftParams sift_params) {
 
     double tmpsum = 0.0;
     /*FIXME*/
+    int bin_index = 0;
     /*int bin_index = bin_sub2ind(i,j,s);*/
     if (sift_params.Smooth_Flag) {
-        for (int tessel = 0; tessel < sift_params.Tessel_thresh; tessel++) {
+        for (int tessel=0; tessel < sift_params.Tessel_thresh; tessel++) {
             tmpsum += pow(yy[tessel], sift_params.Smooth_Var);
         }
 
@@ -197,10 +199,61 @@ place_in_index(double* index, double mag, int i, int j, int s,
         for (int ii=0; ii<sift_params.Tessel_thresh; ii++) {
             index[bin_index] +=  mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum;
         }
-    }
+    } else {
         index[bin_index] += mag;
     }
+    return;
+}
 
+__device__
+double dot_product(double* first, double* second, int N) {
+    double sum = 0;
+    for (int i=0; i < N; i++) {
+        sum += first[i] * second[i];
+    }
+    return sum;
+}
+
+// assumes r,c,s lie within accessible image boundaries
+__device__
+double get_grad_ori_vector(double* image, int r, int c, int s, 
+        double vect[3], double* yy, int* ix, cudautils::SiftParams sift_params) {
+
+    /*//FIXME subscripts to linear ind*/
+    /*double xgrad = image[r,c+1,s] - image[r,c-1,s];*/
+    /*//FIXME is this correct direction?*/
+    /*double ygrad = image[r-1,c,s] - image[r+1,c,s];*/
+    /*double zgrad = image[r,c,s+1] - image[r,c,s-1];*/
+    double xgrad = 0.0;
+    double ygrad = 0.0;
+    double zgrad = 0.0;
+
+    double mag = sqrt(xgrad * xgrad + ygrad * ygrad + zgrad * zgrad);
+
+    xgrad /= mag;
+    ygrad /= mag;
+    zgrad /= mag;
+
+    if (mag !=0) {
+        vect[0] = xgrad;
+        vect[1] = ygrad;
+        vect[2] = zgrad;
+    } 
+
+    //Find the nearest tesselation face indices
+    //FIXME cublasSgemm() higher performance
+    int N = sift_params.fv_centers_len;
+    double* corr_array;
+    cudaMalloc(&corr_array, N*sizeof(double));
+    for (int i=0; i < N; i++) {
+        corr_array[i] = dot_product(&sift_params.fv_centers[i],
+                vect, 3);
+    }
+    thrust::sequence(thrust::host, ix, ix + N);
+    // descending order by ori_hist
+    thrust::sort_by_key(thrust::host, ix, ix + N, corr_array, thrust::greater<int>());
+    yy = corr_array;
+    return mag;
 }
 
 /*r, c, s is the pixel index (x, y, z dimensions respect.) in the image within the radius of the */
@@ -210,58 +263,28 @@ place_in_index(double* index, double mag, int i, int j, int s,
 /*thus, i_indx, j_indx, s_indx represent the binned index within the radius of the keypoint*/
 __device__
 void add_sample(double* index, double* image, double distsq, int
-        r, int c, int s, int i_indx, int j_indx, int s_indx, FV
-        SiftParams sift_params) {
+        r, int c, int s, int i_bin, int j_bin, int k_bin, 
+        cudautils::SiftParams sift_params) {
 
     double sigma = sift_params.SigmaScaled;
     double weight = exp(-(distsq / (2.0 * sigma * sigma)));
 
-    double mag;
-    double* vect, yy, ix;
+    double vect[3] = {1.0, 0.0, 0.0};
+    int* ix;
+    cudaMalloc(&ix, sift_params.fv_centers_len*sizeof(int));
+    double *yy;
     /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
-    get_grad_ori_vector(image,r,c,s, mag, vect, yy, ix, sift_params);
-    double mag = weight * mag; // scale magnitude by gaussian 
+    double mag = get_grad_ori_vector(image,r,c,s, vect, yy, ix, sift_params);
+    mag *= weight; // scale magnitude by gaussian 
 
-    place_in_index(index, mag, i_indx, j_indx, s_indx, yy, ix, sift_params);
+    place_in_index(index, mag, i_bin, j_bin, k_bin, yy, ix, sift_params);
+    return;
 }
 
-// assumes r,c,s lie within accessible image boundaries
-__device__
-void get_grad_ori_vector(double* image, int r, int c, int s, 
-        double mag, double* vect, double* yy, double* ix, SiftParams sift_params) {
-
-    //FIXME subscripts to linear ind
-    double xgrad = image[r,c+1,s] - image[r,c-1,s];
-    //FIXME is this correct direction?
-    double ygrad = image[r-1,c,s] - image[r+1,c,s];
-    double zgrad = image[r,c,s+1] - image[r,c,s-1];
-
-    double mag = sqrt(xgrad * xgrad + ygrad * ygrad + zgrad * zgrad);
-
-    if (mag !=0)
-        vect = {xgrad / mag, ygrad / mag, zgrad / mag};
-    else
-        vect = {1 0 0};
-    end
-
-    //Find the nearest tesselation face indices
-    //FIXME cublasSgemm() higher performance
-    int N = sift_params.fv_centers_len;
-    double corr_array[N];
-    for (int i=0; i < N; i++) {
-        corr_array[i] = std::inner_product(sift_params.fv_centers[i],
-                sift_params.fv_centers[i] + 3,
-                vect, 0.0);
-    }
-    int ix[N]; 
-    ix = thrust::sequence(thrust::host, ix, ix + N);
-    // descending order by ori_hist
-    thrust::sort_by_key(thrust::host, ix, ix + N, corr_array, thrust::greater<int>());
-    yy = corr_array;
-}
 
 // floor quotient, add 1
 // clamp bin idx to IndexSize
+__device__
 inline int get_bin_idx(int orig, int radius, int IndexSize) {
     int idx = (int) 1 + ((orig + radius) / (2.0 * radius / IndexSize));
     if (idx > IndexSize)
@@ -269,25 +292,30 @@ inline int get_bin_idx(int orig, int radius, int IndexSize) {
     return idx;
 }
 
-double* key_sample(key, image, sift_params) {
+__device__
+double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams sift_params) {
 
     /*FV fv = sphere_tri(sift_params.Tessellation_levels,1);*/
 
-    xySpacing = key.xyScale * sift_params.MagFactor;
-    tSpacing = key.tScale * sift_params.MagFactor;
+    double xySpacing = key.xyScale * sift_params.MagFactor;
+    double tSpacing = key.tScale * sift_params.MagFactor;
 
     int xyiradius = round(1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0);
     int tiradius = round(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
 
     int N = sift_params.IndexSize * sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
-    double* index = (double*) calloc(N, sizeof(double));
+    /*double* index = (double*) calloc(N, sizeof(double));*/
+    double* index;
+    cudaMalloc(&index, N * sizeof(double));
+    cudaMemset(index, 0.0, N * sizeof(double));
 
-    int r, c, t;
+    int r, c, t, i_bin, j_bin, k_bin;
+    double distsq;
     for (int i = -xyiradius; i <= xyiradius; i++) {
         for (int j = -xyiradius; j <= xyiradius; j++) {
             for (int k = -tiradius; j <= tiradius; k++) {
 
-                distsq = (double) i^2 + j^2 + s^2;
+                distsq = (double) pow(i,2) + pow(j,2) + pow(k,2);
 
                 // Find bin idx
                 // FIXME check correct
@@ -301,9 +329,9 @@ double* key_sample(key, image, sift_params) {
                 t = key.z + k;
 
                 // only add if within image range
-                if !(r < 0  ||  r >= sift_params.image_size[0] ||
+                if (!(r < 0  ||  r >= sift_params.image_size[0] ||
                         c < 0  ||  c >= sift_params.image_size[1]
-                        || t < 0 || t >= sift_params.image_size[2]) {
+                        || t < 0 || t >= sift_params.image_size[2])) {
                     add_sample(index, image, distsq, r, c, t,
                             i_bin, j_bin, k_bin, sift_params);
                 }
@@ -314,12 +342,19 @@ double* key_sample(key, image, sift_params) {
     return index;
 }
 
-double* build_ori_hists(x, y, z, radius, image, sift_params) {
+__device__
+double* build_ori_hists(int x, int y, int z, int radius, double* image, cudautils::SiftParams sift_params) {
 
-    double* ori_hist = (double*) calloc(sift_params.nFaces,sizeof(double));
+    double* ori_hist;
+    cudaMalloc(&ori_hist, sift_params.nFaces * sizeof(double));
+    cudaMemset(ori_hist, 0.0, sift_params.nFaces * sizeof(double));
+    /*double* ori_hist = (double*) calloc(sift_params.nFaces,sizeof(double));*/
 
     double mag;
-    double* vect, yy, ix;
+    double vect[3] = {1.0, 0.0, 0.0};
+    int* ix;
+    cudaMalloc(&ix, sift_params.fv_centers_len*sizeof(int));
+    double* yy;
     int r, c, t;
     for (int i = -radius; i <= radius; i++) {
         for (int j = -radius; j <= radius; j++) {
@@ -330,11 +365,11 @@ double* build_ori_hists(x, y, z, radius, image, sift_params) {
                 t = z + k;
 
                 // only add if within image range
-                if !(r < 0  ||  r >= sift_params.image_size[0] ||
+                if (!(r < 0  ||  r >= sift_params.image_size[0] ||
                         c < 0  ||  c >= sift_params.image_size[1]
-                        || t < 0 || t >= sift_params.image_size[2]) {
+                        || t < 0 || t >= sift_params.image_size[2])) {
                     /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
-                    get_grad_ori_vector(image,r,c,t, mag, vect, yy, ix, sift_params);
+                    mag = get_grad_ori_vector(image,r,c,t, vect, yy, ix, sift_params);
                     ori_hist[ix[0]] += mag;
                 }
             }
@@ -343,6 +378,7 @@ double* build_ori_hists(x, y, z, radius, image, sift_params) {
     return ori_hist;
 }
 
+__device__
 void normalize_vec(double* vec, int len) {
 
     double sqlen = 0.0;
@@ -354,46 +390,51 @@ void normalize_vec(double* vec, int len) {
     for (int i=0; i < len; i++) {
         vec[i] = vec[i] * fac;
     }
+    return;
 }
 
-Keypoint make_keypoint_sample(key, image, sift_params) {
+__device__
+cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams sift_params) {
 
     //FIXME add to sift_params from Matlab side
     sift_params.MaxIndexVal = 0.2;
-    changed = 0;
+    bool changed = false;
 
     //FIXME make sure vec is in column order
     double* vec = key_sample(key, image, sift_params);
-    VecLength = length(vec);
+    int N = sift_params.IndexSize * sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
 
-    vec = normalize_vec(vec, VecLength);
+    normalize_vec(vec, N);
 
-    for (int i=0; i < VecLength; i++) {
-        if (vec[i] > sift_params.MaxIndexVal)
+    for (int i=0; i < N; i++) {
+        if (vec[i] > sift_params.MaxIndexVal) {
             vec[i] = sift_params.MaxIndexVal;
-            changed = 1;
+            changed = true;
         }
     }
 
     if (changed) {
-        vec = normalize_vec(vec, VecLength);
+        normalize_vec(vec, N);
     }
 
     int intval;
-    for (int i=0; i < VecLength; i++) {
+    for (int i=0; i < N; i++) {
         intval = round(512.0 * vec[i]);
         key.ivec[i] = (int) min(255, intval);
     }
+    return key;
 }
 
 
-Keypoint make_keypoint(double* image, int x, int y, int z, SiftParams sift_params) {
-    k.x = x;
-    k.y = y;
-    k.z = z;
-    k.xyScale = sift_params.xyScale;
-    k.tScale = sift_params.tScale;
-    return make_keypoint_sample(k, image, sift_params);
+__device__
+cudautils::Keypoint make_keypoint(double* image, int x, int y, int z, cudautils::SiftParams sift_params) {
+    cudautils::Keypoint key;
+    key.x = x;
+    key.y = y;
+    key.z = z;
+    key.xyScale = sift_params.xyScale;
+    key.tScale = sift_params.tScale;
+    return make_keypoint_sample(key, image, sift_params);
 }
 
 /* Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
@@ -409,34 +450,37 @@ keypoint - the descriptor, varies in size depending on values in LoadParams.m
 reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
 descriptive enough for a good keypoint
 */
-Keypoint create_descriptor(double* image, int x, int y, 
-        int z, SiftParams sift_params) {
+__global__
+void create_descriptor(double* image, int x, int y, 
+        int z, cudautils::SiftParams sift_params) {
 
-    reRun = 0;
-
+    //FIXME use reRun var
+    cudautils::Keypoint key;
+    bool reRun = false;
     int radius = round(sift_params.xyScale * 3.0);
 
-    /*FV fv = sphere_tri(sift_params.Tessellation_levels, 1);*/
     int ori_hist_len = sift_params.nFaces;
-    int ix[ori_hist_len]; 
-    ix = thrust::sequence(thrust::host, ix, ix + ori_hist_len);
+    int* ix;
+    cudaMalloc(&ix, ori_hist_len*sizeof(int));
+
+    thrust::sequence(thrust::host, ix, ix + ori_hist_len);
     double* ori_hist = build_ori_hists(x, y, z, radius, image, sift_params);
     // descending order by ori_hist
     thrust::sort_by_key(thrust::host, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
         
     if (sift_params.TwoPeak_Flag &&
             //FIXME must be in row order
-            std::inner_product(sift_params.fv_centers[ix[0]],
-                sift_params.fv_centers[ix[0]]
-                + 3, sift_params.fv_centers[ix[1]], 0.0) > .9 &&
-            std::inner_product(sift_params.fv_centers[ix[0]],
-                sift_params.fv_centers[ix[0]] + 3, 
-                sift_params.fv_centers[ix[2]], 0.0) > .9) {
-        reRun = 1;
-        return Null;
+            (dot_product(&sift_params.fv_centers[ix[0]],
+                &sift_params.fv_centers[ix[1]],
+                3) > .9) &&
+            (dot_product(&sift_params.fv_centers[ix[0]],
+                &sift_params.fv_centers[ix[2]], 3) > .9)) {
+        reRun = true;
+        return ;
     }
 
-    return make_keypoint(image, x, y, z, sift_params);
+    key= make_keypoint(image, x, y, z, sift_params);
+    return;
 }
 
 // interpolate image data

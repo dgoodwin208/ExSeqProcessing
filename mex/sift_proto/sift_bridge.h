@@ -1,5 +1,5 @@
-#ifndef __NEARESTINTERP_BRIDGE_H__
-#define __NEARESTINTERP_BRIDGE_H__
+#ifndef __SIFT_BRIDGE_H__
+#define __SIFT_BRIDGE_H__
 
 #include <cstdint>
 #include <memory>
@@ -8,7 +8,7 @@
 
 namespace cudautils {
 
-void nearestinterp_bridge(
+void sift_bridge(
         std::shared_ptr<spdlog::logger> logger,
         const unsigned int x_size,
         const unsigned int y_size,
@@ -26,5 +26,5 @@ void nearestinterp_bridge(
 
 }
 
-#endif // __NEARESTINTERP_BRIDGE_H__
+#endif // __SIFT_BRIDGE_H__
 
