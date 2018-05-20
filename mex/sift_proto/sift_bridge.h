@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "spdlog/spdlog.h"
+#include "sift_types.h"
 
 namespace cudautils {
 
@@ -22,6 +23,7 @@ void sift_bridge(
         const int num_streams,
         const double* in_image,
         const int8_t* in_map,
+        cudautils::SiftParams sift_params,
         double* out_image);
 
 }

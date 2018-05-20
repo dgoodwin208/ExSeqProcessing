@@ -40,4 +40,5 @@ sift_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
 
 clean:
 	-rm -f $(TARGET) *.o
+	-rm -f ../sift_cuda.mexa64
 

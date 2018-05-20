@@ -2,6 +2,7 @@
 
 #include "sift_bridge.h"
 #include "sift.h"
+#include "sift_types.h"
 #include "cuda_task_executor.h"
 
 #include "spdlog/spdlog.h"
@@ -22,10 +23,12 @@ void sift_bridge(
         const int num_streams,
         const double* in_image,
         const int8_t* in_map,
+        cudautils::SiftParams sift_params,
         double* out_image) {
 
     std::shared_ptr<cudautils::Sift> ni =
-        std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams);
+        std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams,
+                sift_params);
 
     cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 

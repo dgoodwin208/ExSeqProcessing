@@ -13,6 +13,7 @@
 #include <thrust/system/cuda/experimental/pinned_allocator.h>
 
 #include "cuda_task.h"
+#include "sift_types.h"
 
 #include "spdlog/spdlog.h"
 
@@ -50,14 +51,15 @@ void ind2sub(const unsigned int x_stride, const unsigned int y_stride, const uns
 }
 
 __global__
-void interpolate_volumes(
+void create_descriptor(
         unsigned int x_stride,
         unsigned int y_stride,
         unsigned int map_size,
         unsigned int *map_idx,
         int8_t *map,
         double *image,
-        double *interpolated_values);
+        cudautils::SiftParams sift_params,
+        double *keypoints);
 
 
 class Sub2Ind {
@@ -234,6 +236,8 @@ class Sift : public cudautils::CudaTask {
 
     std::shared_ptr<spdlog::logger> logger_;
 
+    cudautils::SiftParams sift_params_;
+
 public:
     Sift(
             const unsigned int x_size,
@@ -245,7 +249,8 @@ public:
             const unsigned int dy,
             const unsigned int dw,
             const unsigned int num_gpus,
-            const unsigned int num_streams);
+            const unsigned int num_streams,
+            cudautils::SiftParams sift_params);
 
     virtual ~Sift();
 
@@ -266,6 +271,7 @@ public:
     virtual void runOnGPU(const int gpu_id, const unsigned int gpu_task_id);
     virtual void postrunOnGPU(const int gpu_id, const unsigned int gpu_task_id) {}
     virtual void runOnStream( const int gpu_id, const int stream_id, const unsigned int gpu_task_id);
+    cudautils::SiftParams get_sift_params();
 
 
 }; // class Sift

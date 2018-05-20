@@ -1,14 +1,14 @@
 /*=================================================================
- * cmd_nearestinterp_cuda.cu - interpolate volume image data from the nearest intensities
+ * cmd_sift_cuda.cu - perform sift on volume image data 
  *
- *  nearestinterp_cuda(vol_image, map)
+ *  sift_cuda(vol_image, map)
  *
  *  Input:
  *    vol_image:  volume image data
  *    map:        mask map data (1: mask, 0: hole)
  *
  *  Output:
- *    interpolated_image:  interpolated image data
+ *    ?
  *
  *=================================================================*/
  
@@ -16,7 +16,7 @@
 #include <fstream>
 #include <vector>
 
-#include "nearestinterp.h"
+#include "sift.h"
 #include "gpudevice.h"
 
 #include "cuda_task_executor.h"
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        logger->info("{:=>50}", " nearestinterp_cuda start");
+        logger->info("{:=>50}", " sift_cuda start");
 
         std::string in_image_filename1(argv[1]);
         std::string in_map_filename2  (argv[2]);
@@ -96,8 +96,8 @@ int main(int argc, char* argv[]) {
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_streams);
 
         try {
-            std::shared_ptr<cudautils::NearestInterp> ni =
-                std::make_shared<cudautils::NearestInterp>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams);
+            std::shared_ptr<cudautils::Sift> ni =
+                std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams);
 
             cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 
@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
             logger->error("internal unknown error occurred");
         }
 
-        logger->info("{:=>50}", " nearestinterp_cuda end");
+        logger->info("{:=>50}", " sift_cuda end");
 
         logger->flush();
         spdlog::drop_all();

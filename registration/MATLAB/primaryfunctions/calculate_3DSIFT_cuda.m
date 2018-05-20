@@ -13,7 +13,7 @@
 %       key.ivec descriptor vector flattened index (col order) length 
 %          index shape=(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces)
 
-function  keys = calculate_3DSIFT(img, keypts,skipDescriptor)
+function  keys = calculate_3DSIFT_cuda(img, keypts,skipDescriptor)
 
 
 %By default, we calculate the descriptor
@@ -30,6 +30,12 @@ map = ones(sift_params.pix_size);
 for i=1:N
     map(keypts(i)) = 0; % select the keypoint element
 end
+map = int8(map);
+
+fprintf('Save map with %d real keypoints\n', N);
+f = fopen('map_kypts.bin', 'w');
+fwrite(f, map);
+fclose(f);
 
 keys = sift_cuda(img, map);
 

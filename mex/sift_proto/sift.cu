@@ -21,34 +21,6 @@
 
 namespace cudautils {
 
-struct Keypoint {
-    int x;
-    int y;
-    int z;
-    double xyScale;
-    double tScale;
-    int* ivec; //stores the flattened descriptor vector
-};
-
-struct SiftParams {
-    double MagFactor;
-    int IndexSize;
-    int nFaces;
-    int Tessellation_levels;
-    int Smooth_Flag;
-    double SigmaScaled;
-    double Tessel_thresh;
-    double Smooth_Var;
-    int TwoPeak_Flag;
-    double xyScale;
-    double tScale;
-    double MaxIndexVal;
-    //FIXME must be in row order
-    double* fv_centers;
-    int fv_centers_len;
-    int* image_size;
-};
-
 /*struct FV {*/
     /*double* vertices;*/
     /*double* faces;*/
@@ -249,9 +221,9 @@ double get_grad_ori_vector(double* image, int r, int c, int s,
         corr_array[i] = dot_product(&sift_params.fv_centers[i],
                 vect, 3);
     }
-    thrust::sequence(thrust::host, ix, ix + N);
+    thrust::sequence(thrust::device, ix, ix + N);
     // descending order by ori_hist
-    thrust::sort_by_key(thrust::host, ix, ix + N, corr_array, thrust::greater<int>());
+    thrust::sort_by_key(thrust::device, ix, ix + N, corr_array, thrust::greater<int>());
     yy = corr_array;
     return mag;
 }
@@ -307,7 +279,10 @@ double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams
     /*double* index = (double*) calloc(N, sizeof(double));*/
     double* index;
     cudaMalloc(&index, N * sizeof(double));
-    cudaMemset(index, 0.0, N * sizeof(double));
+    for (int i; i < N; i++) {
+        index[i] = 0.0;
+    }
+    /*cudaMemset(index, 0.0, N * sizeof(double));*/
 
     int r, c, t, i_bin, j_bin, k_bin;
     double distsq;
@@ -346,8 +321,12 @@ __device__
 double* build_ori_hists(int x, int y, int z, int radius, double* image, cudautils::SiftParams sift_params) {
 
     double* ori_hist;
+    //FIXME thrust::fill
     cudaMalloc(&ori_hist, sift_params.nFaces * sizeof(double));
-    cudaMemset(ori_hist, 0.0, sift_params.nFaces * sizeof(double));
+    for (int i; i < sift_params.nFaces; i++) {
+        ori_hist[i] = 0.0;
+    }
+    /*cudaMemset(ori_hist, 0.0, sift_params.nFaces * sizeof(double));*/
     /*double* ori_hist = (double*) calloc(sift_params.nFaces,sizeof(double));*/
 
     double mag;
@@ -450,11 +429,29 @@ keypoint - the descriptor, varies in size depending on values in LoadParams.m
 reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
 descriptive enough for a good keypoint
 */
+/*__global__*/
+/*void create_descriptor(double* image, int x, int y, */
+        /*int z, cudautils::SiftParams sift_params) {*/
 __global__
-void create_descriptor(double* image, int x, int y, 
-        int z, cudautils::SiftParams sift_params) {
+void create_descriptor(
+        unsigned int x_stride,
+        unsigned int y_stride,
+        unsigned int map_idx_size,
+        unsigned int *map_idx,
+        int8_t *map,
+        double *image,
+        cudautils::SiftParams sift_params,
+        uint8_t *descriptors,
+        int desc_len) {
 
+    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     //FIXME use reRun var
+    //FIXME x, y, z must be subbed
+    int x, y, z;
+    x = 0;
+    y = 0;
+    z = 0;
+    
     cudautils::Keypoint key;
     bool reRun = false;
     int radius = round(sift_params.xyScale * 3.0);
@@ -463,10 +460,10 @@ void create_descriptor(double* image, int x, int y,
     int* ix;
     cudaMalloc(&ix, ori_hist_len*sizeof(int));
 
-    thrust::sequence(thrust::host, ix, ix + ori_hist_len);
+    thrust::sequence(thrust::device, ix, ix + ori_hist_len);
     double* ori_hist = build_ori_hists(x, y, z, radius, image, sift_params);
     // descending order by ori_hist
-    thrust::sort_by_key(thrust::host, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
+    thrust::sort_by_key(thrust::device, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
         
     if (sift_params.TwoPeak_Flag &&
             //FIXME must be in row order
@@ -479,12 +476,13 @@ void create_descriptor(double* image, int x, int y,
         return ;
     }
 
-    key= make_keypoint(image, x, y, z, sift_params);
+    key = make_keypoint(image, x, y, z, sift_params);
+    //FIXME memcpy
+    /*descriptors[i * desc_len] = key.ivec;*/
     return;
 }
 
 // interpolate image data
-//
 __global__
 void interpolate_volumes(
         unsigned int x_stride,
@@ -629,6 +627,8 @@ void interpolate_volumes(
 }
 
 
+/*Define the constructor for the SIFT class*/
+/*See the class Sift definition in sift.h*/
 Sift::Sift(
         const unsigned int x_size,
         const unsigned int y_size,
@@ -639,11 +639,13 @@ Sift::Sift(
         const unsigned int dy,
         const unsigned int dw,
         const unsigned int num_gpus,
-        const unsigned int num_streams)
+        const unsigned int num_streams,
+        cudautils::SiftParams sift_params)
     : x_size_(x_size), y_size_(y_size), z_size_(z_size),
         x_sub_size_(x_sub_size), y_sub_size_(y_sub_size),
         dx_(dx), dy_(dy), dw_(dw),
         num_gpus_(num_gpus), num_streams_(num_streams),
+        sift_params_(sift_params),
         subdom_data_(num_gpus) {
 
     logger_ = spdlog::get("console");
@@ -914,6 +916,10 @@ void Sift::runOnGPU(
     cudaFreeHost(padded_sub_image);
 }
 
+cudautils::SiftParams Sift::get_sift_params() {
+    return sift_params_;
+}
+
 void Sift::runOnStream(
         const int gpu_id,
         const int stream_id,
@@ -992,21 +998,31 @@ void Sift::runOnStream(
             continue;
         }
 
-        double *interpolated_values;
-        cudaMalloc(&interpolated_values, padded_map_idx_size * sizeof(double));
-
+        /*FIXME
+        Get sift_params.IndexSize, for full keypoint size
+        each descriptor is placed in according 0 to padded_map_idx_size
+        essentially a matrix of padded_map_idx_size by descriptor length
+        */
+        SiftParams sift_params;
+        int desc_len = 80;
+        uint8_t *descriptors;
+        long desc_mem_size = desc_len * padded_map_idx_size * sizeof(uint8_t);
+        cudaMalloc(&descriptors, desc_mem_size);
 
         unsigned int num_blocks = get_num_blocks(padded_map_idx_size, 1024);
 #ifdef DEBUG_OUTPUT
         logger_->info("num_blocks={}", num_blocks);
 #endif
 
-        interpolate_volumes<<<num_blocks, 1024, 0, stream_data->stream>>>(
+        create_descriptor<<<num_blocks, 1024, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, padded_map_idx_size,
                 padded_map_idx,//substream map
                 subdom_data->padded_map,//global map for GPU
                 subdom_data->padded_image,
-                interpolated_values);
+                sift_params,
+                descriptors,
+                desc_len); 
+
 
 #ifdef DEBUG_OUTPUT
         logger_->info("interpolate volumes {}", timer.get_laptime());
@@ -1021,13 +1037,13 @@ void Sift::runOnStream(
         timer.reset();
 #endif
 
-        double *h_interpolated_values;
-        cudaHostAlloc(&h_interpolated_values, padded_map_idx_size * sizeof(double), cudaHostAllocPortable);
+        double *h_descriptors;
+        cudaHostAlloc(&h_descriptors, desc_mem_size, cudaHostAllocPortable);
 
         cudaMemcpyAsync(
-                h_interpolated_values,
-                interpolated_values,
-                padded_map_idx_size * sizeof(double),
+                h_descriptors,
+                descriptors,
+                desc_mem_size,
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
         unsigned int *h_padded_map_idx;
@@ -1039,6 +1055,7 @@ void Sift::runOnStream(
                 padded_map_idx_size * sizeof(unsigned int),
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
+        // make sure all streams are done
         cudaStreamSynchronize(stream_data->stream);
         for (unsigned int i = 0; i < padded_map_idx_size; i++) {
             unsigned int padding_x;
@@ -1046,14 +1063,16 @@ void Sift::runOnStream(
             unsigned int padding_z;
             ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);
             size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
+            //FIXME Need a unique id for each keypoint regardless of stream
+            //dom_data will be switched to keypoint_store
 
-            dom_data_->h_image[idx] = h_interpolated_values[i];
+            dom_data_->h_image[idx] = h_descriptors[i];
         }
 
         cudaFree(padded_map_idx);
-        cudaFree(interpolated_values);
+        cudaFree(descriptors);
 
-        cudaFreeHost(h_interpolated_values);
+        cudaFreeHost(h_descriptors);
         cudaFreeHost(h_padded_map_idx);
 
 #ifdef DEBUG_OUTPUT
