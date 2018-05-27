@@ -33,10 +33,10 @@ $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
 	make -C $(CUDA_UTILS_DIR)
 
 %.o: %.cu $(CU_SRCS)
-	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -c -o $@ $<
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -g -c -o $@ $<
 
 sift_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
-	g++ -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
+	g++ -g -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 
 clean:
 	-rm -f $(TARGET) *.o

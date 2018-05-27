@@ -24,9 +24,21 @@ end
 %we skip the calclation of the SIFT descriptor to save time
 
 LoadParams;
-sift_params.pix_size = size(img);
+image_size = size(img);
+sift_params.image_size0 = image_size(1);
+sift_params.image_size1 = image_size(2);
+sift_params.image_size2 = image_size(3);
+
+% collect fv info
+fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
+sift_params.fv_centers = fv.centers;
+sift_params.fv_centers_len = length(fv.centers(:));
+sift_params.descriptor_len = 80;
+size(fv.centers)
+
+sift_params.keypoint_num = size(keypts,1);
 N = size(keypts,1);
-map = ones(sift_params.pix_size);
+map = ones(sift_params.image_size);
 for i=1:N
     map(keypts(i)) = 0; % select the keypoint element
 end
@@ -37,7 +49,13 @@ f = fopen('map_kypts.bin', 'w');
 fwrite(f, map);
 fclose(f);
 
-keys = sift_cuda(img, map);
+fprintf('Save img \n');
+f = fopen('img_kypts.bin', 'w');
+fwrite(f, img);
+fclose(f);
+
+
+keys = sift_cuda(img, map, sift_params);
 
 
 return 

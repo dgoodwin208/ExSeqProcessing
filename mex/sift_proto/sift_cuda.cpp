@@ -137,18 +137,23 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
     sift_params.MaxIndexVal = *((double*) mxGetPr(tmp));
 
     tmp = mxGetField(prhs[2], 0, "fv_centers");
+    //FIXME cudaMalloc
     sift_params.fv_centers = *((double**) mxGetPr(tmp));
 
     tmp = mxGetField(prhs[2], 0, "fv_centers_len");
     sift_params.fv_centers_len = *((int*) mxGetPr(tmp));
 
     const mwSize *image_dims = mxGetDimensions(prhs[0]);
-    sift_params.image_size[0] = image_dims[0];
-    sift_params.image_size[1] = image_dims[1];
-    sift_params.image_size[2] = image_dims[2];
+    //FIXME cudaMalloc
+    sift_params.image_size0 = image_dims[0];
+    sift_params.image_size1 = image_dims[1];
+    sift_params.image_size2 = image_dims[2];
 
     tmp = mxGetField(prhs[2], 0, "keypoint_num");
     sift_params.keypoint_num = *((int*) mxGetPr(tmp));
+
+    tmp = mxGetField(prhs[2], 0, "descriptor_len");
+    sift_params.descriptor_len = *((int*) mxGetPr(tmp));
 
     return sift_params;
 }

@@ -22,6 +22,7 @@
 #include "cuda_task_executor.h"
 
 #include "spdlog/spdlog.h"
+#include "stdlib.h"
 
 
 int main(int argc, char* argv[]) {
@@ -52,17 +53,24 @@ int main(int argc, char* argv[]) {
         std::string in_image_filename1(argv[1]);
         std::string in_map_filename2  (argv[2]);
         std::string out_interp_image_filename(argv[3]);
-
         unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
+        x_size = atoi(argv[4]);
+        y_size = atoi(argv[5]);
+        z_size = atoi(argv[6]);
+        x_size1 = x_size;
+        y_size1 = y_size;
+        z_size1 = z_size;
+
+        /*unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;*/
         std::ifstream fin1(in_image_filename1, std::ios::binary);
-        fin1.read((char*)&x_size, sizeof(unsigned int));
-        fin1.read((char*)&y_size, sizeof(unsigned int));
-        fin1.read((char*)&z_size, sizeof(unsigned int));
+        /*fin1.read((char*)&x_size, sizeof(unsigned int));*/
+        /*fin1.read((char*)&y_size, sizeof(unsigned int));*/
+        /*fin1.read((char*)&z_size, sizeof(unsigned int));*/
 
         std::ifstream fin2(in_map_filename2, std::ios::binary);
-        fin2.read((char*)&x_size1, sizeof(unsigned int));
-        fin2.read((char*)&y_size1, sizeof(unsigned int));
-        fin2.read((char*)&z_size1, sizeof(unsigned int));
+        /*fin2.read((char*)&x_size1, sizeof(unsigned int));*/
+        /*fin2.read((char*)&y_size1, sizeof(unsigned int));*/
+        /*fin2.read((char*)&z_size1, sizeof(unsigned int));*/
 
         if (x_size != x_size1 || y_size != y_size1 || z_size != z_size1) {
             logger->error("the dimension of image and map is not the same. image({},{},{}), map({},{},{})",
@@ -90,6 +98,15 @@ int main(int argc, char* argv[]) {
         const unsigned int dx = min(256, x_sub_size);
         const unsigned int dy = min(256, y_sub_size);
         const unsigned int dw = 2;
+        cudautils::SiftParams sift_params;
+        sift_params.image_size0 = x_size;
+        sift_params.image_size1 = y_size;
+        sift_params.image_size2 = z_size;
+        sift_params.fv_centers_len = 80 * 3;
+        sift_params.descriptor_len = 80;
+        sift_params.fv_centers = (double*) malloc(sizeof(double) * sift_params.fv_centers_len);
+        for (int i=0; i < sift_params.fv_centers_len; i++)
+            sift_params.fv_centers[i] = (double) rand();
 
         const unsigned int num_streams = 20;
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
@@ -97,7 +114,9 @@ int main(int argc, char* argv[]) {
 
         try {
             std::shared_ptr<cudautils::Sift> ni =
-                std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams);
+                std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
+                        x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
+                        num_streams, sift_params);
 
             cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 

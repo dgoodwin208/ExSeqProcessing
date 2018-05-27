@@ -33,8 +33,11 @@ typedef struct _SiftParams {
     //FIXME must be in row order
     double* fv_centers;
     int fv_centers_len;
-    int* image_size;
+    int image_size0;
+    int image_size1;
+    int image_size2;
     int keypoint_num;
+    int descriptor_len;
 } SiftParams;
 
 }

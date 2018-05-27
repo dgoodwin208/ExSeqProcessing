@@ -215,16 +215,16 @@ double get_grad_ori_vector(double* image, int r, int c, int s,
     //Find the nearest tesselation face indices
     //FIXME cublasSgemm() higher performance
     int N = sift_params.fv_centers_len;
-    double* corr_array;
-    cudaMalloc(&corr_array, N*sizeof(double));
+    /*double* corr_array;*/
+    cudaMalloc(&yy, N*sizeof(double));
     for (int i=0; i < N; i++) {
-        corr_array[i] = dot_product(&sift_params.fv_centers[i],
+        yy[i] = dot_product(&sift_params.fv_centers[i],
                 vect, 3);
     }
     thrust::sequence(thrust::device, ix, ix + N);
     // descending order by ori_hist
-    thrust::sort_by_key(thrust::device, ix, ix + N, corr_array, thrust::greater<int>());
-    yy = corr_array;
+    thrust::sort_by_key(thrust::device, ix, ix + N, yy, thrust::greater<int>());
+    /*yy = corr_array;*/
     return mag;
 }
 
@@ -279,7 +279,7 @@ double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams
     /*double* index = (double*) calloc(N, sizeof(double));*/
     double* index;
     cudaMalloc(&index, N * sizeof(double));
-    for (int i; i < N; i++) {
+    for (int i=0; i < N; i++) {
         index[i] = 0.0;
     }
     /*cudaMemset(index, 0.0, N * sizeof(double));*/
@@ -304,9 +304,9 @@ double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams
                 t = key.z + k;
 
                 // only add if within image range
-                if (!(r < 0  ||  r >= sift_params.image_size[0] ||
-                        c < 0  ||  c >= sift_params.image_size[1]
-                        || t < 0 || t >= sift_params.image_size[2])) {
+                if (!(r < 0  ||  r >= sift_params.image_size0 ||
+                        c < 0  ||  c >= sift_params.image_size1
+                        || t < 0 || t >= sift_params.image_size2)) {
                     add_sample(index, image, distsq, r, c, t,
                             i_bin, j_bin, k_bin, sift_params);
                 }
@@ -323,7 +323,7 @@ double* build_ori_hists(int x, int y, int z, int radius, double* image, cudautil
     double* ori_hist;
     //FIXME thrust::fill
     cudaMalloc(&ori_hist, sift_params.nFaces * sizeof(double));
-    for (int i; i < sift_params.nFaces; i++) {
+    for (int i=0; i < sift_params.nFaces; i++) {
         ori_hist[i] = 0.0;
     }
     /*cudaMemset(ori_hist, 0.0, sift_params.nFaces * sizeof(double));*/
@@ -344,9 +344,9 @@ double* build_ori_hists(int x, int y, int z, int radius, double* image, cudautil
                 t = z + k;
 
                 // only add if within image range
-                if (!(r < 0  ||  r >= sift_params.image_size[0] ||
-                        c < 0  ||  c >= sift_params.image_size[1]
-                        || t < 0 || t >= sift_params.image_size[2])) {
+                if (!(r < 0  ||  r >= sift_params.image_size0 ||
+                        c < 0  ||  c >= sift_params.image_size1
+                        || t < 0 || t >= sift_params.image_size2)) {
                     /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
                     mag = get_grad_ori_vector(image,r,c,t, vect, yy, ix, sift_params);
                     ori_hist[ix[0]] += mag;
@@ -428,10 +428,7 @@ Outputs:
 keypoint - the descriptor, varies in size depending on values in LoadParams.m
 reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
 descriptive enough for a good keypoint
-*/
-/*__global__*/
-/*void create_descriptor(double* image, int x, int y, */
-        /*int z, cudautils::SiftParams sift_params) {*/
+        */
 __global__
 void create_descriptor(
         unsigned int x_stride,
@@ -445,12 +442,19 @@ void create_descriptor(
         int desc_len) {
 
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= map_idx_size) return;
+    unsigned int idx = map_idx[i];
+
     //FIXME use reRun var
-    //FIXME x, y, z must be subbed
+    // column-major order since image is from matlab
     int x, y, z;
-    x = 0;
-    y = 0;
-    z = 0;
+    x = idx % sift_params.image_size0;
+    y = (idx - x)/sift_params.image_size0 % sift_params.image_size1;
+    z = ((idx - x)/sift_params.image_size0 - y)/sift_params.image_size1;
+#ifdef DEBUG_OUTPUT
+    printf("thread: %u, desc index: %u, x:%d y:%d z:%d\n", i, idx, x, y, z);
+#endif
+    return;
     
     cudautils::Keypoint key;
     bool reRun = false;
@@ -481,151 +485,6 @@ void create_descriptor(
     /*descriptors[i * desc_len] = key.ivec;*/
     return;
 }
-
-// interpolate image data
-__global__
-void interpolate_volumes(
-        unsigned int x_stride,
-        unsigned int y_stride,
-        unsigned int map_idx_size,
-        unsigned int *map_idx,
-        int8_t *map,
-        double *image,
-        double *interpolated_values) {
-
-    unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= map_idx_size) return;
-
-    /*map_idx[i] linear idx of 0 value for this thread's 0 element */
-    unsigned int idx_zplane = map_idx[i] - 1 - x_stride - (x_stride * y_stride); // move current pos idx by (-1, -1, -1)
-    unsigned int idx = idx_zplane;
-
-    int sum_idx = 0;
-    double sum = 0.0;
-
-    // (-1, -1, -1)  ->  (1, -1, -1)
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    // (-1, 0, -1)  ->  (1, 0, -1)
-    idx += x_stride;
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    // (-1, 1, -1)  ->  (1, 1, -1)
-    idx += x_stride;
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    idx_zplane += x_stride * y_stride;
-    idx = idx_zplane;
-
-    // (-1, -1, 0)  ->  (1, -1, 0)
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    // (-1, 0, 0)  ->  (1, 0, 0)
-    idx += x_stride;
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    // (-1, 1, 0)  ->  (1, 1, 0)
-    idx += x_stride;
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    idx_zplane += x_stride * y_stride;
-    idx = idx_zplane;
-
-    // (-1, -1, 1)  ->  (1, -1, 1)
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    // (-1, 0, 1)  ->  (1, 0, 1)
-    idx += x_stride;
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    // (-1, 1, 1)  ->  (1, 1, 1)
-    idx += x_stride;
-    sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-    sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-    sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-
-    if (sum_idx > 0) {
-        interpolated_values[i] = sum / double(sum_idx);
-    } else {
-        idx_zplane = map_idx[i] - 2 * (1 + x_stride + (x_stride * y_stride)); // move current pos idx by (-2, -2, -2)
-
-        // (u, v, w) <- (x, y, z)
-        // u=0-4 v=0-4 w=0,4
-        idx = idx_zplane;
-        for (unsigned int v = 0; v < 5; v++) {
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-            sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-            sum += image[idx + 3] * double(map[idx + 3]);   sum_idx += (map[idx + 3] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-            idx += x_stride;
-        }
-        idx = idx_zplane + 4 * x_stride * y_stride;
-        for (unsigned int v = 0; v < 5; v++) {
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-            sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-            sum += image[idx + 3] * double(map[idx + 3]);   sum_idx += (map[idx + 3] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-            idx += x_stride;
-        }
-
-
-        // u=0-4 v=0,4 w=1-3
-        for (unsigned int w = 1; w < 4; w++) {
-            idx = idx_zplane + w * x_stride * y_stride;
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-            sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-            sum += image[idx + 3] * double(map[idx + 3]);   sum_idx += (map[idx + 3] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-            idx += 4 * x_stride;
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 1] * double(map[idx + 1]);   sum_idx += (map[idx + 1] > 0);
-            sum += image[idx + 2] * double(map[idx + 2]);   sum_idx += (map[idx + 2] > 0);
-            sum += image[idx + 3] * double(map[idx + 3]);   sum_idx += (map[idx + 3] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-        }
-
-        // u=0,4 v=1-3 w=1-3
-        for (unsigned int w = 1; w < 4; w++) {
-            idx = idx_zplane + w * x_stride * y_stride;
-            idx += x_stride;
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-            idx += x_stride;
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-            idx += x_stride;
-            sum += image[idx + 0] * double(map[idx + 0]);   sum_idx += (map[idx + 0] > 0);
-            sum += image[idx + 4] * double(map[idx + 4]);   sum_idx += (map[idx + 4] > 0);
-        }
-
-        if (sum_idx > 0) {
-            interpolated_values[i] = sum / double(sum_idx);
-        } else {
-            interpolated_values[i] = 0.0;
-        }
-    }
-    return;
-}
-
 
 /*Define the constructor for the SIFT class*/
 /*See the class Sift definition in sift.h*/
@@ -999,33 +858,57 @@ void Sift::runOnStream(
         }
 
         /*FIXME
-        Get sift_params.IndexSize, for full keypoint size
+        Get sift_params_.IndexSize, for full keypoint size
         each descriptor is placed in according 0 to padded_map_idx_size
         essentially a matrix of padded_map_idx_size by descriptor length
         */
-        SiftParams sift_params;
-        int desc_len = 80;
+        /*int desc_len = 80; //FIXME switch into SiftParams*/
         uint8_t *descriptors;
         long desc_mem_size = desc_len * padded_map_idx_size * sizeof(uint8_t);
         cudaMalloc(&descriptors, desc_mem_size);
 
-        unsigned int num_blocks = get_num_blocks(padded_map_idx_size, 1024);
+        unsigned int num_threads = 1;
+        unsigned int num_blocks = get_num_blocks(padded_map_idx_size, num_threads);
 #ifdef DEBUG_OUTPUT
         logger_->info("num_blocks={}", num_blocks);
 #endif
 
-        create_descriptor<<<num_blocks, 1024, 0, stream_data->stream>>>(
+#ifdef DEBUG_OUTPUT
+        logger_->info("create_descriptor");
+#endif
+        Keypoints * h_keypoints = (Keypoints *) malloc(sizeof(Keypoint) * padded_map_idx_size);
+        Keypoints * d_keypoints;
+        cudaMalloc(&d_keypoints, sizeof(Keypoint) * padded_map_idx_size);
+
+        double* device_centers;
+        cudaMalloc(&device_centers, sizeof(double) * sift_params_.fv_centers_len);
+        cudaMemcpy(&device_centers, sift_params_.fv_centers, sizeof(*(sift_params_.fv_centers)) * sift_params_.fv_centers_len, cudaMemcpyHostToDevice);
+        cudaMalloc(&(sift_params_.fv_centers), sizeof(double) * sift_params_.fv_centers_len);
+        cudaMemcpy(&(sift_params_.fv_centers), &device_centers, sizeof(*(sift_params_.fv_centers)) * sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice);
+        /*sift_params_.fv_centers = &device_centers; // replace with device pointer*/
+        create_descriptor<<<num_blocks, num_threads, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, padded_map_idx_size,
                 padded_map_idx,//substream map
                 subdom_data->padded_map,//global map for GPU
                 subdom_data->padded_image,
-                sift_params,
+                sift_params_,
                 descriptors,
                 desc_len); 
 
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("Error: %s\n", cudaGetErrorString(err));
+
+        cudaMemcpy(h_keypoints, d_keypoints, sizeof(Keypoint) * padded_map_idx_size);
+
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("Error: %s\n", cudaGetErrorString(err));
+
+
 
 #ifdef DEBUG_OUTPUT
-        logger_->info("interpolate volumes {}", timer.get_laptime());
+        logger_->info("create descriptors {}", timer.get_laptime());
 
         //debug
 //        cudaStreamSynchronize(stream_data->stream);
@@ -1057,17 +940,18 @@ void Sift::runOnStream(
 
         // make sure all streams are done
         cudaStreamSynchronize(stream_data->stream);
-        for (unsigned int i = 0; i < padded_map_idx_size; i++) {
-            unsigned int padding_x;
-            unsigned int padding_y;
-            unsigned int padding_z;
-            ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);
-            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
-            //FIXME Need a unique id for each keypoint regardless of stream
-            //dom_data will be switched to keypoint_store
+        /*save data*/
+        /*for (unsigned int i = 0; i < padded_map_idx_size; i++) {*/
+            /*unsigned int padding_x;*/
+            /*unsigned int padding_y;*/
+            /*unsigned int padding_z;*/
+            /*ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);*/
+            /*size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);*/
+            /*//FIXME Need a unique id for each keypoint regardless of stream*/
+            /*//dom_data will be switched to keypoint_store*/
 
-            dom_data_->h_image[idx] = h_descriptors[i];
-        }
+            /*dom_data_->h_image[idx] = h_descriptors[i];*/
+        /*}*/
 
         cudaFree(padded_map_idx);
         cudaFree(descriptors);
@@ -1076,7 +960,7 @@ void Sift::runOnStream(
         cudaFreeHost(h_padded_map_idx);
 
 #ifdef DEBUG_OUTPUT
-        logger_->info("transfer d2h and copy interpolated values {}", timer.get_laptime());
+        logger_->info("transfer d2h and copy descriptor ivec values {}", timer.get_laptime());
 
 #ifdef DEBUG_OUTPUT_MATRIX
         logger_->debug("===== host interp image");

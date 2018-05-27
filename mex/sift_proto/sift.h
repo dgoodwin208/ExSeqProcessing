@@ -17,10 +17,10 @@
 
 #include "spdlog/spdlog.h"
 
-//#define DEBUG_OUTPUT
+#define DEBUG_OUTPUT
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
-//#define DEBUG_NO_THREADING
+#define DEBUG_NO_THREADING
 
 namespace cudautils {
 
