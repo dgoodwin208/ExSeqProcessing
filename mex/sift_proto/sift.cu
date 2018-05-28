@@ -416,6 +416,9 @@ cudautils::Keypoint make_keypoint(double* image, int x, int y, int z, cudautils:
     return make_keypoint_sample(key, image, sift_params);
 }
 
+/*__device__ __host__*/
+/*void ind2sub(long idx*/
+
 /* Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
 
 Inputs:
@@ -438,8 +441,7 @@ void create_descriptor(
         int8_t *map,
         double *image,
         cudautils::SiftParams sift_params,
-        uint8_t *descriptors,
-        int desc_len) {
+        uint8_t *descriptors) {
 
     unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= map_idx_size) return;
@@ -481,8 +483,9 @@ void create_descriptor(
     }
 
     key = make_keypoint(image, x, y, z, sift_params);
-    //FIXME memcpy
-    /*descriptors[i * desc_len] = key.ivec;*/
+
+    cudaMemcpy(&(descriptors[i * sift_params_.descriptor_len]), &(key.ivec), 
+            sift_params.descriptor_len * sizeof(uint8_t), cudaMemcpyDeviceToDevice);
     return;
 }
 
@@ -862,9 +865,8 @@ void Sift::runOnStream(
         each descriptor is placed in according 0 to padded_map_idx_size
         essentially a matrix of padded_map_idx_size by descriptor length
         */
-        /*int desc_len = 80; //FIXME switch into SiftParams*/
         uint8_t *descriptors;
-        long desc_mem_size = desc_len * padded_map_idx_size * sizeof(uint8_t);
+        long desc_mem_size = sift_params_.descriptor_len * padded_map_idx_size * sizeof(uint8_t);
         cudaMalloc(&descriptors, desc_mem_size);
 
         unsigned int num_threads = 1;
@@ -876,36 +878,37 @@ void Sift::runOnStream(
 #ifdef DEBUG_OUTPUT
         logger_->info("create_descriptor");
 #endif
-        Keypoints * h_keypoints = (Keypoints *) malloc(sizeof(Keypoint) * padded_map_idx_size);
-        Keypoints * d_keypoints;
-        cudaMalloc(&d_keypoints, sizeof(Keypoint) * padded_map_idx_size);
 
+        // create device keypoints
+        /*Keypoints * h_keypoints = (Keypoints *) malloc(sizeof(Keypoint) * padded_map_idx_size);*/
+        /*Keypoints * d_keypoints;*/
+        /*cudaMalloc(&d_keypoints, sizeof(Keypoint) * padded_map_idx_size);*/
+
+        // sift_params.fv_centers must be placed on device since array
         double* device_centers;
         cudaMalloc(&device_centers, sizeof(double) * sift_params_.fv_centers_len);
-        cudaMemcpy(&device_centers, sift_params_.fv_centers, sizeof(*(sift_params_.fv_centers)) * sift_params_.fv_centers_len, cudaMemcpyHostToDevice);
+        cudaMemcpy(&device_centers, sift_params_.fv_centers,
+                sizeof(*(sift_params_.fv_centers)) *
+                sift_params_.fv_centers_len, cudaMemcpyHostToDevice);
         cudaMalloc(&(sift_params_.fv_centers), sizeof(double) * sift_params_.fv_centers_len);
-        cudaMemcpy(&(sift_params_.fv_centers), &device_centers, sizeof(*(sift_params_.fv_centers)) * sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice);
-        /*sift_params_.fv_centers = &device_centers; // replace with device pointer*/
+        cudaMemcpy(&(sift_params_.fv_centers), &device_centers,
+                sizeof(*(sift_params_.fv_centers)) *
+                sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice);
+
         create_descriptor<<<num_blocks, num_threads, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, padded_map_idx_size,
                 padded_map_idx,//substream map
                 subdom_data->padded_map,//global map for GPU
                 subdom_data->padded_image,
                 sift_params_,
-                descriptors,
-                desc_len); 
+                descriptors); 
 
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess)
             printf("Error: %s\n", cudaGetErrorString(err));
 
-        cudaMemcpy(h_keypoints, d_keypoints, sizeof(Keypoint) * padded_map_idx_size);
-
-        cudaError_t err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
-
-
+        /*// memcpy the descriptors (do not contain ivec)*/
+        /*cudaMemcpy(h_keypoints, d_keypoints, sizeof(Keypoint) * padded_map_idx_size);*/
 
 #ifdef DEBUG_OUTPUT
         logger_->info("create descriptors {}", timer.get_laptime());
@@ -920,8 +923,13 @@ void Sift::runOnStream(
         timer.reset();
 #endif
 
+        // transfer vector descriptors via host pinned memory for faster async cpy
         double *h_descriptors;
         cudaHostAlloc(&h_descriptors, desc_mem_size, cudaHostAllocPortable);
+        
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("Error: %s\n", cudaGetErrorString(err));
 
         cudaMemcpyAsync(
                 h_descriptors,
@@ -929,29 +937,53 @@ void Sift::runOnStream(
                 desc_mem_size,
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
-        unsigned int *h_padded_map_idx;
-        cudaHostAlloc(&h_padded_map_idx, padded_map_idx_size * sizeof(unsigned int), cudaHostAllocPortable);
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("Error: %s\n", cudaGetErrorString(err));
 
+        // transfer index map to host for referencing correct index
+        unsigned int *h_padded_map_idx;
+        cudaHostAlloc(&h_padded_map_idx, padded_map_idx_size * sizeof(unsigned
+                    int), cudaHostAllocPortable);
         cudaMemcpyAsync(
                 h_padded_map_idx,
                 padded_map_idx,
                 padded_map_idx_size * sizeof(unsigned int),
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
+        /*//build list of keypoint structs*/
+        /*for (unsigned int i = 0; i < padded_map_idx_size; i++) {*/
+            /*Keypoint temp;*/
+            /*temp.ivec = (double*) malloc(sift_params.descriptor_len * sizeof(double));*/
+            /*memcpy(&(temp.ivec), h_descriptors[i * sift_params_.descriptor_len], */
+                    /*sift_params_.descriptor_len, sizeof(double));*/
+            /*temp.xyScale = sift_params_.xyScale;*/
+            /*temp.tScale = sift_params_.tScale;*/
+            /*h_keypoints[i] = temp;*/
+        /*}*/
+
         // make sure all streams are done
         cudaStreamSynchronize(stream_data->stream);
-        /*save data*/
-        /*for (unsigned int i = 0; i < padded_map_idx_size; i++) {*/
-            /*unsigned int padding_x;*/
-            /*unsigned int padding_y;*/
-            /*unsigned int padding_z;*/
-            /*ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);*/
-            /*size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);*/
-            /*//FIXME Need a unique id for each keypoint regardless of stream*/
-            /*//dom_data will be switched to keypoint_store*/
 
+        save data for all streams to global Sift object store
+        for (unsigned int i = 0; i < padded_map_idx_size; i++) {
+            Keypoint temp;
+            temp.ivec = (double*) malloc(sift_params.descriptor_len * sizeof(double));
+            memcpy(&(temp.ivec), h_descriptors[i * sift_params_.descriptor_len], 
+                    sift_params_.descriptor_len, sizeof(double));
+            temp.xyScale = sift_params_.xyScale;
+            temp.tScale = sift_params_.tScale;
+
+            unsigned int padding_x;
+            unsigned int padding_y;
+            unsigned int padding_z;
+            ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);
+            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
+
+            //FIXME Need a unique id for each keypoint regardless of stream
+            //dom_data will be switched to keypoint_store
             /*dom_data_->h_image[idx] = h_descriptors[i];*/
-        /*}*/
+        }
 
         cudaFree(padded_map_idx);
         cudaFree(descriptors);
