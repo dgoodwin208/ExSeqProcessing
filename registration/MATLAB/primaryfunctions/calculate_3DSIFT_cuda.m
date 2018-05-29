@@ -34,25 +34,24 @@ fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
 sift_params.fv_centers = fv.centers;
 sift_params.fv_centers_len = length(fv.centers(:));
 sift_params.descriptor_len = 80;
-size(fv.centers)
 
 sift_params.keypoint_num = size(keypts,1);
 N = size(keypts,1);
-map = ones(sift_params.image_size);
+map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_size2);
 for i=1:N
     map(keypts(i)) = 0; % select the keypoint element
 end
 map = int8(map);
 
-fprintf('Save map with %d real keypoints\n', N);
-f = fopen('map_kypts.bin', 'w');
-fwrite(f, map);
-fclose(f);
+%fprintf('Save map with %d real keypoints\n', N);
+%f = fopen('map_kypts.bin', 'w');
+%fwrite(f, map);
+%fclose(f);
 
-fprintf('Save img \n');
-f = fopen('img_kypts.bin', 'w');
-fwrite(f, img);
-fclose(f);
+%fprintf('Save img \n');
+%f = fopen('img_kypts.bin', 'w');
+%fwrite(f, img);
+%fclose(f);
 
 
 keys = sift_cuda(img, map, sift_params);
