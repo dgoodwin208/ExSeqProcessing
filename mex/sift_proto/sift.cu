@@ -373,7 +373,9 @@ void normalize_vec(double* vec, int len) {
 }
 
 __device__
-cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams sift_params) {
+cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
+        image, cudautils::SiftParams sift_params, unsigned int idx, 
+        uint8_t * descriptors) {
 
     //FIXME add to sift_params from Matlab side
     sift_params.MaxIndexVal = 0.2;
@@ -399,21 +401,25 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double* image,
     int intval;
     for (int i=0; i < N; i++) {
         intval = round(512.0 * vec[i]);
-        key.ivec[i] = (int) min(255, intval);
+        /*key.ivec[i] = (int) min(255, intval);*/
+        descriptors[idx * sift_params.descriptor_len + i] =  min((uint8_t) 255, (uint8_t) intval);
     }
     return key;
 }
 
 
 __device__
-cudautils::Keypoint make_keypoint(double* image, int x, int y, int z, cudautils::SiftParams sift_params) {
+cudautils::Keypoint make_keypoint(double* image, int x, int y, int z,
+        cudautils::SiftParams sift_params, unsigned int idx,
+        uint8_t * descriptors) {
     cudautils::Keypoint key;
     key.x = x;
     key.y = y;
     key.z = z;
     key.xyScale = sift_params.xyScale;
     key.tScale = sift_params.tScale;
-    return make_keypoint_sample(key, image, sift_params);
+    return make_keypoint_sample(key, image, sift_params, idx, 
+            descriptors);
 }
 
 /*__device__ __host__*/
@@ -482,10 +488,10 @@ void create_descriptor(
         return ;
     }
 
-    key = make_keypoint(image, x, y, z, sift_params);
+    key = make_keypoint(image, x, y, z, sift_params, i, descriptors);
 
-    cudaMemcpy(&(descriptors[i * sift_params_.descriptor_len]), &(key.ivec), 
-            sift_params.descriptor_len * sizeof(uint8_t), cudaMemcpyDeviceToDevice);
+    /*cudaMemcpy(&(descriptors[i * sift_params.descriptor_len]), &(key.ivec), */
+            /*sift_params.descriptor_len * sizeof(uint8_t), cudaMemcpyDeviceToDevice);*/
     return;
 }
 
@@ -924,10 +930,10 @@ void Sift::runOnStream(
 #endif
 
         // transfer vector descriptors via host pinned memory for faster async cpy
-        double *h_descriptors;
+        uint8_t *h_descriptors;
         cudaHostAlloc(&h_descriptors, desc_mem_size, cudaHostAllocPortable);
         
-        cudaError_t err = cudaGetLastError();
+        err = cudaGetLastError();
         if (err != cudaSuccess)
             printf("Error: %s\n", cudaGetErrorString(err));
 
@@ -937,7 +943,7 @@ void Sift::runOnStream(
                 desc_mem_size,
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
-        cudaError_t err = cudaGetLastError();
+        err = cudaGetLastError();
         if (err != cudaSuccess)
             printf("Error: %s\n", cudaGetErrorString(err));
 
@@ -945,40 +951,41 @@ void Sift::runOnStream(
         unsigned int *h_padded_map_idx;
         cudaHostAlloc(&h_padded_map_idx, padded_map_idx_size * sizeof(unsigned
                     int), cudaHostAllocPortable);
+
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("Error: %s\n", cudaGetErrorString(err));
+
         cudaMemcpyAsync(
                 h_padded_map_idx,
                 padded_map_idx,
                 padded_map_idx_size * sizeof(unsigned int),
                 cudaMemcpyDeviceToHost, stream_data->stream);
 
-        /*//build list of keypoint structs*/
-        /*for (unsigned int i = 0; i < padded_map_idx_size; i++) {*/
-            /*Keypoint temp;*/
-            /*temp.ivec = (double*) malloc(sift_params.descriptor_len * sizeof(double));*/
-            /*memcpy(&(temp.ivec), h_descriptors[i * sift_params_.descriptor_len], */
-                    /*sift_params_.descriptor_len, sizeof(double));*/
-            /*temp.xyScale = sift_params_.xyScale;*/
-            /*temp.tScale = sift_params_.tScale;*/
-            /*h_keypoints[i] = temp;*/
-        /*}*/
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("Error: %s\n", cudaGetErrorString(err));
 
         // make sure all streams are done
         cudaStreamSynchronize(stream_data->stream);
 
-        save data for all streams to global Sift object store
+        /*save data for all streams to global Sift object store*/
         for (unsigned int i = 0; i < padded_map_idx_size; i++) {
             Keypoint temp;
-            temp.ivec = (double*) malloc(sift_params.descriptor_len * sizeof(double));
-            memcpy(&(temp.ivec), h_descriptors[i * sift_params_.descriptor_len], 
-                    sift_params_.descriptor_len, sizeof(double));
+            temp.ivec = (uint8_t*) malloc(sift_params_.descriptor_len * sizeof(uint8_t));
+            // FIXME is this faster than individual device to host transfers
+            memcpy(&(temp.ivec), &(h_descriptors[i * sift_params_.descriptor_len]), 
+                    sift_params_.descriptor_len * sizeof(uint8_t));
             temp.xyScale = sift_params_.xyScale;
             temp.tScale = sift_params_.tScale;
 
             unsigned int padding_x;
             unsigned int padding_y;
             unsigned int padding_z;
-            ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);
-            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
+            //FIXME can not access any memory of h_padded_map_idx
+            /*ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],*/
+                    /*padding_x, padding_y, padding_z);*/
+            /*size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);*/
 
             //FIXME Need a unique id for each keypoint regardless of stream
             //dom_data will be switched to keypoint_store
