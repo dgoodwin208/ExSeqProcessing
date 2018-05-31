@@ -612,6 +612,12 @@ void Sift::setMapToBeInterpolated(const std::vector<int8_t>& map)
     thrust::copy(map.begin(), map.end(), dom_data_->h_map);
 }
 
+cudautils::Keypoint_store Sift::getKeystore()
+{
+    return dom_data_->keystore;
+}
+
+
 void Sift::getImage(double *img)
 {
     thrust::copy(dom_data_->h_image, dom_data_->h_image + x_size_ * y_size_ * z_size_, img);
@@ -966,6 +972,8 @@ void Sift::runOnStream(
         if (err != cudaSuccess)
             printf("Error: %s\n", cudaGetErrorString(err));
 
+        unsigned int check = h_padded_map_idx[0];
+        printf('%u', check);
         // make sure all streams are done
         cudaStreamSynchronize(stream_data->stream);
 
@@ -983,13 +991,12 @@ void Sift::runOnStream(
             unsigned int padding_y;
             unsigned int padding_z;
             //FIXME can not access any memory of h_padded_map_idx
-            /*ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],*/
-                    /*padding_x, padding_y, padding_z);*/
-            /*size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);*/
+            ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],
+                    padding_x, padding_y, padding_z);
+            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
 
-            //FIXME Need a unique id for each keypoint regardless of stream
-            //dom_data will be switched to keypoint_store
-            /*dom_data_->h_image[idx] = h_descriptors[i];*/
+            //FIXME check that unique id for each keypoint regardless of stream
+            dom_data_->keystore->buf[idx] = h_descriptors[i];
         }
 
         cudaFree(padded_map_idx);

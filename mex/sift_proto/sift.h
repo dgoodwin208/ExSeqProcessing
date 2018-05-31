@@ -164,19 +164,28 @@ class Sift : public cudautils::CudaTask {
 
         double *h_image;
         int8_t *h_map;
+        cudautils::Keypoint_store *keystore;
+        cudautils::Keypoint *keypoints;
 
         DomainDataOnHost(
                 const unsigned int x_size,
                 const unsigned int y_size,
-                const unsigned int z_size)
+                const unsigned int z_size,
+                cudautils::SiftParams sift_params)
             : sub2ind(x_size, y_size, z_size) {
             size_t volume_size = x_size * y_size * z_size;
             cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable);
             cudaHostAlloc(&h_map,   volume_size * sizeof(int8_t), cudaHostAllocPortable);
+            cudaHostAlloc(&keystore, sizeof(cudautils::Keypoint_store), cudaHostAllocPortable);
+            cudaHostAlloc(&keypoints, sift_params.keypoint_num * sizeof(cudautils::Keypoint), cudaHostAllocPortable);
+            keystore->buf = &keypoints;
+            keystore->len = sift_params.keypoint_num;
         }
         ~DomainDataOnHost() {
             cudaFreeHost(h_image);
             cudaFreeHost(h_map);
+            cudaFreeHost(keystore->buf);
+            cudaFreeHost(keystore);
         }
     };
 
@@ -259,6 +268,7 @@ public:
     void setImage(const std::vector<double>& img);
     void setMapToBeInterpolated(const int8_t *map);
     void setMapToBeInterpolated(const std::vector<int8_t>& map);
+    cudautils::Keypoint_store getKeystore();
     void getImage(double* img);
     void getImage(std::vector<double>& img);
 

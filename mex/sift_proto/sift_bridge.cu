@@ -24,11 +24,11 @@ void sift_bridge(
         const double* in_image,
         const int8_t* in_map,
         cudautils::SiftParams sift_params,
-        double* out_image) {
+        cudautils::Keypoint_store* keystore) {
 
     std::shared_ptr<cudautils::Sift> ni =
-        std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams,
-                sift_params);
+        std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size,
+                y_sub_size, dx, dy, dw, num_gpus, num_streams, sift_params);
 
     cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 
@@ -43,7 +43,7 @@ void sift_bridge(
     logger->info("calc end");
 
     logger->info("getImage start");
-    ni->getImage(out_image);
+    ni->getKeystore(keystore);
     logger->info("getImage end");
 
 }

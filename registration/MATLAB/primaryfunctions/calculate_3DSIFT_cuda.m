@@ -13,7 +13,7 @@
 %       key.ivec descriptor vector flattened index (col order) length 
 %          index shape=(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces)
 
-function  keys = calculate_3DSIFT_cuda(img, keypts,skipDescriptor)
+function keys = calculate_3DSIFT_cuda(img, keypts,skipDescriptor)
 
 
 %By default, we calculate the descriptor
