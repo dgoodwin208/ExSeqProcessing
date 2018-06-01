@@ -97,9 +97,9 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp) {
 }
 */
 
-void init_Keypoint_store(Keypoint_store * kp, cudautils::SiftParams sift_params) {
+void init_Keypoint_store(cudautils::Keypoint_store * kp, cudautils::SiftParams sift_params) {
     kp->len = sift_params.keypoint_num;
-    kp->buf = (Keypoint*) malloc(kp->len * sift_params.descriptor_len * sizeof(double));
+    kp->buf = (cudautils::Keypoint*) malloc(kp->len * sift_params.descriptor_len * sizeof(double));
 }
 
 // parse SiftParams struct
@@ -212,7 +212,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         }
 
         cudautils::SiftParams sift_params = get_params(prhs);
-        cudautils::Keypoint_store keystore = get_params(plhs[0]);
+        cudautils::Keypoint_store keystore;
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
 
@@ -247,7 +247,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         try {
             cudautils::sift_bridge(
                     logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams,
-                    in_image, in_map, sift_params, keypoint_store);
+                    in_image, in_map, sift_params, keystore);
 
         } catch (...) {
             logger->error("internal unknown error occurred");

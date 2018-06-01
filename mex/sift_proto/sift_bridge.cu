@@ -24,7 +24,7 @@ void sift_bridge(
         const double* in_image,
         const int8_t* in_map,
         cudautils::SiftParams sift_params,
-        cudautils::Keypoint_store* keystore) {
+        cudautils::Keypoint_store keystore) {
 
     std::shared_ptr<cudautils::Sift> ni =
         std::make_shared<cudautils::Sift>(x_size, y_size, z_size, x_sub_size,
