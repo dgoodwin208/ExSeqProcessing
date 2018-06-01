@@ -9,11 +9,11 @@
 
 #include "spdlog/spdlog.h"
 
-#define MAX_DATA_SIZE_FOR_GPU 1024*1024*180*sizeof(double)
-//#define MAX_DATA_SIZE_FOR_GPU 1024*1024*200*sizeof(uint16_t)
-//#define MAX_DATA_SIZE_FOR_GPU 96*sizeof(uint16_t)
+#define GPU_USER_MEMORY_USAGE_RATIO 0.5
+#define THRUST_RADIXSORT_MEMORY_USAGE_RATIO 2.0
 
-//#define SEQUENTIAL_RUN
+//#define DEBUG_FILEOUT
+//#define DEBUG_NO_THREADING
 
 class QuantileNormImpl {
 protected:
@@ -24,10 +24,9 @@ protected:
     size_t image_height_;
     size_t num_slices_;
     size_t num_gpus_;
+    size_t gpu_mem_total_;
 
     size_t num_channels_;
-
-    size_t max_data_size_for_gpu_;
 
     std::vector<std::tuple<size_t, size_t, std::string, std::string>>              radixsort1_file_list_;
     std::vector<std::vector<std::string>>                                          mergesort1_file_list_;
@@ -62,8 +61,7 @@ public:
                      const size_t image_width,
                      const size_t image_height,
                      const size_t num_slices,
-                     const size_t num_gpus,
-                     const size_t max_data_size_for_gpu = MAX_DATA_SIZE_FOR_GPU);
+                     const size_t num_gpus);
 
     void run();
 

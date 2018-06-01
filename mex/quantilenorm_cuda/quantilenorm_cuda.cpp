@@ -21,7 +21,7 @@
 #include "spdlog/spdlog.h"
 #include "mex.h"
 #include "mex-utils/tiffs.h"
-#include "cuda-utils/gpudevice.h"
+#include "gpudevice.h"
 #include "quantilenorm_impl.h"
 
 
@@ -115,6 +115,8 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         }
         mxSetCell(plhs[0], result.size()    , mxCreateDoubleScalar((double)image_height));
         mxSetCell(plhs[0], result.size() + 1, mxCreateDoubleScalar((double)image_width));
+
+        cudautils::resetDevice();
 
         logger->info("{:=>50}", " quantilenorm_cuda end");
 

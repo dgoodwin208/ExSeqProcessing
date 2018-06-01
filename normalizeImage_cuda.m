@@ -1,4 +1,4 @@
-function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum)
+function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum)
 
     loadParameters;
 

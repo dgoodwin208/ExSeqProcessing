@@ -15,7 +15,7 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,to
     tic;
     disp('===== create batch jobs')
 
-    max_running_jobs = 5;
+    max_running_jobs = 3;
     waiting_sec = 10;
 
     jobs = cell(1,total_round_num);

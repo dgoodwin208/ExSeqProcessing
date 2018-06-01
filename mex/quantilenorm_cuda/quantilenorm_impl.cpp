@@ -12,7 +12,8 @@
 #include "quantilenorm_impl.h"
 #include "utils/filebuffers.h"
 #include "mex-utils/tiffs.h"
-#include "cuda-utils/radixsort.h"
+#include "radixsort.h"
+#include "gpudevice.h"
 
 QuantileNormImpl::QuantileNormImpl()
     : datadir_(""),
@@ -22,8 +23,7 @@ QuantileNormImpl::QuantileNormImpl()
       image_height_(0),
       num_slices_(0),
       num_gpus_(0),
-      num_channels_(0),
-      max_data_size_for_gpu_(MAX_DATA_SIZE_FOR_GPU) {
+      num_channels_(0) {
     logger_ = spdlog::get("mex_logger");
 }
 
@@ -33,8 +33,7 @@ QuantileNormImpl::QuantileNormImpl(const std::string& datadir,
                                    const size_t image_width,
                                    const size_t image_height,
                                    const size_t num_slices,
-                                   const size_t num_gpus,
-                                   const size_t max_data_size_for_gpu)
+                                   const size_t num_gpus)
     : datadir_(datadir),
       basename_(basename),
       tif_fnames_(tif_fnames),
@@ -42,10 +41,12 @@ QuantileNormImpl::QuantileNormImpl(const std::string& datadir,
       image_height_(image_height),
       num_slices_(num_slices),
       num_gpus_(num_gpus),
-      num_channels_(tif_fnames.size()),
-      max_data_size_for_gpu_(max_data_size_for_gpu)
+      num_channels_(tif_fnames.size())
 {
     logger_ = spdlog::get("mex_logger");
+
+    size_t free_size;
+    cudautils::get_gpu_mem_size(free_size, gpu_mem_total_);
 }
 
 void
@@ -60,7 +61,7 @@ QuantileNormImpl::run() {
         mergeSort1();
         radixSort1();
 
-#ifndef SEQUENTIAL_RUN
+#ifndef DEBUG_NO_THREADING
         waitForTasks("radixsort1", radixsort1_futures_);
         waitForTasks("mergesort1", mergesort1_futures_);
 #endif
@@ -79,7 +80,7 @@ QuantileNormImpl::run() {
     } else {
         substituteValues();
 
-#ifndef SEQUENTIAL_RUN
+#ifndef DEBUG_NO_THREADING
         waitForTasks("substitute-values", substitute_values_futures_);
 #endif
     }
@@ -91,7 +92,7 @@ QuantileNormImpl::run() {
         mergeSort2();
         radixSort2();
 
-#ifndef SEQUENTIAL_RUN
+#ifndef DEBUG_NO_THREADING
         waitForTasks("radixsort2", radixsort2_futures_);
         waitForTasks("mergesort2", mergesort2_futures_);
 #endif
@@ -113,11 +114,12 @@ QuantileNormImpl::setupFileList() {
         logger_->info("[{}] [sorted file 1] {}", basename_, sorted_file1);
     }
 
-    size_t one_slice_size = image_height_ * image_width_ * sizeof(uint16_t);
-    size_t num_sub_slices = max_data_size_for_gpu_ / one_slice_size;
-    logger_->debug("[{}] data(uint16_t) - max data size = {}, one slice size = {}, # sub slices = {}", basename_, max_data_size_for_gpu_, one_slice_size, num_sub_slices);
+    size_t one_slice_mem_usage = image_height_ * image_width_ * (sizeof(uint16_t) + sizeof(unsigned int))
+        * THRUST_RADIXSORT_MEMORY_USAGE_RATIO;
+    size_t num_sub_slices = gpu_mem_total_ * GPU_USER_MEMORY_USAGE_RATIO / one_slice_mem_usage;
+    logger_->debug("[{}] gpu total mem = {}, data(uint16_t) + idx(unsigned int) * {} for one slice = {}, # sub slices = {}", basename_, gpu_mem_total_, THRUST_RADIXSORT_MEMORY_USAGE_RATIO, one_slice_mem_usage, num_sub_slices);
     if (num_sub_slices == 0) {
-        logger_->warn("[{}] MAX DATA SIZE_FOR_GPU is smaller than one slice size.", basename_);
+        logger_->error("[{}] one slice mem usage is over gpu total memory.", basename_);
         num_sub_slices = 1;
     }
 
@@ -156,15 +158,17 @@ QuantileNormImpl::setupFileList() {
     std::string sorted_file2_prefix     = basename_ + "_4_sort2_c";
     std::string sorted_idx_file2_prefix = "idx_" + sorted_file2_prefix;
 
+    size_t unit_data_size  = gpu_mem_total_ * GPU_USER_MEMORY_USAGE_RATIO
+        / ((sizeof(double) + sizeof(unsigned int)) * THRUST_RADIXSORT_MEMORY_USAGE_RATIO);
+
     size_t total_data_size = num_slices_ * image_height_ * image_width_;
-    size_t unit_data_size  = max_data_size_for_gpu_ / sizeof(double);
     size_t num_sub_data    = total_data_size / unit_data_size;
     if (total_data_size % unit_data_size != 0) {
         num_sub_data++;
     }
-    logger_->debug("[{}] data(double) - max data size = {}, total data size = {}, unit data size = {}, sub data size = {}", basename_, max_data_size_for_gpu_, total_data_size, unit_data_size, num_sub_data);
+    logger_->debug("[{}] gpu total mem = {}, data(double) + idx(unsigned int) * {} for unit data = {}, total data = {}, # sub slices = {}", basename_, gpu_mem_total_, THRUST_RADIXSORT_MEMORY_USAGE_RATIO, unit_data_size, total_data_size, num_sub_data);
     if (num_sub_data == 0) {
-        logger_->warn("[{}] MAX_DATA_SIZE_FOR_GPU is larger than total data size.", basename_);
+        logger_->error("[{}] unit data size is over gpu total memory.", basename_);
         num_sub_data = 1;
     }
 
@@ -307,7 +311,7 @@ QuantileNormImpl::radixSort1() {
         mexutils::loadtiff(tif_file, slice_start, slice_end, image);
         logger_->info("[{}] radixSort1: loadtiff end   {}", basename_, tif_file);
 
-#ifdef SEQUENTIAL_RUN
+#ifdef DEBUG_NO_THREADING
         QuantileNormImpl::radixSort1FromData(image, slice_start, out_file);
 #else
         radixsort1_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::radixSort1FromData, this, image, slice_start, out_file));
@@ -317,48 +321,67 @@ QuantileNormImpl::radixSort1() {
 
 int
 QuantileNormImpl::radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> image, const size_t slice_start, const std::string& out_filename) {
-    logger_->info("[{}] radixSort1FromData: start {}", basename_, out_filename);
-    unsigned int idx_start = slice_start * image_height_ * image_width_;
-    std::shared_ptr<std::vector<unsigned int>> idx(new std::vector<unsigned int>(image->size()));
-    thrust::sequence(thrust::host, idx->begin(), idx->end(), idx_start);
+    int idx_gpu = -1;
+    try {
+        logger_->info("[{}] radixSort1FromData: start {}", basename_, out_filename);
+        unsigned int idx_start = slice_start * image_height_ * image_width_;
+        std::shared_ptr<std::vector<unsigned int>> idx(new std::vector<unsigned int>(image->size()));
+        thrust::sequence(thrust::host, idx->begin(), idx->end(), idx_start);
 
-    auto interval_sec = std::chrono::seconds(1);
-    logger_->info("[{}] radixSort1FromData: selectGPU {}", basename_, out_filename);
-    while (1) {
-        int idx_gpu = selectGPU();
-        if (idx_gpu >= 0) {
-            logger_->info("[{}] idx_gpu = {}", basename_, idx_gpu);
-            cudautils::radixsort(*image, *idx);
+        auto interval_sec = std::chrono::seconds(1);
+        logger_->info("[{}] radixSort1FromData: selectGPU {}", basename_, out_filename);
+        while (1) {
+            idx_gpu = selectGPU();
+            if (idx_gpu >= 0) {
+                logger_->info("[{}] idx_gpu = {}", basename_, idx_gpu);
+                cudautils::radixsort(*image, *idx);
 
-            unselectGPU(idx_gpu);
-            break;
-        } else {
-//            int ret = selectCoreNoblock(1);
-//            if (ret == 0) {
-//                logger_->info("[{}] core", basename_);
-//                cudautils::radixsort_host(*image, *idx);
-//                unselectCore(1);
-//                break;
-//            } else {
+                unselectGPU(idx_gpu);
+                break;
+            } else {
+//                int ret = selectCoreNoblock(1);
+//                if (ret == 0) {
+//                    logger_->info("[{}] core", basename_);
+//                    cudautils::radixsort_host(*image, *idx);
+//                    unselectCore(1);
+//                    break;
+//                } else {
                 std::this_thread::sleep_for(interval_sec);
-//            }
+//                }
+            }
         }
+
+        int ret;
+        std::string out_idx_filename = "idx_" + out_filename;
+        ret = savefile(datadir_, out_idx_filename, idx);
+        ret = savefile(datadir_, out_filename, image);
+
+        unselectCore(0);
+        logger_->info("[{}] radixSort1FromData: end   {}", basename_, out_filename);
+        return ret;
+    } catch (std::exception& ex) {
+            logger_->error("[{}] end - {}", basename_, ex.what());
+            if (idx_gpu != -1) {
+                unselectGPU(idx_gpu);
+            }
+            unselectCore(0);
+            return -1;
+    } catch (...) {
+            logger_->error("[{}] end - unknown error..", basename_);
+            if (idx_gpu != -1) {
+                unselectGPU(idx_gpu);
+            }
+            unselectCore(0);
+            return -1;
     }
 
-    int ret;
-    std::string out_idx_filename = "idx_" + out_filename;
-    ret = savefile(datadir_, out_idx_filename, idx);
-    ret = savefile(datadir_, out_filename, image);
-
-    unselectCore(0);
-    logger_->info("[{}] radixSort1FromData: end   {}", basename_, out_filename);
-    return ret;
+    return 0;
 }
 
 void
 QuantileNormImpl::radixSort2() {
     for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
-#ifdef SEQUENTIAL_RUN
+#ifdef DEBUG_NO_THREADING
         QuantileNormImpl::radixSort2FromData(i);
 #else
         radixsort2_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::radixSort2FromData, this, i));
@@ -368,6 +391,7 @@ QuantileNormImpl::radixSort2() {
 
 int
 QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
+    int idx_gpu = -1;
     try {
         logger_->info("[{}] radixSort2FromData: start ({})", basename_, idx_radixsort);
 
@@ -405,7 +429,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         auto interval_sec = std::chrono::seconds(1);
 //        logger_->info("[{}] radixSort2FromData: ({}) selectGPU", basename_, idx_radixsort);
         while (1) {
-            int idx_gpu = selectGPU();
+            idx_gpu = selectGPU();
             if (idx_gpu >= 0) {
                 logger_->info("[{}] radixSort2FromData: ({}) idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
 
@@ -450,14 +474,25 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         ret = savefile(datadir_, out_idx_file, index);
         ret = savefile(datadir_, out_file, data);
 
+#ifndef DEBUG_FILEOUT
+        remove(in_idx_filepath.c_str());
+        remove(in_subst_filepath.c_str());
+#endif
+
         unselectCore(0);
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
         return ret;
     } catch (std::exception& ex) {
             logger_->error("[{}] end - {}", basename_, ex.what());
+            if (idx_gpu != -1) {
+                unselectGPU(idx_gpu);
+            }
             return -1;
     } catch (...) {
             logger_->error("[{}] end - unknown error..", basename_);
+            if (idx_gpu != -1) {
+                unselectGPU(idx_gpu);
+            }
             return -1;
     }
 
@@ -474,10 +509,11 @@ QuantileNormImpl::savefile(const std::string& datadir, const std::string& out_fi
         return -1;
     }
 
+    int data_size = (int)data->size();
     int buffer_size = FILEWRITE_BUFSIZE / sizeof(T);
-    for (int i = 0; i < data->size(); i += buffer_size) {
-        if (i + buffer_size > data->size()) {
-            buffer_size = data->size() - i;
+    for (int i = 0; i < data_size; i += buffer_size) {
+        if (i + buffer_size > data_size) {
+            buffer_size = data_size - i;
         }
 
         fout.write((char*)&(*data)[i], buffer_size * sizeof(T));
@@ -627,7 +663,7 @@ QuantileNormImpl::unselectCore(const int idx_core_group) {
 void
 QuantileNormImpl::mergeSort1() {
     for (size_t i = 0; i < mergesort1_file_list_.size(); i++) {
-#ifdef SEQUENTIAL_RUN
+#ifdef DEBUG_NO_THREADING
         mergeSortTwoFiles<uint16_t, unsigned int>(i, mergesort1_file_list_);
 #else
         mergesort1_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::mergeSortTwoFiles<uint16_t, unsigned int>, this, i, mergesort1_file_list_));
@@ -638,7 +674,7 @@ QuantileNormImpl::mergeSort1() {
 void
 QuantileNormImpl::mergeSort2() {
     for (size_t i = 0; i < mergesort2_file_list_.size(); i++) {
-#ifdef SEQUENTIAL_RUN
+#ifdef DEBUG_NO_THREADING
         mergeSortTwoFiles<unsigned int, double>(i, mergesort2_file_list_);
 #else
         mergesort2_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, double>, this, i, mergesort2_file_list_));
@@ -866,12 +902,17 @@ QuantileNormImpl::sumSortedFiles(){
 void
 QuantileNormImpl::substituteValues() {
     for (size_t i = 0; i < substituted_file_list_.size(); i++) {
-#ifdef SEQUENTIAL_RUN
+#ifdef DEBUG_NO_THREADING
         QuantileNormImpl::substituteToNormValues(i);
 #else
         substitute_values_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::substituteToNormValues, this, i));
 #endif
     }
+
+#ifndef DEBUG_FILEOUT
+    std::string summed_filepath = datadir_ + "/" + summed_file_;
+    remove(summed_filepath.c_str());
+#endif
 }
 
 int
@@ -969,6 +1010,10 @@ QuantileNormImpl::substituteToNormValues(const size_t idx) {
 
     summed_fb_reader.close();
     sorted_fb_reader.close();
+
+#ifndef DEBUG_FILEOUT
+    remove(sorted_filepath.c_str());
+#endif
 
     logger_->info("[{}] substituteToNormValues: end   {} {}", basename_, idx, substituted_file_list_[idx]);
     return 0;
