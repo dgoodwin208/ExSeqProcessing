@@ -21,139 +21,6 @@
 
 namespace cudautils {
 
-/*struct FV {*/
-    /*double* vertices;*/
-    /*double* faces;*/
-    /*double* centers;*/
-/*};*/
-
-/*FV sphere_tri(int maxlevel, int r) {*/
-    /*
-     sphere_tri - generate a triangle mesh approximating a sphere
-    
-     Usage: FV = sphere_tri(Nrecurse,r)
-    
-       Nrecurse is int >= 0, setting the recursions (default 0)
-    
-       r is the radius of the sphere (default 1)
-    
-       FV has fields FV.vertices and FV.faces.  The vertices
-       are listed in clockwise order in FV.faces, as viewed
-       from the outside in a RHS coordinate system.
-    
-     The function uses recursive subdivision.  The first
-     approximation is an icosahedron. Each level of refinement
-     subdivides each triangle face by a factor of 4 (see also
-     mesh_refine). At each refinement, the vertices are
-     projected to the sphere surface (see sphere_project).
-    
-     A recursion level of 3 or 4 is a good sphere surface, if
-     gouraud shading is used for rendering.
-    
-     The returned struct can be used in the patch command, eg:
-    
-      create and plot, vertices: [2562x3] and faces: [5120x3]
-     FV = sphere_tri('ico',4,1);
-     lighting phong; shading interp; figure;
-     patch('vertices',FV.vertices,'faces',FV.faces,...
-           'facecolor',[1 0 0],'edgecolor',[.2 .2 .6]);
-     axis off; camlight infinite; camproj('perspective');
-    
-     See also: mesh_refine, sphere_project
-    
-     Cuda revision of:
-     Licence:  GNU GPL, no implied or express warranties
-     Jon Leech (leech @ cs.unc.edu) 3/24/89
-     icosahedral code added by Jim Buddenhagen (jb1556@daditz.sbc.com) 5/93
-     06/2002, adapted from c to matlab by Darren.Weber_at_radiology.ucsf.edu
-     05/2004, reorder of the faces for the 'ico' surface so they are indeed
-     clockwise!  Now the surface normals are directed outward.  Also reset the
-     default recursions to zero, so we can get out just the platonic solids.
-    
-    */
-
-    /*// default maximum subdivision level*/
-    /*if (maxlevel < 0)*/
-        /*maxlevel = 0;*/
-
-    /*// default radius*/
-    /*if (r < 0)*/
-        /*r = 1;*/
-
-    /*// define the icosehedron*/
-
-    /*// Twelve vertices of icosahedron on unit sphere*/
-    /*double tau = 0.8506508084; // t=(1+sqrt(5))/2, tau=t/sqrt(1+t^2)*/
-    /*double one = 0.5257311121; // one=1/sqrt(1+t^2) , unit sphere*/
-
-    /*FV fv;*/
-    
-    /*// store the vertices in column (Matlab) order */
-    /*fv.vertices = new double[12][3];*/
-    /*fv.vertices[ 0] = {  tau,  one,    0 }; // ZA*/
-    /*fv.vertices[ 1] = { -tau,  one,    0 }; // ZB*/
-    /*fv.vertices[ 2] = { -tau, -one,    0 }; // ZC*/
-    /*fv.vertices[ 3] = {  tau, -one,    0 }; // ZD*/
-    /*fv.vertices[ 4] = {  one,   0 ,  tau }; // YA*/
-    /*fv.vertices[ 5] = {  one,   0 , -tau }; // YB*/
-    /*fv.vertices[ 6] = { -one,   0 , -tau }; // YC*/
-    /*fv.vertices[ 7] = { -one,   0 ,  tau }; // YD*/
-    /*fv.vertices[ 8] = {   0 ,  tau,  one }; // XA*/
-    /*fv.vertices[ 9] = {   0,  -tau,  one }; // XB*/
-    /*fv.vertices[10] = {   0 , -tau, -one }; // XC*/
-    /*fv.vertices[11] = {   0 ,  tau, -one }; // XD*/
-    
-    /*// Structure for unit icosahedron*/
-    /*// Fixme check this is in correct col order*/
-    /*// previous matlab code was in ; order*/
-    /*fv.faces = {  5,  8,  9 ,*/
-               /*5, 10,  8 ,*/
-               /*6, 12,  7 ,*/
-               /*6,  7, 11 ,*/
-               /*1,  4,  5 ,*/
-               /*1,  6,  4 ,*/
-               /*3,  2,  8 ,*/
-               /*3,  7,  2 ,*/
-               /*9, 12,  1 ,*/
-               /*9,  2, 12 ,*/
-              /*10,  4, 11 ,*/
-              /*10, 11,  3 ,*/
-               /*9,  1,  5 ,*/
-              /*12,  6,  1 ,*/
-               /*5,  4, 10 ,*/
-               /*6, 11,  4 ,*/
-               /*8,  2,  9 ,*/
-               /*7, 12,  2 ,*/
-               /*8, 10,  3 ,*/
-               /*7,  3, 11 };*/
-    
-
-
-    /*// -----------------*/
-    /*// refine the starting shapes with subdivisions*/
-    /*if maxlevel,*/
-        
-        /*// Subdivide each starting triangle (maxlevel) times*/
-        /*for level = 1:maxlevel,*/
-            
-            /*// Subdivide each triangle and normalize the new points thus*/
-            /*// generated to lie on the surface of a sphere radius r.*/
-            /*fv = mesh_refine_tri4(fv);*/
-            /*fv.vertices = sphere_project(fv.vertices,r);*/
-            
-            /*// An alternative might be to define a min distance*/
-            /*// between vertices and recurse or use fminsearch*/
-            
-        /*end*/
-    /*end*/
-
-    /*for (int i=0; i < length(fv.faces); i++) {*/
-        /*fv.centers(i,:) = mean(fv.vertices(fv.faces(i,:),:));*/
-        /*// Unit Normalization*/
-        /*fv.centers(i,:) = fv.centers(i,:) ./ sqrt(dot(fv.centers(i,:),fv.centers(i,:)));*/
-    /*}*/
-/*}*/
-
 __device__
 void place_in_index(double* index, double mag, int i, int j, int s, 
         double* yy, int* ix, cudautils::SiftParams sift_params) {
@@ -422,11 +289,7 @@ cudautils::Keypoint make_keypoint(double* image, int x, int y, int z,
             descriptors);
 }
 
-/*__device__ __host__*/
-/*void ind2sub(long idx*/
-
 /* Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
-
 Inputs:
 image - a 3 dimensional matrix of double
 xyScale and tScale - affects both the scale and the resolution, these are
@@ -437,7 +300,7 @@ Outputs:
 keypoint - the descriptor, varies in size depending on values in LoadParams.m
 reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
 descriptive enough for a good keypoint
-        */
+*/
 __global__
 void create_descriptor(
         unsigned int x_stride,
@@ -547,7 +410,7 @@ Sift::Sift(
 #endif
 
 
-    dom_data_ = std::make_shared<DomainDataOnHost>(x_size_, y_size_, z_size_);
+    dom_data_ = std::make_shared<DomainDataOnHost>(x_size_, y_size_, z_size_, sift_params);
 
     for (unsigned int i = 0; i < num_gpus_; i++) {
         cudaSetDevice(i);
@@ -612,9 +475,9 @@ void Sift::setMapToBeInterpolated(const std::vector<int8_t>& map)
     thrust::copy(map.begin(), map.end(), dom_data_->h_map);
 }
 
-cudautils::Keypoint_store Sift::getKeystore()
+void Sift::getKeystore(cudautils::Keypoint_store keystore)
 {
-    return dom_data_->keystore;
+    thrust::copy(dom_data_->keystore.buf, dom_data_->keystore.buf + dom_data_->keystore.len, keystore.buf);
 }
 
 
@@ -643,7 +506,7 @@ void Sift::runOnGPU(
         const int gpu_id,
         const unsigned int gpu_task_id) {
 
-    cudaSetDevice(gpu_id);
+    cudaSafeCall(cudaSetDevice(gpu_id));
 
     std::shared_ptr<SubDomainDataOnGPU> subdom_data = subdom_data_[gpu_id];
     std::shared_ptr<SubDomainDataOnStream> stream_data0 = subdom_data->stream_data[0];
@@ -677,8 +540,8 @@ void Sift::runOnGPU(
 
     int8_t *padded_sub_map;
     double *padded_sub_image;
-    cudaHostAlloc(&padded_sub_map,   padded_sub_volume_size * sizeof(int8_t), cudaHostAllocPortable);
-    cudaHostAlloc(&padded_sub_image, padded_sub_volume_size * sizeof(double), cudaHostAllocPortable);
+    cudaSafeCall(cudaHostAlloc(&padded_sub_map,   padded_sub_volume_size * sizeof(int8_t), cudaHostAllocPortable));
+    cudaSafeCall(cudaHostAlloc(&padded_sub_image, padded_sub_volume_size * sizeof(double), cudaHostAllocPortable));
 
     // First set all values to -1
     thrust::fill(padded_sub_map, padded_sub_map + padded_sub_volume_size, -1);
@@ -700,14 +563,14 @@ void Sift::runOnGPU(
 
     thrust::fill(thrust::device, subdom_data->padded_image, subdom_data->padded_image + padded_sub_volume_size, 0.0);
 
-    cudaMemcpyAsync(
+    cudaSafeCall(cudaMemcpyAsync(
             subdom_data->padded_image,
             padded_sub_image,
             padded_sub_volume_size * sizeof(double),
-            cudaMemcpyHostToDevice, stream_data0->stream);
+            cudaMemcpyHostToDevice, stream_data0->stream));
 
 #ifdef DEBUG_OUTPUT
-    cudaStreamSynchronize(stream_data0->stream);
+    cudaSafeCall(cudaStreamSynchronize(stream_data0->stream));
     logger_->info("transfer image data {}", timer.get_laptime());
 
 #ifdef DEBUG_OUTPUT_MATRIX
@@ -719,14 +582,14 @@ void Sift::runOnGPU(
     timer.reset();
 #endif
 
-    cudaMemcpyAsync(
+    cudaSafeCall(cudaMemcpyAsync(
             subdom_data->padded_map,
             padded_sub_map,
             padded_sub_volume_size * sizeof(int8_t),
-            cudaMemcpyHostToDevice, stream_data0->stream);
+            cudaMemcpyHostToDevice, stream_data0->stream));
 
 #ifdef DEBUG_OUTPUT
-    cudaStreamSynchronize(stream_data0->stream);
+    cudaSafeCall(cudaStreamSynchronize(stream_data0->stream));
     logger_->info("transfer map data {}", timer.get_laptime());
 
 #ifdef DEBUG_OUTPUT_MATRIX
@@ -756,7 +619,7 @@ void Sift::runOnGPU(
     thrust::replace(thrust::device, subdom_data->padded_map, subdom_data->padded_map + padded_sub_volume_size, -1, 0);
 
 #ifdef DEBUG_OUTPUT
-    cudaStreamSynchronize(stream_data0->stream);
+    cudaSafeCall(cudaStreamSynchronize(stream_data0->stream));
     logger_->info("calculate map idx {}", timer.get_laptime());
 
     logger_->info("padded_map_idx_size={}", subdom_data->padded_map_idx_size);
@@ -784,7 +647,7 @@ void Sift::runOnGPU(
             }
         }
     }
-    cudaStreamSynchronize(stream_data0->stream);
+    cudaSafeCall(cudaStreamSynchronize(stream_data0->stream));
 
     cudaFreeHost(padded_sub_map);
     cudaFreeHost(padded_sub_image);
@@ -829,13 +692,12 @@ void Sift::runOnStream(
 #ifdef DEBUG_OUTPUT
         logger_->info("dx_i={}, dy_i={}", dx_i, dy_i);
         logger_->info("x=({},{},{}) y=({},{},{}), dw={}", dx_start, dx_delta, dx_end, dy_start, dy_delta, dy_end, dw_);
-        logger_->info("padded_map_idx_size={}", subdom_data->padded_map_idx_size);
+        logger_->info("subdom_data->padded_map_idx_size={}", subdom_data->padded_map_idx_size);
 #endif
-
 
         // for each subdomain of stream of this for loop
         unsigned int *padded_map_idx;
-        cudaMalloc(&padded_map_idx, subdom_data->padded_map_idx_size * sizeof(unsigned int));
+        cudaSafeCall(cudaMalloc(&padded_map_idx, subdom_data->padded_map_idx_size * sizeof(unsigned int)));
 
         RangeCheck range_check { x_sub_stride_, y_sub_stride_,
             dx_start + dw_, dx_end + dw_, dy_start + dw_, dy_end + dw_, dw_, z_size_ + dw_ };
@@ -856,7 +718,7 @@ void Sift::runOnStream(
         logger_->info("padded_map_idx_size={}", padded_map_idx_size);
         logger_->info("transfer map idx {}", timer.get_laptime());
 
-        cudaStreamSynchronize(stream_data->stream);
+        cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
 
         thrust::device_vector<unsigned int> dbg_d_padded_map_idx(padded_map_idx, padded_map_idx + padded_map_idx_size);
         thrust::host_vector<unsigned int> dbg_h_padded_map_idx(dbg_d_padded_map_idx);
@@ -879,7 +741,7 @@ void Sift::runOnStream(
         */
         uint8_t *descriptors;
         long desc_mem_size = sift_params_.descriptor_len * padded_map_idx_size * sizeof(uint8_t);
-        cudaMalloc(&descriptors, desc_mem_size);
+        cudaSafeCall(cudaMalloc(&descriptors, desc_mem_size));
 
         unsigned int num_threads = 1;
         unsigned int num_blocks = get_num_blocks(padded_map_idx_size, num_threads);
@@ -898,14 +760,14 @@ void Sift::runOnStream(
 
         // sift_params.fv_centers must be placed on device since array
         double* device_centers;
-        cudaMalloc(&device_centers, sizeof(double) * sift_params_.fv_centers_len);
-        cudaMemcpy(&device_centers, sift_params_.fv_centers,
+        cudaSafeCall(cudaMalloc(&device_centers, sizeof(double) * sift_params_.fv_centers_len));
+        cudaSafeCall(cudaMemcpy(&device_centers, sift_params_.fv_centers,
                 sizeof(*(sift_params_.fv_centers)) *
-                sift_params_.fv_centers_len, cudaMemcpyHostToDevice);
-        cudaMalloc(&(sift_params_.fv_centers), sizeof(double) * sift_params_.fv_centers_len);
-        cudaMemcpy(&(sift_params_.fv_centers), &device_centers,
+                sift_params_.fv_centers_len, cudaMemcpyHostToDevice));
+        cudaSafeCall(cudaMalloc(&(sift_params_.fv_centers), sizeof(double) * sift_params_.fv_centers_len));
+        cudaSafeCall(cudaMemcpy(&(sift_params_.fv_centers), &device_centers,
                 sizeof(*(sift_params_.fv_centers)) *
-                sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice);
+                sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice));
 
         create_descriptor<<<num_blocks, num_threads, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, padded_map_idx_size,
@@ -914,16 +776,13 @@ void Sift::runOnStream(
                 subdom_data->padded_image,
                 sift_params_,
                 descriptors); 
-
-        cudaError_t err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
+        cudaCheckError();
 
         /*// memcpy the descriptors (do not contain ivec)*/
         /*cudaMemcpy(h_keypoints, d_keypoints, sizeof(Keypoint) * padded_map_idx_size);*/
 
 #ifdef DEBUG_OUTPUT
-        logger_->info("create descriptors {}", timer.get_laptime());
+        logger_->info("create descriptors elapsed: {}", timer.get_laptime());
 
         //debug
 //        cudaStreamSynchronize(stream_data->stream);
@@ -937,67 +796,49 @@ void Sift::runOnStream(
 
         // transfer vector descriptors via host pinned memory for faster async cpy
         uint8_t *h_descriptors;
-        cudaHostAlloc(&h_descriptors, desc_mem_size, cudaHostAllocPortable);
+        cudaSafeCall(cudaHostAlloc(&h_descriptors, desc_mem_size, cudaHostAllocPortable));
         
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
-
-        cudaMemcpyAsync(
+        cudaSafeCall(cudaMemcpyAsync(
                 h_descriptors,
                 descriptors,
                 desc_mem_size,
-                cudaMemcpyDeviceToHost, stream_data->stream);
-
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
+                cudaMemcpyDeviceToHost, stream_data->stream));
 
         // transfer index map to host for referencing correct index
         unsigned int *h_padded_map_idx;
-        cudaHostAlloc(&h_padded_map_idx, padded_map_idx_size * sizeof(unsigned
-                    int), cudaHostAllocPortable);
+        cudaSafeCall(cudaHostAlloc(&h_padded_map_idx, padded_map_idx_size * sizeof(unsigned
+                    int), cudaHostAllocPortable));
 
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
-
-        cudaMemcpyAsync(
+        cudaSafeCall(cudaMemcpyAsync(
                 h_padded_map_idx,
                 padded_map_idx,
                 padded_map_idx_size * sizeof(unsigned int),
-                cudaMemcpyDeviceToHost, stream_data->stream);
+                cudaMemcpyDeviceToHost, stream_data->stream));
 
-        err = cudaGetLastError();
-        if (err != cudaSuccess)
-            printf("Error: %s\n", cudaGetErrorString(err));
-
-        unsigned int check = h_padded_map_idx[0];
-        printf('%u', check);
         // make sure all streams are done
-        cudaStreamSynchronize(stream_data->stream);
+        cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
 
-        /*save data for all streams to global Sift object store*/
-        for (unsigned int i = 0; i < padded_map_idx_size; i++) {
-            Keypoint temp;
-            temp.ivec = (uint8_t*) malloc(sift_params_.descriptor_len * sizeof(uint8_t));
-            // FIXME is this faster than individual device to host transfers
-            memcpy(&(temp.ivec), &(h_descriptors[i * sift_params_.descriptor_len]), 
-                    sift_params_.descriptor_len * sizeof(uint8_t));
-            temp.xyScale = sift_params_.xyScale;
-            temp.tScale = sift_params_.tScale;
+        /*[>save data for all streams to global Sift object store<]*/
+        /*for (int i = 0; i < padded_map_idx_size; i++) {*/
+            /*Keypoint temp;*/
+            /*temp.ivec = (uint8_t*) malloc(sift_params_.descriptor_len * sizeof(uint8_t));*/
+            /*// FIXME is this faster than individual device to host transfers*/
+            /*memcpy(&(temp.ivec), &(h_descriptors[i * sift_params_.descriptor_len]), */
+                    /*sift_params_.descriptor_len * sizeof(uint8_t));*/
+            /*temp.xyScale = sift_params_.xyScale;*/
+            /*temp.tScale = sift_params_.tScale;*/
 
-            unsigned int padding_x;
-            unsigned int padding_y;
-            unsigned int padding_z;
-            //FIXME can not access any memory of h_padded_map_idx
-            ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],
-                    padding_x, padding_y, padding_z);
-            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
+            /*unsigned int padding_x;*/
+            /*unsigned int padding_y;*/
+            /*unsigned int padding_z;*/
+            /*//FIXME can not access any memory of h_padded_map_idx*/
+            /*ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],*/
+                    /*padding_x, padding_y, padding_z);*/
+            /*size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);*/
 
-            //FIXME check that unique id for each keypoint regardless of stream
-            dom_data_->keystore->buf[idx] = h_descriptors[i];
-        }
+            /*//FIXME test for unique id for each keypoint regardless of stream*/
+            /*dom_data_->keystore.buf[idx] = temp;*/
+        /*}*/
 
         cudaFree(padded_map_idx);
         cudaFree(descriptors);

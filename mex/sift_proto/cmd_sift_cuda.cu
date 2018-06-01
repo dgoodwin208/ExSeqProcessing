@@ -87,8 +87,10 @@ int main(int argc, char* argv[]) {
         fin1.close();
         fin2.close();
 
-//        int num_gpus = 1;
-        int num_gpus = cudautils::get_gpu_num();
+        int num_gpus = 1;
+        /*int num_gpus = cudautils::get_gpu_num();*/
+        /*const unsigned int num_streams = 20;*/
+        const unsigned int num_streams = 1;
         logger->info("# of gpus = {}", num_gpus);
 
         std::vector<double> out_interp_image(x_size * y_size * z_size);
@@ -108,7 +110,6 @@ int main(int argc, char* argv[]) {
         for (int i=0; i < sift_params.fv_centers_len; i++)
             sift_params.fv_centers[i] = (double) rand();
 
-        const unsigned int num_streams = 20;
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_streams);
 

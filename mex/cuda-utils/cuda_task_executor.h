@@ -11,7 +11,7 @@
 
 namespace cudautils {
 
-//#define DEBUG_NO_THREADING
+#define DEBUG_NO_THREADING
 
 class CudaTaskExecutor {
     int num_gpus_;
