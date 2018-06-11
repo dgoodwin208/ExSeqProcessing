@@ -77,7 +77,7 @@ int CudaTaskExecutor::runOnGPU(const int gpu_id) {
                 int ret = futures[i].get();
                 if (ret != 1) {
                     logger_->error("stream_id[{}] has failed in thread.", i);
-                    throw std::string("runOnGPU() thread faild."); //TODO
+                    throw std::string("runOnGPU() thread failed."); //TODO
                 }
             }
 
