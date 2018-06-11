@@ -83,6 +83,11 @@ QuantileNormImpl::run() {
 #ifndef DEBUG_NO_THREADING
         waitForTasks("substitute-values", substitute_values_futures_);
 #endif
+
+#ifndef DEBUG_FILEOUT
+        std::string summed_filepath = datadir_ + "/" + summed_file_;
+        remove(summed_filepath.c_str());
+#endif
     }
 
     logger_->info("[{}] ##### sort 2", basename_);
@@ -95,6 +100,15 @@ QuantileNormImpl::run() {
 #ifndef DEBUG_NO_THREADING
         waitForTasks("radixsort2", radixsort2_futures_);
         waitForTasks("mergesort2", mergesort2_futures_);
+#endif
+
+#ifndef DEBUG_FILEOUT
+        for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
+            std::string subst_filepath = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
+            std::string idx_filepath   = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
+            remove(subst_filepath.c_str());
+            remove(idx_filepath.c_str());
+        }
 #endif
     }
 
@@ -473,11 +487,6 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         std::string out_idx_file = "idx_" + out_file;
         ret = savefile(datadir_, out_idx_file, index);
         ret = savefile(datadir_, out_file, data);
-
-#ifndef DEBUG_FILEOUT
-        remove(in_idx_filepath.c_str());
-        remove(in_subst_filepath.c_str());
-#endif
 
         unselectCore(0);
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
@@ -890,6 +899,11 @@ QuantileNormImpl::sumSortedFiles(){
         out_fb_writer.writeFileFromBuffer();
     }
 
+    out_fb_writer.close();
+    for (size_t i = 0; i < sorted_file1_list_.size(); i++) {
+        in_fb_reader[i]->close();
+    }
+
     std::string summed_filepath = datadir_ + "/" + summed_file_;
     int ret = rename(tmp_summed_filepath.c_str(), summed_filepath.c_str());
     if (ret != 0) {
@@ -908,11 +922,6 @@ QuantileNormImpl::substituteValues() {
         substitute_values_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::substituteToNormValues, this, i));
 #endif
     }
-
-#ifndef DEBUG_FILEOUT
-    std::string summed_filepath = datadir_ + "/" + summed_file_;
-    remove(summed_filepath.c_str());
-#endif
 }
 
 int
