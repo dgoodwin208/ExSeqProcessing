@@ -1,6 +1,8 @@
 #ifndef __SIFT_TYPES_H__
 #define __SIFT_TYPES_H__
 
+#include <cuda_runtime.h>
+
 // error handling code, derived from funcs in old cutil lib
 
 #define cudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)

@@ -83,7 +83,6 @@ double get_grad_ori_vector(double* image, int r, int c, int s,
     //FIXME cublasSgemm() higher performance
     int N = sift_params.fv_centers_len;
     /*double* corr_array;*/
-    cudaMalloc(&yy, N*sizeof(double));
     for (int i=0; i < N; i++) {
         yy[i] = dot_product(&sift_params.fv_centers[i],
                 vect, 3);
@@ -112,6 +111,7 @@ void add_sample(double* index, double* image, double distsq, int
     int* ix;
     cudaMalloc(&ix, sift_params.fv_centers_len*sizeof(int));
     double *yy;
+    cudaMalloc(&yy, sift_params.fv_centers_len * sizeof(double));
     /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
     double mag = get_grad_ori_vector(image,r,c,s, vect, yy, ix, sift_params);
     mag *= weight; // scale magnitude by gaussian 
@@ -325,10 +325,9 @@ void create_descriptor(
 #ifdef DEBUG_OUTPUT
     printf("thread: %u, desc index: %u, x:%d y:%d z:%d\n", thread_idx, idx, x, y, z);
 #endif
-    return;
     
     cudautils::Keypoint key;
-    bool reRun = false;
+    /*bool reRun = false;*/
     int radius = round(sift_params.xyScale * 3.0);
 
     int ori_hist_len = sift_params.nFaces;
@@ -347,14 +346,18 @@ void create_descriptor(
                 3) > .9) &&
             (dot_product(&sift_params.fv_centers[ix[0]],
                 &sift_params.fv_centers[ix[2]], 3) > .9)) {
-        reRun = true;
+        /*reRun = true;*/
         return ;
     }
 
     key = make_keypoint(image, x, y, z, sift_params, thread_idx, descriptors);
 
-    cudaMemcpy(&(descriptors[thread_idx * sift_params.descriptor_len]), &(key.ivec), 
-            sift_params.descriptor_len * sizeof(uint8_t), cudaMemcpyDeviceToDevice);
+    // async theoretic faster but does not compile
+    /*cudaMemcpy(&(descriptors[thread_idx * sift_params.descriptor_len]), &(key.ivec), */
+            /*sift_params.descriptor_len * sizeof(uint8_t), cudaMemcpyDeviceToDevice);*/
+    // cudaMemcpy D to D on host about 4 times faster
+    memcpy(&(descriptors[thread_idx * sift_params.descriptor_len]), &(key.ivec), 
+            sift_params.descriptor_len * sizeof(uint8_t));
     return;
 }
 
@@ -540,7 +543,7 @@ void Sift::runOnGPU(
 
     int8_t *padded_sub_map;
     double *padded_sub_image;
-    cudaSafeCall(cudaHostAlloc(&padded_sub_map,   padded_sub_volume_size * sizeof(int8_t), cudaHostAllocPortable));
+    cudaSafeCall(cudaHostAlloc(&padded_sub_map, padded_sub_volume_size * sizeof(int8_t), cudaHostAllocPortable));
     cudaSafeCall(cudaHostAlloc(&padded_sub_image, padded_sub_volume_size * sizeof(double), cudaHostAllocPortable));
 
     // First set all values to -1
@@ -754,6 +757,8 @@ void Sift::runOnStream(
         // round up by number of threads per block, to calc num of blocks
         unsigned int num_blocks = get_num_blocks(substream_padded_map_idx_size, num_threads);
 #ifdef DEBUG_OUTPUT
+        //FIXME
+        cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
         logger_->info("num_blocks={}", num_blocks);
         logger_->info("num_threads={}", num_threads);
 #endif
@@ -774,15 +779,17 @@ void Sift::runOnStream(
 
         // sift_params.fv_centers must be placed on device since array passed to cuda kernel
         double* device_centers;
-        cudaSafeCall(cudaMalloc(&device_centers, sizeof(double) * sift_params_.fv_centers_len));
-        cudaSafeCall(cudaMemcpy(&device_centers, sift_params_.fv_centers,
-                sizeof(*(sift_params_.fv_centers)) *
-                sift_params_.fv_centers_len, cudaMemcpyHostToDevice));
-        cudaSafeCall(cudaMalloc(&(sift_params_.fv_centers),
+        cudaSafeCall(cudaMalloc((void **) &device_centers,
                     sizeof(double) * sift_params_.fv_centers_len));
-        cudaSafeCall(cudaMemcpy(&(sift_params_.fv_centers), &device_centers,
-                sizeof(*(sift_params_.fv_centers)) *
-                sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice));
+        cudaSafeCall(cudaMemcpy((void *) device_centers, (const void *) sift_params_.fv_centers,
+                (size_t) sizeof(double) * sift_params_.fv_centers_len,
+                cudaMemcpyHostToDevice));
+        //this would break with multiple streams
+        /*cudaSafeCall(cudaMalloc((void **) &(sift_params_.fv_centers),*/
+                    /*sizeof(double) * sift_params_.fv_centers_len));*/
+        /*cudaSafeCall(cudaMemcpy(sift_params_.fv_centers, device_centers,*/
+                /*sizeof(*(sift_params_.fv_centers)) **/
+                /*sift_params_.fv_centers_len, cudaMemcpyDeviceToDevice));*/
 
         create_descriptor<<<num_blocks, num_threads, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, substream_padded_map_idx_size,
@@ -799,13 +806,6 @@ void Sift::runOnStream(
 #ifdef DEBUG_OUTPUT
         logger_->info("create descriptors elapsed: {}", timer.get_laptime());
 
-        //debug
-//        cudaStreamSynchronize(stream_data->stream);
-//        std::copy(interpolated_values.begin(),
-//                  interpolated_values.begin() + substream_padded_map_idx_size,
-//                  std::ostream_iterator<double>(std::cout, ","));
-//        std::cout << std::endl;
-
         timer.reset();
 #endif
 
@@ -821,8 +821,9 @@ void Sift::runOnStream(
 
         // transfer index map to host for referencing correct index
         unsigned int *h_padded_map_idx;
-        cudaSafeCall(cudaHostAlloc(&h_padded_map_idx, substream_padded_map_idx_size * sizeof(unsigned
-                    int), cudaHostAllocPortable));
+        cudaSafeCall(cudaHostAlloc((void **) &h_padded_map_idx, 
+                    substream_padded_map_idx_size * sizeof(unsigned int),
+                    cudaHostAllocPortable));
 
         cudaSafeCall(cudaMemcpyAsync(
                 h_padded_map_idx,
@@ -833,28 +834,34 @@ void Sift::runOnStream(
         // make sure all streams are done
         cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
 
+#ifdef DEBUG_OUTPUT
+        for (int i=0; i < substream_padded_map_idx_size; i++) {
+            printf("%d: %d\n", i, h_descriptors[i]);
+        }
+#endif
+
         //FIXME Commented out because descriptors are filled properly yet
-        /*[>save data for all streams to global Sift object store<]*/
-        /*for (int i = 0; i < substream_padded_map_idx_size; i++) {*/
-            /*Keypoint temp;*/
-            /*temp.ivec = (uint8_t*) malloc(sift_params_.descriptor_len * sizeof(uint8_t));*/
-            /*// FIXME is this faster than individual device to host transfers*/
-            /*memcpy(&(temp.ivec), &(h_descriptors[i * sift_params_.descriptor_len]), */
-                    /*sift_params_.descriptor_len * sizeof(uint8_t));*/
-            /*temp.xyScale = sift_params_.xyScale;*/
-            /*temp.tScale = sift_params_.tScale;*/
+        // save data for all streams to global Sift object store
+        for (int i = 0; i < substream_padded_map_idx_size; i++) {
+            Keypoint temp;
+            temp.ivec = (uint8_t*) malloc(sift_params_.descriptor_len * sizeof(uint8_t));
+            // FIXME is this faster than individual device to host transfers
+            memcpy(&(temp.ivec), &(h_descriptors[i * sift_params_.descriptor_len]), 
+                    sift_params_.descriptor_len * sizeof(uint8_t));
+            temp.xyScale = sift_params_.xyScale;
+            temp.tScale = sift_params_.tScale;
 
-            /*unsigned int padding_x;*/
-            /*unsigned int padding_y;*/
-            /*unsigned int padding_z;*/
-            /*//FIXME can not access any memory of h_padded_map_idx*/
-            /*ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],*/
-                    /*padding_x, padding_y, padding_z);*/
-            /*size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);*/
+            unsigned int padding_x;
+            unsigned int padding_y;
+            unsigned int padding_z;
+            //FIXME can not access any memory of h_padded_map_idx
+            ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i],
+                    padding_x, padding_y, padding_z);
+            size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
 
-            /*//FIXME test for unique id for each keypoint regardless of stream*/
-            /*dom_data_->keystore.buf[idx] = temp;*/
-        /*}*/
+            //FIXME test for unique id for each keypoint regardless of stream
+            dom_data_->keystore.buf[idx] = temp;
+        }
 
         cudaSafeCall(cudaFree(substream_padded_map_idx));
         cudaSafeCall(cudaFree(descriptors));
