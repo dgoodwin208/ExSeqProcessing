@@ -104,10 +104,32 @@ QuantileNormImpl::run() {
 
 #ifndef DEBUG_FILEOUT
         for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
-            std::string subst_filepath = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
-            std::string idx_filepath   = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
+            std::string subst_filepath     = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
+            std::string sort1_idx_filepath = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
+
             remove(subst_filepath.c_str());
-            remove(idx_filepath.c_str());
+            remove(sort1_idx_filepath.c_str());
+
+            logger_->debug("[{}] remove: ({}) subst filepath     = {}", basename_, i, subst_filepath);
+            logger_->debug("[{}] remove: ({}) sort1 idx filepath = {}", basename_, i, sort1_idx_filepath);
+        }
+
+        if (mergesort2_file_list_.empty()) {
+            for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
+                std::string sort2_idx_filepath = datadir_ + "/idx_" + std::get<4>(radixsort2_file_list_[i]);
+                remove(sort2_idx_filepath.c_str());
+
+                logger_->debug("[{}] remove.1: ({}) sort2 idx filepath = {}", basename_, i, sort2_idx_filepath);
+            }
+        } else {
+            size_t size_per_channel = mergesort2_file_list_.size() / num_channels_;
+            for (size_t i = size_per_channel - 1; i < mergesort2_file_list_.size(); i+=size_per_channel) {
+                std::string sort2_idx_filepath = datadir_ + "/" + mergesort2_file_list_[i][2];
+
+                remove(sort2_idx_filepath.c_str());
+
+                logger_->debug("[{}] remove.2: ({}) sort2 idx filepath = {}", basename_, i, sort2_idx_filepath);
+            }
         }
 #endif
     }

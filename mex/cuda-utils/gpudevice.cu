@@ -21,6 +21,7 @@ int get_gpu_num() {
 
 void get_gpu_mem_size(size_t& free_size, size_t& total_size) {
     cudaMemGetInfo(&free_size, &total_size);
+    cudaDeviceReset();
 }
 
 void resetDevice() {

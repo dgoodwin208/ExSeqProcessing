@@ -9,7 +9,7 @@
 
 #include "spdlog/spdlog.h"
 
-#define GPU_USER_MEMORY_USAGE_RATIO 0.5
+#define GPU_USER_MEMORY_USAGE_RATIO 0.7
 #define THRUST_RADIXSORT_MEMORY_USAGE_RATIO 2.0
 
 //#define DEBUG_FILEOUT
