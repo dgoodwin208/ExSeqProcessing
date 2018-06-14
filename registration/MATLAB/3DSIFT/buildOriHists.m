@@ -29,7 +29,6 @@ for r = xi - radius:xi + radius
             %          /* Do not use last row or column, which are not valid. */
             if (r >= 1 && c >= 1 && r < rows - 1 && c < cols - 1 && s >= 1 && s < slices - 1)
                 [mag vect precomp_grads yy ix] = GetGradOri_vector(pix,r,c,s,fv,sift_params, precomp_grads);
-                
                 if (sift_params.Display_flag ==1)
                     plot3(vect(1),vect(2),vect(3),'k.')
                     plot3(fv.centers(ix(1),1),fv.centers(ix(1),2),fv.centers(ix(1),3),'b*')

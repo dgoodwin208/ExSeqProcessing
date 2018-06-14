@@ -3,46 +3,6 @@
 
 #include <cuda_runtime.h>
 
-// error handling code, derived from funcs in old cutil lib
-
-#define cudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
-#define cudaCheckError() __cudaCheckError(__FILE__, __LINE__)
-
-inline void __cudaSafeCall(cudaError err, const char *file, const int line)
-{
-    if (cudaSuccess != err )
-    {  
-        fprintf( stderr, "cudaSafeCall() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString( err ) );
-        exit( -1 );
-    }
-    return;
-}
-
-inline void __cudaCheckError( const char *file, const int line)
-{
-    cudaError err = cudaGetLastError();
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString( err ) );
-        exit (-1);
-    }
-
-    // Warning this can sig. lower performance of code
-    // make sure this section is not executed in production binaries
-#ifdef DEBUG_OUTPUT
-    //err = cudaDeviceSynchronize();
-    //if (cudaSuccess != err)
-    //{
-        //fprintf( stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-                //file, line, cudaGetErrorString( err ) );
-        //exit( -1 );
-    //}
-#endif
-    
-    return;
-}
-
 namespace cudautils {
 
 typedef struct _Keypoint {

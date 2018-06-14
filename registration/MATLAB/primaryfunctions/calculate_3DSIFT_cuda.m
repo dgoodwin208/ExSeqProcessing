@@ -32,7 +32,7 @@ sift_params.image_size2 = image_size(3);
 % collect fv info
 fv = sphere_tri('ico',sift_params.Tessellation_levels,1);
 sift_params.fv_centers = fv.centers;
-sift_params.fv_centers_len = length(fv.centers(:));
+sift_params.fv_centers_len = length(fv.centers(:)); % default 80 * 3
 sift_params.descriptor_len = 80;
 
 sift_params.keypoint_num = size(keypts,1);

@@ -22,6 +22,7 @@
 //#define DEBUG_DIST_CHECK
 #define DEBUG_NO_THREADING
 
+
 namespace cudautils {
 
 // pinned memory on host
@@ -59,6 +60,7 @@ void create_descriptor(
         int8_t *map,
         double *image,
         cudautils::SiftParams sift_params,
+        double* device_centers,
         double *keypoints);
 
 
