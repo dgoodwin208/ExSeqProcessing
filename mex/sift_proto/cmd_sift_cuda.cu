@@ -101,12 +101,26 @@ int main(int argc, char* argv[]) {
         const unsigned int dx = min(256, x_sub_size);
         const unsigned int dy = min(256, y_sub_size);
         const unsigned int dw = 2;
+
         cudautils::SiftParams sift_params;
         sift_params.image_size0 = x_size;
         sift_params.image_size1 = y_size;
         sift_params.image_size2 = z_size;
         sift_params.fv_centers_len = 80 * 3;
-        sift_params.descriptor_len = 80;
+        sift_params.IndexSize = 2;
+        sift_params.IndexSigma = 5.0;
+        sift_params.SigmaScaled = sift_params.IndexSigma * 0.5 * sift_params.IndexSize;
+        sift_params.nFaces = 80;
+        sift_params.Smooth_Flag = 1;
+        sift_params.Smooth_Var = 20;
+        sift_params.MaxIndexVal = 0.2;
+        sift_params.Tessel_thresh = 3;
+        sift_params.xyScale = 1;
+        sift_params.tScale = 1;
+        sift_params.TwoPeak_Flag = 0;
+        sift_params.MagFactor = 3;
+        sift_params.descriptor_len = sift_params.IndexSize *
+            sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
         sift_params.fv_centers = (double*) malloc(sizeof(double) * sift_params.fv_centers_len);
         for (int i=0; i < sift_params.fv_centers_len; i++)
             sift_params.fv_centers[i] = (double) rand();

@@ -191,7 +191,8 @@ double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams
     int xyiradius = rint(1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0);
     int tiradius = rint(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
 
-    int N = sift_params.IndexSize * sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
+    int N = sift_params.descriptor_len;
+
     // default N=640; 5120 bytes
     double* index = (double*) malloc(N * sizeof(double));
     memset(index, 0.0, N * sizeof(double));
@@ -306,7 +307,8 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
 
     //FIXME make sure vec is in column order
     double* vec = key_sample(key, image, sift_params, device_centers);
-    int N = sift_params.IndexSize * sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
+
+    int N = sift_params.descriptor_len;
 
     normalize_vec(vec, N);
 
@@ -407,7 +409,7 @@ void create_descriptor(
                 dims) > thresh) &&
             (dot_product(&(device_centers[dims * ix[0]]),
                 &(device_centers[dims * ix[2]]), dims) > thresh)) {
-        /*FIXME this leaves a section of descriptors blank*/
+        memset(&(descriptors[idx]), 0, sift_params.descriptor_len * sizeof(uint8_t));
         /*reRun = true;*/
         return ;
     }
