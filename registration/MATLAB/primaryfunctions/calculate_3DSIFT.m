@@ -62,7 +62,7 @@ while 1
     end
 end
 
-% for diagnostics only, runs extremely slow
+% for diagnostics only, warning: runs extremely slowly
 %if ~skipDescriptor
     %tic
     %recomps = 0;

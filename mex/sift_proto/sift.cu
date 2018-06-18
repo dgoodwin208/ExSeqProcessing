@@ -157,7 +157,8 @@ void add_sample(double* index, double* image, double distsq, int
     // default fv_centers_len 240; 1920 bytes
     double *yy = (double*) malloc(sift_params.fv_centers_len * sizeof(double));
 
-    /*gradient and orientation vectors calculated from 3D halo/neighboring pixels*/
+    // gradient and orientation vectors calculated from 3D halo/neighboring
+    // pixels
     double mag = get_grad_ori_vector(image,r,c,s, vect, yy, ix, sift_params, 
             device_centers);
     mag *= weight; // scale magnitude by gaussian 
@@ -183,10 +184,8 @@ __device__
 double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams sift_params,
         double* device_centers) {
 
-    /*FV fv = sphere_tri(sift_params.Tessellation_levels,1);*/
-
-    double xySpacing = key.xyScale * sift_params.MagFactor;
-    double tSpacing = key.tScale * sift_params.MagFactor;
+    double xySpacing = sift_params.xyScale * sift_params.MagFactor;
+    double tSpacing = sift_params.tScale * sift_params.MagFactor;
 
     int xyiradius = rint(1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0);
     int tiradius = rint(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
@@ -196,16 +195,16 @@ double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams
     // default N=640; 5120 bytes
     double* index = (double*) malloc(N * sizeof(double));
     memset(index, 0.0, N * sizeof(double));
-    /*for (int i=0; i < N; i++) {*/
-        /*index[i] = 0.0;*/
-    /*}*/
 
+    // Surrounding radius of pixels are binned for computation 
+    // according to sift_params.IndexSize
     int r, c, t, i_bin, j_bin, k_bin;
     double distsq;
     for (int i = -xyiradius; i <= xyiradius; i++) {
         for (int j = -xyiradius; j <= xyiradius; j++) {
             for (int k = -tiradius; j <= tiradius; k++) {
 
+                // FIXME check for CUDA pow function
                 distsq = (double) pow(i,2) + pow(j,2) + pow(k,2);
 
                 // Find bin idx
@@ -219,6 +218,7 @@ double* key_sample(cudautils::Keypoint key, double* image, cudautils::SiftParams
                 c = key.y + j;
                 t = key.z + k;
 
+                // FIXME does this collide with GPU splitting?
                 // only add if within image range
                 if (!(r < 0  ||  r >= sift_params.image_size0 ||
                         c < 0  ||  c >= sift_params.image_size1
@@ -326,8 +326,7 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
     int intval;
     for (int i=0; i < N; i++) {
         intval = rint(512.0 * vec[i]);
-        /*key.ivec[i] = (int) min(255, intval);*/
-        //FIXME check this is correct
+        //FIXME cuda function for min?
         descriptors[idx * sift_params.descriptor_len + i] =  min((uint8_t) 255, (uint8_t) intval);
     }
     free(vec);
@@ -373,8 +372,12 @@ void create_descriptor(
         double* device_centers,
         uint8_t *descriptors) {
 
+    // thread per keypoint in this substream
     unsigned int thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (thread_idx >= map_idx_size) return;
+    // map_idx holds the relevant image idxs only for the substream
+    // map_idx_size matchs total # of threads
+    // idx describes the linear index for current GPUs section of the image and corresponding map
     unsigned int idx = map_idx[thread_idx];
 
     //FIXME use reRun var
@@ -384,40 +387,41 @@ void create_descriptor(
     y = (idx - x)/sift_params.image_size0 % sift_params.image_size1;
     z = ((idx - x)/sift_params.image_size0 - y)/sift_params.image_size1;
 #ifdef DEBUG_OUTPUT
-    /*printf("thread: %u, desc index: %u, x:%d y:%d z:%d\n", thread_idx, idx, x, y, z);*/
+    printf("thread: %u, desc index: %u, x:%d y:%d z:%d\n", thread_idx, idx, x, y, z);
 #endif
     
-    cudautils::Keypoint key;
-    /*bool reRun = false;*/
-    int radius = rint(sift_params.xyScale * 3.0);
+    if (sift_params.TwoPeak_Flag) {
+        int radius = rint(sift_params.xyScale * 3.0);
 
-    int ori_hist_len = sift_params.nFaces; //default 80
-    int* ix = (int*) malloc(ori_hist_len*sizeof(int)); // default 320 bytes 
+        int ori_hist_len = sift_params.nFaces; //default 80
+        int* ix = (int*) malloc(ori_hist_len*sizeof(int)); // default 320 bytes 
 
-    thrust::sequence(thrust::device, ix, ix + ori_hist_len);
-    double* ori_hist = build_ori_hists(x, y, z, radius, image, sift_params,
-            device_centers);
-    // descending order by ori_hist
-    thrust::sort_by_key(thrust::device, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
-        
-    int dims = 3;
-    float thresh = .9;
-    if (sift_params.TwoPeak_Flag &&
-            //FIXME must be in row order
+        thrust::sequence(thrust::device, ix, ix + ori_hist_len);
+        double* ori_hist = build_ori_hists(x, y, z, radius, image, sift_params,
+                device_centers);
+        // descending order by ori_hist
+        thrust::sort_by_key(thrust::device, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
+            
+        int dims = 3;
+        float thresh = .9;
+        if ( //FIXME check in row order
             (dot_product(&(device_centers[dims * ix[0]]),
                 &(device_centers[dims * ix[1]]),
                 dims) > thresh) &&
             (dot_product(&(device_centers[dims * ix[0]]),
                 &(device_centers[dims * ix[2]]), dims) > thresh)) {
-        memset(&(descriptors[idx]), 0, sift_params.descriptor_len * sizeof(uint8_t));
-        /*reRun = true;*/
-        return ;
+            memset(&(descriptors[idx]), 0, sift_params.descriptor_len * sizeof(uint8_t));
+            // TODO mark this keypoint as null in map
+            /*map_idx[thread_idx] = -1;*/
+            return ;
+        }
+
+        free(ix);
+        free(ori_hist);
     }
 
-    key = make_keypoint(image, x, y, z, sift_params, thread_idx, descriptors,
-            device_centers);
-    free(ix);
-    free(ori_hist);
+    cudautils::Keypoint key = make_keypoint(image, x, y, z, sift_params,
+            thread_idx, descriptors, device_centers);
 
     return;
 }
@@ -861,8 +865,8 @@ void Sift::runOnStream(
         create_descriptor<<<num_blocks, num_threads, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, substream_padded_map_idx_size,
                 substream_padded_map_idx,//substream map
-                subdom_data->padded_map,//global map for GPU
-                subdom_data->padded_image,
+                subdom_data->padded_map,//global map split per GPU
+                subdom_data->padded_image,//image split per GPU
                 sift_params_, device_centers,
                 descriptors); 
         cudaCheckError();
