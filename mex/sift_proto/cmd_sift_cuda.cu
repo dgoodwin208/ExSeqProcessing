@@ -27,10 +27,10 @@
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 4) {
-        std::cout << "Usage: " << argv[0] << " [in image file] [in mask map file] [out interpolated image file]" << std::endl;
-        return 1;
-    }
+    /*if (argc < 4) {*/
+        /*std::cout << "Usage: " << argv[0] << " [in image file] [in mask map file] [out interpolated image file]" << std::endl;*/
+        /*return 1;*/
+    /*}*/
 
     std::shared_ptr<spdlog::logger> logger;
     try {
@@ -50,13 +50,19 @@ int main(int argc, char* argv[]) {
     try {
         logger->info("{:=>50}", " sift_cuda start");
 
-        std::string in_image_filename1(argv[1]);
-        std::string in_map_filename2  (argv[2]);
-        std::string out_interp_image_filename(argv[3]);
+        /*std::string in_image_filename1(argv[1]);*/
+        /*std::string in_map_filename2  (argv[2]);*/
+        /*std::string out_interp_image_filename(argv[3]);*/
+        std::string in_image_filename1("image.bin");
+        std::string in_map_filename2  ("map_kypts.bin");
+        std::string out_interp_image_filename("output.bin");
         unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
-        x_size = atoi(argv[4]);
-        y_size = atoi(argv[5]);
-        z_size = atoi(argv[6]);
+        /*x_size = atoi(argv[4]);*/
+        /*y_size = atoi(argv[5]);*/
+        /*z_size = atoi(argv[6]);*/
+        x_size = 2048;
+        y_size = 2048;
+        z_size = 141;
         x_size1 = x_size;
         y_size1 = y_size;
         z_size1 = z_size;
@@ -87,10 +93,10 @@ int main(int argc, char* argv[]) {
         fin1.close();
         fin2.close();
 
-        /*int num_gpus = 1;*/
-        /*const unsigned int num_streams = 1;*/
-        int num_gpus = cudautils::get_gpu_num();
+        int num_gpus = 2;
         const unsigned int num_streams = 20;
+        /*int num_gpus = cudautils::get_gpu_num();*/
+        /*const unsigned int num_streams = 20;*/
         logger->info("# of gpus = {}", num_gpus);
         logger->info("# of streams = {}", num_streams);
 
@@ -122,8 +128,10 @@ int main(int argc, char* argv[]) {
         sift_params.descriptor_len = sift_params.IndexSize *
             sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
         sift_params.fv_centers = (double*) malloc(sizeof(double) * sift_params.fv_centers_len);
-        for (int i=0; i < sift_params.fv_centers_len; i++)
-            sift_params.fv_centers[i] = (double) rand();
+        for (int i=0; i < sift_params.fv_centers_len; i++) {
+            sift_params.fv_centers[i] = (double) rand() / 100000000;
+            /*printf("%f\n", sift_params.fv_centers[i]);*/
+        }
 
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);

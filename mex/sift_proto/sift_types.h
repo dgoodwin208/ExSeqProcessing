@@ -20,8 +20,9 @@ typedef struct _Keypoint_store {
 } Keypoint_store;
 
 typedef struct _SiftParams {
-    double MagFactor;
+    int MagFactor;
     int IndexSize;
+    double IndexSigma; 
     int nFaces;
     int Tessellation_levels;
     int Smooth_Flag;
@@ -29,8 +30,8 @@ typedef struct _SiftParams {
     double Tessel_thresh;
     double Smooth_Var;
     int TwoPeak_Flag;
-    double xyScale;
-    double tScale;
+    int xyScale;
+    int tScale;
     double MaxIndexVal;
     //FIXME must be in row order
     double* fv_centers;

@@ -61,7 +61,8 @@ void create_descriptor(
         double *image,
         cudautils::SiftParams sift_params,
         double* device_centers,
-        double *keypoints);
+        double *keypoints,
+        std::shared_ptr<spdlog::logger> logger_);
 
 
 class Sub2Ind {
