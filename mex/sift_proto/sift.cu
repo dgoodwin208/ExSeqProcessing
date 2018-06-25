@@ -976,13 +976,11 @@ void Sift::runOnStream(
             Keypoint temp;
             temp.ivec = (uint8_t*) malloc(sift_params_.descriptor_len * sizeof(uint8_t));
             // FIXME is this faster than individual device to host transfers
-            unsigned int test = h_padded_map_idx[i];
-            // FIXME potential indexing error
+            // FIXME error
             /*memcpy(&(temp.ivec), &(h_descriptors[i * sift_params_.descriptor_len]), */
                     /*sift_params_.descriptor_len * sizeof(uint8_t));*/
-            memcpy(&(temp.ivec), &(h_descriptors[0]), 
+            memcpy(&(temp.ivec[0]), &(h_descriptors[0]), 
                     sift_params_.descriptor_len * sizeof(uint8_t));
-            unsigned int test2 = h_padded_map_idx[i];
             temp.xyScale = sift_params_.xyScale;
             temp.tScale = sift_params_.tScale;
 
@@ -994,7 +992,8 @@ void Sift::runOnStream(
             size_t idx = dom_data_->sub2ind(padding_x - dw_, padding_y - dw_, padding_z - dw_);
 
             //FIXME test for unique id for each keypoint regardless of stream
-            /*dom_data_->keystore.buf[idx] = temp;*/
+            // buffer the size of the whole image
+            dom_data_->keystore.buf[idx] = temp;
         }
 
         cudaSafeCall(cudaFree(substream_padded_map_idx));
