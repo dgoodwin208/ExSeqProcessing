@@ -13,9 +13,11 @@ CUDA_LIB=/usr/local/cuda/lib64
 
 SPDLOG_DIR=../../include
 CUDA_UTILS_DIR=../../cuda-utils
+GLOBAL_UTILS_DIR=../../utils
 
-UTILS_DIR = ../utils
-MEX_UTILS_DIR = ../mex-utils
+UTILS_DIR=../utils
+
+MATLAB_LIB_DIR=/usr/local/MATLAB/R2018a/bin/glnxa64
 
 TESTS = gtest_utils gtest_cudautils gtest_quantilenorm_cuda_impl gtest_radixsort_gpu_stresstest
 
@@ -23,7 +25,7 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
 GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
 
-CPPFLAGS+=-isystem $(GTEST_DIR)/include -I$(UTILS_DIR) -I$(MEX_UTILS_DIR) -I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR) -I..
+CPPFLAGS+=-isystem $(GTEST_DIR)/include -I$(UTILS_DIR) -I$(CUDA_UTILS_DIR) -I$(GLOBAL_UTILS_DIR) -I$(SPDLOG_DIR) -I..
 CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread
 NVCCFLAGS=-g -std=c++11 --gpu-architecture=sm_61
 
@@ -38,7 +40,7 @@ gtest_utils.o : gtest_utils.cpp $(GTEST_HEADERS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c gtest_utils.cpp
 
 gtest_utils : gtest_utils.o
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread $^ -o $@ -L$(UTILS_DIR) -lutils
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_LIBS) -lpthread $^ -o $@ -L$(UTILS_DIR) -lutils
 
 
 radixsort.o: ../radixsort.cu
@@ -48,7 +50,7 @@ gtest_cudautils.o : gtest_cudautils.cpp $(GTEST_HEADERS)
 	nvcc $(NVCCFLAGS) $(CPPFLAGS) -c gtest_cudautils.cpp
 
 gtest_cudautils : gtest_cudautils.o radixsort.o
-	$(CXX) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ -L$(CUDAUTILS_DIR) -lcudautils -L$(CUDA_LIB) -lcudart -ltbb
+	$(CXX) $(CXXFLAGS) $^ $(GTEST_LIBS) -lpthread -o $@ -L$(CUDA_UTILS_DIR) -lcudautils -L$(CUDA_LIB) -lcudart -ltbb
 
 
 quantilenorm_cuda_impl.o : ../quantilenorm_impl.cpp
@@ -58,11 +60,11 @@ gtest_quantilenorm_cuda_impl.o : gtest_quantilenorm_cuda_impl.cpp $(GTEST_HEADER
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c gtest_quantilenorm_cuda_impl.cpp
 
 gtest_quantilenorm_cuda_impl : gtest_quantilenorm_cuda_impl.o quantilenorm_cuda_impl.o radixsort.o
-	$(CXX) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ -L$(UTILS_DIR) -lutils -L$(CUDAUTILS_DIR) -lcudautils -L$(CUDA_LIB) -lcudart -ltbb
+	$(CXX) $(CXXFLAGS) $^ $(GTEST_LIBS) -lpthread -o $@ -L$(UTILS_DIR) -lutils -L$(CUDA_UTILS_DIR) -lcudautils -L$(CUDA_LIB) -lcudart -ltbb
 
 
 gtest_radixsort_gpu_stresstest.o : gtest_radixsort_gpu_stresstest.cpp
 	nvcc $(CPPFLAGS) -c gtest_radixsort_gpu_stresstest.cpp
 
 gtest_radixsort_gpu_stresstest : gtest_radixsort_gpu_stresstest.o radixsort.o
-	$(CXX) $(CXXFLAGS) $^ $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ -L$(CUDAUTILS_DIR) -lcudautils -L$(CUDA_LIB) -lcudart -ltbb
+	$(CXX) $(CXXFLAGS) $^ $(GTEST_LIBS) -lpthread -o $@ -L$(CUDA_UTILS_DIR) -lcudautils -L$(CUDA_LIB) -lcudart -ltbb

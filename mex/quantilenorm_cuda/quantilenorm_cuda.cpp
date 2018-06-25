@@ -21,6 +21,7 @@
 #include "spdlog/spdlog.h"
 #include "mex.h"
 #include "mex-utils/tiffs.h"
+#include "mex-utils/hdf5.h"
 #include "gpudevice.h"
 #include "quantilenorm_impl.h"
 
@@ -77,9 +78,11 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
         const mxArray *root_cell_ptr = prhs[2];
         mwSize total_num_cells = mxGetNumberOfElements(root_cell_ptr);
-//        logger->debug("total_num_cells = {}", total_num_cells);
+        if (total_num_cells == 0) {
+            mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda:invalidInput", "Filename is not given.");
+        }
 
-        std::vector<std::string> tif_fnames;
+        std::vector<std::string> fnames;
         for (int i = 0; i < total_num_cells; i++) {
             const mxArray *elem_ptr = mxGetCell(root_cell_ptr, i);
             if (elem_ptr == NULL) {
@@ -90,14 +93,25 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             }
 
             std::string fname(mxArrayToString(elem_ptr));
-            tif_fnames.push_back(fname);
-            logger->debug("in[{}] = {}", i, tif_fnames[i].c_str());
+            fnames.push_back(fname);
+            logger->debug("in[{}] = {}", i, fnames[i].c_str());
+
+            if (fname.substr(fname.size() - 4, 4) != ".tif" && fname.substr(fname.size() - 3, 3) != ".h5") {
+                mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda:invalidInput", "Invalid input filetype.");
+            }
         }
 
         size_t image_width, image_height, num_slices;
-        mexutils::gettiffinfo(tif_fnames[0], image_width, image_height, num_slices);
+        bool use_hdf5;
+        if (fnames[0].substr(fnames[0].size() - 4, 4) == ".tif") {
+            mexutils::gettiffinfo(fnames[0], image_width, image_height, num_slices);
+            use_hdf5 = false;
+        } else if (fnames[0].substr(fnames[0].size() - 3, 3) == ".h5") {
+            mexutils::gethdf5finfo(fnames[0], image_width, image_height, num_slices);
+            use_hdf5 = true;
+        }
 
-        QuantileNormImpl qn_impl(datadir, basename, tif_fnames, image_width, image_height, num_slices, num_gpus);
+        QuantileNormImpl qn_impl(datadir, basename, fnames, image_width, image_height, num_slices, num_gpus, use_hdf5);
 
         try {
             qn_impl.run();
@@ -109,12 +123,17 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
         std::vector<std::string> result = qn_impl.getResult();
 
-        plhs[0] = mxCreateCellMatrix(result.size() + 2, 1);
+        plhs[0] = mxCreateCellMatrix(result.size() + 1, 1);
         for (int i = 0; i < result.size(); i++) {
             mxSetCell(plhs[0], i, mxCreateString(result[i].c_str()));
         }
-        mxSetCell(plhs[0], result.size()    , mxCreateDoubleScalar((double)image_height));
-        mxSetCell(plhs[0], result.size() + 1, mxCreateDoubleScalar((double)image_width));
+        mxArray *mx_image_size = mxCreateDoubleMatrix(1, 3, mxREAL);
+        mxSetCell(plhs[0], result.size(), mx_image_size);
+
+        double *image_size = mxGetPr(mx_image_size);
+        image_size[0] = static_cast<double>(image_height);
+        image_size[1] = static_cast<double>(image_width);
+        image_size[2] = static_cast<double>(num_slices);
 
         cudautils::resetDevice();
 

@@ -12,36 +12,40 @@
 #include "quantilenorm_impl.h"
 #include "utils/filebuffers.h"
 #include "mex-utils/tiffs.h"
+#include "mex-utils/hdf5.h"
 #include "radixsort.h"
 #include "gpudevice.h"
 
 QuantileNormImpl::QuantileNormImpl()
     : datadir_(""),
       basename_(""),
-      tif_fnames_(),
+      in_fnames_(),
       image_width_(0),
       image_height_(0),
       num_slices_(0),
       num_gpus_(0),
-      num_channels_(0) {
+      num_channels_(0),
+      use_hdf5_(false) {
     logger_ = spdlog::get("mex_logger");
 }
 
 QuantileNormImpl::QuantileNormImpl(const std::string& datadir,
                                    const std::string& basename,
-                                   const std::vector<std::string>& tif_fnames,
+                                   const std::vector<std::string>& in_fnames,
                                    const size_t image_width,
                                    const size_t image_height,
                                    const size_t num_slices,
-                                   const size_t num_gpus)
+                                   const size_t num_gpus,
+                                   const bool use_hdf5)
     : datadir_(datadir),
       basename_(basename),
-      tif_fnames_(tif_fnames),
+      in_fnames_(in_fnames),
       image_width_(image_width),
       image_height_(image_height),
       num_slices_(num_slices),
       num_gpus_(num_gpus),
-      num_channels_(tif_fnames.size())
+      num_channels_(in_fnames.size()),
+      use_hdf5_(use_hdf5)
 {
     logger_ = spdlog::get("mex_logger");
 
@@ -61,10 +65,8 @@ QuantileNormImpl::run() {
         mergeSort1();
         radixSort1();
 
-#ifndef DEBUG_NO_THREADING
         waitForTasks("radixsort1", radixsort1_futures_);
         waitForTasks("mergesort1", mergesort1_futures_);
-#endif
     }
 
     logger_->info("[{}] ##### sum", basename_);
@@ -80,9 +82,7 @@ QuantileNormImpl::run() {
     } else {
         substituteValues();
 
-#ifndef DEBUG_NO_THREADING
         waitForTasks("substitute-values", substitute_values_futures_);
-#endif
 
 #ifndef DEBUG_FILEOUT
         std::string summed_filepath = datadir_ + "/" + summed_file_;
@@ -97,10 +97,8 @@ QuantileNormImpl::run() {
         mergeSort2();
         radixSort2();
 
-#ifndef DEBUG_NO_THREADING
         waitForTasks("radixsort2", radixsort2_futures_);
         waitForTasks("mergesort2", mergesort2_futures_);
-#endif
 
 #ifndef DEBUG_FILEOUT
         for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
@@ -173,8 +171,8 @@ QuantileNormImpl::setupFileList() {
             sout << "-" << std::setw(3) << std::setfill('0') << i
                  << "-" << std::setw(3) << std::setfill('0') << next_i << ".bin";
             std::string radixsort1_file = sorted_file1_prefix + std::to_string(c_i) + sout.str();
-            radixsort1_file_list_.push_back(std::make_tuple(i, next_i, tif_fnames_[c_i], radixsort1_file));
-            logger_->info("[{}] [radixsort 1] {} -> {}", basename_, tif_fnames_[c_i], radixsort1_file);
+            radixsort1_file_list_.push_back(std::make_tuple(i, next_i, in_fnames_[c_i], radixsort1_file));
+            logger_->info("[{}] [radixsort 1] {} -> {}", basename_, in_fnames_[c_i], radixsort1_file);
         }
     }
 
@@ -334,27 +332,142 @@ QuantileNormImpl::oneFileExists(const std::string& filename) {
 
 void
 QuantileNormImpl::radixSort1() {
-    for (auto radixsortfile : radixsort1_file_list_) {
-        size_t slice_start   = std::get<0>(radixsortfile);
-        size_t slice_end     = std::get<1>(radixsortfile);
-        std::string tif_file = std::get<2>(radixsortfile);
-        std::string out_file = std::get<3>(radixsortfile);
-
-        selectCore(0);
-
-        logger_->info("[{}] radixSort1: loadtiff start {}", basename_, tif_file);
-        std::shared_ptr<std::vector<uint16_t>> image(new std::vector<uint16_t>());
-        mexutils::loadtiff(tif_file, slice_start, slice_end, image);
-        logger_->info("[{}] radixSort1: loadtiff end   {}", basename_, tif_file);
-
 #ifdef DEBUG_NO_THREADING
-        QuantileNormImpl::radixSort1FromData(image, slice_start, out_file);
+    std::launch policy = std::launch::deferred;
 #else
-        radixsort1_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::radixSort1FromData, this, image, slice_start, out_file));
+    std::launch policy = std::launch::async;
 #endif
+    radixsort1_futures_.push_back(std::async(policy, &QuantileNormImpl::radixSort1FromData, this));
+
+    if (use_hdf5_) {
+        loadRadixSort1Hdf5Data();
+    } else {
+        loadRadixSort1TiffData();
     }
 }
 
+int
+QuantileNormImpl::loadRadixSort1Hdf5Data() {
+    selectCore(0);
+
+    for (auto radixsort_info : radixsort1_file_list_) {
+        size_t slice_start  = std::get<0>(radixsort_info);
+        size_t slice_end    = std::get<1>(radixsort_info);
+        std::string h5_file = std::get<2>(radixsort_info);
+
+        logger_->info("[{}] loadRadixSort1Hdf5Data: loadhdf5 start {}", basename_, h5_file);
+        std::shared_ptr<RadixSort1Info> data = std::make_shared<RadixSort1Info>();
+        data->slice_start  = slice_start;
+        data->image        = std::make_shared<std::vector<uint16_t>>();
+        data->out_filename = std::get<3>(radixsort_info);
+
+        mexutils::loadhdf5(h5_file, slice_start, slice_end, image_height_, image_width_, data->image);
+
+        logger_->info("slice ({} - {}), image={}, out={}", data->slice_start, slice_end, data->image->size(), data->out_filename);
+        logger_->info("[{}] loadRadixSort1Hdf5Data: loadhdf5 end   {}", basename_, h5_file);
+
+        radixsort1_queue_.push(data);
+    }
+
+    radixsort1_queue_.close();
+
+    return 0;
+}
+
+int
+QuantileNormImpl::loadRadixSort1TiffData() {
+    for (auto radixsort_info : radixsort1_file_list_) {
+        size_t slice_start   = std::get<0>(radixsort_info);
+        size_t slice_end     = std::get<1>(radixsort_info);
+        std::string tif_file = std::get<2>(radixsort_info);
+
+        selectCore(0);
+
+        logger_->info("[{}] loadRadixSort1TiffData: loadtiff start {}", basename_, tif_file);
+        std::shared_ptr<RadixSort1Info> data = std::make_shared<RadixSort1Info>();
+        data->slice_start  = slice_start;
+        data->image        = std::make_shared<std::vector<uint16_t>>();
+        data->out_filename = std::get<3>(radixsort_info);
+
+        mexutils::loadtiff(tif_file, slice_start, slice_end, data->image);
+
+        logger_->info("slice ({} - {}), image={}, out={}", data->slice_start, slice_end, data->image->size(), data->out_filename);
+        logger_->info("[{}] loadRadixSort1TiffData: loadtiff end   {}", basename_, tif_file);
+
+        radixsort1_queue_.push(data);
+    }
+
+    radixsort1_queue_.close();
+
+    return 0;
+}
+
+int
+QuantileNormImpl::radixSort1FromData() {
+
+    int idx_gpu = -1;
+    while(1) {
+        std::shared_ptr<RadixSort1Info> info;
+        bool has_data = radixsort1_queue_.pop(info);
+        if (! has_data) {
+            logger_->info("[{}] radisSort1FromData: data end", basename_);
+            break;
+        }
+        logger_->info("[{}] radixSort1FromData: start {} ({})", basename_, info->out_filename, info->slice_start);
+
+        if (idx_gpu == -1) {
+            auto interval_sec = std::chrono::seconds(1);
+            logger_->info("[{}] radixSort1FromData: selectGPU {}", basename_, info->out_filename);
+            while (1) {
+                idx_gpu = selectGPU();
+                if (idx_gpu >= 0) {
+                    logger_->info("[{}] idx_gpu = {}", basename_, idx_gpu);
+                    break;
+                } else {
+                    std::this_thread::sleep_for(interval_sec);
+                }
+            }
+        }
+
+        try {
+            unsigned int idx_start = info->slice_start * image_height_ * image_width_;
+            std::shared_ptr<std::vector<unsigned int>> idx(new std::vector<unsigned int>(info->image->size()));
+            thrust::sequence(thrust::host, idx->begin(), idx->end(), idx_start);
+
+            cudautils::radixsort(*(info->image), *idx);
+
+            int ret;
+            std::string out_idx_filename = "idx_" + info->out_filename;
+            ret = savefile(datadir_, out_idx_filename, idx);
+            ret = savefile(datadir_, info->out_filename, info->image);
+
+        } catch (std::exception& ex) {
+            logger_->error("[{}] end - {}", basename_, ex.what());
+            if (idx_gpu != -1) {
+                unselectGPU(idx_gpu);
+            }
+            unselectCore(0);
+            return -1;
+        } catch (...) {
+            logger_->error("[{}] end - unknown error..", basename_);
+            if (idx_gpu != -1) {
+                unselectGPU(idx_gpu);
+            }
+            unselectCore(0);
+            return -1;
+        }
+
+        logger_->info("[{}] radixSort1FromData: end   {} ({})", basename_, info->out_filename, info->slice_start);
+    }
+
+    unselectGPU(idx_gpu);
+
+    unselectCore(0);
+
+    return 0;
+}
+
+#if 0
 int
 QuantileNormImpl::radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> image, const size_t slice_start, const std::string& out_filename) {
     int idx_gpu = -1;
@@ -413,15 +526,17 @@ QuantileNormImpl::radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> imag
 
     return 0;
 }
+#endif
 
 void
 QuantileNormImpl::radixSort2() {
-    for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
 #ifdef DEBUG_NO_THREADING
-        QuantileNormImpl::radixSort2FromData(i);
+    std::launch policy = std::launch::deferred;
 #else
-        radixsort2_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::radixSort2FromData, this, i));
+    std::launch policy = std::launch::async;
 #endif
+    for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
+        radixsort2_futures_.push_back(std::async(policy, &QuantileNormImpl::radixSort2FromData, this, i));
     }
 }
 
@@ -447,7 +562,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         logger_->debug("[{}] radixSort2FromData: ({}) out filepath      = {}", basename_, idx_radixsort, out_filepath);
         logger_->debug("[{}] radixSort2FromData: ({}) out idx filepath  = {}", basename_, idx_radixsort, out_idx_filepath);
 
-        selectCore(0);
+        selectCore(2);
         std::shared_ptr<std::vector<double>> data;
         std::shared_ptr<std::vector<unsigned int>> index;
         data  = loadfile<double>(in_subst_filepath, num_data_start, data_size);
@@ -510,7 +625,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         ret = savefile(datadir_, out_idx_file, index);
         ret = savefile(datadir_, out_file, data);
 
-        unselectCore(0);
+        unselectCore(2);
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
         return ret;
     } catch (std::exception& ex) {
@@ -693,23 +808,27 @@ QuantileNormImpl::unselectCore(const int idx_core_group) {
 
 void
 QuantileNormImpl::mergeSort1() {
-    for (size_t i = 0; i < mergesort1_file_list_.size(); i++) {
 #ifdef DEBUG_NO_THREADING
-        mergeSortTwoFiles<uint16_t, unsigned int>(i, mergesort1_file_list_);
+    std::launch policy = std::launch::deferred;
 #else
-        mergesort1_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::mergeSortTwoFiles<uint16_t, unsigned int>, this, i, mergesort1_file_list_));
+    std::launch policy = std::launch::async;
 #endif
+
+    for (size_t i = 0; i < mergesort1_file_list_.size(); i++) {
+        mergesort1_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<uint16_t, unsigned int>, this, i, mergesort1_file_list_));
     }
 }
 
 void
 QuantileNormImpl::mergeSort2() {
-    for (size_t i = 0; i < mergesort2_file_list_.size(); i++) {
 #ifdef DEBUG_NO_THREADING
-        mergeSortTwoFiles<unsigned int, double>(i, mergesort2_file_list_);
+    std::launch policy = std::launch::deferred;
 #else
-        mergesort2_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, double>, this, i, mergesort2_file_list_));
+    std::launch policy = std::launch::async;
 #endif
+
+    for (size_t i = 0; i < mergesort2_file_list_.size(); i++) {
+        mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, double>, this, i, mergesort2_file_list_));
     }
 }
 
@@ -937,12 +1056,14 @@ QuantileNormImpl::sumSortedFiles(){
 
 void
 QuantileNormImpl::substituteValues() {
-    for (size_t i = 0; i < substituted_file_list_.size(); i++) {
 #ifdef DEBUG_NO_THREADING
-        QuantileNormImpl::substituteToNormValues(i);
+    std::launch policy = std::launch::deferred;
 #else
-        substitute_values_futures_.push_back(std::async(std::launch::async, &QuantileNormImpl::substituteToNormValues, this, i));
+    std::launch policy = std::launch::async;
 #endif
+
+    for (size_t i = 0; i < substituted_file_list_.size(); i++) {
+        substitute_values_futures_.push_back(std::async(policy, &QuantileNormImpl::substituteToNormValues, this, i));
     }
 }
 
@@ -1057,7 +1178,7 @@ QuantileNormImpl::waitForTasks(const std::string& task_name, std::vector<std::fu
         int ret = futures[i].get();
         if (ret == -1) {
             logger_->error("[{}] {} [{}] failed - {}", basename_, task_name, i, ret);
-            throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:failTasks", task_name + "failed.");
+            throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:failTasks", task_name + " failed.");
         }
     }
     logger_->info("[{}] {} done", basename_, task_name);

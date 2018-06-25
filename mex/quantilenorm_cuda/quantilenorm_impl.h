@@ -7,6 +7,8 @@
 #include <future>
 #include <thread>
 
+#include "async_queue.h"
+
 #include "spdlog/spdlog.h"
 
 #define GPU_USER_MEMORY_USAGE_RATIO 0.7
@@ -19,7 +21,7 @@ class QuantileNormImpl {
 protected:
     std::string datadir_;
     std::string basename_;
-    std::vector<std::string> tif_fnames_;
+    std::vector<std::string> in_fnames_;
     size_t image_width_;
     size_t image_height_;
     size_t num_slices_;
@@ -27,6 +29,8 @@ protected:
     size_t gpu_mem_total_;
 
     size_t num_channels_;
+
+    bool use_hdf5_ = false;
 
     std::vector<std::tuple<size_t, size_t, std::string, std::string>>              radixsort1_file_list_;
     std::vector<std::vector<std::string>>                                          mergesort1_file_list_;
@@ -47,6 +51,14 @@ protected:
 
     std::string summed_file_;
 
+    typedef struct {
+        std::shared_ptr<std::vector<uint16_t>> image;
+        size_t slice_start;
+        std::string out_filename;
+    } RadixSort1Info;
+
+    utils::AsyncQueue<std::shared_ptr<RadixSort1Info>> radixsort1_queue_;
+
     std::shared_ptr<spdlog::logger> logger_;
 
     const size_t FILEREAD_BUFSIZE  = 1024*256;
@@ -57,11 +69,12 @@ public:
     QuantileNormImpl();
     QuantileNormImpl(const std::string& datadir,
                      const std::string& basename,
-                     const std::vector<std::string>& tif_fnames,
+                     const std::vector<std::string>& in_fnames,
                      const size_t image_width,
                      const size_t image_height,
                      const size_t num_slices,
-                     const size_t num_gpus);
+                     const size_t num_gpus,
+                     const bool use_hdf5);
 
     void run();
 
@@ -79,7 +92,10 @@ protected:
     bool oneFileExists(const std::string& filename);
 
     void radixSort1();
-    int radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> image, const size_t slice_start, const std::string& out_filename);
+    int loadRadixSort1Hdf5Data();
+    int loadRadixSort1TiffData();
+    int radixSort1FromData();
+    //int radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> image, const size_t slice_start, const std::string& out_filename);
 
     void radixSort2();
     int radixSort2FromData(const size_t idx_radixsort);

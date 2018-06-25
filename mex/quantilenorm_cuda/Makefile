@@ -15,8 +15,9 @@ SPDLOG_DIR=../include
 CUDA_UTILS_DIR=../cuda-utils
 MEX_UTILS_DIR=mex-utils
 UTILS_DIR=utils
+GLOBAL_UTILS_DIR=../utils
 
-CPPFLAGS+=-DNDEBUG -I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR)
+CPPFLAGS+=-DNDEBUG -I$(CUDA_UTILS_DIR) -I$(GLOBAL_UTILS_DIR) -I$(SPDLOG_DIR)
 CXXFLAGS+=-std=c++11 -Wall -Wextra -pthread
 NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 
@@ -29,7 +30,6 @@ quantilenorm_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a $(
 %.o: %.cpp $(SRCS)
 	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
 
-#lib-cuda-utils:
 $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
 	make -C $(CUDA_UTILS_DIR)
 

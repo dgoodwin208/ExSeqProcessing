@@ -75,7 +75,7 @@ protected:
 
         for (int i = 0; i < 4; i++) {
             std::string fname = "img_" + std::to_string(i) + ".tif";
-            tif_fnames_.push_back(fname);
+            in_fnames_.push_back(fname);
 
             utils::FileBufferWriter<uint16_t> fb_writer(fname, WRITE_BUFFER_SIZE);
             fb_writer.open();
@@ -95,7 +95,7 @@ protected:
     }
     virtual ~QuantileNormCudaTest() {
         for (int i = 0; i < 4; i++) {
-            remove(tif_fnames_[i].c_str());
+            remove(in_fnames_[i].c_str());
         }
 
         for (size_t i = 0; i < num_gpus_; i++) {
@@ -256,9 +256,9 @@ TEST_F(QuantileNormCudaTest, MakeMergeSortFileListTest) {
 }
 
 TEST_F(QuantileNormCudaTest, FilesExistsTest) {
-    ASSERT_TRUE(filesExists(tif_fnames_));
+    ASSERT_TRUE(filesExists(in_fnames_));
 
-    std::vector<std::string> file_list(tif_fnames_.begin(), tif_fnames_.end());
+    std::vector<std::string> file_list(in_fnames_.begin(), in_fnames_.end());
     file_list.push_back("dummy_img_0.tif");
     ASSERT_FALSE(filesExists(file_list));
 }
@@ -283,15 +283,15 @@ TEST_F(QuantileNormCudaTest, SetUpFileListTest) {
 
         EXPECT_EQ(0,                       std::get<0>(radixsort1_file_list_[c_i + 0]));
         EXPECT_EQ(3,                       std::get<1>(radixsort1_file_list_[c_i + 0]));
-        EXPECT_EQ(tif_fnames_[c_i],        std::get<2>(radixsort1_file_list_[c_i + 0]));
+        EXPECT_EQ(in_fnames_[c_i],         std::get<2>(radixsort1_file_list_[c_i + 0]));
         EXPECT_EQ(prefix + "-000-003.bin", std::get<3>(radixsort1_file_list_[c_i + 0]));
         EXPECT_EQ(4,                       std::get<0>(radixsort1_file_list_[c_i + 4]));
         EXPECT_EQ(7,                       std::get<1>(radixsort1_file_list_[c_i + 4]));
-        EXPECT_EQ(tif_fnames_[c_i],        std::get<2>(radixsort1_file_list_[c_i + 4]));
+        EXPECT_EQ(in_fnames_[c_i],         std::get<2>(radixsort1_file_list_[c_i + 4]));
         EXPECT_EQ(prefix + "-004-007.bin", std::get<3>(radixsort1_file_list_[c_i + 4]));
         EXPECT_EQ(8,                       std::get<0>(radixsort1_file_list_[c_i + 8]));
         EXPECT_EQ(9,                       std::get<1>(radixsort1_file_list_[c_i + 8]));
-        EXPECT_EQ(tif_fnames_[c_i],        std::get<2>(radixsort1_file_list_[c_i + 8]));
+        EXPECT_EQ(in_fnames_[c_i],         std::get<2>(radixsort1_file_list_[c_i + 8]));
         EXPECT_EQ(prefix + "-008-009.bin", std::get<3>(radixsort1_file_list_[c_i + 8]));
 
         EXPECT_EQ(prefix + "-000-003.bin", mergesort1_file_list_[0 + c_i * 2][0]);
@@ -466,16 +466,23 @@ TEST_F(QuantileNormCudaTest, SaveAndLoadFileTest) {
 }
 
 TEST_F(QuantileNormCudaTest, RadixSort1Test) {
-    std::shared_ptr<std::vector<uint16_t>> image(new std::vector<uint16_t>());
-    mexutils::loadtiff(tif_fnames_[0], 0, IMAGE_Z - 1, image);
-    ASSERT_EQ(IMAGE_X * IMAGE_Y * IMAGE_Z, (*image).size());
+    std::shared_ptr<RadixSort1Info> info = std::make_shared<RadixSort1Info>();
+
+    info->slice_start = 0;
+    info->image = std::make_shared<std::vector<uint16_t>>();
+    info->out_filename = std::string("out.bin");
+
+    mexutils::loadtiff(in_fnames_[0], 0, IMAGE_Z - 1, info->image);
+    ASSERT_EQ(IMAGE_X * IMAGE_Y * IMAGE_Z, (*info->image).size());
+
+    radixsort1_queue_.push(info);
+    radixsort1_queue_.close();
 
     // run
-    std::string out_file = "out.bin";
-    radixSort1FromData(image, 0, out_file);
+    radixSort1FromData();
 
     // check
-    utils::FileBufferReader<uint16_t> fb_reader(out_file, READ_BUFFER_SIZE);
+    utils::FileBufferReader<uint16_t> fb_reader(info->out_filename, READ_BUFFER_SIZE);
     fb_reader.open();
     ASSERT_TRUE(fb_reader.isOpen());
     fb_reader.readFileToBuffer();
@@ -499,7 +506,7 @@ TEST_F(QuantileNormCudaTest, RadixSort1Test) {
     idx_fb_reader.close();
 
     // clean up
-    remove(out_file.c_str());
+    remove(info->out_filename.c_str());
     remove(idx_out_file.c_str());
 }
 

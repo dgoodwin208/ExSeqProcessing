@@ -35,6 +35,9 @@ void radixsort(std::vector<T1>& array1, std::vector<T2>& array2)
 
     cudaMemcpy(array1.data(), d_keys,   array_size * sizeof(T1), cudaMemcpyDeviceToHost);
     cudaMemcpy(array2.data(), d_values, array_size * sizeof(T2), cudaMemcpyDeviceToHost);
+
+    cudaFree(d_keys);
+    cudaFree(d_values);
 }
 
 template
