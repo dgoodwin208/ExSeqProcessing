@@ -54,12 +54,12 @@ try
 for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTERCHANNELS_SC]) 
 
     regChan = register_channel{1}; 
-    %Loading the tif file associated with the reference channel (ie,
+    %Loading the image file (tif/hdf5) associated with the reference channel (ie,
     %Lectin) for the image specified by run_num
     %The {1} to register_cahnnel is a gross bit of cell matlab code
-    filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.tif',...
-        filename_root,run_num,regChan));
-    img = load3DTif_uint16(filename);
+    filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+        filename_root,run_num,regChan,params.IMAGE_EXT));
+    img = load3DImage_uint16(filename);
     
     
     %chop the image up into grid

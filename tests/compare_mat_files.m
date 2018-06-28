@@ -8,7 +8,7 @@ function is_same = compare_mat_files(srcDir, dstDir)
         disp('NG - # of files is different.');
         srcFiles
         dstFiles
-        is_successful = false;
+        is_same = false;
         return;
     end
 

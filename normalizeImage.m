@@ -1,27 +1,29 @@
 function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum)
 
-    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1}))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2}))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3}))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4}))))
+    loadParameters;
+
+    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT))))
     else
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)))
         disp('no channel files.')
         return
     end
 
-    outputfile= sprintf('%s/%s_round%03i_summedNorm.tif',dst_folder_name,fileroot_name,roundnum);
+    outputfile= sprintf('%s/%s_round%03i_summedNorm.%s',dst_folder_name,fileroot_name,roundnum,params.IMAGE_EXT);
     if exist(outputfile,'file')
         fprintf('%s already exists, skipping\n',outputfile);
         return
     end
-    chan1 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})));
-    chan2 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})));
-    chan3 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})));
-    chan4 = load3DTif_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
+    chan1 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)));
+    chan2 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)));
+    chan3 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)));
+    chan4 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)));
     size_chan1 = size(chan1);
     size_chan2 = size(chan2);
     size_chan3 = size(chan3);
@@ -48,7 +50,7 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
     summed_norm = chan1_norm+chan2_norm+chan3_norm+chan4_norm;
     clearvars chan1_norm chan2_norm chan3_norm chan4_norm;
 
-    save3DTif_uint16(summed_norm,outputfile);
+    save3DImage_uint16(summed_norm,outputfile);
 
 end
 

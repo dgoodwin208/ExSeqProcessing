@@ -73,20 +73,20 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
 
     loadParameters;
 
-    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1}))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2}))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3}))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4}))))
+    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT))))
     else
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)))
         disp('no channel files.')
         return
     end
 
-    outputfile= sprintf('%s/%s_round%03i_summedNorm.tif',dst_folder_name,fileroot_name,roundnum);
+    outputfile= sprintf('%s/%s_round%03i_summedNorm.%s',dst_folder_name,fileroot_name,roundnum,params.IMAGE_EXT);
     if exist(outputfile,'file')
         fprintf('%s already exists, skipping\n',outputfile);
         return
@@ -96,17 +96,17 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
     basename = sprintf('%s_round%03d',fileroot_name,roundnum);
     [chan1_norm_fname,chan2_norm_fname,chan3_norm_fname,chan4_norm_fname,image_height,image_width] = ...
         quantilenorm_small_mem(params.tempDir,basename, ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{1})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{2})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{3})), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.tif',fileroot_name,roundnum,channels{4})));
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)), ...
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)), ...
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)), ...
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)));
 
     summed_file = sprintf('%s_round%03d_5_summed.bin',fileroot_name,roundnum);
     sumfiles(params.tempDir,{ chan1_norm_fname,chan2_norm_fname,chan3_norm_fname,chan4_norm_fname },summed_file);
 
     summed_norm = load_binary_image(params.tempDir,summed_file,image_height,image_width);
 
-    save3DTif_uint16(summed_norm,outputfile);
+    save3DImage_uint16(summed_norm,outputfile);
 
 end
 
@@ -121,25 +121,5 @@ function image = load_binary_image(outputdir,image_fname,image_height,image_widt
         end
     end
     fclose(fid);
-end
-
-function ret = selectCore(num_core_sem)
-    count = 1;
-    while true
-        ret = semaphore(['/c' num2str(num_core_sem)],'trywait');
-        if ret == 0
-            fprintf('selectCore[count=%d]\n',count);
-            break
-        end
-        count = count + 1;
-        pause(2);
-    end
-end
-
-function unselectCore(num_core_sem)
-    ret = semaphore(['/c' num2str(num_core_sem)],'post');
-    if ret == -1
-        fprintf('unselect [/c%d] failed.\n',num_core_sem);
-    end
 end
 

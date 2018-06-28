@@ -25,15 +25,15 @@ end
 % regparams.MOVING_RUN = moving_run;
 
 fprintf('RegWithCorr ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
-output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',filename_root,moving_run,regparams.CHANNELS{end}));
+output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
 end
 %Load a full-res image 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1} ));
-imgFixed_total = load3DTif_uint16(filename);
+filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+imgFixed_total = load3DImage_uint16(filename);
 %Loading the keys, possibly from the downsampled data
 output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
 
@@ -87,16 +87,16 @@ for c = 1:length(regparams.CHANNELS)
     tic;
     data_channel = regparams.CHANNELS{c};
     fprintf('load 3D file for affine transform on %s channel\n',data_channel);
-    %filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',params.FILE_BASENAME,moving_run,data_channel));
-    filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',filename_root,moving_run,data_channel));
-    imgToWarp = load3DTif_uint16(filename);
+    %filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',params.FILE_BASENAME,moving_run,data_channel,params.IMAGE_EXT));
+    filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    imgToWarp = load3DImage_uint16(filename);
     toc;
     
-    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',...
-        filename_root,moving_run,data_channel));
+    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',...
+        filename_root,moving_run,data_channel,params.IMAGE_EXT));
     
     imgMoving_total_affine = imwarp(imgToWarp,affine3d(affine_tform'),'OutputView',rF);
-    save3DTif_uint16(imgMoving_total_affine,output_affine_filename);
+    save3DImage_uint16(imgMoving_total_affine,output_affine_filename);
 end
 
 if strcmp(regparams.REGISTRATION_TYPE,'affine')
@@ -141,14 +141,14 @@ for c = 1:length(regparams.CHANNELS)
     disp('load 3D file to be warped')
     tic;
     data_channel = regparams.CHANNELS{c};
-    filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',filename_root,moving_run,data_channel));
-    imgToWarp = load3DTif_uint16(filename);
+    filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    imgToWarp = load3DImage_uint16(filename);
     toc;
     
     [ outputImage_interp ] = TPS3DApply(in1D_total,out1D_total,imgToWarp,size(imgFixed_total));
     
-    outputfile = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_%s.tif',filename_root,moving_run,data_channel,regparams.REGISTRATION_TYPE));
-    save3DTif_uint16(outputImage_interp,outputfile);
+    outputfile = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_%s.%s',filename_root,moving_run,data_channel,regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
+    save3DImage_uint16(outputImage_interp,outputfile);
 end
 
 disp('delete parpool')

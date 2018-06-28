@@ -14,7 +14,7 @@ OUTPUTDIR = params.colorCorrectionImagesDir;
 
 
 
-if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)),'file' );
+if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)),'file' );
     fprintf('SEES ch02SHIFT file in the output directory. Skipping\n');
     return
 end
@@ -23,16 +23,16 @@ fprintf('Starting processing of round %i\n',roundnum);
 %Load all channels, normalize them, calculate the cross corr of 
 %channels 1-3 vs 4
 tic; disp('load file 1');
-chan1 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.tif',FILEROOT_NAME,roundnum)));
+chan1 = load3DImage_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 tic; disp('load file 2');
-chan2 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.tif',FILEROOT_NAME,roundnum)));
+chan2 = load3DImage_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch01.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 tic; disp('load file 3');
-chan3 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.tif',FILEROOT_NAME,roundnum)));
+chan3 = load3DImage_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 tic; disp('load file 4');
-chan4 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03.tif',FILEROOT_NAME,roundnum)));
+chan4 = load3DImage_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch03.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
     
 chan1_beads = chan1(:,:,params.BEAD_ZSTART :end);
@@ -52,7 +52,7 @@ tic; disp('translate 4');
 chan4_shift = imtranslate3D(chan4,chan4_offsets);
 toc
 tic; disp('save file 4');
-save3DTif_uint16(chan4_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DImage_uint16(chan4_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 
 chan4_shift_beads = chan4_shift(:,:,params.BEAD_ZSTART :end);
@@ -68,7 +68,7 @@ tic; disp('translate 2');
 chan2_shift = imtranslate3D(chan2,chan2_offsets);
 toc
 tic; disp('save file 2');
-save3DTif_uint16(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DImage_uint16(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 
 data_cols = zeros(length(reshape(chan1,[],1)),4);
@@ -106,7 +106,7 @@ tic; disp('translate 3');
 chan3_shift = imtranslate3D(chan3,chan3_offsets);
 toc
 tic; disp('save file 3');
-save3DTif_uint16(chan3_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.tif',FILEROOT_NAME,roundnum)));
+save3DImage_uint16(chan3_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 
 oldMethod = true;

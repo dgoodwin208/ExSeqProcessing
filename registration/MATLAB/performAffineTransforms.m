@@ -11,7 +11,7 @@ end
 %params.MOVING_RUN = moving_run;
 
 fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
-output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',filename_root,moving_run,regparams.CHANNELS{end}));
+output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
@@ -19,10 +19,19 @@ end
 
 maxNumCompThreads(params.AFFINE_MAX_THREADS);
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1} ));
-tif_info = imfinfo(filename);
-img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
+filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+
+if isequal(params.IMAGE_EXT,'tif')
+    tif_info = imfinfo(filename);
+    img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
+elseif isequal(params.IMAGE_EXT,'h5')
+    hdf5_info = h5info(filename,'/image')
+    img_total_size = hdf5_info.Dataspace.Size;
+else
+    fprintf('unsupported file format.\n');
+    exit
+end
 
 %Loading the keys, possibly from the downsampled data
 output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
@@ -94,20 +103,21 @@ toc;
 ch_list = regparams.CHANNELS;
 inputdir = regparams.INPUTDIR;
 outputdir = regparams.OUTPUTDIR;
+image_ext = params.IMAGE_EXT;
 parfor c = 1:length(ch_list)
     %Load the data to be warped
     tic;
     data_channel = ch_list{c};
     fprintf('load 3D file for affine transform on %s channel\n',data_channel);
-    filename = fullfile(inputdir,sprintf('%s_round%03d_%s.tif',filename_root,moving_run,data_channel));
-    imgToWarp = load3DTif_uint16(filename);
+    filename = fullfile(inputdir,sprintf('%s_round%03d_%s.%s',filename_root,moving_run,data_channel,image_ext));
+    imgToWarp = load3DImage_uint16(filename);
     toc;
 
-    output_affine_filename = fullfile(outputdir,sprintf('%s_round%03d_%s_affine.tif',...
-        filename_root,moving_run,data_channel));
+    output_affine_filename = fullfile(outputdir,sprintf('%s_round%03d_%s_affine.%s',...
+        filename_root,moving_run,data_channel,image_ext));
 
     imgMoving_total_affine = imwarp(imgToWarp,affine3d(affine_tform'),'OutputView',rF);
-    save3DTif_uint16(imgMoving_total_affine,output_affine_filename);
+    save3DImage_uint16(imgMoving_total_affine,output_affine_filename);
 end
 
 

@@ -19,8 +19,8 @@ function centroids = punctafeinder_round(round_num)
     parfor chan_num = 1:params.NUM_CHANNELS
         tic
         chan_str = chan_strs{chan_num};
-        filename_in = fullfile(registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',basename,round_num,chan_str));
-        stack_in = load3DTif_uint16(filename_in);
+        filename_in = fullfile(registeredImagesDir,sprintf('%s_round%.03i_%s_registered.%s',basename,round_num,chan_str,params.IMAGE_EXT));
+        stack_in = load3DImage_uint16(filename_in);
         img_size{chan_num} = size(stack_in);
 
         %Todo: trim the registration (not relevant in the crop)
@@ -120,8 +120,8 @@ function centroids = punctafeinder_round(round_num)
         neg_masked_image = [];
         toc
 
-        filename_in = fullfile(registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',basename,round_num,chan_strs{chan_num}));
-        img = load3DTif_uint16(filename_in);
+        filename_in = fullfile(registeredImagesDir,sprintf('%s_round%.03i_%s_registered.%s',basename,round_num,chan_strs{chan_num},params.IMAGE_EXT));
+        img = load3DImage_uint16(filename_in);
 
         candidate_puncta_cell{chan_num} = regionprops(L,img, 'WeightedCentroid', 'PixelIdxList');
         L = [];
@@ -168,8 +168,8 @@ function centroids = punctafeinder_round(round_num)
         end
         merged_puncta = [];
 
-        filename_out = fullfile(punctaSubvolumeDir,sprintf('%s_round%.03i_%s_puncta.tif',basename,round_num,chan_strs{chan_num}));
-        save3DTif_uint16(output_img,filename_out);
+        filename_out = fullfile(punctaSubvolumeDir,sprintf('%s_round%.03i_%s_puncta.%s',basename,round_num,chan_strs{chan_num},params.IMAGE_EXT));
+        save3DImage_uint16(output_img,filename_out);
         output_img = [];
         toc
 

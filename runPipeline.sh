@@ -51,6 +51,7 @@ function usage() {
     echo "  -T    temp directory"
     echo "  -L    log directory"
     echo "  -G    use GPUs"
+    echo "  -H    use HDF5 format for intermediate files"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  profile-check,color-correction,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
@@ -91,10 +92,11 @@ PUNCTA_EXTRACT_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 USE_GPUS=false
+USE_HDF5=false
 
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:Gyh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:GHyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -151,6 +153,8 @@ do
             ;;
         G)  USE_GPUS=true
             ;;
+        H)  USE_HDF5=true
+            ;;
         y)  QUESTION_ANSW='yes'
             ;;
         h)  usage
@@ -163,7 +167,7 @@ done
 shift $((OPTIND - 1))
 
 
-###### check semaphores
+###### clear semaphores
 
 clear_semaphores
 
@@ -303,6 +307,12 @@ if [ $ROUND_NUM = "auto" ]; then
     ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "*_${CHANNEL_ARRAY[0]}.tif" | wc -l)
 fi
 
+if [ "$USE_HDF5" = "true" ]; then
+    IMAGE_EXT=h5
+else
+    IMAGE_EXT=tif
+fi
+
 STAGES=("profile-check" "color-correction" "normalization" "registration" "puncta-extraction" "transcripts")
 REG_STAGES=("calc-descriptors" "register-with-descriptors")
 
@@ -355,6 +365,7 @@ echo "  processing channels    :  ${CHANNELS}"
 echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
 echo "  use GPUs               :  ${USE_GPUS}"
+echo "  intermediate image ext :  ${IMAGE_EXT}"
 echo
 echo "Stages"
 for((i=0; i<${#STAGES[*]}; i++))
@@ -415,9 +426,11 @@ echo "Cluster-profile check"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+    (
     pushd "${REGISTRATION_PROJ_DIR}"
     "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh
     popd
+    ) & wait
 else
     echo "Skip!"
 fi
@@ -447,6 +460,7 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
     -e "s#\(params.NUM_CHANNELS\) *= *.*;#\1 = ${#CHANNEL_ARRAY[*]};#" \
     -e "s#\(params.CHAN_STRS\) *= *.*;#\1 = {${CHANNELS}};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
+    -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
     -i.back \
     ./loadParameters.m
 
@@ -468,7 +482,7 @@ ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
 
 # downsampling and color correction
 echo "========================================================================="
-echo "Downsampling"; date
+echo "Downsampling & color correction"; date
 echo
 
 
@@ -497,14 +511,14 @@ echo
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     cwd=$PWD
     pushd ${COLOR_CORRECTION_DIR}
-    for f in ${DECONVOLUTION_DIR}/*ch00.tif
+    for f in ${DECONVOLUTION_DIR}/*ch00.${IMAGE_EXT}
     do
         if [ ! -f $(basename $f) ]; then
             ln -s ${f/$cwd/..}
         fi
     done
     popd
-#    cp 1_deconvolution/*ch00.tif 2_color-correction/
+#    cp 1_deconvolution/*ch00.${IMAGE_EXT} 2_color-correction/
 
     (
     if [ ${USE_GPUS} == "true" ]; then
@@ -541,23 +555,24 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     # prepare normalized channel images for warp
     for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
     do
-        for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.tif)
+        for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.${IMAGE_EXT})
         do
-            round_num=$(( $(echo $f | sed -ne 's/.*_round0*\([0-9]\+\)_.*.tif/\1/p') ))
+            round_num=$(( $(echo $f | sed -ne "s/.*_round0*\([0-9]\+\)_.*.${IMAGE_EXT}/\1/p") ))
             if [ $round_num -eq 0 ]; then
                 echo "round number is wrong."
             fi
 
+            zero_pad_round_num=$(printf "round%03d" $round_num)
             if [[ $f = *"downsample"* ]]; then
                 # prepare downsampled normalized channel images for warp
-                normalized_ch_downsample_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}-downsample_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+                normalized_ch_downsample_file=${NORMALIZATION_DIR}/${FILE_BASENAME}-downsample_${zero_pad_round_num}_${CHANNEL_ARRAY[i]}.${IMAGE_EXT}
 
                 if [ ! -f $normalized_ch_downsample_file ]; then
                     ln -s ${f/$PWD/..} $normalized_ch_downsample_file
                 fi
             else
                 # prepare full-sized normalized channel images for warp
-                normalized_ch_file=$(printf "${NORMALIZATION_DIR}/${FILE_BASENAME}_round%03d_${CHANNEL_ARRAY[i]}.tif" $round_num)
+                normalized_ch_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_${zero_pad_round_num}_${CHANNEL_ARRAY[i]}.${IMAGE_EXT}
 
                 if [ ! -f $normalized_ch_file ]; then
                     ln -s ${f/$PWD/..} $normalized_ch_file
@@ -611,10 +626,10 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
         do
             ref_round=$(printf "round%03d" $REFERENCE_ROUND)
-            normalized_file=${NORMALIZATION_DIR/$PWD/..}/${FILE_BASENAME}_${ref_round}_${ch}.tif
+            normalized_file=${NORMALIZATION_DIR/$PWD/..}/${FILE_BASENAME}_${ref_round}_${ch}.${IMAGE_EXT}
 
-            registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_affine.tif
-            registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_registered.tif
+            registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_affine.${IMAGE_EXT}
+            registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_registered.${IMAGE_EXT}
             if [ ! -f $registered_affine_file ]; then
                 ln -s $normalized_file $registered_affine_file
             fi

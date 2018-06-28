@@ -20,10 +20,19 @@ if ~exist(affinekeys_filename)
     exit
 end
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.tif',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1} ));
-tif_info = imfinfo(filename);
-img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
+filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+
+if isequal(params.IMAGE_EXT,'tif')
+    tif_info = imfinfo(filename);
+    img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
+elseif isequal(params.IMAGE_EXT,'h5')
+    hdf5_info = h5info(filename,'/image')
+    img_total_size = hdf5_info.Dataspace.Size;
+else
+    fprintf('unsupported file format.\n');
+    exit
+end
 
 disp('Load KeyM_total and KeyF_total that were already calculated.');
 tic;

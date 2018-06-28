@@ -2,22 +2,20 @@ function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,chann
 
     loadParameters;
 
-    image_ext = 'h5';
-
-    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1}, image_ext))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2}, image_ext))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3}, image_ext))) || ...
-        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4}, image_ext))))
+    if (exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT))) || ...
+        exist(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT))))
     else
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1}, image_ext)))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2}, image_ext)))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3}, image_ext)))
-        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4}, image_ext)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)))
+        disp(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)))
         disp('no channel files.')
         return
     end
 
-    outputfile= sprintf('%s/%s_round%03i_summedNorm.%s',dst_folder_name,fileroot_name,roundnum, image_ext);
+    outputfile= sprintf('%s/%s_round%03i_summedNorm.%s',dst_folder_name,fileroot_name,roundnum,params.IMAGE_EXT);
     if exist(outputfile,'file')
         fprintf('%s already exists, skipping\n',outputfile);
         return
@@ -27,10 +25,10 @@ function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,chann
     basename = sprintf('%s_round%03d',fileroot_name,roundnum);
     ret = ...
         quantilenorm_cuda(params.tempDir,basename, { ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1}, image_ext)), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2}, image_ext)), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3}, image_ext)), ...
-        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4}, image_ext)) });
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)), ...
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)), ...
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)), ...
+        fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)) });
 
     disp(ret)
 
@@ -48,12 +46,7 @@ function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,chann
 
     summed_norm = load_binary_image(params.tempDir,summed_file,image_height,image_width);
 
-    if strcmp(image_ext,'tif')
-        save3DTif_uint16(summed_norm,outputfile);
-    elseif strcmp(image_ext,'h5')
-        h5create(outputfile,'/image',image_size,'DataType','uint16');
-        h5write(outputfile,'/image',uint16(summed_norm));
-    end
+    save3DImage_uint16(summed_norm,outputfile);
 
 end
 

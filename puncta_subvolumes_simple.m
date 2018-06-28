@@ -6,8 +6,8 @@ load(filename_centroids,'puncta_centroids','puncta_voxels')
 %% Make the 10x10x10 subvolumes we started this with, but now only with the pixels from the puncta!
 
 %Load a sample round 
-filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,4,'ch00',regparams.REGISTRATION_TYPE));
-sample_img = load3DTif_uint16(filename_in);
+filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,4,'ch00',regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
+sample_img = load3DImage_uint16(filename_in);
 data_height = size(sample_img,1);
 data_width = size(sample_img,2);
 data_depth = size(sample_img,3);
@@ -29,8 +29,8 @@ for exp_idx = 1:params.NUM_ROUNDS
     
     
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE));
-        experiment_set(:,:,:,c_idx) = load3DTif_uint16(filename_in);
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
+        experiment_set(:,:,:,c_idx) = load3DImage_uint16(filename_in);
     end
     
     disp(['[',num2str(exp_idx),'] processing puncta in parallel'])

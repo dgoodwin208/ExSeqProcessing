@@ -41,6 +41,9 @@ params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's
 params.DO_DOWNSAMPLE = true;
 params.DOWNSAMPLE_RATE = 2.;
 
+%intermediate image format
+params.IMAGE_EXT = 'tif';
+
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
 regparams.FIXED_RUN = 4;

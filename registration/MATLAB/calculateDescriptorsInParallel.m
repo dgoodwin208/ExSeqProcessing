@@ -17,7 +17,6 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
         postfix_list{end+1} = strcat(num2str(run_num), '-', num2str(target_idx));
     end
 
-    loadParameters;
     [success_code, output] = batch_process('calcDesc', @calculateDescriptors, run_num_list, arg_list, ...
         postfix_list, params.REG_POOL_SIZE, max_jobs, params.MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 

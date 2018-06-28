@@ -28,10 +28,10 @@ if all_lf_sift_existed
     return;
 end
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.tif',...
-    filename_root,fixed_run,regparams.CHANNELS{1} ));
+filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+    filename_root,fixed_run,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
-imgFixed_total = load3DTif_uint16(filename);
+imgFixed_total = load3DImage_uint16(filename);
 img_total_size = size(imgFixed_total);
 
 
