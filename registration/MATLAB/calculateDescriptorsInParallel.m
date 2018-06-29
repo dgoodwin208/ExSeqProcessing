@@ -18,7 +18,7 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
     end
 
     [success_code, output] = batch_process('calcDesc', @calculateDescriptors, run_num_list, arg_list, ...
-        postfix_list, params.REG_POOL_SIZE, max_jobs, params.MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
+        postfix_list, params.CALC_DESC_MAX_POOL_SIZE, max_jobs, params.CALC_DESC_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 
 end
 

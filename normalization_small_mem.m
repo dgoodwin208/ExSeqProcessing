@@ -9,7 +9,7 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
         return
     end
 
-    cluster = parcluster('local_200workers');
+    cluster = parcluster('local_logical_cores');
     %parpool(cluster);
 
     num_cores = [40 20];
@@ -20,7 +20,7 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
     tic;
     disp('===== create batch jobs')
 
-    max_running_jobs = params.NORM_JOB_SIZE;
+    max_running_jobs = params.NORM_MAX_RUN_JOBS;
     waiting_sec = 10;
 
     jobs = cell(1,total_round_num);
@@ -34,7 +34,7 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
             running_jobs(roundnum) = 1;
             jobs{roundnum} = batch(cluster,@normalizeImage,0, ...
                {src_folder_name,dst_folder_name,fileroot_name,channels,roundnum}, ...
-               'Pool',params.NORM_EACH_JOB_POOL_SIZE,'CaptureDiary',true);
+               'Pool',params.NORM_MAX_POOL_SIZE,'CaptureDiary',true);
 %            normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,roundnum); % serial run
             roundnum = roundnum+1;
         else
@@ -52,7 +52,7 @@ function normalization_small_mem(src_folder_name,dst_folder_name,fileroot_name,c
                     diary(job,['./matlab-normalization-',num2str(job_id),'-failed.log']);
                     jobs{job_id} = batch(cluster,@normalizeImage,0, ...
                        {src_folder_name,dst_folder_name,fileroot_name,channels,job_id}, ...
-                       'Pool',params.NORM_EACH_JOB_POOL_SIZE,'CaptureDiary',true);
+                       'Pool',params.NORM_MAX_POOL_SIZE,'CaptureDiary',true);
                 end
             end
             if is_finished == 0

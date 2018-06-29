@@ -53,7 +53,7 @@ function usage() {
     echo "  -G    use GPUs"
     echo "  -H    use HDF5 format for intermediate files"
     echo "  -e    execution stages;  exclusively use for skip stages"
-    echo "  -s    skip stages;  profile-check,color-correction,normalization,registration,calc-descriptors,register-with-descriptors,puncta-extraction,transcripts"
+    echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
     exit 1
@@ -78,10 +78,33 @@ REPORTING_DIR=logs/imgs
 LOG_DIR=logs
 
 if [ -f ./loadParameters.m ]; then
-    TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ./loadParameters.m)
+    PARAMETERS_FILE=./loadParameters.m
 else
-    TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ./loadParameters.m.template)
+    PARAMETERS_FILE=./loadParameters.m.template
 fi
+TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+
+NORMALIZATION_MAX_RUN_JOBS=$(sed -ne "s#params.NORM_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+NORMALIZATION_MAX_POOL_SIZE=$(sed -ne "s#params.NORM_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+NORMALIZATION_MAX_THREADS=0
+CALC_DESC_MAX_RUN_JOBS=$(sed -ne "s#params.CALC_DESC_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+CALC_DESC_MAX_POOL_SIZE=$(sed -ne "s#params.CALC_DESC_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+CALC_DESC_MAX_THREADS=0
+REG_CORR_MAX_RUN_JOBS=$(sed -ne "s#params.REG_CORR_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+REG_CORR_MAX_POOL_SIZE=$(sed -ne "s#params.REG_CORR_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+REG_CORR_MAX_THREADS=$(sed -ne "s#params.REG_CORR_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+AFFINE_MAX_RUN_JOBS=$(sed -ne "s#params.AFFINE_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+AFFINE_MAX_POOL_SIZE=$(sed -ne "s#params.AFFINE_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+AFFINE_MAX_THREADS=$(sed -ne "s#params.AFFINE_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+TPS3DWARP_MAX_RUN_JOBS=$(sed -ne "s#params.TPS3DWARP_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+TPS3DWARP_MAX_POOL_SIZE=$(sed -ne "s#params.TPS3DWARP_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+APPLY3DTPS_MAX_RUN_JOBS=$(sed -ne "s#params.APPLY3DTPS_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+APPLY3DTPS_MAX_POOL_SIZE=$(sed -ne "s#params.APPLY3DTPS_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+APPLY3DTPS_MAX_THREADS=$(sed -ne "s#params.APPLY3DTPS_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+PUNCTA_MAX_RUN_JOBS=$(sed -ne "s#params.PUNCTA_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+PUNCTA_MAX_THREADS=0
 
 FILE_BASENAME=exseqautoframea1
 CHANNELS="'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'"
@@ -93,6 +116,8 @@ REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 USE_GPUS=false
 USE_HDF5=false
+
+NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
@@ -189,11 +214,6 @@ if [ ! -d "${REGISTRATION_PROJ_DIR}"/MATLAB ]; then
     exit 1
 fi
 
-if [ ! -d "${REGISTRATION_PROJ_DIR}"/scripts ]; then
-    echo "No scripts dir. in Registration project: ${REGISTRATION_PROJ_DIR}/scripts"
-    exit 1
-fi
-
 if [ ! -d "${RAJLABTOOLS_DIR}" ]; then
     echo "No Raj lab image tools project dir.: ${RAJLABTOOLS_DIR}"
     exit 1
@@ -206,12 +226,6 @@ fi
 
 
 ###### check files
-
-echo "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh
-if [ ! -f "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh ]; then
-    echo "No 'import_cluster_profiles.sh'"
-    exit 1
-fi
 
 if [ ! -f ./loadParameters.m.template ]; then
     echo "No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
@@ -313,8 +327,8 @@ else
     IMAGE_EXT=tif
 fi
 
-STAGES=("profile-check" "color-correction" "normalization" "registration" "puncta-extraction" "transcripts")
-REG_STAGES=("calc-descriptors" "register-with-descriptors")
+STAGES=("setup-cluster" "color-correction" "normalization" "registration" "puncta-extraction" "transcripts")
+REG_STAGES=("calc-descriptors" "register-with-correspondences")
 
 # check stages to be skipped and executed
 if [ ! "${ARG_EXEC_STAGES}" = "" -a ! "${ARG_SKIP_STAGES}" = "" ]; then
@@ -388,6 +402,18 @@ do
     echo ":  ${REG_STAGES[i]}"
 done
 echo
+echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
+echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
+
+printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
+printf "  registration           :\n"
+printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
+printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
+printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
+printf "    calc-3DTPS-warp      :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
+printf "    apply-3DTPS          :  %2d,%2d,%2d\n" ${APPLY3DTPS_MAX_RUN_JOBS} ${APPLY3DTPS_MAX_POOL_SIZE} ${APPLY3DTPS_MAX_THREADS}
+#printf "  puncta-extraction      :  %2d,%2d,%2d\n" ${PUNCTA_MAX_RUN_JOBS} ${PUNCTA_MAX_POOL_SIZE} ${PUNCTA_MAX_THREADS}
+echo
 echo "Directories"
 echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
 echo "  color correction images:  ${COLOR_CORRECTION_DIR}"
@@ -420,16 +446,14 @@ echo
 
 stage_idx=0
 
-###### check a cluster profile
+###### setup a cluster profile
 echo "========================================================================="
-echo "Cluster-profile check"; date
+echo "Setup cluster-profile"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
-    pushd "${REGISTRATION_PROJ_DIR}"
-    "${REGISTRATION_PROJ_DIR}"/scripts/import_cluster_profiles.sh
-    popd
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-setup-cluster-profile.log -r "${ERR_HDL_PRECODE} setup_cluster_profile(); ${ERR_HDL_POSTCODE}"
     ) & wait
 else
     echo "Skip!"
@@ -461,6 +485,7 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
     -e "s#\(params.CHAN_STRS\) *= *.*;#\1 = {${CHANNELS}};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
+    -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
     -i.back \
     ./loadParameters.m
 
@@ -617,7 +642,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     reg_stage_idx=$(( $reg_stage_idx + 1 ))
 
     echo "-------------------------------------------------------------------------"
-    echo "Registration - registerWithDescriptors"; date
+    echo "Registration - registerWithCorrespondences"; date
     echo
 
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
@@ -642,19 +667,19 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         rounds=${rounds/$REFERENCE_ROUND /}
         echo "Skipping registration of the reference round"
         echo $rounds
-        # registerWithDescriptors for ${REFERENCE_ROUND} and i
+        # registerWithCorrespondences for ${REFERENCE_ROUND} and i
         if [ ${USE_GPUS} == "true" ]; then
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesCUDAInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regCorr-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesCUDAInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         else
             #Because the matching is currently single-threaded, we can parpool it in one loop
-            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWDesc-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
-            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regDesc-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
+            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWCorr-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
+            matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regCorr-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         fi
 
-        if ls matlab-regDesc-*.log > /dev/null 2>&1; then
-            mv matlab-regDesc-*.log ${LOG_DIR}/
+        if ls matlab-regCorr-*.log > /dev/null 2>&1; then
+            mv matlab-regCorr-*.log ${LOG_DIR}/
         else
-            echo "No regDesc-log files."
+            echo "No regCorr-log files."
         fi
         ) & wait
     else

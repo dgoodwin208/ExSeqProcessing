@@ -10,7 +10,7 @@ function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,to
     if do_downsample
         fileroot_name = sprintf('%s-%s',fileroot_name, 'downsample');
     end
-    cluster = parcluster('local_96workers');
+    cluster = parcluster('local_logical_cores');
 
     tic;
     disp('===== create batch jobs')

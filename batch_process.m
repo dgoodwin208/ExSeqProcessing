@@ -6,7 +6,7 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
 
     disp('set up cluster')
     tic;
-    cluster = parcluster('local_96workers');
+    cluster = parcluster('local_logical_cores');
     toc;
 
     tic; 

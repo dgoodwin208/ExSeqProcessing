@@ -29,7 +29,7 @@ end
 fprintf('CalcCorrespondencesInCUDA ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
 
 
-maxNumCompThreads(params.REG_DESC_MAX_THREADS);
+maxNumCompThreads(params.REG_CORR_MAX_THREADS);
 
 
 filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...

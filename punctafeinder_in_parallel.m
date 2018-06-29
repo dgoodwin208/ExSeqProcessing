@@ -12,7 +12,7 @@ function success_code = punctafeinder()
 
     %centroids are the location
     [success_code,centroids] = batch_process('puncta-extraction', @punctafeinder_round, run_num_list, arg_list,...
-        postfix_list, params.PUNCTA_POOL_SIZE, params.NUM_ROUNDS, params.PUNCTA_MAX_RUN_JOBS, params.WAIT_SEC, 1, params.NUM_CHANNELS);
+        postfix_list, params.PUNCTA_MAX_POOL_SIZE, params.NUM_ROUNDS, params.PUNCTA_MAX_RUN_JOBS, params.WAIT_SEC, 1, params.NUM_CHANNELS);
 
     makeCentroidsAndVoxels(centroids);
 
