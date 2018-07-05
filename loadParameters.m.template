@@ -100,6 +100,7 @@ params.WAIT_SEC = 10;
 
 params.NORM_MAX_RUN_JOBS = 20;
 params.NORM_MAX_POOL_SIZE = 0;
+params.NORM_MAX_LOAD_DATA_JOBS = 10;
 
 params.CALC_DESC_MAX_RUN_JOBS = 30;
 params.CALC_DESC_MAX_POOL_SIZE = 2;

@@ -9,10 +9,8 @@ function success_code = normalization_cuda(src_folder_name,dst_folder_name,filer
         return
     end
 
-%    num_sem_gpus = [1,1];
     num_sem_gpus = ones(1, gpuDeviceCount());
-%    num_sem_cores = [params.NORM_MAX_RUN_JOBS, 0, 20, 0];
-    num_sem_cores = [10, 0, 20, 0];
+    num_sem_cores = [params.NORM_MAX_LOAD_DATA_JOBS];
     quantilenorm_cuda_init(num_sem_gpus,num_sem_cores);
 
     arg_list = {};

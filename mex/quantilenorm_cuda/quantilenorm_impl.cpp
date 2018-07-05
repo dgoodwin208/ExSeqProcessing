@@ -562,7 +562,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         logger_->debug("[{}] radixSort2FromData: ({}) out filepath      = {}", basename_, idx_radixsort, out_filepath);
         logger_->debug("[{}] radixSort2FromData: ({}) out idx filepath  = {}", basename_, idx_radixsort, out_idx_filepath);
 
-        selectCore(2);
+        selectCore(0);
         std::shared_ptr<std::vector<double>> data;
         std::shared_ptr<std::vector<unsigned int>> index;
         data  = loadfile<double>(in_subst_filepath, num_data_start, data_size);
@@ -625,7 +625,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         ret = savefile(datadir_, out_idx_file, index);
         ret = savefile(datadir_, out_file, data);
 
-        unselectCore(2);
+        unselectCore(0);
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
         return ret;
     } catch (std::exception& ex) {
