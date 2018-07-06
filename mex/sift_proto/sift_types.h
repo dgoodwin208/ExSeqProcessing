@@ -3,6 +3,14 @@
 
 #include <cuda_runtime.h>
 
+#define X_NAME "x"
+#define Y_NAME "y"
+#define Z_NAME "z"
+#define TSCALE_NAME "tScale"
+#define XYSCALE_NAME "xyScale"
+#define IVEC_NAME "ivec"
+#define IM_NDIMS 3 // number of dimensions in image
+
 namespace cudautils {
 
 typedef struct _Keypoint {
@@ -20,27 +28,27 @@ typedef struct _Keypoint_store {
 } Keypoint_store;
 
 typedef struct _SiftParams {
-    int MagFactor;
-    int IndexSize;
+    double MagFactor;
+    double IndexSize;
     double IndexSigma; 
-    int nFaces;
-    int Tessellation_levels;
-    int Smooth_Flag;
+    double nFaces;
+    double Tessellation_levels;
+    bool Smooth_Flag;
     double SigmaScaled;
     double Tessel_thresh;
     double Smooth_Var;
-    int TwoPeak_Flag;
-    int xyScale;
-    int tScale;
+    bool TwoPeak_Flag;
+    double xyScale;
+    double tScale;
     double MaxIndexVal;
-    //FIXME must be in row order
     double* fv_centers;
-    int fv_centers_len;
+    double fv_centers_len;
     int image_size0;
     int image_size1;
     int image_size2;
-    int keypoint_num;
+    double keypoint_num;
     int descriptor_len;
+
 } SiftParams;
 
 }

@@ -24,21 +24,33 @@
 #include "mex.h"
 #include "matrix.h"
 
-#include "sift_types.h"
+#include "mexutil.h"
+//#include "sift_types.h"
 #include <stdio.h>
 
 /* Convert from a Keypoint_store to an array of MATLAB keypoint structs. 
  * Returns the array of keypoints, or NULL on failure. */
-/*
-mxArray *kp2mx(cudautils::Keypoint_store * kp) {
+mxArray *kp2mx(cudautils::Keypoint_store * kp, 
+        cudautils::SiftParams sift_params) {
 
     mxArray *mxKp;
-    int i, x, y, z;
     double xyScale, tScale;
     double* ivec;
+    int xNum, yNum, zNum, tscaleNum, xyscaleNum, ivecNum;
 
+    /* Keypoint struct information */
+    const char *fieldNames[] = {
+            X_NAME,
+            Y_NAME,
+            Z_NAME,
+            TSCALE_NAME,
+            XYSCALE_NAME,
+            IVEC_NAME,
+    };
     const mwSize numKp = (mwSize) kp->len;
 
+    const mwSize kpNDims = 1;
+    const int kpNFields = sizeof(fieldNames) / sizeof(char *);
 	// Make an array of structs for the output 
 	mxKp = mxCreateStructArray(kpNDims, &numKp, kpNFields, 
                                             fieldNames);
@@ -46,123 +58,130 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp) {
                 return NULL;
 
         // Get the field indices in the structs
-        if ((coordsNum = mxGetFieldNumber(mxKp, COORDS_NAME)) < 0 ||
-                (scaleNum = mxGetFieldNumber(mxKp, SCALE_NAME)) < 0 ||
-                (oriNum = mxGetFieldNumber(mxKp, ORI_NAME)) < 0 ||
-                (octaveNum = mxGetFieldNumber(mxKp, OCTAVE_NAME)) < 0 || 
-                (levelNum = mxGetFieldNumber(mxKp, LEVEL_NAME)) < 0)
+        if (    (xNum = mxGetFieldNumber(mxKp, X_NAME)) < 0 ||
+                (yNum = mxGetFieldNumber(mxKp, Y_NAME)) < 0 ||
+                (zNum = mxGetFieldNumber(mxKp, Z_NAME)) < 0 ||
+                (tscaleNum = mxGetFieldNumber(mxKp, TSCALE_NAME)) < 0 ||
+                (xyscaleNum = mxGetFieldNumber(mxKp, XYSCALE_NAME)) < 0 ||
+                (ivecNum = mxGetFieldNumber(mxKp, IVEC_NAME)) < 0 )
                 return NULL;
 
         // Write the keypoints to the output
-        for (i = 0; i < numKp; i++) {
+        for (int i = 0; i < numKp; i++) {
 
-                mxArray *mxCoords, *mxScale, *mxOri, *mxOctave, *mxLevel;
-                double *coords;
+                mxArray *x, *y, *z, *mxtScale, *mxxyScale, *mxIvec;
+                uint8_t *ivec;
 
                 cudautils::Keypoint *const key = kp->buf + i;
 
-                // Initialize the coordinate array
-                if ((mxCoords = 
-                        mxCreateDoubleMatrix(1, IM_NDIMS, mxREAL)) == NULL)
+                // Initialize the ivec array
+                const mwSize dims[2] = {(int) sift_params.descriptor_len, 1};
+                if ((mxIvec = 
+                        mxCreateNumericArray(1, dims,
+                            mxUINT8_CLASS, mxREAL)) == NULL)
                         return NULL;
 
-                // Copy the coordinates 
-                coords = mxGetData(mxCoords); 
-                coords[0] = key->xd;
-                coords[1] = key->yd;
-                coords[2] = key->zd;
-
-                // Copy the transposed orientation
-                if ((mxOri = mat2mx(&key->R)) == NULL)
-                        return NULL;
+                ivec = (uint8_t *) mxGetData(mxIvec); 
+                //memcpy(ivec, key->ivec, sift_params.descriptor_len * sizeof(uint8_t));
+                for (int j = 0; j < sift_params.descriptor_len; j++) 
+                    ivec[j] = key->ivec[j];
 
                 // Copy the scale 
-                mxScale = mxCreateDoubleScalar(key->sd);
+                x = mxCreateDoubleScalar(key->x);
+                y = mxCreateDoubleScalar(key->y);
+                z = mxCreateDoubleScalar(key->z);
+                mxtScale = mxCreateDoubleScalar(key->tScale);
+                mxxyScale = mxCreateDoubleScalar(key->xyScale);
 
-                // Copy the octave index
-                mxOctave = mxCreateDoubleScalar((double) key->o); 
-
-                // Copy the level index
-                mxLevel = mxCreateDoubleScalar((double) key->s);
-                
                 // Set the struct fields
-                mxSetFieldByNumber(mxKp, i, coordsNum, mxCoords);
-                mxSetFieldByNumber(mxKp, i, scaleNum, mxScale);
-                mxSetFieldByNumber(mxKp, i, oriNum, mxOri);
-                mxSetFieldByNumber(mxKp, i, octaveNum, mxOctave);
-                mxSetFieldByNumber(mxKp, i, levelNum, mxLevel);
+                mxSetFieldByNumber(mxKp, i, xNum, x);
+                mxSetFieldByNumber(mxKp, i, yNum, y);
+                mxSetFieldByNumber(mxKp, i, zNum, z);
+                mxSetFieldByNumber(mxKp, i, tscaleNum, mxtScale);
+                mxSetFieldByNumber(mxKp, i, xyscaleNum, mxxyScale);
+                mxSetFieldByNumber(mxKp, i, ivecNum, mxIvec);
         }
 
         return mxKp;
 }
-*/
 
-void init_Keypoint_store(cudautils::Keypoint_store * kp, cudautils::SiftParams sift_params) {
-    kp->len = sift_params.keypoint_num;
-    kp->buf = (cudautils::Keypoint*) malloc(kp->len * sift_params.descriptor_len * sizeof(double));
+bool get_logical_field(const mxArray* prhs[], const char* name) {
+    mxArray* tmp = mxGetField(prhs[2], 0, name);
+    if ((tmp != NULL) &&
+        (mxGetClassID(tmp) == mxLOGICAL_CLASS)) {
+        return *((bool*) mxGetPr(tmp));
+    } else {
+        mexErrMsgIdAndTxt("MATLAB:sift_cuda:sift_params", "sift_params missing field: %s", name);
+    }
+}
+
+double* get_double_ptr_field(const mxArray* prhs[], const char* name) {
+    mxArray* tmp = mxGetField(prhs[2], 0, name);
+    if ((tmp != NULL) &&
+        (mxGetClassID(tmp) == mxDOUBLE_CLASS)) {
+        return mxGetPr(tmp);
+    } else {
+        mexErrMsgIdAndTxt("MATLAB:sift_cuda:sift_params", "sift_params missing field: %s", name);
+    }
+}
+
+double get_double_field(const mxArray* prhs[], const char* name) {
+    mxArray* tmp = mxGetField(prhs[2], 0, name);
+    if ((tmp != NULL) &&
+        (mxGetClassID(tmp) == mxDOUBLE_CLASS)) {
+        //printf("%s : %f\n", name, *((double*) mxGetPr(tmp)));
+        return *((double*) mxGetPr(tmp));
+    } else {
+        mexErrMsgIdAndTxt("MATLAB:sift_cuda:sift_params", "sift_params missing field: %s", name);
+    }
 }
 
 // parse SiftParams struct
 cudautils::SiftParams get_params(const mxArray* prhs[]) {
 
     cudautils::SiftParams sift_params;
-    mxArray* tmp;
 
-    tmp = mxGetField(prhs[2], 0, "MagFactor");
-    sift_params.MagFactor = *((double*) mxGetPr(tmp));
+    sift_params.MagFactor = get_double_field(prhs, "MagFactor");
 
-    tmp = mxGetField(prhs[2], 0, "IndexSize");
-    sift_params.IndexSize = *((int*) mxGetPr(tmp));
+    sift_params.IndexSigma = get_double_field(prhs, "IndexSigma");
 
-    tmp = mxGetField(prhs[2], 0, "nFaces");
-    sift_params.nFaces = *((int*) mxGetPr(tmp));
+    sift_params.IndexSize = get_double_field(prhs, "IndexSize");
 
-    tmp = mxGetField(prhs[2], 0, "Tessellation_levels");
-    sift_params.Tessellation_levels = *((int*) mxGetPr(tmp));
+    sift_params.nFaces = get_double_field(prhs, "nFaces");
 
-    tmp = mxGetField(prhs[2], 0, "Smooth_Flag");
-    sift_params.Smooth_Flag = *((int*) mxGetPr(tmp));
+    sift_params.Tessellation_levels = get_double_field(prhs, "Tessellation_levels");
 
-    tmp = mxGetField(prhs[2], 0, "SigmaScaled");
-    sift_params.SigmaScaled = *((double*) mxGetPr(tmp));
+    sift_params.Smooth_Flag = get_logical_field(prhs, "Smooth_Flag");
 
-    tmp = mxGetField(prhs[2], 0, "Tessel_thresh");
-    sift_params.Tessel_thresh = *((double*) mxGetPr(tmp));
+    sift_params.Smooth_Var = get_double_field(prhs, "Smooth_Var");
 
-    tmp = mxGetField(prhs[2], 0, "TwoPeak_Flag");
-    sift_params.TwoPeak_Flag = *((int*) mxGetPr(tmp));
+    sift_params.SigmaScaled = get_double_field(prhs, "SigmaScaled");
 
-    tmp = mxGetField(prhs[2], 0, "xyScale");
-    sift_params.xyScale = *((double*) mxGetPr(tmp));
+    sift_params.Tessel_thresh = get_double_field(prhs, "Tessel_thresh");
 
-    tmp = mxGetField(prhs[2], 0, "tScale");
-    sift_params.tScale = *((double*) mxGetPr(tmp));
+    sift_params.TwoPeak_Flag = get_logical_field(prhs, "TwoPeak_Flag");
 
-    tmp = mxGetField(prhs[2], 0, "MaxIndexVal");
-    sift_params.MaxIndexVal = *((double*) mxGetPr(tmp));
+    sift_params.xyScale = get_double_field(prhs, "xyScale");
 
-    tmp = mxGetField(prhs[2], 0, "fv_centers");
-    //FIXME cudaMalloc
-    sift_params.fv_centers = *((double**) mxGetPr(tmp));
+    sift_params.tScale = get_double_field(prhs, "tScale");
 
-    tmp = mxGetField(prhs[2], 0, "fv_centers_len");
-    sift_params.fv_centers_len = *((int*) mxGetPr(tmp));
+    sift_params.MaxIndexVal = get_double_field(prhs, "MaxIndexVal");
+
+    sift_params.fv_centers = get_double_ptr_field(prhs, "fv_centers");
+
+    sift_params.fv_centers_len = get_double_field(prhs, "fv_centers_len");
 
     const mwSize *image_dims = mxGetDimensions(prhs[0]);
-    //FIXME cudaMalloc
     sift_params.image_size0 = image_dims[0];
     sift_params.image_size1 = image_dims[1];
     sift_params.image_size2 = image_dims[2];
 
-    tmp = mxGetField(prhs[2], 0, "keypoint_num");
-    sift_params.keypoint_num = *((int*) mxGetPr(tmp));
+    sift_params.keypoint_num = get_double_field(prhs, "keypoint_num");
 
-    tmp = mxGetField(prhs[2], 0, "descriptor_len");
-    sift_params.descriptor_len = *((int*) mxGetPr(tmp));
+    sift_params.descriptor_len = (int) get_double_field(prhs, "descriptor_len");
 
     return sift_params;
 }
-
 
 void
 mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
@@ -212,11 +231,14 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         }
 
         cudautils::SiftParams sift_params = get_params(prhs);
+        //printf("mex xyScale:%f tScale: %f MagFactor:%f\n",
+                //sift_params.xyScale, sift_params.tScale,
+                //sift_params.MagFactor);
         cudautils::Keypoint_store keystore;
+
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
 
-        init_Keypoint_store(&keystore, sift_params); //host alloc mem for num kypts
 
         double *in_image;
         int8_t *in_map;
@@ -231,14 +253,11 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         y_size = image_dims[1];
         z_size = image_dims[2];
 
-        plhs[0] = mxCreateNumericArray((mwSize)3, image_dims, mxDOUBLE_CLASS, mxREAL);
-        out_image = mxGetPr(plhs[0]);
-
         unsigned int x_sub_size = std::min((unsigned int)2048, (unsigned int)x_size);
-        unsigned int y_sub_size = std::min((unsigned int)1024, (unsigned int)y_size);
+        unsigned int y_sub_size = std::min((unsigned int)2048, (unsigned int)y_size / num_gpus);
         unsigned int dx = std::min((unsigned int)256, (unsigned int)x_sub_size);
         unsigned int dy = std::min((unsigned int)256, (unsigned int)y_sub_size);
-        const unsigned int dw = 2;
+        const unsigned int dw = 2; //pad width each side, each dim
 
         const unsigned int num_streams = 20;
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
@@ -246,12 +265,19 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
         try {
             cudautils::sift_bridge(
-                    logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams,
-                    in_image, in_map, sift_params, keystore);
+                    logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
+                    dy, dw, num_gpus, num_streams, in_image, in_map,
+                    sift_params, &keystore);
 
         } catch (...) {
             logger->error("internal unknown error occurred");
         }
+
+        // Convert the output keypoints
+        if ((plhs[0] = kp2mx(&keystore, sift_params)) == NULL)
+            logger->error("keystore to mex error occurred");
+
+
 
         logger->info("{:=>50}", " sift_cuda end");
 

@@ -22,11 +22,11 @@ NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 all: $(TARGET)
 
 sift_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
-	mex -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread
+	mex -compatibleArrayDims -g -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread
 	@cp -a $@ ../
 
 %.o: %.cpp $(SRCS)
-	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
+	mex -compatibleArrayDims -g -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
 
 #lib-cuda-utils:
 $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h

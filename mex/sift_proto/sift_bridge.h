@@ -24,7 +24,7 @@ void sift_bridge(
         const double* in_image,
         const int8_t* in_map,
         cudautils::SiftParams sift_params,
-        cudautils::Keypoint_store keystore);
+        cudautils::Keypoint_store *keystore);
 
 }
 

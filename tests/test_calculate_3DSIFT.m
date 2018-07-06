@@ -3,14 +3,21 @@ fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautofr
 len = 400;
 img = load3DTif_uint16(fn);
 
-N = 10000
+N = 2
 %keypts = zeros(N, 3);
 load res_vect
 
-res_vect_rest = res_vect(1:N, :);
+keys = res_vect(1:N, :);
+
+%sub2ind(size(img), keys(1,1), keys(1,2), keys(1,3));
+%sub2ind(size(img), keys(2,1), keys(2,2), keys(2,3));
 
 tic
-new_keys = calculate_3DSIFT(img, res_vect_rest, false);
+sift_keys_cuda = calculate_3DSIFT_cuda(img, keys, false);
+toc
+
+tic
+sift_keys = calculate_3DSIFT(img, keys, false);
 toc
 
 %load 3DSIFTkeys % loads old keys
@@ -24,4 +31,3 @@ toc
 %end
 %keypts
 
-%keys = calculate_3DSIFT(img, keypts, false);

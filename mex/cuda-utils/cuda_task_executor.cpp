@@ -40,7 +40,7 @@ int CudaTaskExecutor::run() {
             int ret = futures[i].get();
             if (ret != 1) {
                 logger_->error("gpu_id[{}] has failed in thread.", i);
-                throw std::string("run() thread faild."); //TODO
+                throw std::string("run() thread failed."); //TODO
             }
         }
 

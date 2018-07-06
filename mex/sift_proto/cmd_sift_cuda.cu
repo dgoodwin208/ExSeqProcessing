@@ -17,6 +17,8 @@
 #include <vector>
 
 #include "sift.h"
+#include "mexutil.h"
+/*#include "sift_types.h"*/
 #include "gpudevice.h"
 
 #include "cuda_task_executor.h"
@@ -93,17 +95,17 @@ int main(int argc, char* argv[]) {
         fin1.close();
         fin2.close();
 
-        int num_gpus = 2;
+        int num_gpus = 1;
         const unsigned int num_streams = 20;
         /*int num_gpus = cudautils::get_gpu_num();*/
         /*const unsigned int num_streams = 20;*/
         logger->info("# of gpus = {}", num_gpus);
         logger->info("# of streams = {}", num_streams);
 
-        std::vector<double> out_interp_image(x_size * y_size * z_size);
+        /*std::vector<double> out_interp_image(x_size * y_size * z_size);*/
 
         const unsigned int x_sub_size = min(2048, x_size);
-        const unsigned int y_sub_size = min(1024, y_size);
+        const unsigned int y_sub_size = min(2048, y_size / num_gpus);
         const unsigned int dx = min(256, x_sub_size);
         const unsigned int dy = min(256, y_sub_size);
         const unsigned int dw = 2;
@@ -114,9 +116,9 @@ int main(int argc, char* argv[]) {
         sift_params.image_size2 = z_size;
         sift_params.fv_centers_len = 80 * 3;
         sift_params.IndexSize = 2;
+        sift_params.nFaces = 80;
         sift_params.IndexSigma = 5.0;
         sift_params.SigmaScaled = sift_params.IndexSigma * 0.5 * sift_params.IndexSize;
-        sift_params.nFaces = 80;
         sift_params.Smooth_Flag = 1;
         sift_params.Smooth_Var = 20;
         sift_params.MaxIndexVal = 0.2;
@@ -125,6 +127,7 @@ int main(int argc, char* argv[]) {
         sift_params.tScale = 1;
         sift_params.TwoPeak_Flag = 0;
         sift_params.MagFactor = 3;
+        sift_params.keypoint_num = 100000; // max expected keypoints
         sift_params.descriptor_len = sift_params.IndexSize *
             sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
         sift_params.fv_centers = (double*) malloc(sizeof(double) * sift_params.fv_centers_len);
@@ -137,6 +140,8 @@ int main(int argc, char* argv[]) {
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
 
         try {
+            cudautils::Keypoint_store keystore;
+
             std::shared_ptr<cudautils::Sift> ni =
                 std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
                         x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
@@ -154,19 +159,28 @@ int main(int argc, char* argv[]) {
             executor.run();
             logger->info("calc end");
 
-            logger->info("getImage start");
-            ni->getImage(out_interp_image);
-            logger->info("getImage end");
+            logger->info("getKeystore start");
+            ni->getKeystore(&keystore);
+            logger->info("getKeystore end");
 
-            logger->info("saveImage start");
-            std::ofstream fout(out_interp_image_filename, std::ios::binary);
-            fout.write((char*)&x_size, sizeof(unsigned int));
-            fout.write((char*)&y_size, sizeof(unsigned int));
-            fout.write((char*)&z_size, sizeof(unsigned int));
+            /*mxArray* mxKeystore;*/
+            /*// Convert the output keypoints*/
+            /*if ((mxKeystore = kp2mx(&keystore, sift_params)) == NULL)*/
+                /*logger->error("keystore to mex error occurred");*/
 
-            fout.write((char*)out_interp_image.data(), x_size * y_size * z_size * sizeof(double));
-            fout.close();
-            logger->info("saveImage end");
+            /*logger->info("getImage start");*/
+            /*ni->getImage(out_interp_image);*/
+            /*logger->info("getImage end");*/
+
+            /*logger->info("saveImage start");*/
+            /*std::ofstream fout(out_interp_image_filename, std::ios::binary);*/
+            /*fout.write((char*)&x_size, sizeof(unsigned int));*/
+            /*fout.write((char*)&y_size, sizeof(unsigned int));*/
+            /*fout.write((char*)&z_size, sizeof(unsigned int));*/
+
+            /*fout.write((char*)out_interp_image.data(), x_size * y_size * z_size * sizeof(double));*/
+            /*fout.close();*/
+            /*logger->info("saveImage end");*/
 
         } catch (...) {
             logger->error("internal unknown error occurred");

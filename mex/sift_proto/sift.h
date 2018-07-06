@@ -20,7 +20,47 @@
 #define DEBUG_OUTPUT
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
-#define DEBUG_NO_THREADING
+//#define DEBUG_NO_THREADING
+
+// error handling code, derived from funcs in old cutil lib
+#define cudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
+#define cudaCheckError() __cudaCheckError(__FILE__, __LINE__)
+
+inline void __cudaSafeCall(cudaError err, const char *file, const int line)
+{
+    if (cudaSuccess != err )
+    {  
+        fprintf( stderr, "cudaSafeCall() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString( err ) );
+        exit( -1 );
+    }
+    return;
+}
+
+inline void __cudaCheckError( const char *file, const int line)
+{
+    cudaError err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString( err ) );
+        exit (-1);
+    }
+
+    // check for asynchronous errors during execution of kernel
+    // Warning this can sig. lower performance of code
+    // make sure this section is not executed in production binaries
+#ifdef DEBUG_OUTPUT
+    /*err = cudaDeviceSynchronize();*/
+    if (cudaSuccess != err)
+    {
+        fprintf( stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+                file, line, cudaGetErrorString( err ) );
+        exit( -1 );
+    }
+#endif
+    
+    return;
+}
 
 
 namespace cudautils {
@@ -29,6 +69,7 @@ namespace cudautils {
 typedef thrust::host_vector<double, thrust::system::cuda::experimental::pinned_allocator<double>> pinnedDblHostVector;
 typedef thrust::host_vector<int8_t, thrust::system::cuda::experimental::pinned_allocator<int8_t>> pinnedInt8HostVector;
 typedef thrust::host_vector<unsigned int, thrust::system::cuda::experimental::pinned_allocator<unsigned int>> pinnedUIntHostVector;
+
 
 inline
 unsigned int get_num_blocks(const unsigned int total_size, const unsigned int block_size) {
@@ -49,12 +90,21 @@ void ind2sub(const unsigned int x_stride, const unsigned int y_stride, const uns
 
     y = i / x_stride;
     x = i - y * x_stride;
+    //// column-major order since image is from matlab
+    //int x, y, z;
+    //x = idx % sift_params.image_size0;
+    //y = (idx - x)/sift_params.image_size0 % sift_params.image_size1;
+    //z = ((idx - x)/sift_params.image_size0 - y)/sift_params.image_size1;
 }
+
 
 __global__
 void create_descriptor(
         unsigned int x_stride,
         unsigned int y_stride,
+        unsigned int x_sub_start,
+        unsigned int y_sub_start,
+        unsigned int dw,
         unsigned int map_size,
         unsigned int *map_idx,
         int8_t *map,
@@ -98,6 +148,7 @@ public:
         base_z_ = base_z;
     }
 
+    // return linear index based off (row-major / c-order)
     size_t operator()(const unsigned int x, const unsigned int y, const unsigned int z) {
         assert(x + base_x_ < x_stride_);
         assert(y + base_y_ < y_stride_);
@@ -167,28 +218,25 @@ class Sift : public cudautils::CudaTask {
 
         double *h_image;
         int8_t *h_map;
-        cudautils::Keypoint_store keystore;
-        cudautils::Keypoint *keypoints;
+        cudautils::Keypoint_store* keystore;
 
         DomainDataOnHost(
                 const unsigned int x_size,
                 const unsigned int y_size,
-                const unsigned int z_size,
-                cudautils::SiftParams sift_params)
+                const unsigned int z_size)
             : sub2ind(x_size, y_size, z_size) {
             size_t volume_size = x_size * y_size * z_size;
-            cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable);
-            cudaHostAlloc(&h_map, volume_size * sizeof(int8_t), cudaHostAllocPortable);
-            cudaHostAlloc((void**) &keystore, sizeof(cudautils::Keypoint_store), cudaHostAllocPortable);
-            cudaHostAlloc(&keypoints, sift_params.keypoint_num * sizeof(cudautils::Keypoint), cudaHostAllocPortable);
-            keystore.buf = keypoints;
-            keystore.len = sift_params.keypoint_num;
+            cudaSafeCall(cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable));
+            cudaSafeCall(cudaHostAlloc(&h_map, volume_size * sizeof(int8_t), cudaHostAllocPortable));
+            // keypoint
+            cudaSafeCall(cudaHostAlloc(&keystore,
+                    sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));
         }
         ~DomainDataOnHost() {
-            cudaFreeHost(h_image);
-            cudaFreeHost(h_map);
-            cudaFreeHost(&(keystore.buf));
-            cudaFreeHost(&keystore);
+            cudaSafeCall(cudaFreeHost(h_image));
+            cudaSafeCall(cudaFreeHost(h_map));
+            cudaSafeCall(cudaFreeHost(keystore->buf));
+            cudaSafeCall(cudaFreeHost(keystore));
         }
     };
 
@@ -202,13 +250,23 @@ class Sift : public cudautils::CudaTask {
 
         std::vector<unsigned int> dx_i_list;
         std::vector<unsigned int> dy_i_list;
+        cudautils::Keypoint_store* keystore;
 
         SubDomainDataOnStream(
                 const unsigned int dx_stride,
                 const unsigned int dy_stride,
                 const unsigned int z_stride)
-            : pad_sub2ind(dx_stride, dy_stride, z_stride) {
+            : pad_sub2ind(dx_stride, dy_stride, z_stride) 
+        {
+            // keypoint
+            cudaSafeCall(cudaHostAlloc(&keystore,
+                    sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));
         }
+        
+       ~SubDomainDataOnStream() {
+            cudaSafeCall(cudaFreeHost(keystore->buf));
+            cudaSafeCall(cudaFreeHost(keystore));
+       }
     };
 
 
@@ -232,15 +290,15 @@ class Sift : public cudautils::CudaTask {
                 const unsigned int num_streams)
             : pad_sub2ind(x_sub_stride, y_sub_stride, z_stride), stream_data(num_streams) {
             size_t padded_sub_volume_size = x_sub_stride * y_sub_stride * z_stride;
-            cudaMalloc(&padded_image,   padded_sub_volume_size * sizeof(double));
-            cudaMalloc(&padded_map,     padded_sub_volume_size * sizeof(int8_t));
-            cudaMalloc(&padded_map_idx, padded_sub_volume_size * sizeof(unsigned int));
+            cudaSafeCall(cudaMalloc(&padded_image,   padded_sub_volume_size * sizeof(double)));
+            cudaSafeCall(cudaMalloc(&padded_map,     padded_sub_volume_size * sizeof(int8_t)));
+            cudaSafeCall(cudaMalloc(&padded_map_idx, padded_sub_volume_size * sizeof(unsigned int)));
         }
 
         ~SubDomainDataOnGPU() {
-            cudaFree(padded_image);
-            cudaFree(padded_map);
-            cudaFree(padded_map_idx);
+            cudaSafeCall(cudaFree(padded_image));
+            cudaSafeCall(cudaFree(padded_map));
+            cudaSafeCall(cudaFree(padded_map_idx));
         }
     };
 
@@ -271,7 +329,7 @@ public:
     void setImage(const std::vector<double>& img);
     void setMapToBeInterpolated(const int8_t *map);
     void setMapToBeInterpolated(const std::vector<int8_t>& map);
-    void getKeystore(cudautils::Keypoint_store keystore);
+    void getKeystore(cudautils::Keypoint_store *keystore);
     void getImage(double* img);
     void getImage(std::vector<double>& img);
 
@@ -279,7 +337,7 @@ public:
     virtual int getNumOfStreamTasks(const int gpu_id, const int stream_id);
 
     virtual void prerun() {}
-    virtual void postrun() {}
+    virtual void postrun();
 
     virtual void runOnGPU(const int gpu_id, const unsigned int gpu_task_id);
     virtual void postrunOnGPU(const int gpu_id, const unsigned int gpu_task_id) {}
