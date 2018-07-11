@@ -148,7 +148,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             image_size[1] = static_cast<double>(image_width);
             image_size[2] = static_cast<double>(num_slices);
         } else {
-            std::vector<std::shared_ptr<std::vector<double>>> result = qn_impl.getNormResult();
+            std::vector<std::shared_ptr<std::vector<float>>> result = qn_impl.getNormResult();
 
             plhs[0] = mxCreateCellMatrix(2, 1);
 
@@ -156,7 +156,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             mxSetCell(plhs[0], 0, mx_result_mat);
             double *out_mat = mxGetPr(mx_result_mat);
             for (int i = 0; i < result.size(); i++) {
-                std::shared_ptr<std::vector<double>> array = result[i];
+                std::shared_ptr<std::vector<float>> array = result[i];
                 std::copy(array->data(), array->data() + array->size(), out_mat);
                 out_mat += array->size();
             }

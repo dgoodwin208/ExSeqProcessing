@@ -73,9 +73,9 @@ function image = load_binary_image(outputdir,image_fname,image_height,image_widt
     fid = fopen(fullfile(outputdir,image_fname),'r');
     count = 1;
     while ~feof(fid)
-        sub_image = fread(fid,[image_height,image_width],'double');
+        sub_image = fread(fid,[image_height,image_width],'float');
         if ~isempty(sub_image)
-            image(:,:,count) = sub_image;
+            image(:,:,count) = double(sub_image);
             count = count + 1;
         end
     end

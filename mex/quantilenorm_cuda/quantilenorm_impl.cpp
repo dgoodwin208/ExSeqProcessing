@@ -141,7 +141,7 @@ QuantileNormImpl::run() {
             } else {
                 std::lock_guard<std::mutex> lock(tmp_data_mutex_);
                 //DEBUG
-                std::shared_ptr<std::vector<double>> subst_data = tmp_data_buffers_[subst_filepath];
+                std::shared_ptr<std::vector<float>> subst_data = tmp_data_buffers_[subst_filepath];
                 std::shared_ptr<std::vector<unsigned int>> sort1_idx_data = tmp_data_buffers_[sort1_idx_filepath];
                 logger_->debug("[{}] subst#={},sort1_idx#={}", basename_, subst_data.use_count(), sort1_idx_data.use_count());
 
@@ -198,9 +198,9 @@ QuantileNormImpl::run() {
     logger_->info("[{}] ##### done", basename_);
 }
 
-std::vector<std::shared_ptr<std::vector<double>>>
+std::vector<std::shared_ptr<std::vector<float>>>
 QuantileNormImpl::getNormResult() {
-    std::vector<std::shared_ptr<std::vector<double>>> result(sorted_file2_list_.size());
+    std::vector<std::shared_ptr<std::vector<float>>> result(sorted_file2_list_.size());
     for (size_t i = 0; i < sorted_file2_list_.size(); i++) {
         std::string out_filepath = datadir_ + "/" + sorted_file2_list_[i];
         result[i] = tmp_data_buffers_[out_filepath];
@@ -268,14 +268,14 @@ QuantileNormImpl::setupFileList() {
     std::string sorted_idx_file2_prefix = "idx_" + sorted_file2_prefix;
 
     size_t unit_data_size  = gpu_mem_total_ * GPU_USER_MEMORY_USAGE_RATIO
-        / ((sizeof(double) + sizeof(unsigned int)) * THRUST_RADIXSORT_MEMORY_USAGE_RATIO);
+        / ((sizeof(float) + sizeof(unsigned int)) * THRUST_RADIXSORT_MEMORY_USAGE_RATIO);
 
     size_t total_data_size = num_slices_ * image_height_ * image_width_;
     size_t num_sub_data    = total_data_size / unit_data_size;
     if (total_data_size % unit_data_size != 0) {
         num_sub_data++;
     }
-    logger_->debug("[{}] gpu total mem = {}, data(double) + idx(unsigned int) * {} for unit data = {}, total data = {}, # sub slices = {}", basename_, gpu_mem_total_, THRUST_RADIXSORT_MEMORY_USAGE_RATIO, unit_data_size, total_data_size, num_sub_data);
+    logger_->debug("[{}] gpu total mem = {}, data(float) + idx(unsigned int) * {} for unit data = {}, total data = {}, # sub slices = {}", basename_, gpu_mem_total_, THRUST_RADIXSORT_MEMORY_USAGE_RATIO, unit_data_size, total_data_size, num_sub_data);
     if (num_sub_data == 0) {
         logger_->error("[{}] unit data size is over gpu total memory.", basename_);
         num_sub_data = 1;
@@ -649,9 +649,9 @@ QuantileNormImpl::radixSort2() {
                 in_subst_filepath = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
                 in_idx_filepath   = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
 
-                std::shared_ptr<std::vector<double>> data;
+                std::shared_ptr<std::vector<float>> data;
                 std::shared_ptr<std::vector<unsigned int>> index;
-                data  = loadDataFromBuffer<double>(in_subst_filepath, num_data_start, data_size);
+                data  = loadDataFromBuffer<float>(in_subst_filepath, num_data_start, data_size);
                 index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
 
                 tmp_data_buffers_.insert(std::make_pair(in_subst_filepath + "." + std::to_string(i), TmpDataBuffer(data)));
@@ -698,10 +698,10 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         logger_->debug("[{}] radixSort2FromData: ({}) out idx filepath  = {}", basename_, idx_radixsort, out_idx_filepath);
 
         selectCore(0);
-        std::shared_ptr<std::vector<double>> data;
+        std::shared_ptr<std::vector<float>> data;
         std::shared_ptr<std::vector<unsigned int>> index;
         if (use_tmp_files_) {
-            data  = loadDataFromFile<double>(in_subst_filepath, num_data_start, data_size);
+            data  = loadDataFromFile<float>(in_subst_filepath, num_data_start, data_size);
             index = loadDataFromFile<unsigned int>(in_idx_filepath, num_data_start, data_size);
         } else {
 #if 0
@@ -726,7 +726,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
             index = find_idx_itr->second;
 #endif
 
-            data  = loadDataFromBuffer<double>(in_subst_filepath, num_data_start, data_size);
+            data  = loadDataFromBuffer<float>(in_subst_filepath, num_data_start, data_size);
             index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
         }
         if (data == nullptr) {
@@ -748,7 +748,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
                 logger_->info("[{}] radixSort2FromData: ({}) idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
 
                 try {
-                    cudautils::radixsort<unsigned int, double>(*index, *data);
+                    cudautils::radixsort<unsigned int, float>(*index, *data);
                 } catch (std::exception& ex) {
                     logger_->debug("[{}] radixSort2FromData: {}", basename_, ex.what());
                     cudaError err = cudaGetLastError();
@@ -1035,9 +1035,9 @@ QuantileNormImpl::mergeSort2() {
 
     for (size_t i = 0; i < mergesort2_file_list_.size(); i++) {
         if (use_tmp_files_) {
-            mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, double>, this, i, mergesort2_file_list_));
+            mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, float>, this, i, mergesort2_file_list_));
         } else {
-            mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoBuffers<unsigned int, double>, this, i, mergesort2_file_list_));
+            mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoBuffers<unsigned int, float>, this, i, mergesort2_file_list_));
         }
     }
 }
@@ -1497,7 +1497,7 @@ QuantileNormImpl::substituteToNormValuesWithStorage(const size_t idx) {
 
     utils::FileBufferReader<unsigned int> summed_fb_reader(summed_filepath, FILEREAD_BUFSIZE);
     utils::FileBufferReader<uint16_t> sorted_fb_reader(sorted_filepath, FILEREAD_BUFSIZE);
-    utils::FileBufferWriter<double> subst_fb_writer(tmp_subst_filepath, FILEWRITE_BUFSIZE);
+    utils::FileBufferWriter<float> subst_fb_writer(tmp_subst_filepath, FILEWRITE_BUFSIZE);
     try {
         summed_fb_reader.open();
         sorted_fb_reader.open();
@@ -1508,7 +1508,7 @@ QuantileNormImpl::substituteToNormValuesWithStorage(const size_t idx) {
         return -1;
     }
 
-    double num_channels = (double)num_channels_;
+    float num_channels = (float)num_channels_;
     std::vector<unsigned int> vals_for_mean;
     summed_fb_reader.readFileToBuffer();
     sorted_fb_reader.readFileToBuffer();
@@ -1538,17 +1538,17 @@ QuantileNormImpl::substituteToNormValuesWithStorage(const size_t idx) {
 
         if (cur_sorted_val != nxt_sorted_val) {
             if (vals_for_mean.empty()) {
-                double mean_val = (double)cur_summed_val / num_channels;
+                float mean_val = (float)cur_summed_val / num_channels;
                 subst_fb_writer.set(mean_val);
             } else {
                 vals_for_mean.push_back(cur_summed_val);
 
                 size_t mid_i = vals_for_mean.size() / 2;
-                double mean_val = 0.0;
+                float mean_val = 0.0;
                 if (vals_for_mean.size() % 2 == 0) {
-                    mean_val = (double)(vals_for_mean[mid_i] + vals_for_mean[mid_i-1]) * 0.5 / num_channels;
+                    mean_val = (float)(vals_for_mean[mid_i] + vals_for_mean[mid_i-1]) * 0.5 / num_channels;
                 } else {
-                    mean_val = (double)vals_for_mean[mid_i] / num_channels;
+                    mean_val = (float)vals_for_mean[mid_i] / num_channels;
                 }
 
                 for (size_t i = 0; i < vals_for_mean.size(); i++) {
@@ -1624,10 +1624,10 @@ QuantileNormImpl::substituteToNormValuesWithMemory(const size_t idx) {
         return -1;
     }
 
-    std::shared_ptr<std::vector<double>> subst_data = std::make_shared<std::vector<double>>(summed_data->size());
+    std::shared_ptr<std::vector<float>> subst_data = std::make_shared<std::vector<float>>(summed_data->size());
 
 
-    double num_channels = (double)num_channels_;
+    float num_channels = (float)num_channels_;
     std::vector<unsigned int> vals_for_mean;
     size_t in_idx = 0;
     size_t out_idx = 0;
@@ -1652,17 +1652,17 @@ QuantileNormImpl::substituteToNormValuesWithMemory(const size_t idx) {
 
         if (cur_sorted_val != nxt_sorted_val) {
             if (vals_for_mean.empty()) {
-                double mean_val = (double)cur_summed_val / num_channels;
+                float mean_val = (float)cur_summed_val / num_channels;
                 (*subst_data)[out_idx++] = mean_val;
             } else {
                 vals_for_mean.push_back(cur_summed_val);
 
                 size_t mid_i = vals_for_mean.size() / 2;
-                double mean_val = 0.0;
+                float mean_val = 0.0;
                 if (vals_for_mean.size() % 2 == 0) {
-                    mean_val = (double)(vals_for_mean[mid_i] + vals_for_mean[mid_i-1]) * 0.5 / num_channels;
+                    mean_val = (float)(vals_for_mean[mid_i] + vals_for_mean[mid_i-1]) * 0.5 / num_channels;
                 } else {
-                    mean_val = (double)vals_for_mean[mid_i] / num_channels;
+                    mean_val = (float)vals_for_mean[mid_i] / num_channels;
                 }
 
                 for (size_t i = 0; i < vals_for_mean.size(); i++) {

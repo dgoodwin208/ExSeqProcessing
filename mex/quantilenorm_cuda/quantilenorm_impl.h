@@ -59,13 +59,13 @@ protected:
 
         std::shared_ptr<std::vector<uint16_t>>     uint16_buffer_;
         std::shared_ptr<std::vector<unsigned int>> uint32_buffer_;
-        std::shared_ptr<std::vector<double>>       double_buffer_;
+        std::shared_ptr<std::vector<float>>        float_buffer_;
 
     public:
         TmpDataBuffer() {}
         TmpDataBuffer(std::shared_ptr<std::vector<uint16_t>> data)     : uint16_buffer_(data) {}
         TmpDataBuffer(std::shared_ptr<std::vector<unsigned int>> data) : uint32_buffer_(data) {}
-        TmpDataBuffer(std::shared_ptr<std::vector<double>> data)       : double_buffer_(data) {}
+        TmpDataBuffer(std::shared_ptr<std::vector<float>> data)        : float_buffer_(data) {}
         ~TmpDataBuffer() {}
 
         operator std::shared_ptr<std::vector<uint16_t>>() const {
@@ -74,8 +74,8 @@ protected:
         operator std::shared_ptr<std::vector<unsigned int>>() const {
             return uint32_buffer_;
         }
-        operator std::shared_ptr<std::vector<double>>() const {
-            return double_buffer_;
+        operator std::shared_ptr<std::vector<float>>() const {
+            return float_buffer_;
         }
     };
 
@@ -112,7 +112,7 @@ public:
     void run();
 
     std::vector<std::string>& getResult() { return sorted_file2_list_; }
-    std::vector<std::shared_ptr<std::vector<double>>> getNormResult();
+    std::vector<std::shared_ptr<std::vector<float>>> getNormResult();
 
 
 protected:

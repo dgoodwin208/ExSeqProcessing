@@ -232,12 +232,15 @@ FileDirectWriter<T>::write(const T val) {
 template class FileBufferReader<uint16_t>;
 template class FileBufferReader<unsigned int>;
 template class FileBufferReader<double>;
+template class FileBufferReader<float>;
 
 template class FileBufferWriter<uint16_t>;
 template class FileBufferWriter<unsigned int>;
 template class FileBufferWriter<double>;
+template class FileBufferWriter<float>;
 
 template class FileDirectWriter<double>;
+template class FileDirectWriter<float>;
 
 }
 

@@ -46,5 +46,8 @@ void radixsort<uint16_t, unsigned int>(std::vector<uint16_t>& array1, std::vecto
 template
 void radixsort<unsigned int, double>(std::vector<unsigned int>& array1, std::vector<double>& array2);
 
+template
+void radixsort<unsigned int, float>(std::vector<unsigned int>& array1, std::vector<float>& array2);
+
 }
 
