@@ -44,6 +44,9 @@ params.DOWNSAMPLE_RATE = 2.;
 %intermediate image format
 params.IMAGE_EXT = 'tif';
 
+%Use intermediate tmp files in normalization
+params.USE_TMP_FILES_IN_NORM = true;
+
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
 regparams.FIXED_RUN = 4;
@@ -100,7 +103,6 @@ params.WAIT_SEC = 10;
 
 params.NORM_MAX_RUN_JOBS = 20;
 params.NORM_MAX_POOL_SIZE = 0;
-params.NORM_MAX_LOAD_DATA_JOBS = 10;
 
 params.CALC_DESC_MAX_RUN_JOBS = 30;
 params.CALC_DESC_MAX_POOL_SIZE = 2;

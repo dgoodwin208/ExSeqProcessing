@@ -62,8 +62,8 @@ sumFiles(
         return -1;
     }
 
-    std::vector<double> in_buf(FILE_BUFSIZE / sizeof(double));
-    std::vector<double> out_buf(FILE_BUFSIZE / sizeof(double));
+    std::vector<float> in_buf(FILE_BUFSIZE / sizeof(float));
+    std::vector<float> out_buf(FILE_BUFSIZE / sizeof(float));
     size_t read_buf_size = 0;
     size_t prev_buf_size = 0;
     size_t total_write_bytes = 0;
@@ -76,7 +76,7 @@ sumFiles(
 
         for (int i = 0; i < ifs.size(); i++) {
             read_buf_size = ifs[i].read((char*)in_buf.data(), FILE_BUFSIZE).gcount();
-            read_buf_size /= sizeof(double);
+            read_buf_size /= sizeof(float);
 
             if (i == 0) {
                 prev_buf_size = read_buf_size;
@@ -93,8 +93,8 @@ sumFiles(
             break;
         }
 
-        of.write((char*)out_buf.data(), read_buf_size * sizeof(double));
-        total_write_bytes += read_buf_size * sizeof(double);
+        of.write((char*)out_buf.data(), read_buf_size * sizeof(float));
+        total_write_bytes += read_buf_size * sizeof(float);
     }
 
     of.close();
