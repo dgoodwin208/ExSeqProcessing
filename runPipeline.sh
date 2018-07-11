@@ -20,11 +20,7 @@ function clear_semaphores() {
 }
 
 function trap_handle() {
-    job_list=$(jobs -p)
-    if [ -n "$job_list" ]; then
-        echo "killing.. $job_list"
-        kill $job_list
-    fi
+    kill 0
     clear_semaphores
     exit
 }
@@ -52,6 +48,7 @@ function usage() {
     echo "  -L    log directory"
     echo "  -G    use GPUs"
     echo "  -H    use HDF5 format for intermediate files"
+    echo "  -P    mode to get performance profile"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
@@ -116,12 +113,13 @@ REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 USE_GPUS=false
 USE_HDF5=false
+PERF_PROFILE=false
 
 NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:GHyh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:GHPyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -179,6 +177,8 @@ do
         G)  USE_GPUS=true
             ;;
         H)  USE_HDF5=true
+            ;;
+        P)  PERF_PROFILE=true
             ;;
         y)  QUESTION_ANSW='yes'
             ;;
@@ -444,6 +444,13 @@ if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
 fi
 echo
 
+
+if [ "${PERF_PROFILE}" = "true" ]; then
+    ./tests/perf-profile/get-stats.sh &
+    PID_PERF_PROFILE=$!
+    sleep 1
+fi
+
 stage_idx=0
 
 ###### setup a cluster profile
@@ -454,7 +461,7 @@ echo
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-setup-cluster-profile.log -r "${ERR_HDL_PRECODE} setup_cluster_profile(); ${ERR_HDL_POSTCODE}"
-    ) & wait
+    ) & wait $!
 else
     echo "Skip!"
 fi
@@ -519,7 +526,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-apply.log -r "${ERR_HDL_PRECODE} run('downsample_applycolorshiftstofullres.m'); ${ERR_HDL_POSTCODE}"
-    ) & wait
+    ) & wait $!
 else
     echo "Skip!"
 fi
@@ -574,7 +581,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             echo "No job log files."
         fi
     fi
-    ) & wait
+    ) & wait $!
 
 
     # prepare normalized channel images for warp
@@ -635,7 +642,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         else
             echo "No log files."
         fi
-        ) & wait
+        ) & wait $!
     else
         echo "Skip!"
     fi
@@ -681,7 +688,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         else
             echo "No regCorr-log files."
         fi
-        ) & wait
+        ) & wait $!
     else
         echo "Skip!"
     fi
@@ -710,7 +717,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     else
         echo "No job log files."
     fi
-    ) & wait
+    ) & wait $!
 else
     echo "Skip!"
 fi
@@ -727,7 +734,7 @@ echo
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} loadParameters; basecalling_simple;  ${ERR_HDL_POSTCODE}"
-    ) & wait
+    ) & wait $!
 else
     echo "Skip!"
 fi
@@ -737,6 +744,29 @@ stage_idx=$(( $stage_idx + 1 ))
 
 
 
+
+if [ "${PERF_PROFILE}" = "true" ]; then
+    echo "========================================================================="
+    echo "summarize performance profile logs"; date
+    echo
+
+    pushd ${LOG_DIR}
+    kill ${PID_PERF_PROFILE}
+
+    ../tests/perf-profile/summary-matlab-proc-in-top-log.py top-*.log | tee summary-top.txt
+    ../tests/perf-profile/summary-nfsiostat-log.py nfsiostat-*.log > summary-nfsiostat.csv
+    ../tests/perf-profile/summary-iostat-log.py    iostat-*.log    > summary-iostat.csv
+    ../tests/perf-profile/summary-vmstat-log.py    vmstat-*.log    > summary-vmstat.csv
+    ../tests/perf-profile/summary-gpu-log.py       gpu-*.log       > summary-gpu.csv
+
+    cp -af ../tests/perf-profile/perf-measurement-template.ipynb perf-measurement.ipynb
+    echo "run a command below"
+    echo "jupyter nbconvert --to notebook --inplace --execute perf-measurement.ipynb"
+    echo
+    echo "CAUTION! you might have to change nvme device name in perf-measurement.ipynb manually if errors"
+
+    popd
+fi
 
 echo "========================================================================="
 echo "pipeline finished"; date
