@@ -55,28 +55,30 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         logger->info("{:=>50}", " quantilenorm_cuda_init");
 
         /* Check for proper number of input and output arguments */
-        if (nrhs != 2) {
-            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_init:minrhs", "2 input arguments required.");
+        if (nrhs < 1) {
+            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_init:minrhs", "at least 1 input argument required.");
+        } else if (nrhs > 2) {
+            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_init:maxrhs", "Too many input arguments.");
         } 
         if (nlhs > 0) {
             mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_init:maxrhs", "Too many output arguments.");
         }
 
         /* make sure the first and second input arguments are type double */
-        if ( !mxIsDouble(prhs[0]) || 
-              mxIsComplex(prhs[0])) {
+        if ( !mxIsDouble(prhs[0]) || mxIsComplex(prhs[0])) {
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_init:notDouble","Input matrix must be type double.");
         }
-        if ( !mxIsDouble(prhs[1]) || 
-              mxIsComplex(prhs[1])) {
+        if (nrhs == 2 && ( !mxIsDouble(prhs[1]) || mxIsComplex(prhs[1]))) {
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_init:notDouble","Input matrix must be type double.");
         }
 
         const mxArray *gpu_ptr = prhs[0];
         init_semaphores(gpu_ptr, "/g");
 
-        const mxArray *core_ptr = prhs[1];
-        init_semaphores(core_ptr, "/qn_c");
+        if (nrhs == 2) {
+            const mxArray *core_ptr = prhs[1];
+            init_semaphores(core_ptr, "/qn_c");
+        }
 
         logger->flush();
         spdlog::drop_all();

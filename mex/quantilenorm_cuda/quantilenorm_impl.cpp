@@ -450,7 +450,6 @@ QuantileNormImpl::radixSort1() {
 
 int
 QuantileNormImpl::loadRadixSort1Hdf5Data() {
-    selectCore(0);
 
     for (auto radixsort_info : radixsort1_file_list_) {
         size_t slice_start  = std::get<0>(radixsort_info);
@@ -482,8 +481,6 @@ QuantileNormImpl::loadRadixSort1TiffData() {
         size_t slice_start   = std::get<0>(radixsort_info);
         size_t slice_end     = std::get<1>(radixsort_info);
         std::string tif_file = std::get<2>(radixsort_info);
-
-        selectCore(0);
 
         logger_->info("[{}] loadRadixSort1TiffData: loadtiff start {}", basename_, tif_file);
         std::shared_ptr<RadixSort1Info> data = std::make_shared<RadixSort1Info>();
@@ -553,14 +550,12 @@ QuantileNormImpl::radixSort1FromData() {
             if (idx_gpu != -1) {
                 unselectGPU(idx_gpu);
             }
-            unselectCore(0);
             return -1;
         } catch (...) {
             logger_->error("[{}] end - unknown error..", basename_);
             if (idx_gpu != -1) {
                 unselectGPU(idx_gpu);
             }
-            unselectCore(0);
             return -1;
         }
 
@@ -568,8 +563,6 @@ QuantileNormImpl::radixSort1FromData() {
     }
 
     unselectGPU(idx_gpu);
-
-    unselectCore(0);
 
     return 0;
 }
@@ -637,34 +630,6 @@ QuantileNormImpl::radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> imag
 
 void
 QuantileNormImpl::radixSort2() {
-#if 0
-    if (! use_tmp_files_) {
-        for (size_t j = 0; j < num_channels_; j++) {
-            std::string in_subst_filepath;
-            std::string in_idx_filepath;
-            for (size_t i = j; i < radixsort2_file_list_.size(); i += num_channels_) {
-                size_t num_data_start = std::get<0>(radixsort2_file_list_[i]);
-                size_t data_size      = std::get<1>(radixsort2_file_list_[i]);
-
-                in_subst_filepath = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
-                in_idx_filepath   = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
-
-                std::shared_ptr<std::vector<float>> data;
-                std::shared_ptr<std::vector<unsigned int>> index;
-                data  = loadDataFromBuffer<float>(in_subst_filepath, num_data_start, data_size);
-                index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
-
-                tmp_data_buffers_.insert(std::make_pair(in_subst_filepath + "." + std::to_string(i), TmpDataBuffer(data)));
-                tmp_data_buffers_.insert(std::make_pair(in_idx_filepath + "." + std::to_string(i), TmpDataBuffer(index)));
-            }
-            tmp_data_buffers_.erase(in_subst_filepath);
-            tmp_data_buffers_.erase(in_idx_filepath);
-        }
-    }
-    listTmpDataBuffersKeys();
-    logger_->debug("[{}] after dividing subst data {}", basename_, getStatMem());
-#endif
-
 #ifdef DEBUG_NO_THREADING
     std::launch policy = std::launch::deferred;
 #else
@@ -697,35 +662,12 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         logger_->debug("[{}] radixSort2FromData: ({}) out filepath      = {}", basename_, idx_radixsort, out_filepath);
         logger_->debug("[{}] radixSort2FromData: ({}) out idx filepath  = {}", basename_, idx_radixsort, out_idx_filepath);
 
-        selectCore(0);
         std::shared_ptr<std::vector<float>> data;
         std::shared_ptr<std::vector<unsigned int>> index;
         if (use_tmp_files_) {
             data  = loadDataFromFile<float>(in_subst_filepath, num_data_start, data_size);
             index = loadDataFromFile<unsigned int>(in_idx_filepath, num_data_start, data_size);
         } else {
-#if 0
-            in_subst_filepath = in_subst_filepath + "." + std::to_string(idx_radixsort);
-            in_idx_filepath = in_idx_filepath + "." + std::to_string(idx_radixsort);
-
-            std::lock_guard<std::mutex> lock(tmp_data_mutex_);
-            auto find_itr = tmp_data_buffers_.find(in_subst_filepath);
-
-            if (find_itr == tmp_data_buffers_.end()) {
-                logger_->error("[{}] not exist in_subst_filepath, {}", basename_, in_subst_filepath);
-                return -1;
-            }
-            data = find_itr->second;
-
-            auto find_idx_itr = tmp_data_buffers_.find(in_idx_filepath);
-
-            if (find_idx_itr == tmp_data_buffers_.end()) {
-                logger_->error("[{}] not exist in_idx_filepath, {}", basename_, in_idx_filepath);
-                return -1;
-            }
-            index = find_idx_itr->second;
-#endif
-
             data  = loadDataFromBuffer<float>(in_subst_filepath, num_data_start, data_size);
             index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
         }
@@ -793,7 +735,6 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
             ret = saveDataToBuffer(datadir_, out_file, data);
         }
 
-        unselectCore(0);
         logger_->debug("[{}] radixSort2FromData: before return {}", basename_, getStatMem());
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
         return ret;

@@ -47,8 +47,10 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         logger->info("{:=>50}", " quantilenorm_cuda_final");
 
         /* Check for proper number of input and output arguments */
-        if (nrhs != 2) {
-            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_final:minrhs", "2 input arguments required.");
+        if (nrhs < 1) {
+            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_final:minrhs", "at least 1 input argument required.");
+        } else if (nrhs > 2) {
+            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_final:maxrhs", "too many input arguments.");
         } 
         if (nlhs > 0) {
             mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda_final:maxrhs", "Too many output arguments.");
@@ -58,15 +60,17 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         if ( !mxIsScalar(prhs[0])) {
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_final:notScalar","Input must be type scalar.");
         }
-        if ( !mxIsScalar(prhs[1])) {
+        if (nrhs == 2 && !mxIsScalar(prhs[1])) {
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_final:notScalar","Input must be type scalar.");
         }
 
         int num_gpu_sem = (int)mxGetScalar(prhs[0]);
         finalize_semaphores(num_gpu_sem, "/g");
 
-        int num_core_sem = (int)mxGetScalar(prhs[1]);
-        finalize_semaphores(num_core_sem, "/qn_c");
+        if (nrhs == 2) {
+            int num_core_sem = (int)mxGetScalar(prhs[1]);
+            finalize_semaphores(num_core_sem, "/qn_c");
+        }
 
         logger->flush();
         spdlog::drop_all();
