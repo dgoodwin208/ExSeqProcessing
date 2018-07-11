@@ -44,6 +44,9 @@ params.DOWNSAMPLE_RATE = 2.;
 %intermediate image format
 params.IMAGE_EXT = 'tif';
 
+%Use intermediate tmp files in normalization
+params.USE_TMP_FILES_IN_NORM = true;
+
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
 regparams.FIXED_RUN = 4;

@@ -4,8 +4,11 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <map>
+#include <memory>
 #include <future>
 #include <thread>
+#include <mutex>
 
 #include "async_queue.h"
 
@@ -31,6 +34,7 @@ protected:
     size_t num_channels_;
 
     bool use_hdf5_ = false;
+    bool use_tmp_files_ = false;
 
     std::vector<std::tuple<size_t, size_t, std::string, std::string>>              radixsort1_file_list_;
     std::vector<std::vector<std::string>>                                          mergesort1_file_list_;
@@ -50,6 +54,34 @@ protected:
 
 
     std::string summed_file_;
+
+    class TmpDataBuffer {
+
+        std::shared_ptr<std::vector<uint16_t>>     uint16_buffer_;
+        std::shared_ptr<std::vector<unsigned int>> uint32_buffer_;
+        std::shared_ptr<std::vector<double>>       double_buffer_;
+
+    public:
+        TmpDataBuffer() {}
+        TmpDataBuffer(std::shared_ptr<std::vector<uint16_t>> data)     : uint16_buffer_(data) {}
+        TmpDataBuffer(std::shared_ptr<std::vector<unsigned int>> data) : uint32_buffer_(data) {}
+        TmpDataBuffer(std::shared_ptr<std::vector<double>> data)       : double_buffer_(data) {}
+        ~TmpDataBuffer() {}
+
+        operator std::shared_ptr<std::vector<uint16_t>>() const {
+            return uint16_buffer_;
+        }
+        operator std::shared_ptr<std::vector<unsigned int>>() const {
+            return uint32_buffer_;
+        }
+        operator std::shared_ptr<std::vector<double>>() const {
+            return double_buffer_;
+        }
+    };
+
+    std::mutex tmp_data_mutex_;
+    std::map<std::string, TmpDataBuffer> tmp_data_buffers_;
+
 
     typedef struct {
         std::shared_ptr<std::vector<uint16_t>> image;
@@ -74,11 +106,13 @@ public:
                      const size_t image_height,
                      const size_t num_slices,
                      const size_t num_gpus,
-                     const bool use_hdf5);
+                     const bool use_hdf5,
+                     const bool use_tmp_files = true);
 
     void run();
 
     std::vector<std::string>& getResult() { return sorted_file2_list_; }
+    std::vector<std::shared_ptr<std::vector<double>>> getNormResult();
 
 
 protected:
@@ -88,23 +122,29 @@ protected:
                                const std::vector<std::tuple<size_t, size_t>>& idx,
                                std::vector<std::vector<std::string>>& mergesort_file_list);
 
-    bool filesExists(const std::vector<std::string>& file_list);
-    bool oneFileExists(const std::string& filename);
+    bool allDataExist(const std::vector<std::string>& file_list);
+    bool oneDataExists(const std::string& filename);
+
+    void listTmpDataBuffersKeys();
+    std::string getStatMem();
 
     void radixSort1();
     int loadRadixSort1Hdf5Data();
     int loadRadixSort1TiffData();
     int radixSort1FromData();
-    //int radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> image, const size_t slice_start, const std::string& out_filename);
 
     void radixSort2();
     int radixSort2FromData(const size_t idx_radixsort);
 
-    template<typename T>
-    int savefile(const std::string& datadir, const std::string& out_filename, const std::shared_ptr<std::vector<T>> data);
+    template <typename T>
+    int saveDataToFile(const std::string& datadir, const std::string& out_filename, const std::shared_ptr<std::vector<T>> data);
+    template <typename T>
+    int saveDataToBuffer(const std::string& datadir, const std::string& out_filename, const std::shared_ptr<std::vector<T>> data);
 
-    template<typename T>
-    std::shared_ptr<std::vector<T>> loadfile(const std::string& in_filepath, const size_t num_data_start, const size_t data_size);
+    template <typename T>
+    std::shared_ptr<std::vector<T>> loadDataFromFile(const std::string& in_filepath, const size_t num_data_start, const size_t data_size);
+    template <typename T>
+    std::shared_ptr<std::vector<T>> loadDataFromBuffer(const std::string& in_filepath, const size_t num_data_start, const size_t data_size);
 
     int selectGPU();
     void unselectGPU(const int idx_gpu);
@@ -118,11 +158,16 @@ protected:
 
     template <typename T1, typename T2>
     int mergeSortTwoFiles(const size_t idx, const std::vector<std::vector<std::string>>& mergesort_file_list);
+    template <typename T1, typename T2>
+    int mergeSortTwoBuffers(const size_t idx, const std::vector<std::vector<std::string>>& mergesort_file_list);
+
 
     void sumSortedFiles();
+    void sumSortedBuffers();
 
     void substituteValues();
-    int substituteToNormValues(size_t idx);
+    int substituteToNormValuesWithStorage(size_t idx);
+    int substituteToNormValuesWithMemory(size_t idx);
 
     void waitForTasks(const std::string& task_name, std::vector<std::future<int>>& futures);
 };

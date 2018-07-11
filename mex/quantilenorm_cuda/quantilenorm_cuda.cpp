@@ -33,7 +33,8 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
     try {
         spdlog::set_async_mode(4096, spdlog::async_overflow_policy::block_retry, nullptr, std::chrono::seconds(2));
         //spdlog::set_async_mode(4096, spdlog::async_overflow_policy::block_retry, nullptr);
-        spdlog::set_level(spdlog::level::trace);
+        spdlog::set_level(spdlog::level::info);
+        //spdlog::set_level(spdlog::level::trace);
         logger = spdlog::get("mex_logger");
         if (logger == nullptr) {
             logger = spdlog::basic_logger_mt("mex_logger", "logs/mex.log");
@@ -48,8 +49,10 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         logger->info("{:=>50}", " quantilenorm_cuda start");
 
         /* Check for proper number of input and output arguments */
-        if (nrhs != 3) {
-            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda:minrhs", "3 input arguments required.");
+        if (nrhs < 3) {
+            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda:minrhs", "at least 3 input arguments required.");
+        } else if (nrhs > 4) {
+            mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda:minrhs", "too many input arguments.");
         } 
         if (nlhs > 1) {
             mexErrMsgIdAndTxt( "MATLAB:quantilenorm_cuda:maxrhs", "Too many output arguments.");
@@ -64,6 +67,9 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         }
         if ( !mxIsCell(prhs[2])) {
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda:notCell", "3rd input arg must be type cell.");
+        }
+        if (nrhs == 4 && !mxIsLogical(prhs[3])) {
+            mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda:notLogical", "4th input arg must be type logical.");
         }
 
 
@@ -111,7 +117,12 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             use_hdf5 = true;
         }
 
-        QuantileNormImpl qn_impl(datadir, basename, fnames, image_width, image_height, num_slices, num_gpus, use_hdf5);
+        bool use_tmp_files = true;
+        if (nrhs == 4) {
+            use_tmp_files = mxIsLogicalScalarTrue(prhs[3]);
+        }
+
+        QuantileNormImpl qn_impl(datadir, basename, fnames, image_width, image_height, num_slices, num_gpus, use_hdf5, use_tmp_files);
 
         try {
             qn_impl.run();
@@ -121,19 +132,43 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_impl:unknownError", "internal unknown error occurred");
         }
 
-        std::vector<std::string> result = qn_impl.getResult();
 
-        plhs[0] = mxCreateCellMatrix(result.size() + 1, 1);
-        for (int i = 0; i < result.size(); i++) {
-            mxSetCell(plhs[0], i, mxCreateString(result[i].c_str()));
+        if (use_tmp_files) {
+            std::vector<std::string> result = qn_impl.getResult();
+
+            plhs[0] = mxCreateCellMatrix(result.size() + 1, 1);
+            for (int i = 0; i < result.size(); i++) {
+                mxSetCell(plhs[0], i, mxCreateString(result[i].c_str()));
+            }
+            mxArray *mx_image_size = mxCreateDoubleMatrix(1, 3, mxREAL);
+            mxSetCell(plhs[0], result.size(), mx_image_size);
+
+            double *image_size = mxGetPr(mx_image_size);
+            image_size[0] = static_cast<double>(image_height);
+            image_size[1] = static_cast<double>(image_width);
+            image_size[2] = static_cast<double>(num_slices);
+        } else {
+            std::vector<std::shared_ptr<std::vector<double>>> result = qn_impl.getNormResult();
+
+            plhs[0] = mxCreateCellMatrix(2, 1);
+
+            mxArray *mx_result_mat = mxCreateDoubleMatrix(result[0]->size(), result.size(), mxREAL);
+            mxSetCell(plhs[0], 0, mx_result_mat);
+            double *out_mat = mxGetPr(mx_result_mat);
+            for (int i = 0; i < result.size(); i++) {
+                std::shared_ptr<std::vector<double>> array = result[i];
+                std::copy(array->data(), array->data() + array->size(), out_mat);
+                out_mat += array->size();
+            }
+
+            mxArray *mx_image_size = mxCreateDoubleMatrix(1, 3, mxREAL);
+            mxSetCell(plhs[0], 1, mx_image_size);
+
+            double *image_size = mxGetPr(mx_image_size);
+            image_size[0] = static_cast<double>(image_height);
+            image_size[1] = static_cast<double>(image_width);
+            image_size[2] = static_cast<double>(num_slices);
         }
-        mxArray *mx_image_size = mxCreateDoubleMatrix(1, 3, mxREAL);
-        mxSetCell(plhs[0], result.size(), mx_image_size);
-
-        double *image_size = mxGetPr(mx_image_size);
-        image_size[0] = static_cast<double>(image_height);
-        image_size[1] = static_cast<double>(image_width);
-        image_size[2] = static_cast<double>(num_slices);
 
         cudautils::resetDevice();
 

@@ -1,5 +1,7 @@
 #include <sstream>
+#include <fstream>
 #include <iomanip>
+#include <utility>
 #include <exception>
 #include <chrono>
 #include <cassert>
@@ -25,7 +27,8 @@ QuantileNormImpl::QuantileNormImpl()
       num_slices_(0),
       num_gpus_(0),
       num_channels_(0),
-      use_hdf5_(false) {
+      use_hdf5_(false),
+      use_tmp_files_(true) {
     logger_ = spdlog::get("mex_logger");
 }
 
@@ -36,7 +39,8 @@ QuantileNormImpl::QuantileNormImpl(const std::string& datadir,
                                    const size_t image_height,
                                    const size_t num_slices,
                                    const size_t num_gpus,
-                                   const bool use_hdf5)
+                                   const bool use_hdf5,
+                                   const bool use_tmp_files)
     : datadir_(datadir),
       basename_(basename),
       in_fnames_(in_fnames),
@@ -45,7 +49,8 @@ QuantileNormImpl::QuantileNormImpl(const std::string& datadir,
       num_slices_(num_slices),
       num_gpus_(num_gpus),
       num_channels_(in_fnames.size()),
-      use_hdf5_(use_hdf5)
+      use_hdf5_(use_hdf5),
+      use_tmp_files_(use_tmp_files)
 {
     logger_ = spdlog::get("mex_logger");
 
@@ -59,7 +64,10 @@ QuantileNormImpl::run() {
 
     setupFileList();
 
-    if (filesExists(sorted_file1_list_)) {
+    listTmpDataBuffersKeys();
+    logger_->debug("[{}] {}", basename_, getStatMem());
+
+    if (allDataExist(sorted_file1_list_)) {
         logger_->info("[{}] already exists sorted files 1.", basename_);
     } else {
         mergeSort1();
@@ -69,15 +77,25 @@ QuantileNormImpl::run() {
         waitForTasks("mergesort1", mergesort1_futures_);
     }
 
+    listTmpDataBuffersKeys();
+    logger_->debug("[{}] {}", basename_, getStatMem());
+
     logger_->info("[{}] ##### sum", basename_);
-    if (oneFileExists(summed_file_)) {
+    if (oneDataExists(summed_file_)) {
         logger_->info("[{}] already exists summed files.", basename_);
     } else {
-        sumSortedFiles();
+        if (use_tmp_files_) {
+            sumSortedFiles();
+        } else {
+            sumSortedBuffers();
+        }
     }
 
+    listTmpDataBuffersKeys();
+    logger_->debug("[{}] {}", basename_, getStatMem());
+
     logger_->info("[{}] ##### substitute to normal values", basename_);
-    if (filesExists(substituted_file_list_)) {
+    if (allDataExist(substituted_file_list_)) {
         logger_->info("[{}] already exists substituted files.", basename_);
     } else {
         substituteValues();
@@ -86,12 +104,24 @@ QuantileNormImpl::run() {
 
 #ifndef DEBUG_FILEOUT
         std::string summed_filepath = datadir_ + "/" + summed_file_;
-        remove(summed_filepath.c_str());
+        if (use_tmp_files_) {
+            remove(summed_filepath.c_str());
+        } else {
+            std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+            //DEBUG
+            std::shared_ptr<std::vector<unsigned int>> summed_data = tmp_data_buffers_[summed_filepath];
+            logger_->debug("[{}] summed#={}", basename_, summed_data.use_count());
+
+            tmp_data_buffers_.erase(summed_filepath);
+        }
 #endif
     }
 
+    listTmpDataBuffersKeys();
+    logger_->debug("[{}] {}", basename_, getStatMem());
+
     logger_->info("[{}] ##### sort 2", basename_);
-    if (filesExists(sorted_file2_list_)) {
+    if (allDataExist(sorted_file2_list_)) {
         logger_->info("[{}] already exists sorted files 2.", basename_);
     } else {
         mergeSort2();
@@ -105,8 +135,19 @@ QuantileNormImpl::run() {
             std::string subst_filepath     = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
             std::string sort1_idx_filepath = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
 
-            remove(subst_filepath.c_str());
-            remove(sort1_idx_filepath.c_str());
+            if (use_tmp_files_) {
+                remove(subst_filepath.c_str());
+                remove(sort1_idx_filepath.c_str());
+            } else {
+                std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                //DEBUG
+                std::shared_ptr<std::vector<double>> subst_data = tmp_data_buffers_[subst_filepath];
+                std::shared_ptr<std::vector<unsigned int>> sort1_idx_data = tmp_data_buffers_[sort1_idx_filepath];
+                logger_->debug("[{}] subst#={},sort1_idx#={}", basename_, subst_data.use_count(), sort1_idx_data.use_count());
+
+                tmp_data_buffers_.erase(subst_filepath);
+                tmp_data_buffers_.erase(sort1_idx_filepath);
+            }
 
             logger_->debug("[{}] remove: ({}) subst filepath     = {}", basename_, i, subst_filepath);
             logger_->debug("[{}] remove: ({}) sort1 idx filepath = {}", basename_, i, sort1_idx_filepath);
@@ -115,7 +156,17 @@ QuantileNormImpl::run() {
         if (mergesort2_file_list_.empty()) {
             for (size_t i = 0; i < radixsort2_file_list_.size(); i++) {
                 std::string sort2_idx_filepath = datadir_ + "/idx_" + std::get<4>(radixsort2_file_list_[i]);
-                remove(sort2_idx_filepath.c_str());
+
+                if (use_tmp_files_) {
+                    remove(sort2_idx_filepath.c_str());
+                } else {
+                    std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                    //DEBUG
+                    std::shared_ptr<std::vector<unsigned int>> sort2_idx_data = tmp_data_buffers_[sort2_idx_filepath];
+                    logger_->debug("[{}] sort2_idx#={}", basename_, sort2_idx_data.use_count());
+
+                    tmp_data_buffers_.erase(sort2_idx_filepath);
+                }
 
                 logger_->debug("[{}] remove.1: ({}) sort2 idx filepath = {}", basename_, i, sort2_idx_filepath);
             }
@@ -124,7 +175,16 @@ QuantileNormImpl::run() {
             for (size_t i = size_per_channel - 1; i < mergesort2_file_list_.size(); i+=size_per_channel) {
                 std::string sort2_idx_filepath = datadir_ + "/" + mergesort2_file_list_[i][2];
 
-                remove(sort2_idx_filepath.c_str());
+                if (use_tmp_files_) {
+                    remove(sort2_idx_filepath.c_str());
+                } else {
+                    std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                    //DEBUG
+                    std::shared_ptr<std::vector<unsigned int>> sort2_idx_data = tmp_data_buffers_[sort2_idx_filepath];
+                    logger_->debug("[{}] sort2_idx#={}", basename_, sort2_idx_data.use_count());
+
+                    tmp_data_buffers_.erase(sort2_idx_filepath);
+                }
 
                 logger_->debug("[{}] remove.2: ({}) sort2 idx filepath = {}", basename_, i, sort2_idx_filepath);
             }
@@ -132,10 +192,25 @@ QuantileNormImpl::run() {
 #endif
     }
 
+    listTmpDataBuffersKeys();
+    logger_->debug("[{}] {}", getStatMem());
+
     logger_->info("[{}] ##### done", basename_);
 }
 
+std::vector<std::shared_ptr<std::vector<double>>>
+QuantileNormImpl::getNormResult() {
+    std::vector<std::shared_ptr<std::vector<double>>> result(sorted_file2_list_.size());
+    for (size_t i = 0; i < sorted_file2_list_.size(); i++) {
+        std::string out_filepath = datadir_ + "/" + sorted_file2_list_[i];
+        result[i] = tmp_data_buffers_[out_filepath];
+    }
 
+    return result;
+}
+
+
+// ========== protected member functions
 void
 QuantileNormImpl::setupFileList() {
     std::string sorted_file1_prefix     = basename_ + "_1_sort1_c";
@@ -305,30 +380,57 @@ QuantileNormImpl::makeMergeSortFileList(const std::string& file_prefix,
 }
 
 bool
-QuantileNormImpl::filesExists(const std::vector<std::string>& file_list) {
-    bool exists_files = true;
+QuantileNormImpl::allDataExist(const std::vector<std::string>& file_list) {
+    bool all_data_exist = true;
     for (auto filename : file_list) {
-        std::string filepath = datadir_ + "/" + filename;
-        std::ifstream fin(filepath, std::ios::in | std::ios::binary);
-        if (! fin.is_open()) {
-            exists_files = false;
+        if (! oneDataExists(filename)) {
+            all_data_exist = false;
             break;
         }
-        fin.close();
     }
 
-    return exists_files;
+    return all_data_exist;
 }
 
 bool
-QuantileNormImpl::oneFileExists(const std::string& filename) {
+QuantileNormImpl::oneDataExists(const std::string& filename) {
     std::string filepath = datadir_ + "/" + filename;
-    std::ifstream fin(filepath, std::ios::in | std::ios::binary);
-    bool exists_file = (fin.is_open());
-    fin.close();
 
-    return exists_file;
+    bool one_data_exists;
+    if (use_tmp_files_) {
+        std::ifstream fin(filepath, std::ios::in | std::ios::binary);
+        one_data_exists = (fin.is_open());
+        fin.close();
+    } else {
+        std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+        one_data_exists = (tmp_data_buffers_.find(filename) != tmp_data_buffers_.end());
+    }
+
+    return one_data_exists;
 }
+
+void
+QuantileNormImpl::listTmpDataBuffersKeys()
+{
+    logger_->debug("===== listTmpDataBuffersKeys start");
+    for (auto itr = tmp_data_buffers_.begin(); itr != tmp_data_buffers_.end(); itr++) {
+        logger_->debug("{}", itr->first);
+    }
+    logger_->debug("===== listTmpDataBuffersKeys end");
+}
+
+std::string
+QuantileNormImpl::getStatMem()
+{
+    std::string line;
+    std::ifstream fin("/proc/self/statm");
+    std::getline(fin, line);
+
+    line = "statm: " + line;
+
+    return line;
+}
+
 
 void
 QuantileNormImpl::radixSort1() {
@@ -410,7 +512,7 @@ QuantileNormImpl::radixSort1FromData() {
         std::shared_ptr<RadixSort1Info> info;
         bool has_data = radixsort1_queue_.pop(info);
         if (! has_data) {
-            logger_->info("[{}] radisSort1FromData: data end", basename_);
+            logger_->info("[{}] radixSort1FromData: data end", basename_);
             break;
         }
         logger_->info("[{}] radixSort1FromData: start {} ({})", basename_, info->out_filename, info->slice_start);
@@ -438,8 +540,13 @@ QuantileNormImpl::radixSort1FromData() {
 
             int ret;
             std::string out_idx_filename = "idx_" + info->out_filename;
-            ret = savefile(datadir_, out_idx_filename, idx);
-            ret = savefile(datadir_, info->out_filename, info->image);
+            if (use_tmp_files_) {
+                ret = saveDataToFile(datadir_, out_idx_filename, idx);
+                ret = saveDataToFile(datadir_, info->out_filename, info->image);
+            } else {
+                ret = saveDataToBuffer(datadir_, out_idx_filename, idx);
+                ret = saveDataToBuffer(datadir_, info->out_filename, info->image);
+            }
 
         } catch (std::exception& ex) {
             logger_->error("[{}] end - {}", basename_, ex.what());
@@ -530,6 +637,34 @@ QuantileNormImpl::radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> imag
 
 void
 QuantileNormImpl::radixSort2() {
+#if 0
+    if (! use_tmp_files_) {
+        for (size_t j = 0; j < num_channels_; j++) {
+            std::string in_subst_filepath;
+            std::string in_idx_filepath;
+            for (size_t i = j; i < radixsort2_file_list_.size(); i += num_channels_) {
+                size_t num_data_start = std::get<0>(radixsort2_file_list_[i]);
+                size_t data_size      = std::get<1>(radixsort2_file_list_[i]);
+
+                in_subst_filepath = datadir_ + "/" + std::get<2>(radixsort2_file_list_[i]);
+                in_idx_filepath   = datadir_ + "/" + std::get<3>(radixsort2_file_list_[i]);
+
+                std::shared_ptr<std::vector<double>> data;
+                std::shared_ptr<std::vector<unsigned int>> index;
+                data  = loadDataFromBuffer<double>(in_subst_filepath, num_data_start, data_size);
+                index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
+
+                tmp_data_buffers_.insert(std::make_pair(in_subst_filepath + "." + std::to_string(i), TmpDataBuffer(data)));
+                tmp_data_buffers_.insert(std::make_pair(in_idx_filepath + "." + std::to_string(i), TmpDataBuffer(index)));
+            }
+            tmp_data_buffers_.erase(in_subst_filepath);
+            tmp_data_buffers_.erase(in_idx_filepath);
+        }
+    }
+    listTmpDataBuffersKeys();
+    logger_->debug("[{}] after dividing subst data {}", basename_, getStatMem());
+#endif
+
 #ifdef DEBUG_NO_THREADING
     std::launch policy = std::launch::deferred;
 #else
@@ -565,8 +700,35 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         selectCore(0);
         std::shared_ptr<std::vector<double>> data;
         std::shared_ptr<std::vector<unsigned int>> index;
-        data  = loadfile<double>(in_subst_filepath, num_data_start, data_size);
-        index = loadfile<unsigned int>(in_idx_filepath, num_data_start, data_size);
+        if (use_tmp_files_) {
+            data  = loadDataFromFile<double>(in_subst_filepath, num_data_start, data_size);
+            index = loadDataFromFile<unsigned int>(in_idx_filepath, num_data_start, data_size);
+        } else {
+#if 0
+            in_subst_filepath = in_subst_filepath + "." + std::to_string(idx_radixsort);
+            in_idx_filepath = in_idx_filepath + "." + std::to_string(idx_radixsort);
+
+            std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+            auto find_itr = tmp_data_buffers_.find(in_subst_filepath);
+
+            if (find_itr == tmp_data_buffers_.end()) {
+                logger_->error("[{}] not exist in_subst_filepath, {}", basename_, in_subst_filepath);
+                return -1;
+            }
+            data = find_itr->second;
+
+            auto find_idx_itr = tmp_data_buffers_.find(in_idx_filepath);
+
+            if (find_idx_itr == tmp_data_buffers_.end()) {
+                logger_->error("[{}] not exist in_idx_filepath, {}", basename_, in_idx_filepath);
+                return -1;
+            }
+            index = find_idx_itr->second;
+#endif
+
+            data  = loadDataFromBuffer<double>(in_subst_filepath, num_data_start, data_size);
+            index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
+        }
         if (data == nullptr) {
             logger_->debug("[{}] radixSort2FromData: ({}) failed to load data file", basename_, idx_radixsort);
             return -1;
@@ -575,6 +737,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
             logger_->debug("[{}] radixSort2FromData: ({}) failed to load index file", basename_, idx_radixsort);
             return -1;
         }
+        logger_->debug("[{}] radixSort2FromData: after loadin data {}", basename_, getStatMem());
 
         int ret;
         auto interval_sec = std::chrono::seconds(1);
@@ -622,32 +785,38 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         }
 
         std::string out_idx_file = "idx_" + out_file;
-        ret = savefile(datadir_, out_idx_file, index);
-        ret = savefile(datadir_, out_file, data);
+        if (use_tmp_files_) {
+            ret = saveDataToFile(datadir_, out_idx_file, index);
+            ret = saveDataToFile(datadir_, out_file, data);
+        } else {
+            ret = saveDataToBuffer(datadir_, out_idx_file, index);
+            ret = saveDataToBuffer(datadir_, out_file, data);
+        }
 
         unselectCore(0);
+        logger_->debug("[{}] radixSort2FromData: before return {}", basename_, getStatMem());
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
         return ret;
     } catch (std::exception& ex) {
-            logger_->error("[{}] end - {}", basename_, ex.what());
-            if (idx_gpu != -1) {
-                unselectGPU(idx_gpu);
-            }
-            return -1;
+        logger_->error("[{}] end - {}", basename_, ex.what());
+        if (idx_gpu != -1) {
+            unselectGPU(idx_gpu);
+        }
+        return -1;
     } catch (...) {
-            logger_->error("[{}] end - unknown error..", basename_);
-            if (idx_gpu != -1) {
-                unselectGPU(idx_gpu);
-            }
-            return -1;
+        logger_->error("[{}] end - unknown error..", basename_);
+        if (idx_gpu != -1) {
+            unselectGPU(idx_gpu);
+        }
+        return -1;
     }
 
     return 0;
 }
 
-template<typename T>
+template <typename T>
 int
-QuantileNormImpl::savefile(const std::string& datadir, const std::string& out_filename, const std::shared_ptr<std::vector<T>> data) {
+QuantileNormImpl::saveDataToFile(const std::string& datadir, const std::string& out_filename, const std::shared_ptr<std::vector<T>> data) {
     std::string tmp_out_filepath = datadir + "/.tmp." + out_filename;
     std::ofstream fout(tmp_out_filepath, std::ios::out | std::ios::binary);
     if (! fout.is_open()) {
@@ -676,9 +845,21 @@ QuantileNormImpl::savefile(const std::string& datadir, const std::string& out_fi
     return 0;
 }
 
-template<typename T>
+template <typename T>
+int
+QuantileNormImpl::saveDataToBuffer(const std::string& datadir, const std::string& out_filename, const std::shared_ptr<std::vector<T>> data) {
+
+    std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+
+    std::string out_filepath = datadir + "/" + out_filename;
+    tmp_data_buffers_.insert(std::make_pair(out_filepath, TmpDataBuffer(data)));
+
+    return 0;
+}
+
+template <typename T>
 std::shared_ptr<std::vector<T>>
-QuantileNormImpl::loadfile(const std::string& in_filepath, const size_t num_data_start, const size_t data_size) {
+QuantileNormImpl::loadDataFromFile(const std::string& in_filepath, const size_t num_data_start, const size_t data_size) {
     utils::FileBufferReader<T> fb_reader(in_filepath, FILEREAD_BUFSIZE);
     try {
         fb_reader.open();
@@ -693,6 +874,27 @@ QuantileNormImpl::loadfile(const std::string& in_filepath, const size_t num_data
     fb_reader.close();
 
     return data;
+}
+
+template <typename T>
+std::shared_ptr<std::vector<T>>
+QuantileNormImpl::loadDataFromBuffer(const std::string& in_filepath, const size_t num_data_start, const size_t data_size) {
+
+    std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+
+    auto find_itr = tmp_data_buffers_.find(in_filepath);
+
+    if (find_itr == tmp_data_buffers_.end()) {
+        logger_->error("[{}] in loadfile, {}", basename_, in_filepath);
+        return nullptr;
+    }
+
+    std::shared_ptr<std::vector<T>> data = find_itr->second;
+    std::shared_ptr<std::vector<T>> partial_data(new std::vector<T>(data_size));
+
+    std::copy(&(*data)[num_data_start], &(*data)[num_data_start] + data_size, partial_data->data());
+
+    return partial_data;
 }
 
 int
@@ -815,7 +1017,11 @@ QuantileNormImpl::mergeSort1() {
 #endif
 
     for (size_t i = 0; i < mergesort1_file_list_.size(); i++) {
-        mergesort1_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<uint16_t, unsigned int>, this, i, mergesort1_file_list_));
+        if (use_tmp_files_) {
+            mergesort1_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<uint16_t, unsigned int>, this, i, mergesort1_file_list_));
+        } else {
+            mergesort1_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoBuffers<uint16_t, unsigned int>, this, i, mergesort1_file_list_));
+        }
     }
 }
 
@@ -828,7 +1034,11 @@ QuantileNormImpl::mergeSort2() {
 #endif
 
     for (size_t i = 0; i < mergesort2_file_list_.size(); i++) {
-        mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, double>, this, i, mergesort2_file_list_));
+        if (use_tmp_files_) {
+            mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoFiles<unsigned int, double>, this, i, mergesort2_file_list_));
+        } else {
+            mergesort2_futures_.push_back(std::async(policy, &QuantileNormImpl::mergeSortTwoBuffers<unsigned int, double>, this, i, mergesort2_file_list_));
+        }
     }
 }
 
@@ -974,19 +1184,181 @@ QuantileNormImpl::mergeSortTwoFiles(const size_t idx, const std::vector<std::vec
         remove(in1_dep_filepath.c_str());
         remove(in2_dep_filepath.c_str());
     } catch (std::exception& ex) {
-            logger_->error("[{}] mergeSortTwoFiles: ({}) {}", basename_, idx, ex.what());
-            return -1;
+        logger_->error("[{}] mergeSortTwoFiles: ({}) {}", basename_, idx, ex.what());
+        return -1;
     } catch (...) {
-            logger_->error("[{}] mergeSortTwoFiles: ({}) unknown error..", basename_, idx);
-            return -1;
+        logger_->error("[{}] mergeSortTwoFiles: ({}) unknown error..", basename_, idx);
+        return -1;
     }
 
     logger_->trace("[{}] mergeSortTwoFiles: end   ({})", basename_, idx);
     return 0;
 }
 
+template <typename T1, typename T2>
+int
+QuantileNormImpl::mergeSortTwoBuffers(const size_t idx, const std::vector<std::vector<std::string>>& mergesort_file_list) {
+    logger_->trace("[{}] mergeSortTwoBuffers: start ({})", basename_, idx);
+    try {
+        const std::string in1_filename = mergesort_file_list[idx][0];
+        const std::string in2_filename = mergesort_file_list[idx][1];
+        const std::string out_filename = mergesort_file_list[idx][2];
+
+        const std::string in1_dep_filename = mergesort_file_list[idx][3];
+        const std::string in2_dep_filename = mergesort_file_list[idx][4];
+        const std::string out_dep_filename = mergesort_file_list[idx][5];
+
+        std::string in1_filepath = datadir_ + "/" + in1_filename;
+        std::string in2_filepath = datadir_ + "/" + in2_filename;
+
+        std::string in1_dep_filepath = datadir_ + "/" + in1_dep_filename;
+        std::string in2_dep_filepath = datadir_ + "/" + in2_dep_filename;
+
+
+        std::shared_ptr<std::vector<T1>> in1_data;
+        std::shared_ptr<std::vector<T1>> in2_data;
+        std::shared_ptr<std::vector<T2>> in1_dep_data;
+        std::shared_ptr<std::vector<T2>> in2_dep_data;
+
+        bool in1_exists = false;
+        bool in2_exists = false;
+        bool in1_dep_exists = false;
+        bool in2_dep_exists = false;
+        while (! in1_exists || ! in2_exists || ! in1_dep_exists || ! in2_dep_exists) {
+            if (!in1_exists) {
+                std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                auto find_itr = tmp_data_buffers_.find(in1_filepath);
+                if (find_itr != tmp_data_buffers_.end()) {
+                    in1_exists = true;
+                    in1_data = find_itr->second;
+                }
+            }
+            if (!in2_exists) {
+                std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                auto find_itr = tmp_data_buffers_.find(in2_filepath);
+                if (find_itr != tmp_data_buffers_.end()) {
+                    in2_exists = true;
+                    in2_data = find_itr->second;
+                }
+            }
+            if (!in1_dep_exists) {
+                std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                auto find_itr = tmp_data_buffers_.find(in1_dep_filepath);
+                if (find_itr != tmp_data_buffers_.end()) {
+                    in1_dep_exists = true;
+                    in1_dep_data = find_itr->second;
+                }
+            }
+            if (!in2_dep_exists) {
+                std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+                auto find_itr = tmp_data_buffers_.find(in2_dep_filepath);
+                if (find_itr != tmp_data_buffers_.end()) {
+                    in2_dep_exists = true;
+                    in2_dep_data = find_itr->second;
+                }
+            }
+
+            std::this_thread::sleep_for(utils::FILECHECK_INTERVAL_SEC);
+        }
+
+        if (in1_data->size() != in1_dep_data->size()) {
+            logger_->error("[{}] mergeSortTwoBuffers: in1 arrays have different size. {}", in1_filepath);
+            return -1;
+        }
+        if (in2_data->size() != in2_dep_data->size()) {
+            logger_->error("[{}] mergeSortTwoBuffers: in2 arrays have different size. {}", in2_filepath);
+            return -1;
+        }
+
+        size_t out_data_size = in1_data->size() + in2_data->size();
+        std::shared_ptr<std::vector<T1>> out_data     = std::make_shared<std::vector<T1>>(out_data_size);
+        std::shared_ptr<std::vector<T2>> out_dep_data = std::make_shared<std::vector<T2>>(out_data_size);
+
+        size_t in1_idx = 0;
+        size_t in2_idx = 0;
+        size_t out_idx = 0;
+        while (in1_idx < in1_data->size() && in2_idx < in2_data->size()) {
+            const T1 val1 = (*in1_data)[in1_idx];
+            const T1 val2 = (*in2_data)[in2_idx];
+            if (val1 <= val2) {
+//                logger_->debug("[{}] {} (val1, val2): {} <= {}", basename_, out_idx, val1, val2);
+                (*out_data)[out_idx] = val1;
+
+                const T2 dep_val1 = (*in1_dep_data)[in1_idx];
+                (*out_dep_data)[out_idx] = dep_val1;
+                in1_idx++;
+            } else {
+//                logger_->debug("[{}] {} (val1, val2): {} >  {}", basename_, out_idx, val1, val2);
+                (*out_data)[out_idx] = val2;
+
+                const T2 dep_val2 = (*in2_dep_data)[in2_idx];
+                (*out_dep_data)[out_idx] = dep_val2;
+                in2_idx++;
+            }
+            out_idx++;
+        }
+//        logger_->debug("1. total bytes");
+//        logger_->debug("in1 = {}, in2 = {}, out = {}",
+//            in1_fb_reader.getTotalReadBytes(), in2_fb_reader.getTotalReadBytes(),
+//            out_fb_writer.getTotalWriteBytes());
+//        logger_->debug("in1_dep = {}, in2_dep = {}, out_dep = {}",
+//            in1_dep_fb_reader.getTotalReadBytes(), in2_dep_fb_reader.getTotalReadBytes(),
+//            out_dep_fb_writer.getTotalWriteBytes());
+
+        if (in1_idx < in1_data->size()) {
+            std::copy(&(*in1_data)[in1_idx], in1_data->data() + in1_data->size(), &(*out_data)[out_idx]);
+            std::copy(&(*in1_dep_data)[in1_idx], in1_dep_data->data() + in1_dep_data->size(), &(*out_dep_data)[out_idx]);
+        }
+        if (in2_idx < in2_dep_data->size()) {
+            std::copy(&(*in2_data)[in2_idx], in2_data->data() + in2_data->size(), &(*out_data)[out_idx]);
+            std::copy(&(*in2_dep_data)[in2_idx], in2_dep_data->data() + in2_dep_data->size(), &(*out_dep_data)[out_idx]);
+        }
+
+//        logger_->debug("2. total bytes");
+//        logger_->debug("in1 = {}, in2 = {}, out = {}",
+//            in1_fb_reader.getTotalReadBytes(), in2_fb_reader.getTotalReadBytes(),
+//            out_fb_writer.getTotalWriteBytes());
+//        logger_->debug("in1_dep = {}, in2_dep = {}, out_dep = {}",
+//            in1_dep_fb_reader.getTotalReadBytes(), in2_dep_fb_reader.getTotalReadBytes(),
+//            out_dep_fb_writer.getTotalWriteBytes());
+
+        std::string out_filepath     = datadir_ + "/" + out_filename;
+        std::string out_dep_filepath = datadir_ + "/" + out_dep_filename;
+
+        listTmpDataBuffersKeys();
+        logger_->debug("[{}] mergesort - before erase {}", basename_, getStatMem());
+        {
+            std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+            //DEBUG
+            logger_->debug("[{}] in1#={}, in2#={}, in1_dep#={}, in2_dep={}", basename_,
+                    in1_data.use_count(), in2_data.use_count(), in1_dep_data.use_count(), in2_dep_data.use_count());
+
+            tmp_data_buffers_.erase(in1_filepath);
+            tmp_data_buffers_.erase(in2_filepath);
+            tmp_data_buffers_.erase(in1_dep_filepath);
+            tmp_data_buffers_.erase(in2_dep_filepath);
+
+            tmp_data_buffers_.insert(std::make_pair(out_filepath, TmpDataBuffer(out_data)));
+            tmp_data_buffers_.insert(std::make_pair(out_dep_filepath, TmpDataBuffer(out_dep_data)));
+
+        }
+        listTmpDataBuffersKeys();
+        logger_->debug("[{}] mergesort - after erase {}", basename_, getStatMem());
+
+    } catch (std::exception& ex) {
+        logger_->error("[{}] mergeSortTwoBuffers: ({}) {}", basename_, idx, ex.what());
+        return -1;
+    } catch (...) {
+        logger_->error("[{}] mergeSortTwoBuffers: ({}) unknown error..", basename_, idx);
+        return -1;
+    }
+
+    logger_->trace("[{}] mergeSortTwoBuffers: end   ({})", basename_, idx);
+    return 0;
+}
+
 void
-QuantileNormImpl::sumSortedFiles(){
+QuantileNormImpl::sumSortedFiles() {
     logger_->info("[{}] sumSortedFiles: start {}", basename_, summed_file_);
 
     std::string tmp_summed_filepath = datadir_ + "/.tmp." + summed_file_;
@@ -1055,6 +1427,49 @@ QuantileNormImpl::sumSortedFiles(){
 }
 
 void
+QuantileNormImpl::sumSortedBuffers() {
+    logger_->info("[{}] sumSortedBuffers: start {}", basename_, summed_file_);
+    // only one thread treats tmp_data_buffers_
+
+    std::shared_ptr<std::vector<uint16_t>> in_data[num_channels_];
+    for (size_t i = 0; i < sorted_file1_list_.size(); i++) {
+        std::string in_filepath = datadir_ + "/" + sorted_file1_list_[i];
+
+        auto in_find_itr = tmp_data_buffers_.find(in_filepath);
+        if (in_find_itr == tmp_data_buffers_.end()) {
+            logger_->error("[{}] in sumSortedBuffers,", basename_);
+            logger_->error("[{}] {} not exist in tmp_data_buffers_", basename_, in_filepath);
+            throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:failGet", in_filepath + " not exist in tmp_data_buffers_");
+        }
+
+        in_data[i] = in_find_itr->second;
+
+        if (i > 0 && (in_data[0]->size() != in_data[i]->size())) {
+            logger_->error("[{}] in sumSortedBuffers,", basename_);
+            logger_->error("[{}] {} size is wrong", basename_, in_filepath);
+            throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:wrongSize", in_filepath + " size is wrong");
+        }
+    }
+
+    std::shared_ptr<std::vector<unsigned int>> out_data = std::make_shared<std::vector<unsigned int>>(in_data[0]->size());
+
+//    int count = 0;
+    for (size_t j = 0; j < in_data[0]->size(); j++) {
+        unsigned int sum = 0;
+        for (size_t i = 0; i < sorted_file1_list_.size(); i++) {
+            sum += (*in_data[i])[j];
+        }
+//        logger_->debug("[{}] [{}] sum = {}", basename_, count, sum);
+        (*out_data)[j] = sum;
+    }
+
+    std::string summed_filepath = datadir_ + "/" + summed_file_;
+    tmp_data_buffers_.insert(std::make_pair(summed_filepath, TmpDataBuffer(out_data)));
+
+    logger_->info("[{}] sumSortedBuffers: end   {}", basename_, summed_file_);
+}
+
+void
 QuantileNormImpl::substituteValues() {
 #ifdef DEBUG_NO_THREADING
     std::launch policy = std::launch::deferred;
@@ -1063,13 +1478,17 @@ QuantileNormImpl::substituteValues() {
 #endif
 
     for (size_t i = 0; i < substituted_file_list_.size(); i++) {
-        substitute_values_futures_.push_back(std::async(policy, &QuantileNormImpl::substituteToNormValues, this, i));
+        if (use_tmp_files_) {
+            substitute_values_futures_.push_back(std::async(policy, &QuantileNormImpl::substituteToNormValuesWithStorage, this, i));
+        } else {
+            substitute_values_futures_.push_back(std::async(policy, &QuantileNormImpl::substituteToNormValuesWithMemory, this, i));
+        }
     }
 }
 
 int
-QuantileNormImpl::substituteToNormValues(const size_t idx) {
-    logger_->info("[{}] substituteToNormValues: start {} {}", basename_, idx, substituted_file_list_[idx]);
+QuantileNormImpl::substituteToNormValuesWithStorage(const size_t idx) {
+    logger_->info("[{}] substituteToNormValuesWithStorage: start {} {}", basename_, idx, substituted_file_list_[idx]);
 
     //TODO: at first copy summed file to tmp subst file, then substitute the same values to mean value.
     std::string summed_filepath = datadir_ + "/" + summed_file_;
@@ -1084,7 +1503,7 @@ QuantileNormImpl::substituteToNormValues(const size_t idx) {
         sorted_fb_reader.open();
         subst_fb_writer.open();
     } catch (std::runtime_error& ex) {
-        logger_->error("[{}] in substituteToNormValues,", basename_);
+        logger_->error("[{}] in substituteToNormValuesWithStorage,", basename_);
         logger_->error("[{}] {}", basename_, ex.what());
         return -1;
     }
@@ -1167,7 +1586,114 @@ QuantileNormImpl::substituteToNormValues(const size_t idx) {
     remove(sorted_filepath.c_str());
 #endif
 
-    logger_->info("[{}] substituteToNormValues: end   {} {}", basename_, idx, substituted_file_list_[idx]);
+    logger_->info("[{}] substituteToNormValuesWithStorage: end   {} {}", basename_, idx, substituted_file_list_[idx]);
+    return 0;
+}
+
+int
+QuantileNormImpl::substituteToNormValuesWithMemory(const size_t idx) {
+    logger_->info("[{}] substituteToNormValuesWithMemory: start {} {}", basename_, idx, substituted_file_list_[idx]);
+
+    std::string summed_filepath = datadir_ + "/" + summed_file_;
+    std::string sorted_filepath = datadir_ + "/" + sorted_file1_list_[idx];
+
+    std::shared_ptr<std::vector<unsigned int>> summed_data;
+    std::shared_ptr<std::vector<uint16_t>> sorted_data;
+    {
+        std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+        auto find_summed_itr = tmp_data_buffers_.find(summed_filepath);
+        if (find_summed_itr == tmp_data_buffers_.end()) {
+            logger_->error("[{}] in substituteToNormValuesWithMemory,", basename_);
+            logger_->error("[{}] no summed data", basename_);
+            return -1;
+        }
+        summed_data = find_summed_itr->second;
+
+        auto find_sorted_itr = tmp_data_buffers_.find(sorted_filepath);
+        if (find_sorted_itr == tmp_data_buffers_.end()) {
+            logger_->error("[{}] in substituteToNormValuesWithMemory,", basename_);
+            logger_->error("[{}] no sorted data", basename_);
+            return -1;
+        }
+        sorted_data = find_sorted_itr->second;
+    }
+
+    if (summed_data->size() != sorted_data->size()) {
+        logger_->error("[{}] in substituteToNormValuesWithMemory,", basename_);
+        logger_->error("[{}] summed data and sorted data are different size", basename_);
+        return -1;
+    }
+
+    std::shared_ptr<std::vector<double>> subst_data = std::make_shared<std::vector<double>>(summed_data->size());
+
+
+    double num_channels = (double)num_channels_;
+    std::vector<unsigned int> vals_for_mean;
+    size_t in_idx = 0;
+    size_t out_idx = 0;
+    unsigned int cur_summed_val = (*summed_data)[in_idx];
+    uint16_t     cur_sorted_val = (*sorted_data)[in_idx];
+    in_idx++;
+
+    unsigned int nxt_summed_val;
+    uint16_t     nxt_sorted_val;
+    bool loop_continued = true;
+    int count = 1;
+    while (loop_continued) {
+        if (in_idx == summed_data->size()) {
+            loop_continued = false;
+            nxt_sorted_val = cur_sorted_val + 1;
+            // for process a value at the last position
+        } else {
+            nxt_summed_val = (*summed_data)[in_idx];
+            nxt_sorted_val = (*sorted_data)[in_idx];
+            in_idx++;
+        }
+
+        if (cur_sorted_val != nxt_sorted_val) {
+            if (vals_for_mean.empty()) {
+                double mean_val = (double)cur_summed_val / num_channels;
+                (*subst_data)[out_idx++] = mean_val;
+            } else {
+                vals_for_mean.push_back(cur_summed_val);
+
+                size_t mid_i = vals_for_mean.size() / 2;
+                double mean_val = 0.0;
+                if (vals_for_mean.size() % 2 == 0) {
+                    mean_val = (double)(vals_for_mean[mid_i] + vals_for_mean[mid_i-1]) * 0.5 / num_channels;
+                } else {
+                    mean_val = (double)vals_for_mean[mid_i] / num_channels;
+                }
+
+                for (size_t i = 0; i < vals_for_mean.size(); i++) {
+                    (*subst_data)[out_idx++] = mean_val;
+                }
+
+                vals_for_mean.clear();
+            }
+        } else {
+             vals_for_mean.push_back(cur_summed_val);
+        }
+        count++;
+
+        cur_summed_val = nxt_summed_val;
+        cur_sorted_val = nxt_sorted_val;
+    }
+
+    std::string subst_filepath = datadir_ + "/" + substituted_file_list_[idx];
+    {
+        std::lock_guard<std::mutex> lock(tmp_data_mutex_);
+#ifndef DEBUG_FILEOUT
+        //DEBUG
+        logger_->debug("[{}] sort#={}", basename_, sorted_data.use_count());
+
+        tmp_data_buffers_.erase(sorted_filepath);
+#endif
+
+        tmp_data_buffers_.insert(std::make_pair(subst_filepath, TmpDataBuffer(subst_data)));
+    }
+
+    logger_->info("[{}] substituteToNormValuesWithMemory: end   {} {}", basename_, idx, substituted_file_list_[idx]);
     return 0;
 }
 
@@ -1178,7 +1704,7 @@ QuantileNormImpl::waitForTasks(const std::string& task_name, std::vector<std::fu
         int ret = futures[i].get();
         if (ret == -1) {
             logger_->error("[{}] {} [{}] failed - {}", basename_, task_name, i, ret);
-            throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:failTasks", task_name + " failed.");
+            throw ExceptionToMATLAB("MATLAB:quantilenorm_impl:failTasks - ", task_name + " failed.");
         }
     }
     logger_->info("[{}] {} done", basename_, task_name);
