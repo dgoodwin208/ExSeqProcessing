@@ -745,29 +745,6 @@ stage_idx=$(( $stage_idx + 1 ))
 
 
 
-if [ "${PERF_PROFILE}" = "true" ]; then
-    echo "========================================================================="
-    echo "summarize performance profile logs"; date
-    echo
-
-    pushd ${LOG_DIR}
-    kill ${PID_PERF_PROFILE}
-
-    ../tests/perf-profile/summary-matlab-proc-in-top-log.py top-*.log | tee summary-top.txt
-    ../tests/perf-profile/summary-nfsiostat-log.py nfsiostat-*.log > summary-nfsiostat.csv
-    ../tests/perf-profile/summary-iostat-log.py    iostat-*.log    > summary-iostat.csv
-    ../tests/perf-profile/summary-vmstat-log.py    vmstat-*.log    > summary-vmstat.csv
-    ../tests/perf-profile/summary-gpu-log.py       gpu-*.log       > summary-gpu.csv
-
-    cp -af ../tests/perf-profile/perf-measurement-template.ipynb perf-measurement.ipynb
-    echo "run a command below"
-    echo "jupyter nbconvert --to notebook --inplace --execute perf-measurement.ipynb"
-    echo
-    echo "CAUTION! you might have to change nvme device name in perf-measurement.ipynb manually if errors"
-
-    popd
-fi
-
 echo "========================================================================="
 echo "pipeline finished"; date
 echo
