@@ -45,16 +45,14 @@ end
 map = int8(map);
 
 %fprintf('Save map with %d real keypoints\n', N);
-%f = fopen('map_kypts.bin', 'w');
+%f = fopen('map_2kypts.bin', 'w');
 %fwrite(f, map);
 %fclose(f);
 
 %fprintf('Save img \n');
-%f = fopen('img_kypts.bin', 'w');
+%f = fopen('img_2kypts.bin', 'w');
 %fwrite(f, img);
 %fclose(f);
-
-%clear sift_params.MagFactor
 
 keys = sift_cuda(img, map, sift_params);
 

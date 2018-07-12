@@ -15,6 +15,7 @@
 
 #include <fstream>
 #include <vector>
+#include <iterator>
 
 #include "sift.h"
 #include "mexutil.h"
@@ -25,7 +26,9 @@
 
 #include "spdlog/spdlog.h"
 #include "stdlib.h"
+#include <algorithm>
 
+#define FV_CENTERS_LEN 240
 
 int main(int argc, char* argv[]) {
 
@@ -54,10 +57,9 @@ int main(int argc, char* argv[]) {
 
         /*std::string in_image_filename1(argv[1]);*/
         /*std::string in_map_filename2  (argv[2]);*/
-        /*std::string out_interp_image_filename(argv[3]);*/
-        std::string in_image_filename1("image.bin");
-        std::string in_map_filename2  ("map_kypts.bin");
-        std::string out_interp_image_filename("output.bin");
+        /*std::string in_image_filename1("img_2kypts.bin");*/
+        std::string in_image_filename1("image_ones.bin");
+        std::string in_map_filename2  ("map_2kypts.bin");
         unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
         /*x_size = atoi(argv[4]);*/
         /*y_size = atoi(argv[5]);*/
@@ -88,10 +90,16 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        std::vector<double> in_image(x_size * y_size * z_size);
-        std::vector<int8_t> in_map  (x_size * y_size * z_size);
-        fin1.read((char*)in_image.data(), x_size * y_size * z_size * sizeof(double));
-        fin2.read((char*)in_map  .data(), x_size * y_size * z_size * sizeof(int8_t));
+        long image_size = x_size * y_size * z_size;
+        std::vector<double> in_image(image_size);
+        /*std::fill_n(in_image.begin(), image_size, 1.0);*/
+        for (int i=0; i < image_size; i++) {
+            in_image[i] = rand() % 100 + 1.0;
+        }
+
+        std::vector<int8_t> in_map  (image_size);
+        /*fin1.read((char*)in_image.data(), x_size * y_size * z_size * sizeof(double));*/
+        fin2.read((char*)in_map  .data(), image_size * sizeof(int8_t));
         fin1.close();
         fin2.close();
 
@@ -114,7 +122,7 @@ int main(int argc, char* argv[]) {
         sift_params.image_size0 = x_size;
         sift_params.image_size1 = y_size;
         sift_params.image_size2 = z_size;
-        sift_params.fv_centers_len = 80 * 3;
+        sift_params.fv_centers_len = FV_CENTERS_LEN;
         sift_params.IndexSize = 2;
         sift_params.nFaces = 80;
         sift_params.IndexSigma = 5.0;
@@ -130,11 +138,13 @@ int main(int argc, char* argv[]) {
         sift_params.keypoint_num = 100000; // max expected keypoints
         sift_params.descriptor_len = sift_params.IndexSize *
             sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
-        sift_params.fv_centers = (double*) malloc(sizeof(double) * sift_params.fv_centers_len);
-        for (int i=0; i < sift_params.fv_centers_len; i++) {
-            sift_params.fv_centers[i] = (double) rand() / 100000000;
-            /*printf("%f\n", sift_params.fv_centers[i]);*/
+
+        // set fv_centers
+        double* fv_centers = (double*) malloc(sizeof(double) * FV_CENTERS_LEN);
+        for (int i=0; i < FV_CENTERS_LEN; i++) {
+            fv_centers[i] = (double) rand() / 100000000;
         }
+        fv_centers[0] = 0.0;
 
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
@@ -145,7 +155,7 @@ int main(int argc, char* argv[]) {
             std::shared_ptr<cudautils::Sift> ni =
                 std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
                         x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
-                        num_streams, sift_params);
+                        num_streams, sift_params, fv_centers);
 
             cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 
@@ -171,16 +181,6 @@ int main(int argc, char* argv[]) {
             /*logger->info("getImage start");*/
             /*ni->getImage(out_interp_image);*/
             /*logger->info("getImage end");*/
-
-            /*logger->info("saveImage start");*/
-            /*std::ofstream fout(out_interp_image_filename, std::ios::binary);*/
-            /*fout.write((char*)&x_size, sizeof(unsigned int));*/
-            /*fout.write((char*)&y_size, sizeof(unsigned int));*/
-            /*fout.write((char*)&z_size, sizeof(unsigned int));*/
-
-            /*fout.write((char*)out_interp_image.data(), x_size * y_size * z_size * sizeof(double));*/
-            /*fout.close();*/
-            /*logger->info("saveImage end");*/
 
         } catch (...) {
             logger->error("internal unknown error occurred");

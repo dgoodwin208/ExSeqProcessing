@@ -32,14 +32,14 @@ struct isnan_test {
 // sift_params.IndexSize ^ 3 * sift_params.nFaces
 // this is why i, j, and k are dimensions of stride sift_params.IndexSize
 __device__
-int bin_sub2ind(int i, int j, int k, int l, cudautils::SiftParams sift_params) {
+int bin_sub2ind(int i, int j, int k, int l, const cudautils::SiftParams sift_params) {
     return l + sift_params.nFaces * (k + j * pow(sift_params.IndexSize, 1) + i
             * pow(sift_params.IndexSize, 2));
 }
 
 __device__
 void place_in_index(double* index, double mag, int i, int j, int k, 
-        double* yy, int* ix, cudautils::SiftParams sift_params) {
+        double* yy, int* ix, const cudautils::SiftParams sift_params) {
 
     double tmpsum = 0.0;
     int bin_index;
@@ -85,18 +85,15 @@ double dot_product(double* first, double* second, int N) {
 __device__
 double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
         x_stride, unsigned int y_stride, double vect[3], double* yy, int* ix,
-        cudautils::SiftParams sift_params, double* device_centers) {
+        const cudautils::SiftParams sift_params, double* device_centers) {
 
     double xgrad = image[idx + x_stride] - image[idx - x_stride];
     //FIXME is this correct direction?
     double ygrad = image[idx - 1] - image[idx + 1];
     double zgrad = image[idx + x_stride * y_stride] - image[idx - x_stride * y_stride];
 
+    printf("get_grad_ori_vector image[idx -1] %f image[idx+1] %f\n", image[idx - 1], image[idx + 1]);
     printf("XXX\txgrad %f y %f z %f\n", xgrad, ygrad, zgrad);
-
-    /*double xgrad = 0.0;*/
-    /*double ygrad = 0.0;*/
-    /*double zgrad = 0.0;*/
 
     double mag = sqrt(xgrad * xgrad + ygrad * ygrad + zgrad * zgrad);
 
@@ -124,12 +121,12 @@ double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
     thrust::sort_by_key(thrust::device, ix, ix + N, yy, thrust::greater<int>());
 
     /*//FIXME remove*/
-    /*for (int i=0; i < 3; i++) {*/
-        /*if (yy[i] != 0.0) {*/
-            /*printf("XXX    yy[%d]=%.3f", i, yy[i]);*/
-        /*}*/
-        /*printf("\n");*/
-    /*}*/
+    for (int i=0; i < 3; i++) {
+        if (yy[i] != 0.0) {
+            printf("XXX    yy[%d]=%.3f", i, yy[i]);
+        }
+        printf("\n");
+    }
 
     return mag;
 }
@@ -142,7 +139,7 @@ double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
 __device__
 void add_sample(double* index, double* image, double distsq, unsigned int
         idx, unsigned int x_stride, unsigned int y_stride, int i_bin, int j_bin, int k_bin, 
-        cudautils::SiftParams sift_params, double* device_centers) {
+        const cudautils::SiftParams sift_params, double* device_centers) {
 
     double sigma = sift_params.SigmaScaled;
     double weight = exp(-(distsq / (2.0 * sigma * sigma)));
@@ -179,8 +176,9 @@ inline int get_bin_idx(int orig, int radius, int IndexSize) {
 }
 
 __device__
-double* key_sample(cudautils::Keypoint key, double* image, unsigned int idx,
-        unsigned int x_stride, unsigned int y_stride, cudautils::SiftParams sift_params,
+double* key_sample(const cudautils::SiftParams sift_params, 
+        cudautils::Keypoint key, double* image, unsigned int idx,
+        unsigned int x_stride, unsigned int y_stride, 
         double* device_centers) {
 
     double xySpacing = (double) sift_params.xyScale * sift_params.MagFactor;
@@ -190,9 +188,9 @@ double* key_sample(cudautils::Keypoint key, double* image, unsigned int idx,
     int tiradius = rint(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
 
 #ifdef DEBUG_OUTPUT
-    printf("key_sample xyScale:%f tScale: %f MagFactor:%f\n", sift_params.xyScale, sift_params.tScale, sift_params.MagFactor);
-    printf("xySpacing:%f tSpacing:%f\n", xySpacing, tSpacing);
-    printf("xyiradius:%d tiradius:%d\n", xyiradius, tiradius);
+    /*printf("key_sample xyScale:%f tScale: %f MagFactor:%f\n", sift_params.xyScale, sift_params.tScale, sift_params.MagFactor);*/
+    /*printf("xySpacing:%f tSpacing:%f\n", xySpacing, tSpacing);*/
+    /*printf("xyiradius:%d tiradius:%d\n", xyiradius, tiradius);*/
 #endif
 
     int N = sift_params.descriptor_len;
@@ -228,9 +226,10 @@ double* key_sample(cudautils::Keypoint key, double* image, unsigned int idx,
                 if (!(r < 0  ||  r >= sift_params.image_size0 ||
                         c < 0  ||  c >= sift_params.image_size1
                         || t < 0 || t >= sift_params.image_size2)) {
-#ifdef DEBUG_OUTPUT
-                    printf("XXX  \tadd_sample, r:%d c:%d t:%d\n", r,c,t);
-#endif
+
+/*#ifdef DEBUG_OUTPUT*/
+                    /*printf("XXX  \tadd_sample, r:%d c:%d t:%d\n", r,c,t);*/
+/*#endif*/
 
                     add_sample(index, image, distsq, idx, x_stride, y_stride,
                             i_bin, j_bin, k_bin, sift_params,
@@ -246,7 +245,7 @@ double* key_sample(cudautils::Keypoint key, double* image, unsigned int idx,
 __device__
 double* build_ori_hists(int x, int y, int z, unsigned int idx, unsigned int
         x_stride, unsigned int y_stride, int radius, double* image, 
-        cudautils::SiftParams sift_params, double* device_centers) {
+        const cudautils::SiftParams sift_params, double* device_centers) {
 
     // default nFaces=80; 640 bytes
     double* ori_hist = (double*) malloc(sift_params.nFaces * sizeof(double));
@@ -308,26 +307,15 @@ void normalize_vec(double* vec, int len) {
 
 __device__
 cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
-        image, cudautils::SiftParams sift_params, unsigned int thread_idx, unsigned int idx,
+        image, const cudautils::SiftParams sift_params, unsigned int thread_idx, unsigned int idx,
         unsigned int x_stride, unsigned int y_stride,
         uint8_t * descriptors, double* device_centers) {
 
-    //FIXME add to sift_params from Matlab side
-    sift_params.MaxIndexVal = 0.2;
     bool changed = false;
 
-#ifdef DEBUG_OUTPUT
-    /*printf("Start key_sample");*/
-#endif
-    
     //FIXME make sure vec is in column order
-    double* vec = key_sample(key, image, idx, x_stride, y_stride, sift_params,
-            device_centers);
+    double* vec = key_sample(sift_params, key, image, idx, x_stride, y_stride, device_centers);
 
-#ifdef DEBUG_OUTPUT
-    /*printf("Finish key_sample");*/
-#endif
-    
     int N = sift_params.descriptor_len;
 
     normalize_vec(vec, N);
@@ -359,14 +347,13 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
 __device__
 cudautils::Keypoint make_keypoint(double* image, int x, int y, int z,
         unsigned int thread_idx, unsigned int idx, unsigned int x_stride, unsigned int y_stride,
-        cudautils::SiftParams sift_params,
+        const cudautils::SiftParams sift_params,
         uint8_t * descriptors, double* device_centers) {
     cudautils::Keypoint key;
     key.x = x;
     key.y = y;
     key.z = z;
-    key.xyScale = sift_params.xyScale;
-    key.tScale = sift_params.tScale;
+
     return make_keypoint_sample(key, image, sift_params, thread_idx, idx,
             x_stride, y_stride, descriptors, device_centers);
 }
@@ -394,10 +381,9 @@ void create_descriptor(
         unsigned int *map_idx,
         int8_t *map,
         double *image,
-        cudautils::SiftParams sift_params, 
+        const cudautils::SiftParams sift_params, 
         double* device_centers,
-        uint8_t *descriptors,
-        std::shared_ptr<spdlog::logger> logger_) {
+        uint8_t *descriptors) {
 
     // thread per keypoint in this substream
     unsigned int thread_idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -406,6 +392,7 @@ void create_descriptor(
     // map_idx_size matchs total # of threads
     // idx describes the linear index for current GPUs section of the image and corresponding map
     unsigned int idx = map_idx[thread_idx];
+    /*printf("create_descriptor image[idx -1] %f image[idx+1] %f\n", image[idx - 1], image[idx + 1]);*/
 
     // column-major order since image is from matlab
     int x, y, z;
@@ -476,12 +463,14 @@ Sift::Sift(
         const unsigned int dw,
         const unsigned int num_gpus,
         const unsigned int num_streams,
-        cudautils::SiftParams sift_params)
+        const cudautils::SiftParams sift_params,
+        const double* fv_centers)
     : x_size_(x_size), y_size_(y_size), z_size_(z_size),
         x_sub_size_(x_sub_size), y_sub_size_(y_sub_size),
         dx_(dx), dy_(dy), dw_(dw),
         num_gpus_(num_gpus), num_streams_(num_streams),
         sift_params_(sift_params),
+        fv_centers_(fv_centers),
         subdom_data_(num_gpus) {
 
     logger_ = spdlog::get("console");
@@ -566,6 +555,17 @@ void Sift::setImage(const std::vector<double>& img)
     assert((x_size_ * y_size_ * z_size_) == img.size());
 
     thrust::copy(img.begin(), img.end(), dom_data_->h_image);
+
+    //FIXME delete this
+    /*printf("setImage\n");*/
+    /*fflush(stdout);*/
+    /*for (int i=0; i < 100; i++) {*/
+        /*[>if (dom_data_->h_image[i] != 0.0) {<]*/
+        /*printf("setImage h_image[%d]: %f\n", i, dom_data_->h_image[i]);*/
+        /*printf("setImage img[%d]: %f\n", i, img[i]);*/
+        /*fflush(stdout);*/
+        /*[>}<]*/
+    /*}*/
 }
 
 void Sift::setMapToBeInterpolated(const int8_t *map)
@@ -815,7 +815,7 @@ void Sift::runOnGPU(
     cudaSafeCall(cudaFreeHost(padded_sub_image));
 }
 
-cudautils::SiftParams Sift::get_sift_params() {
+const cudautils::SiftParams Sift::get_sift_params() {
     return sift_params_;
 }
 
@@ -968,33 +968,39 @@ void Sift::runOnStream(
 #ifdef DEBUG_OUTPUT
         logger_->debug("create_descriptor");
 #endif
-        
-        /*cudautils::SiftParams* d_sift_params;*/
-        /*cudaSafeCall(cudaMalloc((void **) &d_sift_params, sizeof(cudautils::SiftParams) ));*/
-        /*cudaSafeCall(cudaMemcpy((void *)  d_sift_params, (const void *) &sift_params_,*/
-                /*sizeof(cudautils::SiftParams), cudaMemcpyHostToDevice));*/
+
+        //FIXME this is unnecessary
+        const cudautils::SiftParams* d_sift_params;
+        cudaSafeCall(cudaMalloc((void **) &d_sift_params, sizeof(const cudautils::SiftParams) ));
+        cudaSafeCall(cudaMemcpy((void *) d_sift_params, (const void *) &sift_params_,
+                sizeof(cudautils::SiftParams), cudaMemcpyHostToDevice));
 
         // sift_params.fv_centers must be placed on device since array passed to cuda kernel
         double* device_centers;
         cudaSafeCall(cudaMalloc((void **) &device_centers,
                     sizeof(double) * sift_params_.fv_centers_len));
-        cudaSafeCall(cudaMemcpy((void *) device_centers, (const void *) sift_params_.fv_centers,
+        cudaSafeCall(cudaMemcpy((void *) device_centers, (const void *) fv_centers_,
                 (size_t) sizeof(double) * sift_params_.fv_centers_len,
                 cudaMemcpyHostToDevice));
-
+        
 #ifdef DEBUG_OUTPUT
-    /*printf("Outside kernel xyScale:%d MagFactor:%d\n", sift_params_.xyScale, sift_params_.MagFactor);*/
-#endif
 
-#ifdef DEBUG_OUTPUT
         /*printf("Print image\n");*/
-        /*int size = x_sub_stride_ * y_sub_stride_ * z_stride_;*/
-        /*for (int i=0; i < size; i++) {*/
-            /*printf("%d: %d\n", i, subdom_data->padded_image[i]);*/
+        /*cudaStreamSynchronize(stream_data->stream);*/
+        /*int sub_volume_size = x_sub_stride_ * y_sub_stride_ * z_stride_;*/
+        /*double* dbg_h_image = (double*) malloc(sizeof(double) * sub_volume_size);*/
+        /*cudaSafeCall(cudaMemcpy((void **) dbg_h_image, subdom_data->padded_image,*/
+                /*sizeof(double) * sub_volume_size,*/
+                /*cudaMemcpyDeviceToHost));*/
+        /*// print*/
+        /*for (int i=0; i < sub_volume_size; i++) {*/
+            /*if (dbg_h_image[i] != 0.0) {*/
+                /*printf("host image[%d]: %f\n", i, dbg_h_image[i]);*/
+            /*}*/
         /*}*/
-    /*printf("runOnStream xyScale:%f tScale: %f MagFactor:%f\n", sift_params_.xyScale, sift_params_.tScale, sift_params_.MagFactor);*/
+
 #endif
-     
+
         create_descriptor<<<num_blocks, num_threads, 0, stream_data->stream>>>(
                 x_sub_stride_, y_sub_stride_, x_sub_start, y_sub_start, 
                 dw_, // pad width
@@ -1004,9 +1010,8 @@ void Sift::runOnStream(
                 subdom_data->padded_image,//image split per GPU
                 sift_params_, 
                 device_centers,
-                descriptors, logger_); 
+                descriptors); 
         cudaCheckError();
-                /**d_sift_params, */
 
 
 #ifdef DEBUG_OUTPUT

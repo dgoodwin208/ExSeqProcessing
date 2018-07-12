@@ -23,7 +23,8 @@ void sift_bridge(
         const int num_streams,
         const double* in_image,
         const int8_t* in_map,
-        cudautils::SiftParams sift_params,
+        const cudautils::SiftParams sift_params,
+        const double* fv_centers,
         cudautils::Keypoint_store *keystore);
 
 }

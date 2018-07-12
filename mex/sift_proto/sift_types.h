@@ -33,21 +33,20 @@ typedef struct _SiftParams {
     double IndexSigma; 
     double nFaces;
     double Tessellation_levels;
-    bool Smooth_Flag;
     double SigmaScaled;
     double Tessel_thresh;
     double Smooth_Var;
-    bool TwoPeak_Flag;
     double xyScale;
     double tScale;
     double MaxIndexVal;
-    double* fv_centers;
     double fv_centers_len;
+    double keypoint_num;
     int image_size0;
     int image_size1;
     int image_size2;
-    double keypoint_num;
     int descriptor_len;
+    bool Smooth_Flag;
+    bool TwoPeak_Flag;
 
 } SiftParams;
 

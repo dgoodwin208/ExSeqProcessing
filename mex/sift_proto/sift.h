@@ -109,10 +109,9 @@ void create_descriptor(
         unsigned int *map_idx,
         int8_t *map,
         double *image,
-        cudautils::SiftParams sift_params,
+        const cudautils::SiftParams sift_params,
         double* device_centers,
-        double *keypoints,
-        std::shared_ptr<spdlog::logger> logger_);
+        uint8_t *keypoints);
 
 
 class Sub2Ind {
@@ -306,7 +305,8 @@ class Sift : public cudautils::CudaTask {
 
     std::shared_ptr<spdlog::logger> logger_;
 
-    cudautils::SiftParams sift_params_;
+    const cudautils::SiftParams sift_params_;
+    const double* fv_centers_;
 
 public:
     Sift(
@@ -320,7 +320,8 @@ public:
             const unsigned int dw,
             const unsigned int num_gpus,
             const unsigned int num_streams,
-            cudautils::SiftParams sift_params);
+            const cudautils::SiftParams sift_params,
+            const double* fv_centers);
 
     virtual ~Sift();
 
@@ -342,7 +343,7 @@ public:
     virtual void runOnGPU(const int gpu_id, const unsigned int gpu_task_id);
     virtual void postrunOnGPU(const int gpu_id, const unsigned int gpu_task_id) {}
     virtual void runOnStream( const int gpu_id, const int stream_id, const unsigned int gpu_task_id);
-    cudautils::SiftParams get_sift_params();
+    const cudautils::SiftParams get_sift_params();
 
 
 }; // class Sift

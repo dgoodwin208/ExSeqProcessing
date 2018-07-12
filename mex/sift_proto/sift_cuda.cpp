@@ -167,8 +167,6 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
 
     sift_params.MaxIndexVal = get_double_field(prhs, "MaxIndexVal");
 
-    sift_params.fv_centers = get_double_ptr_field(prhs, "fv_centers");
-
     sift_params.fv_centers_len = get_double_field(prhs, "fv_centers_len");
 
     const mwSize *image_dims = mxGetDimensions(prhs[0]);
@@ -231,6 +229,8 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         }
 
         cudautils::SiftParams sift_params = get_params(prhs);
+        double* fv_centers = get_double_ptr_field(prhs, "fv_centers");
+
         //printf("mex xyScale:%f tScale: %f MagFactor:%f\n",
                 //sift_params.xyScale, sift_params.tScale,
                 //sift_params.MagFactor);
@@ -267,7 +267,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             cudautils::sift_bridge(
                     logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
                     dy, dw, num_gpus, num_streams, in_image, in_map,
-                    sift_params, &keystore);
+                    sift_params, fv_centers, &keystore);
 
         } catch (...) {
             logger->error("internal unknown error occurred");
