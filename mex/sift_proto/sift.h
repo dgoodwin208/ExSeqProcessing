@@ -25,6 +25,17 @@
 // error handling code, derived from funcs in old cutil lib
 #define cudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
 #define cudaCheckError() __cudaCheckError(__FILE__, __LINE__)
+#define cudaCheckPtr(ptr) __cudaCheckPtr(ptr, __FILE__, __LINE__)
+
+__device__
+inline 
+void __cudaCheckPtr(void* ptr, const char* file, const int line)
+{
+    if (ptr == NULL) {
+        printf("Error: exiting all threads in %s at line %s", file, line );
+        asm("trap;");
+    }
+}
 
 inline void __cudaSafeCall(cudaError err, const char *file, const int line)
 {

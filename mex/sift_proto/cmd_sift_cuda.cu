@@ -29,6 +29,9 @@
 #include <algorithm>
 
 #define FV_CENTERS_LEN 240
+/*#define KEYPOINT_NUM 100000 // max expected keypoints*/
+/*#define KEYPOINT_NUM 50000 // avg.*/
+/*#define KEYPOINT_NUM 100 //test*/
 
 int main(int argc, char* argv[]) {
 
@@ -64,9 +67,12 @@ int main(int argc, char* argv[]) {
         /*x_size = atoi(argv[4]);*/
         /*y_size = atoi(argv[5]);*/
         /*z_size = atoi(argv[6]);*/
+
+        int keypoint_num = atoi(argv[1]);
+        logger->info("# of keypoints = {}", keypoint_num);
         x_size = 2048;
         y_size = 2048;
-        z_size = 141;
+        z_size = 251;
         x_size1 = x_size;
         y_size1 = y_size;
         z_size1 = z_size;
@@ -90,25 +96,32 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
+        // create image
         long image_size = x_size * y_size * z_size;
         std::vector<double> in_image(image_size);
-        /*std::fill_n(in_image.begin(), image_size, 1.0);*/
         for (int i=0; i < image_size; i++) {
             in_image[i] = rand() % 100 + 1.0;
         }
 
+        // create map
         std::vector<int8_t> in_map  (image_size);
-        /*fin1.read((char*)in_image.data(), x_size * y_size * z_size * sizeof(double));*/
-        fin2.read((char*)in_map  .data(), image_size * sizeof(int8_t));
+        std::fill_n(in_map.begin(), image_size, 1.0);
+        long long idx;
+        for (int i=0; i < keypoint_num; i++) {
+            // warning not evenly distributed across the image
+            idx = (x_size * rand()) % image_size;
+            in_map[idx] = 0.0; // select this point for processing
+        }
+
+        /*fin2.read((char*)in_map  .data(), image_size * sizeof(int8_t));*/
         fin1.close();
         fin2.close();
 
-        int num_gpus = 1;
         const unsigned int num_streams = 20;
-        /*int num_gpus = cudautils::get_gpu_num();*/
-        /*const unsigned int num_streams = 20;*/
+        int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
         logger->info("# of streams = {}", num_streams);
+        logger->info("# of keypoints = {}", keypoint_num);
 
         /*std::vector<double> out_interp_image(x_size * y_size * z_size);*/
 
@@ -127,15 +140,15 @@ int main(int argc, char* argv[]) {
         sift_params.nFaces = 80;
         sift_params.IndexSigma = 5.0;
         sift_params.SigmaScaled = sift_params.IndexSigma * 0.5 * sift_params.IndexSize;
-        sift_params.Smooth_Flag = 1;
+        sift_params.Smooth_Flag = true;
         sift_params.Smooth_Var = 20;
         sift_params.MaxIndexVal = 0.2;
         sift_params.Tessel_thresh = 3;
         sift_params.xyScale = 1;
         sift_params.tScale = 1;
-        sift_params.TwoPeak_Flag = 0;
+        sift_params.TwoPeak_Flag = false;
         sift_params.MagFactor = 3;
-        sift_params.keypoint_num = 100000; // max expected keypoints
+        sift_params.keypoint_num = keypoint_num; 
         sift_params.descriptor_len = sift_params.IndexSize *
             sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
 
