@@ -179,20 +179,14 @@ __device__
 double* key_sample(const cudautils::SiftParams sift_params, 
         cudautils::Keypoint key, double* image, unsigned int idx,
         unsigned int x_stride, unsigned int y_stride, 
-        double* device_centers, int* ix, double* yy) {
+        double* device_centers, int* ix, double* yy,
+        double* index) {
 
     double xySpacing = (double) sift_params.xyScale * sift_params.MagFactor;
     double tSpacing = (double) sift_params.tScale * sift_params.MagFactor;
 
     int xyiradius = rint(1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0);
     int tiradius = rint(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
-
-    int N = sift_params.descriptor_len;
-
-    // default N=640; 5120 bytes
-    double* index = (double*) malloc(N * sizeof(double));
-    cudaCheckPtr(index);
-    memset(index, 0.0, N * sizeof(double));
 
     // Surrounding radius of pixels are binned for computation 
     // according to sift_params.IndexSize
@@ -272,16 +266,16 @@ double* build_ori_hists(int x, int y, int z, unsigned int idx, unsigned int
 }
 
 __device__
-void normalize_vec(double* vec, int len) {
+void normalize_arr(double* arr, int len) {
 
     double sqlen = 0.0;
     for (int i=0; i < len; i++) {
-        sqlen += vec[i] * vec[i];
+        sqlen += arr[i] * arr[i];
     }
 
     double fac = 1.0 / sqrt(sqlen);
     for (int i=0; i < len; i++) {
-        vec[i] = vec[i] * fac;
+        arr[i] = arr[i] * fac;
     }
     return;
 }
@@ -294,35 +288,38 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
 
     bool changed = false;
 
-    //FIXME make sure vec is in column order
-    double* vec = key_sample(sift_params, key, image, idx, x_stride, y_stride,
-            device_centers, ix, yy);
-
+    // default N=640; 5120 bytes
     int N = sift_params.descriptor_len;
+    double* index = descriptors[thread_idx * sift_params.descriptor_len];
+    memset(index, 0.0, N * sizeof(double));
 
-    normalize_vec(vec, N);
+    //FIXME make sure is in column order
+    key_sample(sift_params, key, image, idx, x_stride, y_stride,
+            device_centers, ix, yy, index);
+
+
+    normalize_arr(index, N);
 
     for (int i=0; i < N; i++) {
-        if (vec[i] > sift_params.MaxIndexVal) {
-            vec[i] = sift_params.MaxIndexVal;
+        if (index[i] > sift_params.MaxIndexVal) {
+            index[i] = sift_params.MaxIndexVal;
             changed = true;
         }
     }
 
     if (changed) {
-        normalize_vec(vec, N);
+        normalize_arr(index, N);
     }
 
     int intval;
     for (int i=0; i < N; i++) {
-        intval = rint(512.0 * vec[i]);
-        if (intval != 0) {
+        intval = rint(512.0 * index[i]);
+        /*if (intval != 0) {*/
             /*printf("intval%d", intval);*/
-        }
+        /*}*/
         //FIXME cuda function for min?
-        descriptors[thread_idx * sift_params.descriptor_len + i] =  min((uint8_t) 255, (uint8_t) intval);
+        index[i] =  min((uint8_t) 255, (uint8_t) intval);
     }
-    free(vec);
     return key;
 }
 
