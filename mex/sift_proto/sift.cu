@@ -115,11 +115,14 @@ double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
     //FIXME cublasSgemm() higher performance
     int dims = 3;
     int N = sift_params.fv_centers_len / dims;
+    //FIXME check this rigorously for error
     /*double* corr_array;*/
     for (int i=0; i < N; i++) {
         yy[i] = dot_product(&(device_centers[i * dims]),
                 vect, dims);
     }
+    
+    // overwrite idxs 1 : N
     thrust::sequence(thrust::device, ix, ix + N);
     // descending order by ori_hist
     thrust::sort_by_key(thrust::device, ix, ix + N, yy, thrust::greater<int>());
@@ -143,20 +146,13 @@ double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
 __device__
 void add_sample(double* index, double* image, double distsq, unsigned int
         idx, unsigned int x_stride, unsigned int y_stride, int i_bin, int j_bin, int k_bin, 
-        const cudautils::SiftParams sift_params, double* device_centers) {
+        const cudautils::SiftParams sift_params, double* device_centers,
+        int* ix, double* yy) {
 
     double sigma = sift_params.SigmaScaled;
     double weight = exp(-(distsq / (2.0 * sigma * sigma)));
 
     double vect[3] = {1.0, 0.0, 0.0};
-
-    // default fv_centers_len 240; 960 bytes
-    int* ix = (int *) malloc(sift_params.fv_centers_len*sizeof(int));
-    cudaCheckPtr(ix);
-
-    // default fv_centers_len 240; 1920 bytes
-    double *yy = (double*) malloc(sift_params.fv_centers_len * sizeof(double));
-    cudaCheckPtr(yy);
 
     // gradient and orientation vectors calculated from 3D halo/neighboring
     // pixels
@@ -165,8 +161,6 @@ void add_sample(double* index, double* image, double distsq, unsigned int
     mag *= weight; // scale magnitude by gaussian 
 
     place_in_index(index, mag, i_bin, j_bin, k_bin, yy, ix, sift_params);
-    free(ix);
-    free(yy);
     return;
 }
 
@@ -185,7 +179,7 @@ __device__
 double* key_sample(const cudautils::SiftParams sift_params, 
         cudautils::Keypoint key, double* image, unsigned int idx,
         unsigned int x_stride, unsigned int y_stride, 
-        double* device_centers) {
+        double* device_centers, int* ix, double* yy) {
 
     double xySpacing = (double) sift_params.xyScale * sift_params.MagFactor;
     double tSpacing = (double) sift_params.tScale * sift_params.MagFactor;
@@ -230,7 +224,7 @@ double* key_sample(const cudautils::SiftParams sift_params,
 
                     add_sample(index, image, distsq, idx, x_stride, y_stride,
                             i_bin, j_bin, k_bin, sift_params,
-                            device_centers);
+                            device_centers, ix, yy);
                 }
             }
         }
@@ -242,27 +236,16 @@ double* key_sample(const cudautils::SiftParams sift_params,
 __device__
 double* build_ori_hists(int x, int y, int z, unsigned int idx, unsigned int
         x_stride, unsigned int y_stride, int radius, double* image, 
-        const cudautils::SiftParams sift_params, double* device_centers) {
+        const cudautils::SiftParams sift_params, double* device_centers,
+        int* ix, double* yy) {
 
     // default nFaces=80; 640 bytes
     double* ori_hist = (double*) malloc(sift_params.nFaces * sizeof(double));
     cudaCheckPtr(ori_hist);
     memset(ori_hist, 0.0, sift_params.nFaces * sizeof(double));
-    /*for (int i=0; i < sift_params.nFaces; i++) {*/
-        /*ori_hist[i] = 0.0;*/
-    /*}*/
-    /*double* ori_hist = (double*) calloc(sift_params.nFaces,sizeof(double));*/
 
     double mag;
     double vect[3] = {1.0, 0.0, 0.0};
-
-    // default fv_centers_len 80 * 3 (3D) = 240; 960 bytes
-    int* ix = (int*) malloc(sift_params.fv_centers_len*sizeof(int));
-    cudaCheckPtr(ix);
-
-    // default fv_centers_len 240; 1920 bytes
-    double *yy = (double*) malloc(sift_params.fv_centers_len * sizeof(double));
-    cudaCheckPtr(yy);
 
     int r, c, t;
     for (int i = -radius; i <= radius; i++) {
@@ -285,8 +268,6 @@ double* build_ori_hists(int x, int y, int z, unsigned int idx, unsigned int
             }
         }
     }
-    free(ix);
-    free(yy);
     return ori_hist;
 }
 
@@ -308,13 +289,14 @@ void normalize_vec(double* vec, int len) {
 __device__
 cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
         image, const cudautils::SiftParams sift_params, unsigned int thread_idx, unsigned int idx,
-        unsigned int x_stride, unsigned int y_stride,
-        uint8_t * descriptors, double* device_centers) {
+        unsigned int x_stride, unsigned int y_stride, uint8_t * descriptors,
+        double* device_centers, int* ix, double* yy) {
 
     bool changed = false;
 
     //FIXME make sure vec is in column order
-    double* vec = key_sample(sift_params, key, image, idx, x_stride, y_stride, device_centers);
+    double* vec = key_sample(sift_params, key, image, idx, x_stride, y_stride,
+            device_centers, ix, yy);
 
     int N = sift_params.descriptor_len;
 
@@ -347,15 +329,15 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
 __device__
 cudautils::Keypoint make_keypoint(double* image, int x, int y, int z,
         unsigned int thread_idx, unsigned int idx, unsigned int x_stride, unsigned int y_stride,
-        const cudautils::SiftParams sift_params,
-        uint8_t * descriptors, double* device_centers) {
+        const cudautils::SiftParams sift_params, uint8_t * descriptors, double*
+        device_centers, int* ix, double* yy) {
     cudautils::Keypoint key;
     key.x = x;
     key.y = y;
     key.z = z;
 
     return make_keypoint_sample(key, image, sift_params, thread_idx, idx,
-            x_stride, y_stride, descriptors, device_centers);
+            x_stride, y_stride, descriptors, device_centers, ix, yy);
 }
 
 /* Main function of 3DSIFT Program from http://www.cs.ucf.edu/~pscovann/
@@ -405,43 +387,56 @@ void create_descriptor(
     y = y_sub_start + padding_y - dw;
     z = padding_z - dw;
     
+    // default fv_centers_len 80 * 3 (3D) = 240; 960 bytes
+    int* ix = (int*) malloc(sift_params.fv_centers_len*sizeof(int));
+    cudaCheckPtr(ix);
+
+    // default fv_centers_len 240; 1920 bytes
+    double *yy = (double*) malloc(sift_params.fv_centers_len * sizeof(double));
+    cudaCheckPtr(yy);
+
     if (sift_params.TwoPeak_Flag) {
         int radius = rint(sift_params.xyScale * 3.0);
 
         int ori_hist_len = sift_params.nFaces; //default 80
-        int* ix = (int*) malloc(ori_hist_len*sizeof(int)); // default 320 bytes 
-        cudaCheckPtr(ix);
+        int* ori_hist_idx = (int*) malloc(ori_hist_len*sizeof(int)); // default 320 bytes 
+        cudaCheckPtr(ori_hist_idx);
+        thrust::sequence(thrust::device, ori_hist_idx, ori_hist_idx + ori_hist_len);
 
-        thrust::sequence(thrust::device, ix, ix + ori_hist_len);
         double* ori_hist = build_ori_hists(x, y, z, idx, x_stride, y_stride,
-                radius, image, sift_params, device_centers);
+                radius, image, sift_params, device_centers, ix, yy);
         // descending order by ori_hist
-        thrust::sort_by_key(thrust::device, ix, ix + ori_hist_len, ori_hist, thrust::greater<int>());
+        thrust::sort_by_key(thrust::device, ori_hist_idx, ori_hist_idx +
+                ori_hist_len, ori_hist, thrust::greater<int>());
             
         int dims = 3;
         float thresh = .9;
         if ( 
-            (dot_product(&(device_centers[dims * ix[0]]),
-                &(device_centers[dims * ix[1]]),
+            (dot_product(&(device_centers[dims * ori_hist_idx[0]]),
+                &(device_centers[dims * ori_hist_idx[1]]),
                 dims) > thresh) &&
-            (dot_product(&(device_centers[dims * ix[0]]),
-                &(device_centers[dims * ix[2]]), dims) > thresh)) {
+            (dot_product(&(device_centers[dims * ori_hist_idx[0]]),
+                &(device_centers[dims * ori_hist_idx[2]]), dims) > thresh)) {
             // FIXME remove this since memory is never accessed
             /*memset(&(descriptors[idx]), 0, sift_params.descriptor_len * sizeof(uint8_t));*/
             // mark this keypoint as null in map
             map_idx[thread_idx] = nan("");
             // FIXME print in final version
-            /*printf("Removed keypoint from thread: %u, desc index: %u, x:%d y:%d z:%d\n", thread_idx, idx, x, y, z);*/
+            /*printf("Removed keypoint from thread: %u, desc index: %u, x:%d
+             * y:%d z:%d\n", thread_idx, idx, x, y, z);*/
             return ;
         }
 
-        free(ix);
+        free(ori_hist_idx);
         free(ori_hist);
     }
 
-    cudautils::Keypoint key = make_keypoint(image, x, y, z, thread_idx, idx, x_stride, y_stride, sift_params,
-            descriptors, device_centers);
+    cudautils::Keypoint key = make_keypoint(image, x, y, z, thread_idx, idx,
+            x_stride, y_stride, sift_params, descriptors, device_centers, ix,
+            yy);
 
+    free(ix);
+    free(yy);
     return;
 }
 
@@ -620,13 +615,13 @@ void Sift::runOnGPU(
     logger_->info("===== gpu_id={} x_sub_i={} y_sub_i={}", gpu_id, x_sub_i, y_sub_i);
 #endif
 
-    // setting the heap memory must be performed before calling malloc in any kernel
-    size_t heap_size = pow(2, 29); // 2 GB supports about 100,000 kypts for processing
-    cudaSafeCall(cudaDeviceSetLimit(cudaLimitMallocHeapSize, heap_size));
+    /*// setting the heap memory must be performed before calling malloc in any kernel*/
+    /*size_t heap_size = pow(2, 29); // 2 GB supports about 100,000 kypts for processing*/
+    /*cudaSafeCall(cudaDeviceSetLimit(cudaLimitMallocHeapSize, heap_size));*/
 
-#ifdef DEBUG_OUTPUT
-    logger_->debug("GPU heap size={}", heap_size);
-#endif
+/*#ifdef DEBUG_OUTPUT*/
+    /*logger_->debug("GPU heap size={}", heap_size);*/
+/*#endif*/
 
     unsigned int x_sub_start = x_sub_i * x_sub_size_;
     unsigned int y_sub_start = y_sub_i * y_sub_size_;
