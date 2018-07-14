@@ -19,7 +19,7 @@ typedef struct _Keypoint {
     int z;
     double xyScale;
     double tScale;
-    uint8_t* ivec; //stores the flattened descriptor vector
+    double* ivec; //stores the flattened descriptor vector
 } Keypoint;
 
 typedef struct _Keypoint_store {
@@ -31,7 +31,6 @@ typedef struct _SiftParams {
     double MagFactor;
     double IndexSize;
     double IndexSigma; 
-    double nFaces;
     double Tessellation_levels;
     double SigmaScaled;
     double Tessel_thresh;
@@ -39,8 +38,9 @@ typedef struct _SiftParams {
     double xyScale;
     double tScale;
     double MaxIndexVal;
-    double fv_centers_len;
-    double keypoint_num;
+    int fv_centers_len;
+    int keypoint_num;
+    int nFaces;
     int image_size0;
     int image_size1;
     int image_size2;

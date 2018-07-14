@@ -70,7 +70,7 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
         for (int i = 0; i < numKp; i++) {
 
                 mxArray *x, *y, *z, *mxtScale, *mxxyScale, *mxIvec;
-                uint8_t *ivec;
+                double *ivec;
 
                 cudautils::Keypoint *const key = kp->buf + i;
 
@@ -78,11 +78,11 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
                 const mwSize dims[2] = {(int) sift_params.descriptor_len, 1};
                 if ((mxIvec = 
                         mxCreateNumericArray(1, dims,
-                            mxUINT8_CLASS, mxREAL)) == NULL)
+                            mxDOUBLE_CLASS, mxREAL)) == NULL)
                         return NULL;
 
-                ivec = (uint8_t *) mxGetData(mxIvec); 
-                //memcpy(ivec, key->ivec, sift_params.descriptor_len * sizeof(uint8_t));
+                ivec = (double *) mxGetData(mxIvec); 
+                //memcpy(ivec, key->ivec, sift_params.descriptor_len * sizeof(double));
                 for (int j = 0; j < sift_params.descriptor_len; j++) 
                     ivec[j] = key->ivec[j];
 
@@ -147,7 +147,7 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
 
     sift_params.IndexSize = get_double_field(prhs, "IndexSize");
 
-    sift_params.nFaces = get_double_field(prhs, "nFaces");
+    sift_params.nFaces = (int) get_double_field(prhs, "nFaces");
 
     sift_params.Tessellation_levels = get_double_field(prhs, "Tessellation_levels");
 
@@ -167,14 +167,14 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
 
     sift_params.MaxIndexVal = get_double_field(prhs, "MaxIndexVal");
 
-    sift_params.fv_centers_len = get_double_field(prhs, "fv_centers_len");
+    sift_params.fv_centers_len = (int) get_double_field(prhs, "fv_centers_len");
 
     const mwSize *image_dims = mxGetDimensions(prhs[0]);
     sift_params.image_size0 = image_dims[0];
     sift_params.image_size1 = image_dims[1];
     sift_params.image_size2 = image_dims[2];
 
-    sift_params.keypoint_num = get_double_field(prhs, "keypoint_num");
+    sift_params.keypoint_num = (int) get_double_field(prhs, "keypoint_num");
 
     sift_params.descriptor_len = (int) get_double_field(prhs, "descriptor_len");
 
