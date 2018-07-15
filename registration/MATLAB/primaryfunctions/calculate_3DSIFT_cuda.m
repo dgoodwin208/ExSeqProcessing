@@ -55,6 +55,7 @@ map = int8(map);
 %fclose(f);
 
 keys = sift_cuda(img, map, sift_params);
+keys = num2cell(keys);
 
 
 return 
