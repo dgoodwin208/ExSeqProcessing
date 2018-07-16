@@ -86,7 +86,7 @@ double dot_product(double* first, double* second, int N) {
 }
 
 // assumes r,c,s lie within accessible image boundaries
-__device__
+__device__ __host__
 double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
         x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers) {
@@ -927,6 +927,51 @@ void Sift::runOnStream(
             continue;
         }
 
+        // allocate keystore
+        stream_data->keystore->len = substream_padded_map_idx_size ;
+        cudaHostAlloc(&(stream_data->keystore->buf), stream_data->keystore->len *
+                sizeof(cudautils::Keypoint), cudaHostAllocPortable);
+
+        // only calculate location and save keypoints
+        if (sift_params_.skipDescriptor) {
+#ifdef DEBUG_OUTPUT
+            logger_->debug("Skip calculatation of descriptors");
+#endif
+            // transfer index map to host for referencing correct index
+            unsigned int *h_padded_map_idx;
+            cudaSafeCall(cudaHostAlloc((void **) &h_padded_map_idx, 
+                        substream_padded_map_idx_size * sizeof(unsigned int),
+                        cudaHostAllocPortable));
+
+            cudaSafeCall(cudaMemcpyAsync(
+                    h_padded_map_idx,
+                    substream_padded_map_idx,
+                    substream_padded_map_idx_size * sizeof(unsigned int),
+                    cudaMemcpyDeviceToHost, stream_data->stream));
+
+            // make sure all async memcpys (above) are finished before access
+            cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
+
+            // save data for all streams to global Sift object store
+            for (int i = 0; i < substream_padded_map_idx_size; i++) {
+
+                Keypoint temp;
+
+                unsigned int padding_x;
+                unsigned int padding_y;
+                unsigned int padding_z;
+                ind2sub(x_sub_stride_, y_sub_stride_, h_padded_map_idx[i], padding_x, padding_y, padding_z);
+                // correct for dw_ padding, matlab is 1-indexed
+                temp.x = x_sub_start + padding_x - dw_ + 1;
+                temp.y = y_sub_start + padding_y - dw_ + 1;
+                temp.z = padding_z - dw_ + 1;
+
+                stream_data->keystore->buf[i] = temp;
+            }
+            cudaSafeCall(cudaFree(substream_padded_map_idx));
+            continue; // do this for every substream forloop
+        }
+
         /*
         Create an array to hold each descriptor ivec vector on VRAM 
         essentially a matrix of substream_padded_map_idx_size by descriptor length
@@ -1053,11 +1098,7 @@ void Sift::runOnStream(
         /*}*/
 #endif
 
-        stream_data->keystore->len = substream_padded_map_idx_size ;
-        cudaHostAlloc(&(stream_data->keystore->buf), stream_data->keystore->len *
-                sizeof(cudautils::Keypoint), cudaHostAllocPortable);
-
-        // make sure all streams are done
+        // make sure all async memcpys (above) are finished before access
         cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
 
         // save data for all streams to global Sift object store
@@ -1069,12 +1110,6 @@ void Sift::runOnStream(
             } 
 
             Keypoint temp;
-            temp.ivec = (double*) malloc(sift_params_.descriptor_len * sizeof(double));
-            // FIXME is this faster than individual device to host transfers
-            memcpy(temp.ivec, &(h_descriptors[i * sift_params_.descriptor_len]), 
-                    sift_params_.descriptor_len * sizeof(double));
-            temp.xyScale = sift_params_.xyScale;
-            temp.tScale = sift_params_.tScale;
 
             unsigned int padding_x;
             unsigned int padding_y;
@@ -1085,6 +1120,13 @@ void Sift::runOnStream(
             temp.y = y_sub_start + padding_y - dw_ + 1;
             temp.z = padding_z - dw_ + 1;
 
+            temp.ivec = (double*) malloc(sift_params_.descriptor_len * sizeof(double));
+            // FIXME is this faster than individual device to host transfers
+            memcpy(temp.ivec, &(h_descriptors[i * sift_params_.descriptor_len]), 
+                    sift_params_.descriptor_len * sizeof(double));
+            temp.xyScale = sift_params_.xyScale;
+            temp.tScale = sift_params_.tScale;
+
 #ifdef DEBUG_OUTPUT_MATRIX
             /*logger_->info("XXX    desc_len={}, x_sub_start={}, y_sub_start={}, idx={}, temp.x={}, temp.y={}, temp.z={}",*/
                     /*sift_params_.descriptor_len, x_sub_start, y_sub_start, h_padded_map_idx[i], temp.x,*/
@@ -1093,9 +1135,11 @@ void Sift::runOnStream(
                 logger_->info("ivec[{}]={}", desc_idx, temp.ivec[desc_idx]);
             }
 #endif
+
             // buffer the size of the whole image
             stream_data->keystore->buf[i - skip_counter] = temp;
         }
+
         // remove rejected keypoints
         auto new_end = thrust::remove_if(thrust::device,
                 stream_data->keystore->buf, 
@@ -1112,7 +1156,6 @@ void Sift::runOnStream(
 #endif
         assert(stream_data->keystore->len == (new_end - stream_data->keystore->buf));
 
-        /*cudaSafeCall(cudaFree(d_sift_params));*/
         cudaSafeCall(cudaFree(substream_padded_map_idx));
         cudaSafeCall(cudaFree(descriptors));
         cudaSafeCall(cudaFree(device_centers));

@@ -9,7 +9,7 @@
 GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
 
 CPPFLAGS+=-isystem $(GTEST_DIR)/include
-CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread
+CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread -Wno-unused-function
 NVCCFLAGS=-g -std=c++11 --gpu-architecture=sm_61
 
 CUDA_INC=/usr/local/cuda/include
@@ -18,7 +18,7 @@ CUDA_LIB=/usr/local/cuda/lib64
 SPDLOG_DIR=../../include
 CUDA_UTILS_DIR=../../cuda-utils
 
-TESTS=gtest_nearestinterp
+TESTS=gtest_sift
 
 GTEST_HEADERS=$(GTEST_DIR)/include/gtest/*.h \
               $(GTEST_DIR)/include/gtest/internal/*.h
@@ -37,10 +37,10 @@ clean:
 #gtest_cudautils_kernel : gtest_cudautils_kernel.o $(CUDAUTILS_DIR)/libcudautils_test.a
 #	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
 
-gtest_nearestinterp.o: gtest_nearestinterp.cu $(GTEST_HEADERS)
+gtest_sift.o: gtest_sift.cu $(GTEST_HEADERS)
 	nvcc $(NVCCFLAGS) $(CPPFLAGS) -I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR) -I.. -c $<
 
-gtest_nearestinterp: gtest_nearestinterp.o ../nearestinterp.o $(CUDA_UTILS_DIR)/libcudautils.a
+gtest_sift: gtest_sift.o ../sift.o $(CUDA_UTILS_DIR)/libcudautils.a
 	$(CXX) $(CXXFLAGS) $(GTEST_LIBS) -lpthread -o $@ $^ -L$(CUDA_LIB) -lcudart
 
 

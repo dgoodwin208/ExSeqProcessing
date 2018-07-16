@@ -34,6 +34,7 @@ void sift_bridge(
 
     cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 
+    logger->info("# kypts: {}", sift_params.keypoint_num);
     logger->info("setImage start");
     ni->setImage(in_image);
     logger->info("setImage end");

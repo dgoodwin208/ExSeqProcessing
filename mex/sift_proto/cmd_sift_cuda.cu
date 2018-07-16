@@ -16,6 +16,7 @@
 #include <fstream>
 #include <vector>
 #include <iterator>
+#include <algorithm>
 
 #include "sift.h"
 #include "mexutil.h"
@@ -26,12 +27,6 @@
 
 #include "spdlog/spdlog.h"
 #include "stdlib.h"
-#include <algorithm>
-
-#define FV_CENTERS_LEN 240
-/*#define KEYPOINT_NUM 100000 // max expected keypoints*/
-/*#define KEYPOINT_NUM 50000 // avg.*/
-/*#define KEYPOINT_NUM 100 //test*/
 
 int main(int argc, char* argv[]) {
 
@@ -132,38 +127,14 @@ int main(int argc, char* argv[]) {
         const unsigned int dw = 2;
 
         cudautils::SiftParams sift_params;
-        sift_params.image_size0 = x_size;
-        sift_params.image_size1 = y_size;
-        sift_params.image_size2 = z_size;
-        sift_params.fv_centers_len = FV_CENTERS_LEN;
-        sift_params.IndexSize = 2;
-        sift_params.nFaces = 80;
-        sift_params.IndexSigma = 5.0;
-        sift_params.SigmaScaled = sift_params.IndexSigma * 0.5 * sift_params.IndexSize;
-        sift_params.Smooth_Flag = true;
-        sift_params.Smooth_Var = 20;
-        sift_params.MaxIndexVal = 0.2;
-        sift_params.Tessel_thresh = 3;
-        sift_params.xyScale = 1;
-        sift_params.tScale = 1;
-        sift_params.TwoPeak_Flag = false;
-        sift_params.MagFactor = 3;
-        sift_params.keypoint_num = keypoint_num; 
-        sift_params.descriptor_len = sift_params.IndexSize *
-            sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
-
-        // set fv_centers
-        double* fv_centers = (double*) malloc(sizeof(double) * FV_CENTERS_LEN);
-        for (int i=0; i < FV_CENTERS_LEN; i++) {
-            fv_centers[i] = (double) rand() / 100000000;
-        }
-        fv_centers[0] = 0.0;
+        double* fv_centers = sift_defaults(&sift_params,
+                x_size, y_size, z_size, keypoint_num);
 
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
 
         try {
-            cudautils::Keypoint_store keystore;
+            /*cudautils::Keypoint_store keystore;*/
 
             std::shared_ptr<cudautils::Sift> ni =
                 std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
@@ -182,18 +153,14 @@ int main(int argc, char* argv[]) {
             executor.run();
             logger->info("calc end");
 
-            logger->info("getKeystore start");
-            ni->getKeystore(&keystore);
-            logger->info("getKeystore end");
+            /*logger->info("getKeystore start");*/
+            /*ni->getKeystore(&keystore);*/
+            /*logger->info("getKeystore end");*/
 
             /*mxArray* mxKeystore;*/
             /*// Convert the output keypoints*/
             /*if ((mxKeystore = kp2mx(&keystore, sift_params)) == NULL)*/
                 /*logger->error("keystore to mex error occurred");*/
-
-            /*logger->info("getImage start");*/
-            /*ni->getImage(out_interp_image);*/
-            /*logger->info("getImage end");*/
 
         } catch (...) {
             logger->error("internal unknown error occurred");

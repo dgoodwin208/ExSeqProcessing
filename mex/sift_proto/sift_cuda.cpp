@@ -74,32 +74,37 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
 
                 cudautils::Keypoint *const key = kp->buf + i;
 
-                // Initialize the ivec array
-                const mwSize dims[2] = {(int) sift_params.descriptor_len, 1};
-                if ((mxIvec = 
-                        mxCreateNumericArray(1, dims,
-                            mxDOUBLE_CLASS, mxREAL)) == NULL)
-                        return NULL;
+                if (!sift_params.skipDescriptor) {
+                    // Initialize the ivec array
+                    const mwSize dims[2] = {(int) sift_params.descriptor_len, 1};
+                    if ((mxIvec = 
+                            mxCreateNumericArray(1, dims,
+                                mxDOUBLE_CLASS, mxREAL)) == NULL)
+                            return NULL;
 
-                ivec = (double *) mxGetData(mxIvec); 
-                //memcpy(ivec, key->ivec, sift_params.descriptor_len * sizeof(double));
-                for (int j = 0; j < sift_params.descriptor_len; j++) 
-                    ivec[j] = key->ivec[j];
+                    ivec = (double *) mxGetData(mxIvec); 
+                    //memcpy(ivec, key->ivec, sift_params.descriptor_len * sizeof(double));
+                    for (int j = 0; j < sift_params.descriptor_len; j++) 
+                        ivec[j] = key->ivec[j];
 
-                // Copy the scale 
+                    // Copy the scale 
+                    mxtScale = mxCreateDoubleScalar(key->tScale);
+                    mxxyScale = mxCreateDoubleScalar(key->xyScale);
+
+                    // Set the descriptor struct fields
+                    mxSetFieldByNumber(mxKp, i, tscaleNum, mxtScale);
+                    mxSetFieldByNumber(mxKp, i, xyscaleNum, mxxyScale);
+                    mxSetFieldByNumber(mxKp, i, ivecNum, mxIvec);
+                }
+
                 x = mxCreateDoubleScalar(key->x);
                 y = mxCreateDoubleScalar(key->y);
                 z = mxCreateDoubleScalar(key->z);
-                mxtScale = mxCreateDoubleScalar(key->tScale);
-                mxxyScale = mxCreateDoubleScalar(key->xyScale);
 
                 // Set the struct fields
                 mxSetFieldByNumber(mxKp, i, xNum, x);
                 mxSetFieldByNumber(mxKp, i, yNum, y);
                 mxSetFieldByNumber(mxKp, i, zNum, z);
-                mxSetFieldByNumber(mxKp, i, tscaleNum, mxtScale);
-                mxSetFieldByNumber(mxKp, i, xyscaleNum, mxxyScale);
-                mxSetFieldByNumber(mxKp, i, ivecNum, mxIvec);
         }
 
         return mxKp;
@@ -153,6 +158,8 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
 
     sift_params.Smooth_Flag = get_logical_field(prhs, "Smooth_Flag");
 
+    sift_params.skipDescriptor = get_logical_field(prhs, "skipDescriptor");
+
     sift_params.Smooth_Var = get_double_field(prhs, "Smooth_Var");
 
     sift_params.SigmaScaled = get_double_field(prhs, "SigmaScaled");
@@ -182,8 +189,7 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
 }
 
 void
-mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
-{ 
+mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) { 
     //
     //SIFT3D_Descriptor_store desc;
     std::shared_ptr<spdlog::logger> logger;

@@ -28,6 +28,7 @@ image_size = size(img);
 sift_params.image_size0 = image_size(1);
 sift_params.image_size1 = image_size(2);
 sift_params.image_size2 = image_size(3);
+sift_params.skipDescriptor = skipDescriptor;
 
 % collect fv info
 fv = sphere_tri('ico', sift_params.Tessellation_levels, 1);
@@ -38,6 +39,7 @@ sift_params.descriptor_len = sift_params.IndexSize *...
 
 sift_params.keypoint_num = size(keypts,1);
 N = size(keypts,1);
+fprintf('SIFT3D cuda processing %d keypoints\n', N);
 map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_size2);
 for i=1:N
     map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = 0; % select the keypoint element

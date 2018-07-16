@@ -17,7 +17,7 @@
 
 #include "spdlog/spdlog.h"
 
-//#define DEBUG_OUTPUT
+#define DEBUG_OUTPUT
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
 //#define DEBUG_NO_THREADING
@@ -75,6 +75,12 @@ inline void __cudaCheckError( const char *file, const int line)
 
 
 namespace cudautils {
+
+// assumes r,c,s lie within accessible image boundaries
+__device__ __host__
+double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
+        x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
+        const cudautils::SiftParams sift_params, double* device_centers);
 
 // pinned memory on host
 typedef thrust::host_vector<double, thrust::system::cuda::experimental::pinned_allocator<double>> pinnedDblHostVector;
