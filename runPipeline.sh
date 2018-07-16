@@ -79,7 +79,9 @@ if [ -f ./loadParameters.m ]; then
 else
     PARAMETERS_FILE=./loadParameters.m.template
 fi
+
 TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+USE_TMP_FILES_IN_NORM=$(sed -ne "s#params.USE_TMP_FILES_IN_NORM *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
 
 NORMALIZATION_MAX_RUN_JOBS=$(sed -ne "s#params.NORM_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 NORMALIZATION_MAX_POOL_SIZE=$(sed -ne "s#params.NORM_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
@@ -237,9 +239,9 @@ if [ ! -f ./loadParameters.m ]; then
 fi
 
 
-###### check temporal files
+###### check temporary files
 if [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; then
-    echo "Temporal dir. is not empty."
+    echo "Temporary dir. is not empty."
 
     echo "Delete? (y/n)"
     read -sn1 ANSW
@@ -402,18 +404,6 @@ do
     echo ":  ${REG_STAGES[i]}"
 done
 echo
-echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
-echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
-
-printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
-printf "  registration           :\n"
-printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
-printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
-printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
-printf "    calc-3DTPS-warp      :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
-printf "    apply-3DTPS          :  %2d,%2d,%2d\n" ${APPLY3DTPS_MAX_RUN_JOBS} ${APPLY3DTPS_MAX_POOL_SIZE} ${APPLY3DTPS_MAX_THREADS}
-#printf "  puncta-extraction      :  %2d,%2d,%2d\n" ${PUNCTA_MAX_RUN_JOBS} ${PUNCTA_MAX_POOL_SIZE} ${PUNCTA_MAX_THREADS}
-echo
 echo "Directories"
 echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
 echo "  color correction images:  ${COLOR_CORRECTION_DIR}"
@@ -430,6 +420,22 @@ echo "  Temporal storage       :  ${TEMP_DIR}"
 echo
 echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
+echo
+echo "========================================================================="
+echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
+echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
+
+printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
+printf "  registration           :\n"
+printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
+printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
+printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
+printf "    calc-3DTPS-warp      :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
+printf "    apply-3DTPS          :  %2d,%2d,%2d\n" ${APPLY3DTPS_MAX_RUN_JOBS} ${APPLY3DTPS_MAX_POOL_SIZE} ${APPLY3DTPS_MAX_THREADS}
+#printf "  puncta-extraction      :  %2d,%2d,%2d\n" ${PUNCTA_MAX_RUN_JOBS} ${PUNCTA_MAX_POOL_SIZE} ${PUNCTA_MAX_THREADS}
+echo
+echo "Parameters in only loadParameters.m"
+echo "  temporary data in norm :  "$(if [ "${USE_TMP_FILES_IN_NORM}" = "true" ]; then echo "storage"; else echo "on-memory";fi)
 echo "#########################################################################"
 echo
 
