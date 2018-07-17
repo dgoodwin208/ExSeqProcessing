@@ -35,6 +35,13 @@ protected:
     virtual ~SiftTest() {
     }
 
+    template <class T>
+    void print_arr(T * arr, int N) {
+        for (int i=0; i < N; i++) {
+            logger_->debug("\t[{}]={}", i, arr[i]);
+        }
+    }
+
 };
 
 
@@ -108,7 +115,8 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
 
     // create img
     thrust::host_vector<double> img(x_size * y_size * z_size);
-    thrust::generate(img.begin(), img.end(), rand);
+    /*thrust::generate(img.begin(), img.end(), rand);*/
+    thrust::sequence(img.begin(), img.end());
 
     unsigned int idx = 14; // center of cube
     unsigned int x_stride = x_size;
@@ -119,6 +127,14 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
 
     double mag = cudautils::get_grad_ori_vector(thrust::raw_pointer_cast(&img[0]), idx, x_stride, y_stride, vect, yy, ix, sift_params, 
             fv_centers);
+
+    print_arr(yy, sift_params.fv_centers_len);
+
+    printf("mag=%f\n", mag);
+    for (int i=0; i < sift_params.fv_centers_len; i++) {
+        printf("yy[%d]= %f", i, yy[i]);
+    }
+    logger_->debug("mag={}", mag);
 }
 
 TEST_F(SiftTest, SiftFullImageTest) {
