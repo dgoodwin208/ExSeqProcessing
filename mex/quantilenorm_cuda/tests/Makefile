@@ -19,10 +19,10 @@ UTILS_DIR=../utils
 
 MATLAB_LIB_DIR=/usr/local/MATLAB/R2018a/bin/glnxa64
 
-TESTS = gtest_utils gtest_cudautils gtest_quantilenorm_cuda_impl gtest_radixsort_gpu_stresstest
+TESTS=gtest_utils gtest_cudautils gtest_quantilenorm_cuda_impl gtest_radixsort_gpu_stresstest
 
-GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
-                $(GTEST_DIR)/include/gtest/internal/*.h
+GTEST_HEADERS=$(GTEST_DIR)/include/gtest/*.h \
+              $(GTEST_DIR)/include/gtest/internal/*.h
 GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
 
 CPPFLAGS+=-isystem $(GTEST_DIR)/include -I$(UTILS_DIR) -I$(CUDA_UTILS_DIR) -I$(GLOBAL_UTILS_DIR) -I$(SPDLOG_DIR) -I..

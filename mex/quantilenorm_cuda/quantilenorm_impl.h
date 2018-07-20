@@ -106,7 +106,7 @@ public:
                      const size_t image_height,
                      const size_t num_slices,
                      const size_t num_gpus,
-                     const bool use_hdf5,
+                     const bool use_hdf5 = false,
                      const bool use_tmp_files = true);
 
     void run();
