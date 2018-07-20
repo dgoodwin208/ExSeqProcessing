@@ -17,7 +17,7 @@
 
 #include "spdlog/spdlog.h"
 
-#define DEBUG_OUTPUT
+//#define DEBUG_OUTPUT
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
 //#define DEBUG_NO_THREADING
@@ -62,12 +62,12 @@ inline void __cudaCheckError( const char *file, const int line)
     // make sure this section is not executed in production binaries
 #ifdef DEBUG_OUTPUT
     /*err = cudaDeviceSynchronize();*/
-    if (cudaSuccess != err)
-    {
-        fprintf( stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString( err ) );
-        exit( -1 );
-    }
+    //if (cudaSuccess != err)
+    //{
+        //fprintf( stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
+                //file, line, cudaGetErrorString( err ) );
+        //exit( -1 );
+    //}
 #endif
     
     return;
@@ -76,9 +76,24 @@ inline void __cudaCheckError( const char *file, const int line)
 
 namespace cudautils {
 
+__global__
+void get_grad_ori_vector_wrapper(double* image, unsigned long long idx, unsigned int
+        x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
+        const cudautils::SiftParams sift_params, double* device_centers, double* mag);
+
+__device__ __host__
+int bin_sub2ind(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params);
+
+__device__ __host__
+int get_bin_idx(int orig, int radius, int IndexSize);
+
+__device__ __host__
+void dot_product(double* first, double* second, double* out,
+        int rows, int cols);
+
 // assumes r,c,s lie within accessible image boundaries
 __device__ __host__
-double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
+double get_grad_ori_vector(double* image, unsigned long long idx, unsigned int
         x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers);
 
@@ -100,7 +115,7 @@ unsigned int get_delta(const unsigned int total_size, const unsigned int index, 
 
 inline
 __host__ __device__
-void ind2sub(const unsigned int x_stride, const unsigned int y_stride, const unsigned int idx, unsigned int& x, unsigned int& y, unsigned int& z) {
+void ind2sub(const unsigned int x_stride, const unsigned int y_stride, const unsigned long long idx, unsigned int& x, unsigned int& y, unsigned int& z) {
     unsigned int i = idx;
     z = i / (x_stride * y_stride);
     i -= z * (x_stride * y_stride);

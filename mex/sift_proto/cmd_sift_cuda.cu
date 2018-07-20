@@ -63,7 +63,14 @@ int main(int argc, char* argv[]) {
         /*y_size = atoi(argv[5]);*/
         /*z_size = atoi(argv[6]);*/
 
-        int keypoint_num = atoi(argv[1]);
+        int keypoint_num;
+        try {
+            keypoint_num = atoi(argv[1]);
+        } catch (const spdlog::spdlog_ex& ex) {
+            std::cout << "Must provide # of keypoints `$./sift_cuda 1` " << ex.what() << std::endl;
+            return 1;
+        }
+
         logger->info("# of keypoints = {}", keypoint_num);
         x_size = 2048;
         y_size = 2048;

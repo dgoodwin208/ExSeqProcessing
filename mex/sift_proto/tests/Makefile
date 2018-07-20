@@ -10,7 +10,7 @@ GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
 
 CPPFLAGS+=-isystem $(GTEST_DIR)/include
 CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread -Wno-unused-function
-NVCCFLAGS=-g -std=c++11 --gpu-architecture=sm_61
+NVCCFLAGS=-g -std=c++11 --gpu-architecture=sm_61 -Xcompiler="-Wno-unused-function"
 
 CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64

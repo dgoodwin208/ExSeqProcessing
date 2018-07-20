@@ -18,6 +18,14 @@ changed = 0;
 [vec precomp_grads] = KeySampleVec(key, pix, sift_params, precomp_grads);
 VecLength = length(vec);
 
+%fprintf('ML\n');
+%for i=1:VecLength
+    %if (vec(i) ~= 0 )
+        %fprintf('index[%d]=%.4f, ', i - 1, vec(i));
+    %end
+%end
+%fprintf('\n');
+
 vec = NormalizeVec(vec, VecLength);
 
 for i = 1:VecLength

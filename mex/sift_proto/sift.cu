@@ -27,17 +27,27 @@ struct isnan_test {
     }
 };
 
-// column major order index into the descriptor vector
+// row major order index into the descriptor vector
 // note the descriptor vector length is determined by 
 // sift_params.IndexSize ^ 3 * sift_params.nFaces
 // this is why i, j, and k are dimensions of stride sift_params.IndexSize
-__device__
-int bin_sub2ind(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
+__device__ __host__
+int bin_sub2ind_row(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
     return (int) l + sift_params.nFaces * (k + j * pow(sift_params.IndexSize, 1) + i
             * pow(sift_params.IndexSize, 2));
 }
 
-__device__
+// column major order index into the descriptor vector
+// note the descriptor vector length is determined by 
+// sift_params.IndexSize ^ 3 * sift_params.nFaces
+// this is why i, j, and k are dimensions of stride sift_params.IndexSize
+__device__ __host__
+int bin_sub2ind(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
+    return (int) i + j * sift_params.IndexSize + k * pow(sift_params.IndexSize, 2)
+        + l * pow(sift_params.IndexSize, 3);
+}
+
+__device__ __host__
 void place_in_index(double* index, double mag, int i, int j, int k, 
         double* yy, uint16_t* ix, const cudautils::SiftParams sift_params) {
 
@@ -49,55 +59,90 @@ void place_in_index(double* index, double mag, int i, int j, int k,
         }
 
         // Add three nearest tesselation faces
-        for (int ii=0; ii<sift_params.Tessel_thresh; ii++) {
+        for (int ii=0; ii < sift_params.Tessel_thresh; ii++) {
             bin_index = bin_sub2ind(i, j, k, ix[ii], sift_params);
-            if (bin_index >= sift_params.descriptor_len)  {
-                printf("Error: exiting all threads in %s at line %s place_in_index()", __FILE__, __LINE__ );
-                asm("trap;");
-            }
-#ifdef DEBUG_OUTPUT
-            /*printf("i%d j%d k%d ix[ii]%d bin_index%d yy[ii]%f\n", i, j, k,*/
-                    /*ix[ii], bin_index, yy[ii]);*/
-            /*printf("\tbin_index[%d]+=%.3f",bin_index, mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum);*/
-#endif
+
+/*#ifdef DEBUG_OUTPUT*/
+            /*printf("i%d j%d k%d ix[ii]%d bin_index%d yy[ii]%f, index+=%.3f\n", i, j, k,*/
+                    /*ix[ii], bin_index, yy[ii], mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum);*/
+/*#endif*/
             index[bin_index] +=  mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum;
         }
     } else {
         bin_index = bin_sub2ind(i, j, k, ix[0], sift_params);
         index[bin_index] += mag;
     }
-#ifdef DEBUG_OUTPUT
-    /*for (int i=0; i < sift_params.descriptor_len; i++) {*/
-        /*if (index[i] != 0.0) {*/
-            /*printf("\tindex[%d]=%.3f",i, index[i]);*/
-        /*}*/
-    /*}*/
-#endif
     return;
 }
 
-__device__
-double dot_product(double* first, double* second, int N) {
-    double sum = 0.0;
-    for (int i=0; i < N; i++) {
-        sum += first[i] * second[i];
+// matrix multiply in row memory order 
+// first is a matrix in row order
+// second is the array multiply
+// assumes length of second = cols of first
+__device__ __host__
+void dot_product(double* first, double* second, double* out, int rows,
+        int cols) {
+    for (int i=0; i < rows; i++) {
+        double sum = 0.0;
+        for (int j=0; j < cols; j++) {
+            sum += first[j + i * cols] * second[j];
+        }
+        out[i] = sum;
     }
-    return sum;
+}
+
+
+// matrix multiply in col memory order 
+// first is a matrix in column order
+// second is the array multiply
+// assumes length of second = cols of first
+__device__ __host__
+void dot_product_col_ord(double* first, double* second, double* out, int rows,
+        int cols) {
+    for (int i=0; i < rows; i++) {
+        double sum = 0.0;
+        for (int j=0; j < cols; j++) {
+            sum += first[i + j * rows] * second[j];
+        }
+        out[i] = sum;
+    }
+}
+
+/*void gpu_blas_mmul(cublasHandle_t &handle, const double* A, const double* B,*/
+        /*double* C, const int m, const int k, const int n) {*/
+    /*const float alf = 1;*/
+    /*const float bet = 0;*/
+/*}*/
+
+__global__
+void get_grad_ori_vector_wrapper(double* image, unsigned long long idx, unsigned int
+        x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
+        const cudautils::SiftParams sift_params, double* device_centers, double* mag) {
+
+    *mag = cudautils::get_grad_ori_vector(thrust::raw_pointer_cast(&image[0]), 
+        idx, x_stride, y_stride, thrust::raw_pointer_cast(&vect[0]),
+        thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
+        sift_params, thrust::raw_pointer_cast(&device_centers[0]));
+    return;
 }
 
 // assumes r,c,s lie within accessible image boundaries
-__device__ __host__
-double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
+__device__ 
+double get_grad_ori_vector(double* image, unsigned long long idx, unsigned int
         x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers) {
 
+
+    /* this is literal translation from Scovanner et al. 3DSIFT, 
+       even though it seems xgrad and ygrad are switched, and ygrad seems to be
+       in wrong direction
+    */
     double xgrad = image[idx + x_stride] - image[idx - x_stride];
-    //FIXME is this correct direction?
     double ygrad = image[idx - 1] - image[idx + 1];
     double zgrad = image[idx + x_stride * y_stride] - image[idx - x_stride * y_stride];
 
-    /*printf("get_grad_ori_vector image[idx -1] %f image[idx+1] %f\n", image[idx - 1], image[idx + 1]);*/
-    /*printf("XXX\txgrad %f y %f z %f\n", xgrad, ygrad, zgrad);*/
+    /*printf("ggov idx%u image[idx -1] %f image[idx+1] %f\n\txgrad %f y %f z %f\n",*/
+            /*idx, image[idx - 1], image[idx + 1], xgrad, ygrad, zgrad);*/
 
     double mag = sqrt(xgrad * xgrad + ygrad * ygrad + zgrad * zgrad);
 
@@ -105,38 +150,47 @@ double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
     ygrad /= mag;
     zgrad /= mag;
 
-    if (mag !=0) {
+    if (mag != 0.0) {
         vect[0] = xgrad;
         vect[1] = ygrad;
         vect[2] = zgrad;
     } 
 
     //Find the nearest tesselation face indices
-    //FIXME cublasSgemm() higher performance
     int dims = 3;
+    // N = sift_params.nFaces 
     int N = sift_params.fv_centers_len / dims;
-    //FIXME check this rigorously for error
-    /*double* corr_array;*/
-    for (int i=0; i < N; i++) {
-        yy[i] = dot_product(&(device_centers[i * dims]),
-                vect, dims);
-    }
-    
-    // overwrite idxs 1 : N, N can not exceed the length of ori_hist
-    if (N != sift_params.nFaces)  {
-        printf("Error: exiting all threads in %s at line %s place_in_index()", __FILE__, __LINE__ );
-        asm("trap;");
-    }
-    thrust::sequence(thrust::device, ix, ix + N);
-    // descending order by ori_hist
-    thrust::sort_by_key(thrust::device, ix, ix + N, yy, thrust::greater<int>());
+    dot_product(device_centers, vect, yy, N, dims);
 
-    /*[>//FIXME remove<]*/
-    /*for (int i=0; i < 3; i++) {*/
-        /*if (yy[i] != 0.0) {*/
-            /*printf("XXX    yy[%d]=%.3f", i, yy[i]);*/
+    /*int di;*/
+    /*printf("device_centers:\n");*/
+    /*for (int i=0; i < N; i++) {*/
+        /*for (int j=0; j < dims; j++) {*/
+            /*di = j + dims * i;*/
+            /*printf("[%d]=%.3f, ", di, device_centers[di]);*/
         /*}*/
         /*printf("\n");*/
+    /*}*/
+
+    /*for (int i=0; i < sift_params.nFaces; i++) {*/
+        /*[>if (yy[i] != 0.0) {<]*/
+        /*[>}<]*/
+        /*printf("yy[%d]=%.3f\n", i, yy[i]);*/
+        /*if (i < dims)*/
+            /*printf("vect[%d]=%f\n", i, vect[i]);*/
+    /*}*/
+    /*printf("sort yy\n");*/
+    
+    // overwrite idxs 1 : N, N can not exceed the length of ori_hist
+    thrust::sequence(thrust::device, ix, ix + sift_params.nFaces);
+    // descending order by ori_hist
+    thrust::sort_by_key(thrust::device, yy, yy + sift_params.nFaces, ix, thrust::greater<double>());
+
+    /*for (int i=0; i < sift_params.nFaces; i++) {*/
+        /*[>if (yy[i] != 0.0) {<]*/
+        /*[>}<]*/
+        /*printf("yy[%d]=%.3f\n", i, yy[i]);*/
+        /*printf("ix[%d]=%d\n", i, ix[i]);*/
     /*}*/
 
     return mag;
@@ -148,7 +202,7 @@ double get_grad_ori_vector(double* image, unsigned int idx, unsigned int
 /*bin it down to the sift_params.IndexSize dimensions*/
 /*thus, i_indx, j_indx, s_indx represent the binned index within the radius of the keypoint*/
 __device__
-void add_sample(double* index, double* image, double distsq, unsigned int
+void add_sample(double* index, double* image, double distsq, unsigned long long
         idx, unsigned int x_stride, unsigned int y_stride, int i_bin, int j_bin, int k_bin, 
         const cudautils::SiftParams sift_params, double* device_centers,
         uint16_t* ix, double* yy) {
@@ -171,9 +225,9 @@ void add_sample(double* index, double* image, double distsq, unsigned int
 
 // floor quotient, add 1
 // clamp bin idx to IndexSize
-__device__
-inline int get_bin_idx(int orig, int radius, int IndexSize) {
-    int idx = (int) 1 + ((orig + radius) / (2.0 * radius / IndexSize));
+__device__ __host__
+int get_bin_idx(int orig, int radius, int IndexSize) {
+    int idx = (int) floor((orig + radius) / (2.0 * (double) radius / IndexSize));
     if (idx >= IndexSize) // clamp to IndexSize
         idx = IndexSize - 1;
     return idx;
@@ -181,7 +235,7 @@ inline int get_bin_idx(int orig, int radius, int IndexSize) {
 
 __device__
 double* key_sample(const cudautils::SiftParams sift_params, 
-        cudautils::Keypoint key, double* image, unsigned int idx,
+        cudautils::Keypoint key, double* image, unsigned long long idx,
         unsigned int x_stride, unsigned int y_stride, 
         double* device_centers, uint16_t* ix, double* yy,
         double* index) {
@@ -192,13 +246,20 @@ double* key_sample(const cudautils::SiftParams sift_params,
     int xyiradius = rint(1.414 * xySpacing * (sift_params.IndexSize + 1) / 2.0);
     int tiradius = rint(1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0);
 
+    printf("xyiradius %d, tiradius %d\n", xyiradius, tiradius);
+    printf("x %d, y %d, z %d\n", key.x, key.y, key.z);
+
     // Surrounding radius of pixels are binned for computation 
     // according to sift_params.IndexSize
     int r, c, t, i_bin, j_bin, k_bin;
     double distsq;
+    int counter = 0;
+    int inner_counter = 0;
+    unsigned long long update_idx;
     for (int i = -xyiradius; i <= xyiradius; i++) {
         for (int j = -xyiradius; j <= xyiradius; j++) {
             for (int k = -tiradius; k <= tiradius; k++) {
+                counter++;
 
                 // FIXME check for CUDA pow function
                 distsq = (double) pow(i,2) + pow(j,2) + pow(k,2);
@@ -213,6 +274,7 @@ double* key_sample(const cudautils::SiftParams sift_params,
                 r = key.x + i;
                 c = key.y + j;
                 t = key.z + k;
+                printf("r %d, c %d, t %d\n", r, c, t);
 
                 // FIXME does this collide with GPU splitting?
                 // only add if within image range
@@ -220,19 +282,26 @@ double* key_sample(const cudautils::SiftParams sift_params,
                         c < 0  ||  c >= sift_params.image_size1
                         || t < 0 || t >= sift_params.image_size2)) {
 
-                    add_sample(index, image, distsq, idx, x_stride, y_stride,
+                    inner_counter++;
+                    // image is assumed as column order
+                    // make sure it isn't cast to unsigned
+                    update_idx = (long long) idx + i + (int) x_stride * j +
+                        (int) x_stride * (int) y_stride * k;
+                    add_sample(index, image, distsq, update_idx, x_stride, y_stride,
                             i_bin, j_bin, k_bin, sift_params,
                             device_centers, ix, yy);
                 }
             }
         }
     }
+    printf("counter%d\n",counter);
+    printf("inner_counter%d\n",inner_counter);
 
     return index;
 }
 
 __device__
-double* build_ori_hists(int x, int y, int z, unsigned int idx, unsigned int
+double* build_ori_hists(int x, int y, int z, unsigned long long idx, unsigned int
         x_stride, unsigned int y_stride, int radius, double* image, 
         const cudautils::SiftParams sift_params, double* device_centers,
         uint16_t* ix, double* yy, double* ori_hist) {
@@ -281,7 +350,7 @@ void normalize_arr(double* arr, int len) {
 
 __device__
 cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
-        image, const cudautils::SiftParams sift_params, unsigned int thread_idx, unsigned int idx,
+        image, const cudautils::SiftParams sift_params, unsigned int thread_idx, unsigned long long idx,
         unsigned int x_stride, unsigned int y_stride, double * descriptors,
         double* device_centers, uint16_t* ix, double* yy) {
 
@@ -296,6 +365,11 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
     key_sample(sift_params, key, image, idx, x_stride, y_stride,
             device_centers, ix, yy, index);
 
+    /*for (int i=0; i < sift_params.descriptor_len; i++) {*/
+        /*if (index[i] != 0) */
+            /*printf("index[%d]=%.4f, ",i, index[i]);*/
+    /*}*/
+    /*printf("\n");*/
 
     normalize_arr(index, N);
 
@@ -313,9 +387,6 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
     int intval;
     for (int i=0; i < N; i++) {
         intval = rint(512.0 * index[i]);
-        /*if (intval != 0) {*/
-            /*printf("intval%d", intval);*/
-        /*}*/
         //FIXME cuda function for min?
         index[i] =  (double) min(255, intval);
     }
@@ -324,7 +395,7 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
 
 __device__
 cudautils::Keypoint make_keypoint(double* image, int x, int y, int z,
-        unsigned int thread_idx, unsigned int idx, unsigned int x_stride, unsigned int y_stride,
+        unsigned int thread_idx, unsigned long long idx, unsigned int x_stride, unsigned int y_stride,
         const cudautils::SiftParams sift_params, double * descriptors, double*
         device_centers, uint16_t* ix, double* yy) {
     cudautils::Keypoint key;
@@ -373,7 +444,7 @@ void create_descriptor(
     // map_idx holds the relevant image idxs only for the substream
     // map_idx_size matchs total # of threads
     // idx describes the linear index for current GPUs section of the image and corresponding map
-    unsigned int idx = map_idx[thread_idx];
+    unsigned long long idx = map_idx[thread_idx];
     /*printf("create_descriptor image[idx -1] %f image[idx+1] %f\n", image[idx - 1], image[idx + 1]);*/
 
     // column-major order since image is from matlab
@@ -411,17 +482,18 @@ void create_descriptor(
         build_ori_hists(x, y, z, idx, x_stride, y_stride, radius, image,
                 sift_params, device_centers, ix, yy, ori_hist);
         // descending order according to ori_hist
-        thrust::sort_by_key(thrust::device, ori_hist_idx, ori_hist_idx +
-                ori_hist_len, ori_hist, thrust::greater<uint16_t>());
+        thrust::sort_by_key(thrust::device, ori_hist, ori_hist +
+                ori_hist_len, ori_hist_idx, thrust::greater<double>());
             
-        int dims = 3;
-        float thresh = .9;
-        if ( 
-            (dot_product(&(device_centers[dims * ori_hist_idx[0]]),
-                &(device_centers[dims * ori_hist_idx[1]]),
-                dims) > thresh) &&
-            (dot_product(&(device_centers[dims * ori_hist_idx[0]]),
-                &(device_centers[dims * ori_hist_idx[2]]), dims) > thresh)) {
+        // FIXME have this in sift_params
+        int dims = 3; float thresh = .9;
+        double prod01, prod02;
+        dot_product(&(device_centers[dims * ori_hist_idx[0]]),
+            &(device_centers[dims * ori_hist_idx[1]]), &prod01, 1, dims);
+        dot_product(&(device_centers[dims * ori_hist_idx[0]]),
+            &(device_centers[dims * ori_hist_idx[2]]), &prod02, 1, dims);
+        if ( ( prod01 > thresh) &&
+             ( prod02 > thresh) ) {
             // FIXME remove this since memory is never accessed
             /*memset(&(descriptors[idx]), 0, sift_params.descriptor_len * sizeof(double));*/
             // mark this keypoint as null in map
