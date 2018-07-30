@@ -14,17 +14,11 @@ tRadius = 1.414 * tSpacing * (sift_params.IndexSize + 1) / 2.0;
 xyiradius = int16(xyRadius);
 tiradius = int16(tRadius);
 
-fprintf('xyiradius %d, tiradius %d\n', xyiradius, tiradius);
-fprintf('x %d, y %d, z %d\n', key.x, key.y, key.z);
-
 index = zeros(sift_params.IndexSize,sift_params.IndexSize,sift_params.IndexSize,sift_params.nFaces);
 
-counter = 0;
-inner_counter = 0;
 for i = -xyiradius:xyiradius
     for j = -xyiradius:xyiradius
         for s = -tiradius:tiradius
-            counter = counter + 1;
 
             % This is redundant and probably slows down the code, but at
             % some point this solved a major overflow headache, so leaving
@@ -60,20 +54,17 @@ for i = -xyiradius:xyiradius
             r = irow + v0(1);
             c = icol + v0(2);
             t = islice + v0(3);
-            fprintf('r %d, c %d, t %d\n', r, c, t);
+            %fprintf('r %d, c %d, t %d\n', r, c, t);
 
             %We've calculated the target index for the 3D histogram
             %Add sample increments the 
             if ~(r < 1  ||  r > sift_params.pix_size(1)  ||  c < 1  ||  c > sift_params.pix_size(2) || t < 1 || t > sift_params.pix_size(3))
-                inner_counter = inner_counter + 1;
                 [index precomp_grads] = AddSample(index, pix, distsq, r, c, t, i_indx, j_indx, s_indx, fv, sift_params, precomp_grads);
             end
             
         end
     end
 end
-fprintf('counter%d\n', counter);
-fprintf('inner_counter%d\n', inner_counter);
 
 %IF NOT ADDING ROT INVARIANCE, RETURN HERE.
 return;

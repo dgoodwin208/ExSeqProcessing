@@ -20,6 +20,7 @@
 
 #include "sift.h"
 #include "mexutil.h"
+#include "sift_bridge.h"
 /*#include "sift_types.h"*/
 #include "gpudevice.h"
 
@@ -100,14 +101,14 @@ int main(int argc, char* argv[]) {
 
         // create image
         long image_size = x_size * y_size * z_size;
-        std::vector<double> in_image(image_size);
-        for (int i=0; i < image_size; i++) {
+        double* in_image = (double*) malloc(image_size * sizeof(double));
+        int8_t* in_map = (int8_t*) malloc(image_size * sizeof(int8_t));
+        for (long i=0; i < image_size; i++) {
             in_image[i] = rand() % 100 + 1.0;
+            in_map[i] = 1.0;
         }
 
         // create map
-        std::vector<int8_t> in_map  (image_size);
-        std::fill_n(in_map.begin(), image_size, 1.0);
         long long idx;
         for (int i=0; i < keypoint_num; i++) {
             // warning not evenly distributed across the image
@@ -131,7 +132,7 @@ int main(int argc, char* argv[]) {
         const unsigned int y_sub_size = min(2048, y_size / num_gpus);
         const unsigned int dx = min(256, x_sub_size);
         const unsigned int dy = min(256, y_sub_size);
-        const unsigned int dw = 2;
+        const unsigned int dw = 0;
 
         cudautils::SiftParams sift_params;
         double* fv_centers = sift_defaults(&sift_params,
@@ -141,24 +142,29 @@ int main(int argc, char* argv[]) {
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
 
         try {
-            /*cudautils::Keypoint_store keystore;*/
+            cudautils::Keypoint_store keystore;
 
-            std::shared_ptr<cudautils::Sift> ni =
-                std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
-                        x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
-                        num_streams, sift_params, fv_centers);
+            cudautils::sift_bridge(
+                    logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
+                    dy, dw, num_gpus, num_streams, in_image, in_map,
+                    sift_params, fv_centers, &keystore);
 
-            cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
+            /*std::shared_ptr<cudautils::Sift> ni =*/
+                /*std::make_shared<cudautils::Sift>(x_size, y_size, z_size,*/
+                        /*x_sub_size, y_sub_size, dx, dy, dw, num_gpus,*/
+                        /*num_streams, sift_params, fv_centers);*/
 
-            logger->info("setImage start");
-            ni->setImage(in_image);
-            logger->info("setImage end");
-            ni->setMapToBeInterpolated(in_map);
-            logger->info("setMap end");
+            /*cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);*/
 
-            logger->info("calc start");
-            executor.run();
-            logger->info("calc end");
+            /*logger->info("setImage start");*/
+            /*ni->setImage(in_image);*/
+            /*logger->info("setImage end");*/
+            /*ni->setMapToBeInterpolated(in_map);*/
+            /*logger->info("setMap end");*/
+
+            /*logger->info("calc start");*/
+            /*executor.run();*/
+            /*logger->info("calc end");*/
 
             /*logger->info("getKeystore start");*/
             /*ni->getKeystore(&keystore);*/
@@ -168,6 +174,9 @@ int main(int argc, char* argv[]) {
             /*// Convert the output keypoints*/
             /*if ((mxKeystore = kp2mx(&keystore, sift_params)) == NULL)*/
                 /*logger->error("keystore to mex error occurred");*/
+
+            free(in_image);
+            free(in_map);
 
         } catch (...) {
             logger->error("internal unknown error occurred");

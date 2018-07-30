@@ -200,6 +200,9 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
     thrust::sequence(image.begin(), image.end());
 
     unsigned long long idx = 14; // center of cube
+    int r = 1;
+    int c = 1;
+    int t = 1;
     unsigned int x_stride = x_size;
     unsigned int y_stride = y_size;
     thrust::device_vector<uint16_t> ix(sift_params.fv_centers_len);
@@ -208,7 +211,7 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
 
     double mag; 
     cudautils::get_grad_ori_vector_wrapper<<<1,1>>>(thrust::raw_pointer_cast(&image[0]), 
-            idx, x_stride, y_stride, thrust::raw_pointer_cast(&vect[0]),
+            idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
             thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
             sift_params, thrust::raw_pointer_cast(&device_centers[0]), &mag);
     thrust::host_vector<double> h_yy(yy);

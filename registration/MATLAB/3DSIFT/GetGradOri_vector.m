@@ -24,16 +24,16 @@ if s > slices
     s = slices;
 end
 
-% Check if computed the gradient previously before
-if (precomp_grads.count(r,c,s) > 0)
-    precomp_grads.count(r,c,s) = precomp_grads.count(r,c,s) + 1; %increment counter
-    % retrieve the data
-    mag = precomp_grads.mag(r,c,s);
-    vect = precomp_grads.vect(r,c,s, 1, 3);
-    yy = precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1);
-    ix = precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1);
-    return
-end
+%% Check if computed the gradient previously before
+%if (precomp_grads.count(r,c,s) > 0)
+    %precomp_grads.count(r,c,s) = precomp_grads.count(r,c,s) + 1; %increment counter
+    %% retrieve the data
+    %mag = precomp_grads.mag(r,c,s);
+    %vect = precomp_grads.vect(r,c,s, 1, 3);
+    %yy = precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1);
+    %ix = precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1);
+    %return
+%end
 
 if (c == 1)
     xgrad = 2.0 * (double(pix(r,c+1,s)) - double(pix(r,c,s)));
@@ -72,6 +72,16 @@ end
 %Find the nearest tesselation face indices
 corr_array = fv.centers * vect';
 [yy ix] = sort(corr_array,'descend');
+
+idx = sub2ind([rows, cols, slices], r,c,s);
+if ((r == 1) && (c == 1) && (s == 4))
+    fprintf('mlab idx%d vect0 %.54f vect1 %.54f vect2 %.54f image[idx]%d r%d c%d t%d yy: %.4f %.4f %.54f %.54f ix: %d %d %d %d eq:%d, diff:%.54f\n', ...
+        idx - 1, vect(1), vect(2), vect(3), pix(r,c,s), r-1, c-1, s-1, yy(1), yy(2), yy(3), yy(4), ix(1) - 1, ix(2) - 1, ix(3) - 1, ix(4) - 1, yy(3) == yy(4), yy(3) - yy(4));
+    fprintf('fv[%d] %.54f %.54f %.54f\n',ix(3) - 1, fv.centers(ix(3), 1), fv.centers(ix(3), 2), fv.centers(ix(3), 3));
+    fprintf('fv[%d] %.54f %.54f %.54f\n', ix(4) - 1, fv.centers(ix(4), 1), fv.centers(ix(4), 2), fv.centers(ix(4), 3));
+    fprintf('fv[%d] %.54f %.54f %.54f\n', ix(5) - 1, fv.centers(ix(5), 1), fv.centers(ix(5), 2), fv.centers(ix(5), 3));
+end
+
 
 precomp_grads.count(r,c,s) = 1; % number of times seen 1
 precomp_grads.mag(r,c,s) = mag;

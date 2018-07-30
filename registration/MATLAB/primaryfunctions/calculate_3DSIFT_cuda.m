@@ -35,8 +35,6 @@ fv = sphere_tri('ico', sift_params.Tessellation_levels, 1);
 sift_params.fv_centers = fv.centers'; % c-order places rows contig. in memory
 sift_params.fv_centers_len = length(fv.centers(:)); % default 80 * 3
 assert(sift_params.fv_centers_len / 3 == sift_params.nFaces);
-sift_params.descriptor_len = sift_params.IndexSize *...
-    sift_params.IndexSize * sift_params.IndexSize * sift_params.nFaces;
 
 sift_params.keypoint_num = size(keypts,1);
 N = size(keypts,1);

@@ -34,6 +34,7 @@ typedef struct _SiftParams {
     double Tessellation_levels;
     double SigmaScaled;
     double Tessel_thresh;
+    double TwoPeak_Thresh;
     double Smooth_Var;
     double xyScale;
     double tScale;
@@ -69,9 +70,10 @@ static double* sift_defaults(cudautils::SiftParams * sift_params,
         sift_params->Smooth_Var = 20;
         sift_params->MaxIndexVal = 0.2;
         sift_params->Tessel_thresh = 3;
+        sift_params->TwoPeak_Thresh = .9;
         sift_params->xyScale = 1;
         sift_params->tScale = 1;
-        sift_params->TwoPeak_Flag = false;
+        sift_params->TwoPeak_Flag = true;
         sift_params->skipDescriptor = false; // only record location of kypts
         sift_params->MagFactor = 3;
         sift_params->keypoint_num = keypoint_num; 

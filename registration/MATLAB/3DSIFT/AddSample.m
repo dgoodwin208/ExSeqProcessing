@@ -13,7 +13,12 @@ weight = exp(-double(distsq / (2.0 * sigma * sigma)));
 [mag vect precomp_grads yy ix] = GetGradOri_vector(pix,r,c,s, fv, sift_params, precomp_grads);
 mag = weight * mag; %scale magnitude by gaussian 
 
-index = PlaceInIndex(index, mag, i_indx, j_indx, s_indx, yy, ix, sift_params);
+rows = sift_params.pix_size(1);
+cols = sift_params.pix_size(2);
+slices = sift_params.pix_size(3);
+idx = sub2ind([rows, cols, slices], r,c,s);
+
+index = PlaceInIndex(index, mag, i_indx, j_indx, s_indx, yy, ix, idx, sift_params);
 
 end
  

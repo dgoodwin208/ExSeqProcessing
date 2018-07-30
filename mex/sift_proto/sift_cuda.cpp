@@ -68,6 +68,7 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
 
         // Write the keypoints to the output
         for (int i = 0; i < numKp; i++) {
+                printf("converting keypoint %d\n", i);
 
                 mxArray *x, *y, *z, *mxtScale, *mxxyScale, *mxIvec;
                 double *ivec;
@@ -147,6 +148,8 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
     cudautils::SiftParams sift_params;
 
     sift_params.MagFactor = get_double_field(prhs, "MagFactor");
+
+    sift_params.TwoPeak_Thresh = get_double_field(prhs, "TwoPeak_Thresh");
 
     sift_params.IndexSigma = get_double_field(prhs, "IndexSigma");
 
@@ -237,14 +240,10 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         cudautils::SiftParams sift_params = get_params(prhs);
         double* fv_centers = get_double_ptr_field(prhs, "fv_centers");
 
-        //printf("mex xyScale:%f tScale: %f MagFactor:%f\n",
-                //sift_params.xyScale, sift_params.tScale,
-                //sift_params.MagFactor);
         cudautils::Keypoint_store keystore;
 
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
-
 
         double *in_image;
         int8_t *in_map;
@@ -263,7 +262,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         unsigned int y_sub_size = std::min((unsigned int)2048, (unsigned int)y_size / num_gpus);
         unsigned int dx = std::min((unsigned int)256, (unsigned int)x_sub_size);
         unsigned int dy = std::min((unsigned int)256, (unsigned int)y_sub_size);
-        const unsigned int dw = 2; //pad width each side, each dim
+        const unsigned int dw = 0; //default: 2, pad width each side, each dim
 
         const unsigned int num_streams = 20;
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
@@ -278,11 +277,18 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         } catch (...) {
             logger->error("internal unknown error occurred");
         }
+        logger->info("Sift_bridge completed");
 
         // Convert the output keypoints
-        if ((plhs[0] = kp2mx(&keystore, sift_params)) == NULL)
-            logger->error("keystore to mex error occurred");
-
+        if (keystore.len) {
+            logger->info("Converting keypoints");
+            if ((plhs[0] = kp2mx(&keystore, sift_params)) == NULL)
+                logger->error("keystore to mex error occurred");
+        } else {
+            logger->info("All keypoints removed, returning empty cell");
+            plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
+        }
+        logger->info("Outputs assigned successfully");
 
 
         logger->info("{:=>50}", " sift_cuda end");

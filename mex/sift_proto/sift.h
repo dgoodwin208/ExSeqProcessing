@@ -17,7 +17,9 @@
 
 #include "spdlog/spdlog.h"
 
-//#define DEBUG_OUTPUT
+#define DIMS 3
+#define DEBUG_OUTPUT
+//#define DEBUG_NUMERICAL
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
 //#define DEBUG_NO_THREADING
@@ -77,8 +79,8 @@ inline void __cudaCheckError( const char *file, const int line)
 namespace cudautils {
 
 __global__
-void get_grad_ori_vector_wrapper(double* image, unsigned long long idx, unsigned int
-        x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
+void get_grad_ori_vector_wrapper(double* image, long long idx, unsigned int
+        x_stride, unsigned int y_stride, int r, int c, int t, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers, double* mag);
 
 __device__ __host__
@@ -93,9 +95,10 @@ void dot_product(double* first, double* second, double* out,
 
 // assumes r,c,s lie within accessible image boundaries
 __device__ __host__
-double get_grad_ori_vector(double* image, unsigned long long idx, unsigned int
-        x_stride, unsigned int y_stride, double vect[3], double* yy, uint16_t* ix,
-        const cudautils::SiftParams sift_params, double* device_centers);
+double get_grad_ori_vector(double* image, long long idx, unsigned int
+        x_stride, unsigned int y_stride, int r, int c, int t, double vect[3],
+        double* yy, uint16_t* ix, const cudautils::SiftParams sift_params,
+        double* device_centers);
 
 // pinned memory on host
 typedef thrust::host_vector<double, thrust::system::cuda::experimental::pinned_allocator<double>> pinnedDblHostVector;
@@ -138,7 +141,7 @@ void create_descriptor(
         unsigned int y_sub_start,
         unsigned int dw,
         unsigned int map_size,
-        unsigned int *map_idx,
+        long long int *map_idx,
         int8_t *map,
         double *image,
         const cudautils::SiftParams sift_params,
@@ -262,11 +265,13 @@ class Sift : public cudautils::CudaTask {
             // keypoint
             cudaSafeCall(cudaHostAlloc(&keystore,
                     sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));
+            keystore->len = 0;
         }
         ~DomainDataOnHost() {
             cudaSafeCall(cudaFreeHost(h_image));
             cudaSafeCall(cudaFreeHost(h_map));
-            cudaSafeCall(cudaFreeHost(keystore->buf));
+            if (keystore->len)
+                cudaSafeCall(cudaFreeHost(keystore->buf));
             cudaSafeCall(cudaFreeHost(keystore));
         }
     };
