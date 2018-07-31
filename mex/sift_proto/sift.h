@@ -18,8 +18,8 @@
 #include "spdlog/spdlog.h"
 
 #define DIMS 3
-#define DEBUG_OUTPUT
-//#define DEBUG_NUMERICAL
+//#define DEBUG_OUTPUT
+#define DEBUG_NUMERICAL
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
 //#define DEBUG_NO_THREADING
@@ -286,7 +286,8 @@ class Sift : public cudautils::CudaTask {
 
         std::vector<unsigned int> dx_i_list;
         std::vector<unsigned int> dy_i_list;
-        cudautils::Keypoint_store* keystore;
+        //cudautils::Keypoint_store* keystore;
+        std::vector<cudautils::Keypoint> keystore;
 
         SubDomainDataOnStream(
                 const unsigned int dx_stride,
@@ -295,14 +296,14 @@ class Sift : public cudautils::CudaTask {
             : pad_sub2ind(dx_stride, dy_stride, z_stride) 
         {
             // keypoint
-            cudaSafeCall(cudaHostAlloc(&keystore,
-                    sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));
+            //cudaSafeCall(cudaHostAlloc(&keystore,
+                    //sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));
         }
         
-       ~SubDomainDataOnStream() {
-            cudaSafeCall(cudaFreeHost(keystore->buf));
-            cudaSafeCall(cudaFreeHost(keystore));
-       }
+       //~SubDomainDataOnStream() {
+            //cudaSafeCall(cudaFreeHost(keystore->buf));
+            //cudaSafeCall(cudaFreeHost(keystore));
+       //}
     };
 
 

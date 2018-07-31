@@ -68,7 +68,6 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
 
         // Write the keypoints to the output
         for (int i = 0; i < numKp; i++) {
-                printf("converting keypoint %d\n", i);
 
                 mxArray *x, *y, *z, *mxtScale, *mxxyScale, *mxIvec;
                 double *ivec;
@@ -84,7 +83,6 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
                             return NULL;
 
                     ivec = (double *) mxGetData(mxIvec); 
-                    //memcpy(ivec, key->ivec, sift_params.descriptor_len * sizeof(double));
                     for (int j = 0; j < sift_params.descriptor_len; j++) 
                         ivec[j] = key->ivec[j];
 
@@ -135,7 +133,6 @@ double get_double_field(const mxArray* prhs[], const char* name) {
     mxArray* tmp = mxGetField(prhs[2], 0, name);
     if ((tmp != NULL) &&
         (mxGetClassID(tmp) == mxDOUBLE_CLASS)) {
-        //printf("%s : %f\n", name, *((double*) mxGetPr(tmp)));
         return *((double*) mxGetPr(tmp));
     } else {
         mexErrMsgIdAndTxt("MATLAB:sift_cuda:sift_params", "sift_params missing field: %s", name);
@@ -185,6 +182,12 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
     sift_params.image_size2 = image_dims[2];
 
     sift_params.keypoint_num = (int) get_double_field(prhs, "keypoint_num");
+
+    sift_params.stream_num = (int) get_double_field(prhs, "stream_num");
+
+    sift_params.x_substream_stride = (int) get_double_field(prhs, "x_substream_stride");
+
+    sift_params.y_substream_stride = (int) get_double_field(prhs, "y_substream_stride");
 
     sift_params.descriptor_len = (int) get_double_field(prhs, "descriptor_len");
 
@@ -259,19 +262,21 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         z_size = image_dims[2];
 
         unsigned int x_sub_size = std::min((unsigned int)2048, (unsigned int)x_size);
-        unsigned int y_sub_size = std::min((unsigned int)2048, (unsigned int)y_size / num_gpus);
-        unsigned int dx = std::min((unsigned int)256, (unsigned int)x_sub_size);
-        unsigned int dy = std::min((unsigned int)256, (unsigned int)y_sub_size);
+        unsigned int y_sub_size = std::min((unsigned int)2048, 
+                (unsigned int)y_size / num_gpus);
+        unsigned int dx = std::min((unsigned int)sift_params.x_substream_stride,
+                (unsigned int)x_sub_size);
+        unsigned int dy = std::min((unsigned int)sift_params.y_substream_stride,
+                (unsigned int)y_sub_size);
         const unsigned int dw = 0; //default: 2, pad width each side, each dim
 
-        const unsigned int num_streams = 20;
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
-                x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_streams);
+                x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, sift_params.stream_num);
 
         try {
             cudautils::sift_bridge(
                     logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
-                    dy, dw, num_gpus, num_streams, in_image, in_map,
+                    dy, dw, num_gpus, sift_params.stream_num, in_image, in_map,
                     sift_params, fv_centers, &keystore);
 
         } catch (...) {

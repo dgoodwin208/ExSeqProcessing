@@ -46,6 +46,9 @@ typedef struct _SiftParams {
     int image_size1;
     int image_size2;
     int descriptor_len;
+    int stream_num;
+    int x_substream_stride;
+    int y_substream_stride;
     bool Smooth_Flag;
     bool TwoPeak_Flag;
     bool skipDescriptor;
@@ -76,6 +79,9 @@ static double* sift_defaults(cudautils::SiftParams * sift_params,
         sift_params->TwoPeak_Flag = true;
         sift_params->skipDescriptor = false; // only record location of kypts
         sift_params->MagFactor = 3;
+        sift_params->stream_num = 20;
+        sift_params->x_substream_stride = 256;
+        sift_params->y_substream_stride = 256;
         sift_params->keypoint_num = keypoint_num; 
         sift_params->descriptor_len = sift_params->IndexSize *
             sift_params->IndexSize * sift_params->IndexSize * sift_params->nFaces;

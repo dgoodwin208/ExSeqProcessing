@@ -81,9 +81,9 @@ void place_in_index(double* index, double mag, int i, int j, int k,
             bin_index = bin_sub2ind(i, j, k, ix[ii], sift_params);
 
 #ifdef DEBUG_NUMERICAL
-            printf("i%d j%d k%d ix[ii]%d bin_index%d yy[ii]%.54f, index+=%.54f, idx%lld\n",
-                    i, j, k, ix[ii], bin_index, yy[ii], mag * pow(yy[ii],
-                        sift_params.Smooth_Var ) / tmpsum, idx);
+            /*printf("i%d j%d k%d ix[ii]%d bin_index%d yy[ii]%.54f, index+=%.54f, idx%lld\n",*/
+                    /*i, j, k, ix[ii], bin_index, yy[ii], mag * pow(yy[ii],*/
+                        /*sift_params.Smooth_Var ) / tmpsum, idx);*/
 #endif
 
             index[bin_index] +=  mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum;
@@ -210,12 +210,12 @@ double get_grad_ori_vector(double* image, long long idx, unsigned int
     thrust::stable_sort_by_key(thrust::device, yy, yy + sift_params.nFaces, ix, thrust::greater<double>());
 
 #ifdef DEBUG_NUMERICAL
-    printf("ggov idx%lld vect0 %.54f vect1 %.54f vect2 %.54f image[idx] %.4f r%d c%d t%d yy %.4f %.4f %.25f %.25f ix %d %d %d %d eq:%d diff:%.54f\n",
-        idx, vect[0], vect[1], vect[2], image[idx], r, c, t, yy[0], yy[1], yy[2], yy[3],
+    printf("ggov N%d fv_len%d DIMS%d idx%lld vect0 %.4f vect1 %.4f vect2 %.4f image[idx] %.4f r%d c%d t%d yy %.4f %.4f %.4f %.4f ix %d %d %d %d eq:%d diff:%.54f\n",
+        N, sift_params.fv_centers_len, DIMS, idx, vect[0], vect[1], vect[2], image[idx], r, c, t, yy[0], yy[1], yy[2], yy[3],
         ix[0], ix[1], ix[2], ix[3], yy[2] == yy[3], yy[2] - yy[3]);
-    printf("fv[%d] %.54f %.54f %.54f\n", ix[2], device_centers[3 * ix[2]], device_centers[3 * ix[2] + 1], device_centers[3 * ix[2] + 2]);
-    printf("fv[%d] %.54f %.54f %.54f\n", ix[3], device_centers[3 * ix[3]], device_centers[3 * ix[3] + 1], device_centers[3 * ix[3] + 2]);
-    printf("fv[%d] %.54f %.54f %.54f\n", ix[4], device_centers[3 * ix[4]], device_centers[3 * ix[4] + 1], device_centers[3 * ix[4] + 2]);
+    printf("fv[%d] %.4f %.4f %.4f\n", ix[0], device_centers[3 * ix[0]], device_centers[3 * ix[0] + 1], device_centers[3 * ix[0] + 2]);
+    printf("fv[%d] %.4f %.4f %.4f\n", ix[1], device_centers[3 * ix[1]], device_centers[3 * ix[1] + 1], device_centers[3 * ix[1] + 2]);
+    printf("fv[%d] %.4f %.4f %.4f\n", ix[2], device_centers[3 * ix[2]], device_centers[3 * ix[2] + 1], device_centers[3 * ix[2] + 2]);
 #endif
 
     return mag;
@@ -443,7 +443,7 @@ void create_descriptor(
         unsigned int x_sub_start,
         unsigned int y_sub_start,
         unsigned int dw,
-        unsigned int map_idx_size,
+        const unsigned int map_idx_size,
         long long *map_idx,
         int8_t *map,
         double *image,
@@ -898,12 +898,14 @@ void Sift::postrun() {
             std::shared_ptr<SubDomainDataOnStream> stream_data =
                 subdom_data->stream_data[stream_id];
 
-            total_keypoints += stream_data->keystore->len;
+            /*logger_->info("gpu_id {}, streamid {}, # of kypts {}", gpu_id, stream_id, stream_data->keystore.size());*/
+            total_keypoints += stream_data->keystore.size();
         }
     }
 
     // allocate for number of keypoints
     dom_data_->keystore->len = total_keypoints;
+    /*logger_->info("total_keypoints {}", total_keypoints);*/
     if (total_keypoints < 1)
         return;
     cudaHostAlloc(&(dom_data_->keystore->buf), dom_data_->keystore->len *
@@ -918,8 +920,8 @@ void Sift::postrun() {
             std::shared_ptr<SubDomainDataOnStream> stream_data =
                 subdom_data->stream_data[stream_id];
 
-            for (int i = 0; i < stream_data->keystore->len; i++) {
-                dom_data_->keystore->buf[counter] = stream_data->keystore->buf[i];
+            for (int i = 0; i < stream_data->keystore.size(); i++) {
+                dom_data_->keystore->buf[counter] = stream_data->keystore[i];
                 counter++;
             }
         }
@@ -989,7 +991,7 @@ void Sift::runOnStream(
                 substream_padded_map_idx,
                 range_check);
 
-        unsigned int substream_padded_map_idx_size = end_itr - substream_padded_map_idx;
+        const unsigned int substream_padded_map_idx_size = end_itr - substream_padded_map_idx;
 
 #ifdef DEBUG_OUTPUT
         logger_->info("substream_padded_map_idx_size={}", substream_padded_map_idx_size);
@@ -1015,9 +1017,9 @@ void Sift::runOnStream(
         }
 
         // allocate keystore
-        stream_data->keystore->len = substream_padded_map_idx_size ;
-        cudaHostAlloc(&(stream_data->keystore->buf), stream_data->keystore->len *
-                sizeof(cudautils::Keypoint), cudaHostAllocPortable);
+        /*stream_data->keystore->len = substream_padded_map_idx_size ;*/
+        /*cudaHostAlloc(&(stream_data->keystore->buf), stream_data->keystore->len **/
+                /*sizeof(cudautils::Keypoint), cudaHostAllocPortable);*/
 
         // only calculate location and save keypoints
         if (sift_params_.skipDescriptor) {
@@ -1053,7 +1055,8 @@ void Sift::runOnStream(
                 temp.y = y_sub_start + padding_y - dw_ + 1;
                 temp.z = padding_z - dw_ + 1;
 
-                stream_data->keystore->buf[i] = temp;
+                /*stream_data->keystore->buf[i] = temp;*/
+                stream_data->keystore.push_back(temp);
             }
             cudaSafeCall(cudaFree(substream_padded_map_idx));
             continue; // do this for every substream forloop
@@ -1185,6 +1188,7 @@ void Sift::runOnStream(
 #endif
 
         // make sure all async memcpys (above) are finished before access
+        // FIXME is this necessary?
         cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
 
         // save data for all streams to global Sift object store
@@ -1192,11 +1196,14 @@ void Sift::runOnStream(
         for (int i = 0; i < substream_padded_map_idx_size; i++) {
             Keypoint temp;
 
-            if (h_padded_map_idx[i] == -1) {
-                skip_counter++;
-                stream_data->keystore->buf[i] = temp;
-                continue;
-            } 
+            if (sift_params_.TwoPeak_Flag) {
+                if (h_padded_map_idx[i] == -1) {
+                    skip_counter++;
+                    /*stream_data->keystore->buf[i] = temp;*/
+                    /*stream_data->keystore.push_back(temp);*/
+                    continue;
+                } 
+            }
 
             unsigned int padding_x;
             unsigned int padding_y;
@@ -1223,24 +1230,27 @@ void Sift::runOnStream(
 #endif
 
             // buffer the size of the whole image
-            /*stream_data->keystore->buf[i - skip_counter] = temp;*/
-            stream_data->keystore->buf[i] = temp;
+            /*stream_data->keystore->buf[i] = temp;*/
+            stream_data->keystore.push_back(temp);
         }
 
-        // remove rejected keypoints
-        auto new_end = thrust::remove_if(thrust::device,
-                stream_data->keystore->buf, 
-                stream_data->keystore->buf + stream_data->keystore->len,
-                h_padded_map_idx, is_negative());
-        // update the len for transfer
-        stream_data->keystore->len = substream_padded_map_idx_size -
-            skip_counter;
+        /*if (sift_params_.TwoPeak_Flag) {*/
+            /*// remove rejected keypoints*/
+            /*auto new_end = thrust::remove_if(thrust::device,*/
+                    /*stream_data->keystore->buf, */
+                    /*stream_data->keystore->buf + stream_data->keystore->len,*/
+                    /*h_padded_map_idx, is_negative());*/
+            /*// update the len for transfer*/
+            /*stream_data->keystore->len = substream_padded_map_idx_size -*/
+                /*skip_counter;*/
 
-#ifdef DEBUG_OUTPUT
-        cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
-        logger_->info("Points removed {}", skip_counter);
-#endif
-        assert(stream_data->keystore->len == (new_end - stream_data->keystore->buf));
+/*#ifdef DEBUG_OUTPUT*/
+            /*logger_->info("Points removed {}", skip_counter);*/
+/*#endif*/
+            /*assert(stream_data->keystore->len == (new_end - stream_data->keystore->buf));*/
+        /*} else {*/
+            /*stream_data->keystore->len = substream_padded_map_idx_size ;*/
+        /*}*/
 
         cudaSafeCall(cudaFree(substream_padded_map_idx));
         cudaSafeCall(cudaFree(descriptors));
@@ -1256,9 +1266,14 @@ void Sift::runOnStream(
         cudaSafeCall(cudaFreeHost(h_padded_map_idx));
 
 #ifdef DEBUG_OUTPUT
-        logger_->info("transfer d2h and copy descriptor ivec values {}", timer.get_laptime());
+        logger_->info("gpu:{}, stream:{}, substream_padded_map_idx_size={}, saved={}",
+                gpu_id, stream_id, substream_padded_map_idx_size, 
+                substream_padded_map_idx_size - skip_counter);
 
+        logger_->info("transfer d2h and copy descriptor ivec values {}", timer.get_laptime());
 #endif
+        // make sure all streams are done executing
+        cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
     }
 }
 

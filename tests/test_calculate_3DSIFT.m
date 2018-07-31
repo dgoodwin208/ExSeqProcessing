@@ -11,7 +11,8 @@ LoadParams;
 load res_vect
 
 % keypoint 9 is rejected
-keys = res_vect(1:1000, :)
+keys = [1, 1, 1];
+%keys = res_vect(1:1, :);
 %keys = res_vect(9, :)
 
 skipDescriptors = false;
@@ -19,17 +20,19 @@ skipDescriptors = false;
 tic
 sift_keys_cuda = calculate_3DSIFT_cuda(img, keys, skipDescriptors);
 toc
-fprintf('Finished CUDA SIFT\n');
 N = length(sift_keys_cuda);
+fprintf('Finished CUDA SIFT len %d\n', N);
 
 tic
 sift_keys = calculate_3DSIFT(img, keys, skipDescriptors);
 toc
-fprintf('Finished SIFT\n');
+fprintf('Finished SIFT len %d\n', length(sift_keys));
 
 rel_error = 0;
 total_energy = 0;
 mismatch_remove = 0;
+match = 0;
+mismatch = 0;
 for i=1:N
     cuda_key = sift_keys_cuda{i};
 
@@ -44,16 +47,22 @@ for i=1:N
     end
 
     if found
+        if isequal(cuda_key.ivec', key.ivec);
+            fprintf('Keypoint %d succeeded match\n', i);
+            match = match + 1;
+        else
+            fprintf('Keypoint %d failed match\n', i);
+            mismatch = mismatch + 1;
+        end
+        % collect energy anyway
         for k=1:sift_params.descriptor_len
             total_energy = total_energy + abs(cuda_key.ivec(k));
             if ~isequal(cuda_key.ivec(k), key.ivec(k))
                 fprintf('sift_keys_cuda{%d}.ivec(%d)=%d, sift_keys{%d}.ivec(%d)=%d\n', ...
-                i, k, cuda_key.ivec(k), j, k, key.ivec(k));
+                    i, k, cuda_key.ivec(k), j, k, key.ivec(k));
                 rel_error = rel_error + abs(cuda_key.ivec(k) - key.ivec(k));
             end
         end
-        assert(isequal(cuda_key.ivec', key.ivec));
-        fprintf('Keypoint %d succeeded\n', i);
     else
         fprintf('Keypoint %d removed in MATLAB version\n', i);
         mismatch_remove = mismatch_remove + 1;
@@ -61,7 +70,7 @@ for i=1:N
 end
 
 rel_error = rel_error / total_energy;
-fprintf('Relative error: %.5f, mismatched removes: %d\n', rel_error, mismatch_remove);
+fprintf('Relative error: %.10f, match: %d, mismatch: %d, mismatched removes: %d\n', rel_error, match, mismatch, mismatch_remove);
 
 %load 3DSIFTkeys % loads old keys
 
