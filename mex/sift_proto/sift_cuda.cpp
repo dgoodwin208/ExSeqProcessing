@@ -174,14 +174,14 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
 
     sift_params.MaxIndexVal = get_double_field(prhs, "MaxIndexVal");
 
+    sift_params.keypoint_num = (int) get_double_field(prhs, "keypoint_num");
+
     sift_params.fv_centers_len = (int) get_double_field(prhs, "fv_centers_len");
 
     const mwSize *image_dims = mxGetDimensions(prhs[0]);
     sift_params.image_size0 = image_dims[0];
     sift_params.image_size1 = image_dims[1];
     sift_params.image_size2 = image_dims[2];
-
-    sift_params.keypoint_num = (int) get_double_field(prhs, "keypoint_num");
 
     sift_params.stream_num = (int) get_double_field(prhs, "stream_num");
 

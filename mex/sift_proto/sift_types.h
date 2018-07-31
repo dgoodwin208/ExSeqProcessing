@@ -27,6 +27,11 @@ typedef struct _Keypoint_store {
     int len;
 } Keypoint_store;
 
+// WARNING: Known compiler issue corrupts these values
+// when passed to a kernel if new variables are
+// added that cause misalignment
+// placing variable types contiguously and
+// in decreasing size order
 typedef struct _SiftParams {
     double MagFactor;
     double IndexSize;
@@ -39,8 +44,8 @@ typedef struct _SiftParams {
     double xyScale;
     double tScale;
     double MaxIndexVal;
-    int fv_centers_len;
     int keypoint_num;
+    int fv_centers_len;
     int nFaces;
     int image_size0;
     int image_size1;
