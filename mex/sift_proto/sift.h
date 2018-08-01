@@ -79,26 +79,19 @@ inline void __cudaCheckError( const char *file, const int line)
 namespace cudautils {
 
 __global__
-void get_grad_ori_vector_wrapper(double* image, long long idx, unsigned int
+void get_grad_ori_vector_wrap(double* image, long long idx, unsigned int
         x_stride, unsigned int y_stride, int r, int c, int t, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers, double* mag);
 
-__device__ __host__
-int bin_sub2ind(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params);
+__global__
+void bin_sub2ind_wrap(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params, int* ind);
 
-__device__ __host__
-int get_bin_idx(int orig, int radius, int IndexSize);
+__global__
+void get_bin_idx_wrap(int orig, int radius, int IndexSize, int* idx);
 
-__device__ __host__
-void dot_product(double* first, double* second, double* out,
+__global__
+void dot_product_wrap(double* first, double* second, double* out,
         int rows, int cols);
-
-// assumes r,c,s lie within accessible image boundaries
-__device__ __host__
-double get_grad_ori_vector(double* image, long long idx, unsigned int
-        x_stride, unsigned int y_stride, int r, int c, int t, double vect[3],
-        double* yy, uint16_t* ix, const cudautils::SiftParams sift_params,
-        double* device_centers);
 
 // pinned memory on host
 typedef thrust::host_vector<double, thrust::system::cuda::experimental::pinned_allocator<double>> pinnedDblHostVector;
@@ -116,8 +109,7 @@ unsigned int get_delta(const unsigned int total_size, const unsigned int index, 
     return ((index + 1) * delta < total_size ? delta : total_size - index * delta);
 }
 
-inline
-__host__ __device__
+__forceinline__ __host__ __device__
 void ind2sub(const unsigned int x_stride, const unsigned int y_stride, const unsigned long long idx, unsigned int& x, unsigned int& y, unsigned int& z) {
     unsigned int i = idx;
     z = i / (x_stride * y_stride);
@@ -286,7 +278,6 @@ class Sift : public cudautils::CudaTask {
 
         std::vector<unsigned int> dx_i_list;
         std::vector<unsigned int> dy_i_list;
-        //cudautils::Keypoint_store* keystore;
         std::vector<cudautils::Keypoint> keystore;
 
         SubDomainDataOnStream(
@@ -295,15 +286,8 @@ class Sift : public cudautils::CudaTask {
                 const unsigned int z_stride)
             : pad_sub2ind(dx_stride, dy_stride, z_stride) 
         {
-            // keypoint
-            //cudaSafeCall(cudaHostAlloc(&keystore,
-                    //sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));
         }
         
-       //~SubDomainDataOnStream() {
-            //cudaSafeCall(cudaFreeHost(keystore->buf));
-            //cudaSafeCall(cudaFreeHost(keystore));
-       //}
     };
 
 

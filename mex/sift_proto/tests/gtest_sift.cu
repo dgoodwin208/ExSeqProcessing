@@ -49,7 +49,7 @@ TEST_F(SiftTest, DotProductTest) {
     double first[3] = {1,2,3};
     double second[3] = {5, .5, 2};
     double out[1] = {0};
-    cudautils::dot_product(first, second, out, 1, cols);
+    cudautils::dot_product_wrap<<<1,1>>>(first, second, out, 1, cols);
     ASSERT_EQ(*out, 12);
 
     // 3x3 matrix
@@ -58,7 +58,7 @@ TEST_F(SiftTest, DotProductTest) {
     double vec[3] = {3, 1, 2};
     double* out_arr = (double*) malloc(rows * sizeof(double));
     double answer[3] = {11, 29, 47};
-    cudautils::dot_product(matrix, vec, out_arr, rows, cols);
+    cudautils::dot_product_wrap<<<1,1>>>(matrix, vec, out_arr, rows, cols);
     for (int i=0; i < rows; i++)
         ASSERT_EQ(out_arr[i], answer[i]);
 }
@@ -82,9 +82,9 @@ TEST_F(SiftTest, GetBinIdxTest) {
             for (int k = -tiradius; k <= tiradius; k++) {
 
                 // Find bin idx
-                i_bin = cudautils::get_bin_idx(i, xyiradius, sift_params.IndexSize);
-                j_bin = cudautils::get_bin_idx(j, xyiradius, sift_params.IndexSize);
-                k_bin = cudautils::get_bin_idx(k, tiradius, sift_params.IndexSize);
+                cudautils::get_bin_idx_wrap<<<1,1>>>(i, xyiradius, sift_params.IndexSize, &i_bin);
+                cudautils::get_bin_idx_wrap<<<1,1>>>(j, xyiradius, sift_params.IndexSize, &j_bin);
+                cudautils::get_bin_idx_wrap<<<1,1>>>(k, tiradius, sift_params.IndexSize, &k_bin);
                 // FIXME check correct
                 ASSERT_GE(i_bin, 0);
                 ASSERT_LT(i_bin, sift_params.IndexSize);
@@ -106,19 +106,25 @@ TEST_F(SiftTest, BinSub2Ind1Test) {
     for (int i=0; i < sift_params.IndexSize; i++) {
         for (int j=0; j < sift_params.IndexSize; j++) {
             for (int k=0; k < sift_params.IndexSize; k++) {
-                for (int ixi=0; ixi < sift_params.nFaces; ixi++) {
-                    bin_index = cudautils::bin_sub2ind(i, j, k, ixi, sift_params);
+                for (uint16_t ixi=0; ixi < sift_params.nFaces; ixi++) {
+                    cudautils::bin_sub2ind_wrap<<<1,1>>>(i, j, k, ixi, sift_params, &bin_index);
                     ASSERT_LT(bin_index, sift_params.descriptor_len);
                 }
             }
         }
     }
     int max = sift_params.descriptor_len - 1;
-    ASSERT_EQ(cudautils::bin_sub2ind(1,1,1,79, sift_params), max);
-    ASSERT_EQ(cudautils::bin_sub2ind(0,1,1,79, sift_params), max - 1);
-    ASSERT_EQ(cudautils::bin_sub2ind(1,0,1,79, sift_params), max - 2);
-    ASSERT_EQ(cudautils::bin_sub2ind(1,1,0,79, sift_params), max - 4);
-    ASSERT_EQ(cudautils::bin_sub2ind(1,1,1,78, sift_params), max - 8);
+    int temp;
+    cudautils::bin_sub2ind_wrap<<<1,1>>>(1,1,1,79, sift_params, &temp);
+    ASSERT_EQ(temp, max);
+    cudautils::bin_sub2ind_wrap<<<1,1>>>(0,1,1,79, sift_params, &temp);
+    ASSERT_EQ(temp, max - 1);
+    cudautils::bin_sub2ind_wrap<<<1,1>>>(1,0,1,79, sift_params, &temp);
+    ASSERT_EQ(temp, max - 2);
+    cudautils::bin_sub2ind_wrap<<<1,1>>>(1,1,0,79, sift_params, &temp);
+    ASSERT_EQ(temp, max - 4);
+    cudautils::bin_sub2ind_wrap<<<1,1>>>(1,1,1,78, sift_params, &temp);
+    ASSERT_EQ(temp, max - 8);
 }
 
 
@@ -210,7 +216,7 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
     thrust::device_vector<double> vect(3);// = {1.0, 0.0, 0.0};
 
     double mag; 
-    cudautils::get_grad_ori_vector_wrapper<<<1,1>>>(thrust::raw_pointer_cast(&image[0]), 
+    cudautils::get_grad_ori_vector_wrap<<<1,1>>>(thrust::raw_pointer_cast(&image[0]), 
             idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
             thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
             sift_params, thrust::raw_pointer_cast(&device_centers[0]), &mag);

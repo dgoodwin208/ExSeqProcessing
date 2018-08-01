@@ -11,24 +11,27 @@ LoadParams;
 load res_vect
 
 % keypoint 9 is rejected
-keys = [1, 1, 1];
-%keys = res_vect(1:1, :);
 %keys = res_vect(9, :)
+%keys = [1, 1, 1];
+%keys = res_vect(1:1000, :);
+keys = res_vect;
 
 skipDescriptors = false;
 
 tic
 sift_keys_cuda = calculate_3DSIFT_cuda(img, keys, skipDescriptors);
-toc
+cuda_time = toc;
 N = length(sift_keys_cuda);
 fprintf('Finished CUDA SIFT len %d\n', N);
 
 tic
 sift_keys = calculate_3DSIFT(img, keys, skipDescriptors);
-toc
+M = length(sift_keys);
+orig_time = toc;
 fprintf('Finished SIFT len %d\n', length(sift_keys));
 
-rel_error = 0;
+tic
+total_error = 0;
 total_energy = 0;
 mismatch_remove = 0;
 match = 0;
@@ -38,7 +41,7 @@ for i=1:N
 
     % find matching key
     found = false;
-    for j=1:N
+    for j=1:M
         key = sift_keys{j};
         if (~isempty(key) && ~isnumeric(key) && (key.x == cuda_key.x) && (key.y == cuda_key.y) && (key.z == cuda_key.z))
             found = true;
@@ -47,20 +50,20 @@ for i=1:N
     end
 
     if found
-        if isequal(cuda_key.ivec', key.ivec);
-            fprintf('Keypoint %d succeeded match\n', i);
+        if skipDescriptors || isequal(cuda_key.ivec', key.ivec);
+            %fprintf('Keypoint %d succeeded match\n', i);
             match = match + 1;
         else
-            fprintf('Keypoint %d failed match\n', i);
+            %fprintf('Keypoint %d failed match\n', i);
             mismatch = mismatch + 1;
-        end
-        % collect energy anyway
-        for k=1:sift_params.descriptor_len
-            total_energy = total_energy + abs(cuda_key.ivec(k));
-            if ~isequal(cuda_key.ivec(k), key.ivec(k))
-                fprintf('sift_keys_cuda{%d}.ivec(%d)=%d, sift_keys{%d}.ivec(%d)=%d\n', ...
-                    i, k, cuda_key.ivec(k), j, k, key.ivec(k));
-                rel_error = rel_error + abs(cuda_key.ivec(k) - key.ivec(k));
+            % tally energy of only fails
+            for k=1:sift_params.descriptor_len
+                total_energy = total_energy + double(abs(cuda_key.ivec(k)));
+                if ~isequal(cuda_key.ivec(k), key.ivec(k))
+                    %fprintf('sift_keys_cuda{%d}.ivec(%d)=%d, sift_keys{%d}.ivec(%d)=%d\n', ...
+                        %i, k, cuda_key.ivec(k), j, k, key.ivec(k));
+                    total_error = total_error + double(abs(cuda_key.ivec(k) - key.ivec(k)));
+                end
             end
         end
     else
@@ -68,9 +71,13 @@ for i=1:N
         mismatch_remove = mismatch_remove + 1;
     end
 end
+comparison = toc;
 
-rel_error = rel_error / total_energy;
-fprintf('Relative error: %.10f, match: %d, mismatch: %d, mismatched removes: %d\n', rel_error, match, mismatch, mismatch_remove);
+rel_error = 100 * double(total_error) / double(total_energy);
+pmatch = 100 * match / N;
+fprintf('Run N=%d TwoPeak %d fv real\n\tPercent match: %.5f\n\tPercent error among mismatches: %.5f\n\tmatch: %d, mismatch: %d, mismatched removes: %d \n', ...
+    N, sift_params.TwoPeak_Flag, pmatch, rel_error, match, mismatch, mismatch_remove);
+fprintf('\tCuda time: %.1f Original time: %.1f Comparison: %.1f\n', cuda_time, orig_time, comparison);
 
 %load 3DSIFTkeys % loads old keys
 

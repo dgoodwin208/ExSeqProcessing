@@ -49,7 +49,7 @@ struct isnan_test {
 // note the descriptor vector length is determined by 
 // sift_params.IndexSize ^ 3 * sift_params.nFaces
 // this is why i, j, and k are dimensions of stride sift_params.IndexSize
-__device__ __host__
+__forceinline__ __device__ 
 int bin_sub2ind_row(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
     return (int) l + sift_params.nFaces * (k + j * pow(sift_params.IndexSize, 1) + i
             * pow(sift_params.IndexSize, 2));
@@ -59,13 +59,24 @@ int bin_sub2ind_row(int i, int j, int k, uint16_t l, const cudautils::SiftParams
 // note the descriptor vector length is determined by 
 // sift_params.IndexSize ^ 3 * sift_params.nFaces
 // this is why i, j, and k are dimensions of stride sift_params.IndexSize
-__device__ __host__
+__forceinline__ __device__ 
 int bin_sub2ind(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
     return (int) i + j * sift_params.IndexSize + k * pow(sift_params.IndexSize, 2)
         + l * pow(sift_params.IndexSize, 3);
 }
 
-__device__ __host__
+// column major order index into the descriptor vector
+// note the descriptor vector length is determined by 
+// sift_params.IndexSize ^ 3 * sift_params.nFaces
+// this is why i, j, and k are dimensions of stride sift_params.IndexSize
+__global__
+void bin_sub2ind_wrap(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params, int* ind) {
+    printf("Indexsize %d", sift_params.IndexSize);
+    *ind = bin_sub2ind(i, j, k, l, sift_params);
+    return ;
+}
+
+__forceinline__ __device__ 
 void place_in_index(double* index, double mag, int i, int j, int k, 
         double* yy, uint16_t* ix, long long idx, const cudautils::SiftParams sift_params) {
 
@@ -99,7 +110,7 @@ void place_in_index(double* index, double mag, int i, int j, int k,
 // first is a matrix in row order
 // second is the array multiply
 // assumes length of second = cols of first
-__device__ __host__
+__forceinline__ __device__ 
 void dot_product(double* first, double* second, double* out, int rows,
         int cols) {
     for (int i=0; i < rows; i++) {
@@ -111,12 +122,22 @@ void dot_product(double* first, double* second, double* out, int rows,
     }
 }
 
+// matrix multiply in row memory order 
+// first is a matrix in row order
+// second is the array multiply
+// assumes length of second = cols of first
+__global__
+void dot_product_wrap(double* first, double* second, double* out, int rows,
+        int cols) {
+    dot_product(first, second, out, rows, cols);
+    return;
+}
 
 // matrix multiply in col memory order 
 // first is a matrix in column order
 // second is the array multiply
 // assumes length of second = cols of first
-__device__ __host__
+__forceinline__ __device__ 
 void dot_product_col_ord(double* first, double* second, double* out, int rows,
         int cols) {
     for (int i=0; i < rows; i++) {
@@ -128,26 +149,8 @@ void dot_product_col_ord(double* first, double* second, double* out, int rows,
     }
 }
 
-/*void gpu_blas_mmul(cublasHandle_t &handle, const double* A, const double* B,*/
-        /*double* C, const int m, const int k, const int n) {*/
-    /*const float alf = 1;*/
-    /*const float bet = 0;*/
-/*}*/
-
-__global__
-void get_grad_ori_vector_wrapper(double* image, long long idx, unsigned int
-        x_stride, unsigned int y_stride, int r, int c, int t, double vect[3], double* yy, uint16_t* ix,
-        const cudautils::SiftParams sift_params, double* device_centers, double* mag) {
-
-    *mag = cudautils::get_grad_ori_vector(thrust::raw_pointer_cast(&image[0]), 
-        idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
-        thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
-        sift_params, thrust::raw_pointer_cast(&device_centers[0]));
-    return;
-}
-
 // assumes r,c,s lie within accessible image boundaries
-__device__ 
+__forceinline__ __device__ 
 double get_grad_ori_vector(double* image, long long idx, unsigned int
         x_stride, unsigned int y_stride, int r, int c, int t, double vect[3],
         double* yy, uint16_t* ix, const cudautils::SiftParams sift_params,
@@ -221,12 +224,24 @@ double get_grad_ori_vector(double* image, long long idx, unsigned int
     return mag;
 }
 
+__global__
+void get_grad_ori_vector_wrap(double* image, long long idx, unsigned int
+        x_stride, unsigned int y_stride, int r, int c, int t, double vect[3], double* yy, uint16_t* ix,
+        const cudautils::SiftParams sift_params, double* device_centers, double* mag) {
+
+    *mag = cudautils::get_grad_ori_vector(thrust::raw_pointer_cast(&image[0]), 
+        idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
+        thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
+        sift_params, thrust::raw_pointer_cast(&device_centers[0]));
+    return;
+}
+
 /*r, c, s is the pixel index (x, y, z dimensions respect.) in the image within the radius of the */
 /*keypoint before clamped*/
 /*For each pixel, take a neighborhhod of xyradius and tiradius,*/
 /*bin it down to the sift_params.IndexSize dimensions*/
 /*thus, i_indx, j_indx, s_indx represent the binned index within the radius of the keypoint*/
-__device__
+__forceinline__ __device__
 void add_sample(double* index, double* image, double distsq, long long
         idx, unsigned int x_stride, unsigned int y_stride, int i_bin, int j_bin, int k_bin, 
         int r, int c, int t, const cudautils::SiftParams sift_params, double*
@@ -250,7 +265,7 @@ void add_sample(double* index, double* image, double distsq, long long
 
 // floor quotient, add 1
 // clamp bin idx to IndexSize
-__device__ __host__
+__forceinline__ __device__ 
 int get_bin_idx(int orig, int radius, int IndexSize) {
     int idx = (int) floor((orig + radius) / (2.0 * (double) radius / IndexSize));
     if (idx >= IndexSize) // clamp to IndexSize
@@ -258,7 +273,16 @@ int get_bin_idx(int orig, int radius, int IndexSize) {
     return idx;
 }
 
-__device__
+// floor quotient, add 1
+// clamp bin idx to IndexSize
+__global__
+void get_bin_idx_wrap(int orig, int radius, int IndexSize, int* idx) {
+    *idx = get_bin_idx(orig, radius, IndexSize);
+    return;
+}
+
+
+__forceinline__ __device__
 double* key_sample(const cudautils::SiftParams sift_params, 
         cudautils::Keypoint key, double* image, long long idx,
         unsigned int x_stride, unsigned int y_stride, 
@@ -312,7 +336,7 @@ double* key_sample(const cudautils::SiftParams sift_params,
     return index;
 }
 
-__device__
+__forceinline__ __device__
 double* build_ori_hists(int x, int y, int z, long long idx, unsigned int
         x_stride, unsigned int y_stride, int radius, double* image, 
         const cudautils::SiftParams sift_params, double* device_centers,
@@ -350,7 +374,7 @@ double* build_ori_hists(int x, int y, int z, long long idx, unsigned int
     return ori_hist;
 }
 
-__device__
+__forceinline__ __device__
 void normalize_arr(double* arr, int len) {
 
     double sqlen = 0.0;
@@ -365,7 +389,7 @@ void normalize_arr(double* arr, int len) {
     return;
 }
 
-__device__
+__forceinline__ __device__
 cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
         image, const cudautils::SiftParams sift_params, unsigned int thread_idx, long long idx,
         unsigned int x_stride, unsigned int y_stride, double * descriptors,
@@ -410,7 +434,7 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
     return key;
 }
 
-__device__
+__forceinline__ __device__
 cudautils::Keypoint make_keypoint(double* image, int x, int y, int z,
         unsigned int thread_idx, long long idx, unsigned int x_stride, unsigned int y_stride,
         const cudautils::SiftParams sift_params, double * descriptors, double*
@@ -508,11 +532,9 @@ void create_descriptor(
             &(device_centers[DIMS * ori_hist_idx[2]]), &prod02, 1, DIMS);
 
 #ifdef DEBUG_NUMERICAL
-if ((x == 1732) && (y == 21) && (z == 13))  {
         printf("TPF x%d y%d z%d ori_hist %.25f %.25f %.25f ori_hist_idx %d %d %d %d prod01 %.25f prod02 %.25f eq:%d diff:%.54f\n",
                 x, y, z, ori_hist[0], ori_hist[1], ori_hist[2], ori_hist_idx[0], ori_hist_idx[1], ori_hist_idx[2], ori_hist_idx[3],
                 prod01, prod02, ori_hist[2] == ori_hist[3], ori_hist[2] - ori_hist[3]);
-}
 #endif
 
         if ( ( prod01 > sift_params.TwoPeak_Thresh) &&
@@ -1016,11 +1038,6 @@ void Sift::runOnStream(
             continue;
         }
 
-        // allocate keystore
-        /*stream_data->keystore->len = substream_padded_map_idx_size ;*/
-        /*cudaHostAlloc(&(stream_data->keystore->buf), stream_data->keystore->len **/
-                /*sizeof(cudautils::Keypoint), cudaHostAllocPortable);*/
-
         // only calculate location and save keypoints
         if (sift_params_.skipDescriptor) {
 #ifdef DEBUG_OUTPUT
@@ -1055,7 +1072,6 @@ void Sift::runOnStream(
                 temp.y = y_sub_start + padding_y - dw_ + 1;
                 temp.z = padding_z - dw_ + 1;
 
-                /*stream_data->keystore->buf[i] = temp;*/
                 stream_data->keystore.push_back(temp);
             }
             cudaSafeCall(cudaFree(substream_padded_map_idx));
@@ -1178,17 +1194,16 @@ void Sift::runOnStream(
                 cudaMemcpyDeviceToHost, stream_data->stream));
 
 #ifdef DEBUG_OUTPUT_MATRIX
-        /*for (int i=0; i < substream_padded_map_idx_size; i++) {*/
-            /*printf("h_padded_map_idx:%lld\n", h_padded_map_idx[i]);*/
-            /*if (i % sift_params_.descriptor_len == 0) {*/
-                /*printf("\n\nDescriptor:%d\n", (int) i / sift_params_.descriptor_len);*/
-            /*}*/
-            /*printf("%d: %d\n", i, h_descriptors[i]);*/
-        /*}*/
+        for (int i=0; i < substream_padded_map_idx_size; i++) {
+            printf("h_padded_map_idx:%lld\n", h_padded_map_idx[i]);
+            if (i % sift_params_.descriptor_len == 0) {
+                printf("\n\nDescriptor:%d\n", (int) i / sift_params_.descriptor_len);
+            }
+            printf("%d: %d\n", i, h_descriptors[i]);
+        }
 #endif
 
         // make sure all async memcpys (above) are finished before access
-        // FIXME is this necessary?
         cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
 
         // save data for all streams to global Sift object store
@@ -1199,8 +1214,6 @@ void Sift::runOnStream(
             if (sift_params_.TwoPeak_Flag) {
                 if (h_padded_map_idx[i] == -1) {
                     skip_counter++;
-                    /*stream_data->keystore->buf[i] = temp;*/
-                    /*stream_data->keystore.push_back(temp);*/
                     continue;
                 } 
             }
@@ -1220,37 +1233,9 @@ void Sift::runOnStream(
             temp.xyScale = sift_params_.xyScale;
             temp.tScale = sift_params_.tScale;
 
-#ifdef DEBUG_OUTPUT_MATRIX
-            /*logger_->info("desc_len={}, x_sub_start={}, y_sub_start={}, idx={}, temp.x={}, temp.y={}, temp.z={}",*/
-                    /*sift_params_.descriptor_len, x_sub_start, y_sub_start, h_padded_map_idx[i], temp.x,*/
-                    /*temp.y, temp.z);*/
-            for (int desc_idx=0; desc_idx < sift_params_.descriptor_len; desc_idx++) {
-                logger_->info("ivec[{}]={}", desc_idx, temp.ivec[desc_idx]);
-            }
-#endif
-
             // buffer the size of the whole image
-            /*stream_data->keystore->buf[i] = temp;*/
             stream_data->keystore.push_back(temp);
         }
-
-        /*if (sift_params_.TwoPeak_Flag) {*/
-            /*// remove rejected keypoints*/
-            /*auto new_end = thrust::remove_if(thrust::device,*/
-                    /*stream_data->keystore->buf, */
-                    /*stream_data->keystore->buf + stream_data->keystore->len,*/
-                    /*h_padded_map_idx, is_negative());*/
-            /*// update the len for transfer*/
-            /*stream_data->keystore->len = substream_padded_map_idx_size -*/
-                /*skip_counter;*/
-
-/*#ifdef DEBUG_OUTPUT*/
-            /*logger_->info("Points removed {}", skip_counter);*/
-/*#endif*/
-            /*assert(stream_data->keystore->len == (new_end - stream_data->keystore->buf));*/
-        /*} else {*/
-            /*stream_data->keystore->len = substream_padded_map_idx_size ;*/
-        /*}*/
 
         cudaSafeCall(cudaFree(substream_padded_map_idx));
         cudaSafeCall(cudaFree(descriptors));
@@ -1272,8 +1257,6 @@ void Sift::runOnStream(
 
         logger_->info("transfer d2h and copy descriptor ivec values {}", timer.get_laptime());
 #endif
-        // make sure all streams are done executing
-        cudaSafeCall(cudaStreamSynchronize(stream_data->stream));
     }
 }
 

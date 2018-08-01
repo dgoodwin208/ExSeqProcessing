@@ -207,8 +207,4 @@ end
 
 % t=toc; fprintf('...done (%6.2f sec)\n\n',t);
 
-%FIXME
-load fv_centers
-FV.centers = fv_centers;
-
 return
