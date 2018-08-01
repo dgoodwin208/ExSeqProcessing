@@ -34,7 +34,7 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
         h  = fspecial3('gaussian',blur_size); 
         img_blur = convnfft(img,h,'same',[],options);
         if ~isempty(res_vect) 
-            keys_cell{i} = calculate_3DSIFT(img_blur, res_vect,skipDescriptor);
+            keys_cell{i} = calculate_3DSIFT_cuda(img_blur, res_vect,skipDescriptor);
     else
             fprintf('WARNING: no keypoints found for blur size %i\n',blur_size);
             keys_cell{i} = [];

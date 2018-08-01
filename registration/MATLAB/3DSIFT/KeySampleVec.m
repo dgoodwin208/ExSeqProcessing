@@ -1,8 +1,8 @@
-function vec = KeySampleVec(key, pix, sift_params)
+function [vec, precomp_grads] = KeySampleVec(key, pix, sift_params, precomp_grads)
 
 
 % DG's Addition: Method 1 with rotational invariance added in:
-index = KeySample(key, pix, sift_params);
+[index precomp_grads] = KeySample(key, pix, sift_params, precomp_grads);
 %Add up each of the IndexSize x IndexSize x IndexSize bins into the
 %corresponding tesselation faces
 

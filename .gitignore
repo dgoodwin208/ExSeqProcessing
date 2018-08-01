@@ -19,3 +19,4 @@ loadParameters.m.back
 *.a
 .nfs*
 *.fa
+*.bin

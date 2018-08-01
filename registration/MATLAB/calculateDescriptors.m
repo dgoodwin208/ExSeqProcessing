@@ -29,6 +29,7 @@ function calculateDescriptors(run_num,varargin)
 %
 %   See also LOADEXPERIMENTPARAMS, PLUS.
 
+profile on -history;
 %Load all the parameters per file
 % loadExperimentParams;
 loadParameters;
@@ -152,7 +153,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
             end
             
             %If we're calculating a channel just for shape context, then we
-            %only need the keypoint. So we do a check for any channel that
+            %only need the keypoint and not the descriptor. So we do a check for any channel that
             %is only in the REGISTERCHANNELS_SC and not in
             %REGISTERCHANNELS_SIFT
 
@@ -222,6 +223,9 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
         end
     end
 end
+
+profile off;
+profsave(profile('info'), sprintf('profile-calc-desc-%d-%d-precomp-opt', start_idx, end_idx));
 
 catch ME
     disp(ME.getReport)

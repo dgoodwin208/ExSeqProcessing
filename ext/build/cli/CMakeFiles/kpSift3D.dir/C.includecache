@@ -1,0 +1,46 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../imutil/immacros.h
+imtypes.h
+../imutil/imtypes.h
+uchar.h
+-
+mex.h
+../imutil/mex.h
+stdio.h
+../imutil/stdio.h
+
+../imutil/imtypes.h
+time.h
+-
+CL/cl.h
+../imutil/CL/cl.h
+CL/cl.h
+../imutil/CL/cl.h
+
+../imutil/imutil.h
+imtypes.h
+../imutil/imtypes.h
+
+../sift3d/sift.h
+imtypes.h
+../sift3d/imtypes.h
+
+/mp/nas1/fixstars/karl/SIFT3D/cli/kpSift3D.c
+stdio.h
+-
+getopt.h
+-
+immacros.h
+/mp/nas1/fixstars/karl/SIFT3D/cli/immacros.h
+imutil.h
+/mp/nas1/fixstars/karl/SIFT3D/cli/imutil.h
+sift.h
+/mp/nas1/fixstars/karl/SIFT3D/cli/sift.h
+

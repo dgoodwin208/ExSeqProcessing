@@ -1,22 +1,30 @@
-function key = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params)
+function [key, precomp_grads] = MakeKeypoint(pix, xyScale, tScale, x, y, z, sift_params, precomp_grads)
     k.x = x;
     k.y = y;
     k.z = z;
     k.xyScale = xyScale;
     k.tScale = tScale;
-    key = MakeKeypointSample(k, pix, sift_params);
+    [key precomp_grads] = MakeKeypointSample(k, pix, sift_params, precomp_grads);
     return;
 end
 
 
-function key = MakeKeypointSample(key, pix, sift_params)
+function [key precomp_grads] = MakeKeypointSample(key, pix, sift_params, precomp_grads)
 
 
 MaxIndexVal = 0.2;
 changed = 0;
 
-vec = KeySampleVec(key, pix, sift_params);
+[vec precomp_grads] = KeySampleVec(key, pix, sift_params, precomp_grads);
 VecLength = length(vec);
+
+%fprintf('ML\n');
+%for i=1:VecLength
+    %if (vec(i) ~= 0 )
+        %fprintf('index[%d]=%.4f, ', i - 1, vec(i));
+    %end
+%end
+%fprintf('\n');
 
 vec = NormalizeVec(vec, VecLength);
 
