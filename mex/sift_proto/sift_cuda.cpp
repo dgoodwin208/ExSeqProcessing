@@ -183,12 +183,6 @@ cudautils::SiftParams get_params(const mxArray* prhs[]) {
     sift_params.image_size1 = image_dims[1];
     sift_params.image_size2 = image_dims[2];
 
-    sift_params.stream_num = (int) get_double_field(prhs, "stream_num");
-
-    sift_params.x_substream_stride = (int) get_double_field(prhs, "x_substream_stride");
-
-    sift_params.y_substream_stride = (int) get_double_field(prhs, "y_substream_stride");
-
     sift_params.descriptor_len = (int) get_double_field(prhs, "descriptor_len");
 
     return sift_params;
@@ -242,6 +236,10 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
 
         cudautils::SiftParams sift_params = get_params(prhs);
         double* fv_centers = get_double_ptr_field(prhs, "fv_centers");
+        int stream_num = (int) get_double_field(prhs, "stream_num");
+        int x_substream_stride = (int) get_double_field(prhs, "x_substream_stride");
+        int y_substream_stride = (int) get_double_field(prhs, "y_substream_stride");
+
 
         cudautils::Keypoint_store keystore;
 
@@ -264,19 +262,19 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         unsigned int x_sub_size = std::min((unsigned int)2048, (unsigned int)x_size);
         unsigned int y_sub_size = std::min((unsigned int)2048, 
                 (unsigned int)y_size / num_gpus);
-        unsigned int dx = std::min((unsigned int)sift_params.x_substream_stride,
+        unsigned int dx = std::min((unsigned int)x_substream_stride,
                 (unsigned int)x_sub_size);
-        unsigned int dy = std::min((unsigned int)sift_params.y_substream_stride,
+        unsigned int dy = std::min((unsigned int)y_substream_stride,
                 (unsigned int)y_sub_size);
         const unsigned int dw = 0; //default: 2, pad width each side, each dim
 
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
-                x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, sift_params.stream_num);
+                x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, stream_num);
 
         try {
             cudautils::sift_bridge(
                     logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
-                    dy, dw, num_gpus, sift_params.stream_num, in_image, in_map,
+                    dy, dw, num_gpus, stream_num, in_image, in_map,
                     sift_params, fv_centers, &keystore);
 
         } catch (...) {

@@ -123,10 +123,13 @@ int main(int argc, char* argv[]) {
         cudautils::SiftParams sift_params;
         double* fv_centers = sift_defaults(&sift_params,
                 x_size, y_size, z_size, keypoint_num);
+        int stream_num = 20;
+        int x_substream_stride = 256;
+        int y_substream_stride = 256;
         
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
-        logger->info("# of streams = {}", sift_params.stream_num);
+        logger->info("# of streams = {}", stream_num);
         logger->info("# of keypoints = {}", keypoint_num);
 
         /*std::vector<double> out_interp_image(x_size * y_size * z_size);*/
@@ -135,8 +138,8 @@ int main(int argc, char* argv[]) {
         const unsigned int y_sub_size = min(2048, y_size / num_gpus);
         const unsigned int dw = 0;
 
-        const unsigned int dx = min(sift_params.x_substream_stride, x_sub_size);
-        const unsigned int dy = min(sift_params.y_substream_stride, y_sub_size);
+        const unsigned int dx = min(x_substream_stride, x_sub_size);
+        const unsigned int dy = min(y_substream_stride, y_sub_size);
 
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
@@ -146,7 +149,7 @@ int main(int argc, char* argv[]) {
 
             cudautils::sift_bridge(
                     logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
-                    dy, dw, num_gpus, sift_params.stream_num, in_image, in_map,
+                    dy, dw, num_gpus, stream_num, in_image, in_map,
                     sift_params, fv_centers, &keystore);
 
             /*std::shared_ptr<cudautils::Sift> ni =*/

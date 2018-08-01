@@ -81,9 +81,9 @@ void place_in_index(double* index, double mag, int i, int j, int k,
             bin_index = bin_sub2ind(i, j, k, ix[ii], sift_params);
 
 #ifdef DEBUG_NUMERICAL
-            /*printf("i%d j%d k%d ix[ii]%d bin_index%d yy[ii]%.54f, index+=%.54f, idx%lld\n",*/
-                    /*i, j, k, ix[ii], bin_index, yy[ii], mag * pow(yy[ii],*/
-                        /*sift_params.Smooth_Var ) / tmpsum, idx);*/
+            printf("i%d j%d k%d ix[ii]%d bin_index%d yy[ii]%.54f, index+=%.54f, idx%lld\n",
+                    i, j, k, ix[ii], bin_index, yy[ii], mag * pow(yy[ii],
+                        sift_params.Smooth_Var ) / tmpsum, idx);
 #endif
 
             index[bin_index] +=  mag * pow(yy[ii], sift_params.Smooth_Var ) / tmpsum;
