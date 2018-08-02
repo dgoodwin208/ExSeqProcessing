@@ -25,7 +25,7 @@ all: $(TARGET)
 sift_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
 	mex -compatibleArrayDims -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread
 	#mex -compatibleArrayDims -g -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread
-	@cp -a $@ ../
+	@mv $@ ../
 
 %.o: %.cpp $(SRCS)
 	mex -compatibleArrayDims -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
