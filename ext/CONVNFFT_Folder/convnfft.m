@@ -71,8 +71,6 @@ dims = reshape(dims, 1, []); % row (needed for for-loop index)
 
 % GPU enable flag
 GPU = getoption(options, 'GPU', false);
-% Check if Jacket is installed
-GPU = GPU && ~isempty(which('ginfo'));
 
 % IFUN function will be used later to truncate the result
 % M and N are respectively the length of A and B in some dimension
@@ -115,16 +113,8 @@ else
 end
 
 if GPU % GPU/Jacket FFT
-    if strcmp(classA,'single')
-        A = gsingle(A);
-    else
-        A = gdouble(A);
-    end
-    if strcmp(classB,'single')
-        B = gsingle(B);
-    else
-        B = gdouble(B);
-    end
+    A = gpuArray(A);
+    B = gpuArray(B);
     % Do the FFT
     subs(1:ndims(A)) = {':'};
     for dim=dims
@@ -164,7 +154,7 @@ if GPU
 else
     % inplace product to save 1/3 of the memory
     %inplaceprod(A,B);
-    %Modern Matlab already uses in place
+    %Matlab already uses in place
     A = A.*B;
     clear B
 end
@@ -199,11 +189,7 @@ end
 % GPU/Jacket
 if GPU
     % Cast the type back
-    if strcmp(class(A),'gsingle')
-        A = single(A);
-    else
-        A = double(A);
-    end
+    A = gather(A);
 end
 
 end % convnfft
