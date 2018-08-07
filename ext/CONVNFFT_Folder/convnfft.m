@@ -71,10 +71,6 @@ dims = reshape(dims, 1, []); % row (needed for for-loop index)
 
 % GPU enable flag
 GPU = getoption(options, 'GPU', false);
-% cast to single flag
-CastSingle = getoption(options, 'CastSingle', false);
-% Check if Jacket is installed
-GPU = GPU && ~isempty(which('ginfo'));
 
 if CastSingle
     A = single(A);
@@ -122,16 +118,8 @@ else
 end
 
 if GPU % GPU/Jacket FFT
-    if strcmp(classA,'single')
-        A = gsingle(A);
-    else
-        A = gdouble(A);
-    end
-    if strcmp(classB,'single')
-        B = gsingle(B);
-    else
-        B = gdouble(B);
-    end
+    A = gpuArray(A);
+    B = gpuArray(B);
     % Do the FFT
     subs(1:ndims(A)) = {':'};
     for dim=dims
@@ -206,11 +194,7 @@ end
 % GPU/Jacket
 if GPU
     % Cast the type back
-    if strcmp(class(A),'gsingle')
-        A = single(A);
-    else
-        A = double(A);
-    end
+    A = gather(A);
 end
 
 if CastSingle
