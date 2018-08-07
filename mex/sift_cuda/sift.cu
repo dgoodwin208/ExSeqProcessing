@@ -10,10 +10,9 @@
 #include <thrust/iterator/reverse_iterator.h>
 
 #include <cuda_runtime.h>
-/*#include <helper_cuda.h>*/
 #include <cmath>
-/*#include <numeric> //std::inner_product*/
 
+#include "math.h"
 #include "sift.h"
 #include "matrix_helper.h"
 #include "cuda_timer.h"
@@ -51,7 +50,7 @@ struct isnan_test {
 // this is why i, j, and k are dimensions of stride sift_params.IndexSize
 __forceinline__ __device__ 
 int bin_sub2ind_row(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
-    return (int) l + sift_params.nFaces * (k + j * pow(sift_params.IndexSize, 1) + i
+    return (int) l + sift_params.nFaces * (k + j * sift_params.IndexSize + i
             * pow(sift_params.IndexSize, 2));
 }
 

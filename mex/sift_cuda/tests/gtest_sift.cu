@@ -2,10 +2,12 @@
 
 #include "sift.h"
 #include "cuda_task_executor.h"
+#include "gpudevice.h"
 #include <vector>
 #include <iterator>
 #include <algorithm>
 #include <cublas_v2.h>
+#include <stdexcept>
 
 #include "spdlog/spdlog.h"
 
@@ -389,6 +391,98 @@ TEST_F(SiftTest, SiftSimpleTest) {
 
 }
 
+// Check output with saved binary 
+TEST_F(SiftTest, CheckBinaryTest) {
+
+        std::string in_image_filename1("test_img.bin");
+        std::string in_map_filename2("test_map.bin");
+        std::string out_filename("gtest_output.bin");
+
+        unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
+
+        std::ifstream fin1(in_image_filename1, std::ios::binary);
+        if (fin1.is_open()) {
+            fin1.read((char*)&x_size, sizeof(unsigned int));
+            fin1.read((char*)&y_size, sizeof(unsigned int));
+            fin1.read((char*)&z_size, sizeof(unsigned int));
+        } else { 
+            throw std::invalid_argument( "Unable to open or find file: `test_img.bin` in current directory");
+        }
+
+        std::ifstream fin2(in_map_filename2, std::ios::binary);
+        if (fin2.is_open()) {
+            fin2.read((char*)&x_size1, sizeof(unsigned int));
+            fin2.read((char*)&y_size1, sizeof(unsigned int));
+            fin2.read((char*)&z_size1, sizeof(unsigned int));
+        } else { 
+            throw std::invalid_argument( "Unable to open or find file: `test_map.bin` in current directory");
+        }
+
+        if (x_size != x_size1 || y_size != y_size1 || z_size != z_size1) {
+            logger_->error("the dimension of image and map is not the same. image({},{},{}), map({},{},{})",
+                    x_size, y_size, z_size, x_size1, y_size1, z_size1);
+            fin1.close();
+            fin2.close();
+            /*ASSERT_TRUE(false);*/
+            throw std::invalid_argument("Dimension of image and map is not the same");
+        }
+
+        std::vector<double> in_image(x_size * y_size * z_size);
+        std::vector<int8_t> in_map  (x_size * y_size * z_size);
+        fin1.read((char*)in_image.data(), x_size * y_size * z_size * sizeof(double));
+        fin2.read((char*)in_map.data(), x_size * y_size * z_size * sizeof(int8_t));
+        fin1.close();
+        fin2.close();
+
+        cudautils::SiftParams sift_params;
+        double* fv_centers = sift_defaults(&sift_params,
+                x_size, y_size, z_size, 0);
+        int stream_num = 20;
+        int x_substream_stride = 256;
+        int y_substream_stride = 256;
+        
+        int num_gpus = cudautils::get_gpu_num();
+        logger_->info("# of gpus = {}", num_gpus);
+        logger_->info("# of streams = {}", stream_num);
+
+        const unsigned int x_sub_size = x_size;
+        const unsigned int y_sub_size = y_size / num_gpus;
+        const unsigned int dw = 0;
+
+        const unsigned int dx = min(x_substream_stride, x_sub_size);
+        const unsigned int dy = min(y_substream_stride, y_sub_size);
+
+        std::shared_ptr<cudautils::Sift> ni =
+            std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
+                    x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
+                    stream_num, sift_params, fv_centers);
+
+        cudautils::CudaTaskExecutor executor(num_gpus, stream_num, ni);
+
+        ni->setImage(thrust::raw_pointer_cast(in_image.data()));
+        ni->setMap(thrust::raw_pointer_cast(in_map.data()));
+
+        executor.run();
+
+        cudautils::Keypoint_store keystore;
+        ni->getKeystore(&keystore);
+
+        std::ofstream fout(out_filename, std::ios::binary);
+
+        for (int i=0; i < keystore.len; i++) {
+            cudautils::Keypoint key = keystore.buf[i];
+            for (int j=0; j < sift_params.descriptor_len; j++) {
+                printf("%d:%.1f\n", i, key.ivec[j]);
+            }
+        }
+
+        fout.write((char*) &keystore, sizeof(keystore));
+        fout.close();
+
+        ASSERT_EQ(system("diff test_output.bin gtest_output.bin"), 0);
+}
+
+
 // Disabled to speed up quick test runs
 TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
 
@@ -409,13 +503,6 @@ TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
     double* fv_centers = sift_defaults(&sift_params, x_size,
             y_size, z_size, keypoint_num);
 
-    std::shared_ptr<cudautils::Sift> ni =
-        std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
-                x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
-                num_streams, sift_params, fv_centers);
-
-    cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
-
     // create img
     thrust::host_vector<double> image(image_size);
     thrust::generate(image.begin(), image.end(), rand);
@@ -432,6 +519,14 @@ TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
         map[idx] = 0.0; // select this point for processing
     }
 
+    std::shared_ptr<cudautils::Sift> ni =
+        std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
+                x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
+                num_streams, sift_params, fv_centers);
+
+    cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
+
+
     ni->setImage(thrust::raw_pointer_cast(image.data()));
     ni->setMap(thrust::raw_pointer_cast(map.data()));
 
@@ -439,9 +534,6 @@ TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
 
     cudautils::Keypoint_store keystore;
     ni->getKeystore(&keystore);
-
-    /*thrust::host_vector<double> interpolated_image(x_size * y_size * z_size);*/
-    /*ni->getImage(thrust::raw_pointer_cast(interpolated_image.data()));*/
 
 }
 

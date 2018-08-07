@@ -17,6 +17,7 @@
 #include <vector>
 #include <iterator>
 #include <algorithm>
+#include <stdexcept>
 
 #include "sift.h"
 #include "mexutil.h"
@@ -31,10 +32,10 @@
 
 int main(int argc, char* argv[]) {
 
-    /*if (argc < 4) {*/
-        /*std::cout << "Usage: " << argv[0] << " [in image file] [in mask map file] [out interpolated image file]" << std::endl;*/
-        /*return 1;*/
-    /*}*/
+    if (argc < 4) {
+        std::cout << "Usage: " << argv[0] << " [in image file] [in mask map file] [out interpolated image file]" << std::endl;
+        return 1;
+    }
 
     std::shared_ptr<spdlog::logger> logger;
     try {
@@ -54,75 +55,48 @@ int main(int argc, char* argv[]) {
     try {
         logger->info("{:=>50}", " sift_cuda start");
 
-        /*std::string in_image_filename1(argv[1]);*/
-        /*std::string in_map_filename2  (argv[2]);*/
-        /*std::string in_image_filename1("img_2kypts.bin");*/
-        std::string in_image_filename1("image_ones.bin");
-        std::string in_map_filename2  ("map_2kypts.bin");
-        unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
-        /*x_size = atoi(argv[4]);*/
-        /*y_size = atoi(argv[5]);*/
-        /*z_size = atoi(argv[6]);*/
+        std::string in_image_filename1(argv[1]);
+        std::string in_map_filename2  (argv[2]);
+        std::string out_filename(argv[3]);
 
-        int keypoint_num;
-        try {
-            keypoint_num = atoi(argv[1]);
-        } catch (const spdlog::spdlog_ex& ex) {
-            std::cout << "Must provide # of keypoints `$./sift_cuda 1` " << ex.what() << std::endl;
-            return 1;
+        unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
+
+        std::ifstream fin1(in_image_filename1, std::ios::binary);
+        if (fin1.is_open()) {
+            fin1.read((char*)&x_size, sizeof(unsigned int));
+            fin1.read((char*)&y_size, sizeof(unsigned int));
+            fin1.read((char*)&z_size, sizeof(unsigned int));
+        } else { 
+            throw std::invalid_argument( "Unable to open or find file: `test_image.bin` in current directory");
         }
 
-        logger->info("# of keypoints = {}", keypoint_num);
-        x_size = 2048;
-        y_size = 2048;
-        z_size = 251;
-        x_size1 = x_size;
-        y_size1 = y_size;
-        z_size1 = z_size;
-
-        /*unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;*/
-        std::ifstream fin1(in_image_filename1, std::ios::binary);
-        /*fin1.read((char*)&x_size, sizeof(unsigned int));*/
-        /*fin1.read((char*)&y_size, sizeof(unsigned int));*/
-        /*fin1.read((char*)&z_size, sizeof(unsigned int));*/
-
         std::ifstream fin2(in_map_filename2, std::ios::binary);
-        /*fin2.read((char*)&x_size1, sizeof(unsigned int));*/
-        /*fin2.read((char*)&y_size1, sizeof(unsigned int));*/
-        /*fin2.read((char*)&z_size1, sizeof(unsigned int));*/
+        if (fin2.is_open()) {
+            fin2.read((char*)&x_size1, sizeof(unsigned int));
+            fin2.read((char*)&y_size1, sizeof(unsigned int));
+            fin2.read((char*)&z_size1, sizeof(unsigned int));
+        } else { 
+            throw std::invalid_argument( "Unable to open or find file: `test_map.bin` in current directory");
+        }
 
         if (x_size != x_size1 || y_size != y_size1 || z_size != z_size1) {
             logger->error("the dimension of image and map is not the same. image({},{},{}), map({},{},{})",
                     x_size, y_size, z_size, x_size1, y_size1, z_size1);
             fin1.close();
             fin2.close();
-            return 1;
+            throw std::invalid_argument("Dimension of image and map is not the same");
         }
 
-        // create image
-        long image_size = x_size * y_size * z_size;
-        double* in_image = (double*) malloc(image_size * sizeof(double));
-        int8_t* in_map = (int8_t*) malloc(image_size * sizeof(int8_t));
-        for (long i=0; i < image_size; i++) {
-            in_image[i] = rand() % 100 + 1.0;
-            in_map[i] = 1.0;
-        }
-
-        // create map
-        long long idx;
-        for (int i=0; i < keypoint_num; i++) {
-            // warning not evenly distributed across the image
-            idx = (x_size * rand()) % image_size;
-            in_map[idx] = 0.0; // select this point for processing
-        }
-
-        /*fin2.read((char*)in_map  .data(), image_size * sizeof(int8_t));*/
+        std::vector<double> in_image(x_size * y_size * z_size);
+        std::vector<int8_t> in_map  (x_size * y_size * z_size);
+        fin1.read((char*)in_image.data(), x_size * y_size * z_size * sizeof(double));
+        fin2.read((char*)in_map  .data(), x_size * y_size * z_size * sizeof(int8_t));
         fin1.close();
         fin2.close();
 
         cudautils::SiftParams sift_params;
         double* fv_centers = sift_defaults(&sift_params,
-                x_size, y_size, z_size, keypoint_num);
+                x_size, y_size, z_size, 0);
         int stream_num = 20;
         int x_substream_stride = 256;
         int y_substream_stride = 256;
@@ -130,12 +104,9 @@ int main(int argc, char* argv[]) {
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
         logger->info("# of streams = {}", stream_num);
-        logger->info("# of keypoints = {}", keypoint_num);
 
-        /*std::vector<double> out_interp_image(x_size * y_size * z_size);*/
-
-        const unsigned int x_sub_size = min(2048, x_size);
-        const unsigned int y_sub_size = min(2048, y_size / num_gpus);
+        const unsigned int x_sub_size = x_size;
+        const unsigned int y_sub_size = y_size / num_gpus;
         const unsigned int dw = 0;
 
         const unsigned int dx = min(x_substream_stride, x_sub_size);
@@ -147,39 +118,23 @@ int main(int argc, char* argv[]) {
         try {
             cudautils::Keypoint_store keystore;
 
-            cudautils::sift_bridge(
-                    logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
-                    dy, dw, num_gpus, stream_num, in_image, in_map,
-                    sift_params, fv_centers, &keystore);
+            cudautils::sift_bridge( logger, x_size, y_size, z_size, x_sub_size,
+                    y_sub_size, dx, dy, dw, num_gpus, stream_num, &in_image[0],
+                    &in_map[0], sift_params, fv_centers, &keystore);
 
-            /*std::shared_ptr<cudautils::Sift> ni =*/
-                /*std::make_shared<cudautils::Sift>(x_size, y_size, z_size,*/
-                        /*x_sub_size, y_sub_size, dx, dy, dw, num_gpus,*/
-                        /*num_streams, sift_params, fv_centers);*/
+            logger->info("save Keystore start");
+            std::ofstream fout(out_filename, std::ios::binary);
 
-            /*cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);*/
+            for (int i=0; i < keystore.len; i++) {
+                cudautils::Keypoint key = keystore.buf[i];
+                for (int j=0; j < sift_params.descriptor_len; j++) {
+                    printf("%d:%.0f\n", i, key.ivec[j]);
+                }
+            }
 
-            /*logger->info("setImage start");*/
-            /*ni->setImage(in_image);*/
-            /*logger->info("setImage end");*/
-            /*ni->setMapToBeInterpolated(in_map);*/
-            /*logger->info("setMap end");*/
-
-            /*logger->info("calc start");*/
-            /*executor.run();*/
-            /*logger->info("calc end");*/
-
-            /*logger->info("getKeystore start");*/
-            /*ni->getKeystore(&keystore);*/
-            /*logger->info("getKeystore end");*/
-
-            /*mxArray* mxKeystore;*/
-            /*// Convert the output keypoints*/
-            /*if ((mxKeystore = kp2mx(&keystore, sift_params)) == NULL)*/
-                /*logger->error("keystore to mex error occurred");*/
-
-            free(in_image);
-            free(in_map);
+            fout.write((char*) &keystore, sizeof(keystore));
+            fout.close();
+            logger->info("save Keystore end");
 
         } catch (...) {
             logger->error("internal unknown error occurred");

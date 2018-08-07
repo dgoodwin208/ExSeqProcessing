@@ -2,6 +2,8 @@
 #define __SIFT_TYPES_H__
 
 #include <cuda_runtime.h>
+#include <fstream>
+#include <stdexcept>
 
 #define X_NAME "x"
 #define Y_NAME "y"
@@ -86,11 +88,22 @@ static double* sift_defaults(cudautils::SiftParams * sift_params,
             sift_params->IndexSize * sift_params->IndexSize * sift_params->nFaces;
 
         // set fv_centers
-        double* fv_centers = (double*) malloc(sizeof(double) * sift_params->fv_centers_len);
-        for (int i=0; i < sift_params->fv_centers_len; i++) {
-            fv_centers[i] = (double) rand() / 100000000; // usually between 0 and 1
+        std::vector<double> fv_centers(sift_params->fv_centers_len);
+
+        //uint32_t fv_centers_len;
+        unsigned int fv_centers_len;
+        std::ifstream fin1("fv_centers.bin", std::ios::binary);
+        if (fin1.is_open()) {
+            fin1.read((char*)&fv_centers_len, sizeof(unsigned int));
+            assert(fv_centers_len == sift_params->fv_centers_len);
+            fin1.read((char*)fv_centers.data(), sift_params->fv_centers_len * sizeof(double));
+            //for (int i=0; i < sift_params->fv_centers_len; i++) {
+                //printf("%d %.1f \n", i, fv_centers[i]);
+            //}
+        } else { 
+            throw std::invalid_argument( "Unable to open or find file: `fv_centers.bin` in current directory");
         }
-        return fv_centers;
+        return &fv_centers[0];
 }
 
 }

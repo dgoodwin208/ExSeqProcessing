@@ -5,16 +5,18 @@ img = load3DTif_uint16(fn);
 %img = 1:27;
 %img = reshape(img, 3,3,3);
 %keys = [2,2,2];
+%img = img(1:10, 1:10, 1:6);
 
+keys = [5,5,3];
 LoadParams;
 % saved keypoints for 2048 2048 141 image
-load res_vect
+%load res_vect
 
 % keypoint 9 is rejected
 %keys = res_vect(9, :)
 %keys = [1, 1, 1];
-%keys = res_vect(1:1000, :);
-keys = res_vect;
+%keys = res_vect(1:10, :);
+%keys = res_vect;
 
 skipDescriptors = false;
 
