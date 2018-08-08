@@ -1,4 +1,4 @@
-TARGET=lib-cufft-utils lib-utils lib-tests convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 lib-tests 
+TARGET=lib-cufft-utils lib-utils lib-tests convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 cmd_convn_cuda # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 lib-tests 
 
 SOURCES := $(wildcard convn_cuda.cpp fft3_cuda.cpp)
 OBJS := $(SOURCES:.cpp=.o)
@@ -8,6 +8,14 @@ CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64
 CUDNN_DIR=cudnn-utils
 CUFFT_DIR=cufft-utils
+
+SPDLOG_DIR=../include
+CUDA_UTILS_DIR=../cuda-utils
+TESTS_DIR=tests/
+
+CPPFLAGS+=-I$(CUDA_UTILS_DIR) -I$(SPDLOG_DIR)
+CXXFLAGS+=-std=c++11 -Wall -Wextra -pthread
+NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 
 all: $(TARGET)
 
@@ -28,6 +36,14 @@ convn_cuda.o: convn_cuda.cpp
 
 convn_1GPU_cuda.o: convn_1GPU_cuda.cpp
 	mex -compatibleArrayDims -c $^ -I../include -I$(MATLAB_GPU_INC) -I$(CUDA_INC) -I$(CUFFT_DIR)
+
+cmd_convn_cuda.o: cmd_convn_cuda.cu
+	#nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -O2 -c -o $@ $<
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -g -G -O0 -c -o $@ $<
+
+cmd_convn_cuda: cmd_convn_cuda.o $(CUFFT_DIR)/libcufftutils.a
+	#g++ -O2 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
+	g++ -fvar-tracking-assignments -g -O0 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 
 lib-cufft-utils:
 	make -C cufft-utils

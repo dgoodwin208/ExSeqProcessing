@@ -22,7 +22,6 @@
 #include "sift.h"
 #include "mexutil.h"
 #include "sift_bridge.h"
-/*#include "sift_types.h"*/
 #include "gpudevice.h"
 
 #include "cuda_task_executor.h"
@@ -122,9 +121,8 @@ int main(int argc, char* argv[]) {
                     y_sub_size, dx, dy, dw, num_gpus, stream_num, &in_image[0],
                     &in_map[0], sift_params, fv_centers, &keystore);
 
-            logger->info("save Keystore start");
-            std::ofstream fout(out_filename, std::ios::binary);
 
+            // print keystore 
             for (int i=0; i < keystore.len; i++) {
                 cudautils::Keypoint key = keystore.buf[i];
                 for (int j=0; j < sift_params.descriptor_len; j++) {
@@ -132,13 +130,19 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+        } catch (...) {
+            logger->error("Internal unknown error occurred during CUDA execution");
+        }
+
+        logger->info("save Keystore start");
+        std::ofstream fout(out_filename, std::ios::binary);
+        if (fout.is_open()) {
             fout.write((char*) &keystore, sizeof(keystore));
             fout.close();
-            logger->info("save Keystore end");
-
-        } catch (...) {
-            logger->error("internal unknown error occurred");
+        } else { 
+            throw std::invalid_argument( "Unable to open output file");
         }
+        logger->info("save Keystore end");
 
         logger->info("{:=>50}", " sift_cuda end");
 

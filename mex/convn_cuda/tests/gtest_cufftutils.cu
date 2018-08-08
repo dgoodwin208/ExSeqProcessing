@@ -38,7 +38,7 @@ static void initImage(float* image, int imageSize) {
     }
 }
 
-void matrix_is_zero(float* first, int* size, bool column_order, int benchmark, float tol)  {
+void matrix_is_zero(float* first, unsigned int* size, bool column_order, int benchmark, float tol)  {
     //convert back to original then check the two matrices
     long long idx;
     for (int i = 0; i<size[0]; ++i) {
@@ -55,7 +55,7 @@ void matrix_is_zero(float* first, int* size, bool column_order, int benchmark, f
     }
 }
 
-void matrix_is_equal_complex(cufftComplex* first, cufftComplex* second, int* size, bool column_order, 
+void matrix_is_equal_complex(cufftComplex* first, cufftComplex* second, unsigned int* size, bool column_order, 
         int benchmark, float tol)  {
     //convert back to original then check the two matrices
     long long idx;
@@ -74,7 +74,7 @@ void matrix_is_equal_complex(cufftComplex* first, cufftComplex* second, int* siz
     }
 }
 
-void matrix_is_equal(float* first, float* second, int* size, bool column_order, 
+void matrix_is_equal(float* first, float* second, unsigned int* size, bool column_order, 
         int benchmark, float tol)  {
     //convert back to original then check the two matrices
     long long idx;
@@ -96,8 +96,8 @@ void print_thread() {
 }
 
 TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
-    int size[3] = {50, 50, 5};
-    int filterdimA[3] = {5, 5, 5};
+    unsigned int size[3] = {50, 50, 5};
+    unsigned int filterdimA[3] = {5, 5, 5};
     bool column_order = 0;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
@@ -143,12 +143,12 @@ TEST_F(ConvnCufftTest, DISABLED_PrintDeviceDataTest) {
 
 TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
     int benchmark = 0;
-    int size[3] = {50, 50, 5};
-    int filterdimA[3] = {2, 2, 2};
+    unsigned int size[3] = {50, 50, 5};
+    unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int algo = 1;
     //float tol = .0001;
-    float tol = .000001;
+    float tol = .00001;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     if (benchmark)
@@ -192,10 +192,10 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
     matrix_is_equal(hostO, hostO_1GPU, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
+TEST_F(ConvnCufftTest, DISABLED_DeviceInitInputsTest) {
     int benchmark = 0;
-    int size[3] = {50, 50, 5};
-    int filterdimA[3] = {2, 2, 2};
+    unsigned int size[3] = {50, 50, 5};
+    unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
@@ -220,7 +220,7 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cufftutils::convert_matrix(hostI, hostI_column, size, column_order);
     cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
 
-    int pad_size[3];
+    unsigned int pad_size[3];
     int trim_idxs[3][2];
     cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
@@ -366,11 +366,11 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     free(host_data_kernel);
 }
 
-TEST_F(ConvnCufftTest, InitializePadTest) {
+TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     int benchmark = 0;
     //int size[3] = {2, 2, 3};
-    int size[3] = {50, 50, 5};
-    int filterdimA[3] = {2, 2, 2};
+    unsigned int size[3] = {50, 50, 5};
+    unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
@@ -390,7 +390,7 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     cufftutils::convert_matrix(hostI, hostI_column, size, column_order);
     cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
 
-    int pad_size[3];
+    unsigned int pad_size[3];
     int trim_idxs[3][2];
     cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
@@ -482,9 +482,8 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
 }
 
 TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
-    //int size[3] = {126, 1024, 1024}; 
-    int size[3] = {1024, 1024, 126};
-    int filterdimA[3] = {5, 5, 5};
+    unsigned int size[3] = {1024, 1024, 126};
+    unsigned int filterdimA[3] = {5, 5, 5};
     int benchmark = 0;
     bool column_order = false;
     int algo = 1;
@@ -504,11 +503,11 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
-    int size[3] = {200, 2048, 2048};
-    int filterdimA[3] = {5, 5, 5};
+TEST_F(ConvnCufftTest, ConvnFullImageTest) {
+    unsigned int size[3] = {126, 1024, 1024};
+    unsigned int filterdimA[3] = {5, 5, 5};
     int benchmark = 0;
-    bool column_order = false;
+    bool column_order = true;
     int algo = 1;
     float tol = .0001;
     long long N = size[0] * size[1] * size[2];
@@ -533,8 +532,8 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
     float tol = .8;
     int algo = 0;
     bool column_order = false;
-    int size[3] = {50, 50, 5};
-    int filterdimA[] = {2, 2, 2};
+    unsigned int size[3] = {50, 50, 5};
+    unsigned int filterdimA[] = {2, 2, 2};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = size[0]*size[1]*size[2];
 

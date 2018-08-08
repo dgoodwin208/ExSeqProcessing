@@ -44,7 +44,8 @@ map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_s
 for i=1:N
     map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = 0; % select the keypoint element
 end
-unique_N = nnz(~map)
+unique_N = nnz(~map);
+assert(N == unique_N); % check for duplicates
 map = int8(map);
 
 if save_mat

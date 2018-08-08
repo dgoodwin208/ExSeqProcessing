@@ -1,5 +1,4 @@
 #include "mex.h"
-/* #include "cudnn-utils/conv_sample.h" */
 #include "cufft-utils/cufftutils.h"
 
 /*

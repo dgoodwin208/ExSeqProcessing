@@ -1,6 +1,6 @@
 .SUFFIXES: .cu
 
-TARGET=sift_cuda.mexa64 sift_cuda $(TESTS_DIR)/gtest_sift
+TARGET=sift_cuda.mexa64 cmd_sift_cuda $(TESTS_DIR)/gtest_sift
 
 SRCS := $(wildcard sift_*.cpp)
 OBJS := $(SRCS:.cpp=.o)
@@ -39,7 +39,7 @@ $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
 	#nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -O2 -c -o $@ $<
 	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -g -G -O0 -c -o $@ $<
 
-sift_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a 
+cmd_sift_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a 
 	#g++ -O2 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 	g++ -fvar-tracking-assignments -g -O0 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 
@@ -51,6 +51,5 @@ clean:
 	make -C $(TESTS_DIR) clean
 	make -C $(CUDA_UTILS_DIR) clean
 	-rm -f $(TARGET) *.o
-	#-rm -f $(CUDA_UTILS_DIR)/*.a $(CUDA_UTILS_DIR)/*.o
 	-rm -f ../sift_cuda.mexa64
 

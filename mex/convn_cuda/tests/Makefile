@@ -21,7 +21,7 @@ CUFFT_DIR = ../cufft-utils
 #CUDAUTILS_DIR = ../cuda-utils
 #CUDNNUTILS_DIR = ../cudnn-utils
 
-TESTS = gtest_utils gtest_cufftutils # gtest_cudautils  
+TESTS = gtest_cufftutils # gtest_cudautils
 
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
@@ -32,17 +32,10 @@ all : $(TESTS)
 clean :
 	rm -f $(TESTS) *.o
 
-gtest_utils.o : gtest_utils.cpp $(GTEST_HEADERS)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -I$(UTILS_DIR) -c gtest_utils.cpp
-
-gtest_utils : gtest_utils.o
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a -lpthread $^ -o $@ -L$(UTILS_DIR) -lutils
-
 gtest_cufftutils.o : gtest_cufftutils.cu $(GTEST_HEADERS)
 	$(NVCC) $(NVCC_FLAGS) -c $< -L$(CUDA_LIB) -lcufft -I$(CUDA_INC) -I$(CUFFT_DIR) -I$(SPDLOG_DIR) -I$(GTEST_DIR)/include
-	#$(CXX) $(CPPFLAGS) -c gtest_cufftutils.cpp -L$(CUDA_LIB) -lcufft -I$(CUDA_INC) -I$(CUFFT_DIR) -I$(SPDLOG_DIR)
 
-gtest_cufftutils : gtest_cufftutils.o
+gtest_cufftutils : gtest_cufftutils.o $(CUFFT_DIR)/libcufftutils.a 
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< $(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a $(CUFFT_DIR)/libcufftutils.a -I$(CUDA_INC) -I$(CUFFT_DIR) -L$(CUFFT_DIR) -L$(CUDA_LIB) -lcufft -lcudart -lcufftutils -lpthread -o $@ 
 
 #gtest_cudautils.o : gtest_cudautils.cpp $(GTEST_HEADERS)
