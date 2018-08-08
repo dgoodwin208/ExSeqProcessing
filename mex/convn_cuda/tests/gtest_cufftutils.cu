@@ -2,10 +2,9 @@
 
 #include "cufftutils.h"
 #include <complex.h>
-#include <cuda_runtime.h>
-#include <cufft.h>
-#include <cuda.h>
-#include <cuda_runtime.h>
+/*#include <cuda_runtime.h>*/
+/*#include <cufft.h>*/
+/*#include <cuda.h>*/
 
 #include <vector>
 #include <cstdint>
