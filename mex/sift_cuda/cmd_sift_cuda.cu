@@ -114,8 +114,8 @@ int main(int argc, char* argv[]) {
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
 
+        cudautils::Keypoint_store keystore;
         try {
-            cudautils::Keypoint_store keystore;
 
             cudautils::sift_bridge( logger, x_size, y_size, z_size, x_sub_size,
                     y_sub_size, dx, dy, dw, num_gpus, stream_num, &in_image[0],
@@ -132,6 +132,7 @@ int main(int argc, char* argv[]) {
 
         } catch (...) {
             logger->error("Internal unknown error occurred during CUDA execution");
+            throw;
         }
 
         logger->info("save Keystore start");
@@ -142,7 +143,6 @@ int main(int argc, char* argv[]) {
         } else { 
             throw std::invalid_argument( "Unable to open output file");
         }
-        logger->info("save Keystore end");
 
         logger->info("{:=>50}", " sift_cuda end");
 

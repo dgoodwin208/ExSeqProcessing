@@ -36,16 +36,16 @@ void mexFunction(int nlhs, mxArray *plhs[],
     }
 
     // Handle image and filter array sizes
-    int *image_size;
+    unsigned int *image_size;
     const mwSize image_dims = mxGetNumberOfDimensions(prhs[0]);
-    image_size = (int *) mxGetDimensions(prhs[0]);
+    image_size = (unsigned int *) mxGetDimensions(prhs[0]);
     if (benchmark)
         printf("image size: %d, %d, %d\n", image_size[0], image_size[1], image_size[2]);
 
     //const size_t *filter_size;
-    int *filter_size;
+    unsigned int *filter_size;
     const mwSize filter_dims = mxGetNumberOfDimensions(prhs[1]);
-    filter_size = (int *) mxGetDimensions(prhs[1]);
+    filter_size = (unsigned int *) mxGetDimensions(prhs[1]);
     if (benchmark)
         printf("filter size: %d, %d, %d\n", filter_size[0], filter_size[1], filter_size[2]);
 

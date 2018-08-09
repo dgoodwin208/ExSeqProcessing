@@ -1,4 +1,4 @@
-TARGET=lib-cufft-utils lib-utils lib-tests convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 cmd_convn_cuda # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 lib-tests 
+TARGET=lib-cufft-utils lib-utils convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 cmd_convn_cuda  lib-tests # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 
 
 SOURCES := $(wildcard convn_cuda.cpp fft3_cuda.cpp)
 OBJS := $(SOURCES:.cpp=.o)
@@ -43,7 +43,7 @@ cmd_convn_cuda.o: cmd_convn_cuda.cu
 
 cmd_convn_cuda: cmd_convn_cuda.o $(CUFFT_DIR)/libcufftutils.a
 	#g++ -O2 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
-	g++ -fvar-tracking-assignments -g -O0 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
+	g++ -fvar-tracking-assignments -g -O0 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread -lcufft
 
 lib-cufft-utils:
 	make -C cufft-utils
