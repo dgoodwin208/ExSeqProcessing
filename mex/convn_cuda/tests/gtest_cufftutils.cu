@@ -115,7 +115,6 @@ TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
     for (int i=0; i < N_kernel; i++)
         kernel[i] = sin(i);
 
-    //printf("Testing fft\n");
     cufftutils::fft3(data, size, size, outArray, column_order);
 }
 
@@ -503,7 +502,8 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
 }
 
 TEST_F(ConvnCufftTest, ConvnFullImageTest) {
-    unsigned int size[3] = {126, 1024, 1024};
+    /*unsigned int size[3] = {512, 512, 141};*/
+    unsigned int size[3] = {1024, 1024, 126};
     unsigned int filterdimA[3] = {5, 5, 5};
     int benchmark = 0;
     bool column_order = true;
