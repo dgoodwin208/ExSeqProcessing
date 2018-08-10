@@ -738,7 +738,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     return 0;
 }
 
-
 /* Entry function for the fft3_cuda.mexa64 function
    */
 int fft3(float * data, unsigned int* size, unsigned int* length, float* outArray, bool column_order) {
