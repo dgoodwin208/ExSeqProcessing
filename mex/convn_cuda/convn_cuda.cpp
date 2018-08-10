@@ -49,6 +49,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
     if (benchmark)
         printf("filter size: %d, %d, %d\n", filter_size[0], filter_size[1], filter_size[2]);
 
+    if (((image_size[0] + filter_size[0]) < 32) || ( (image_size[1] + filter_size[1] - 1) < 32 )) {
+        mexErrMsgIdAndTxt("convn_cuda:InvalidInput","FFT can not compute with data less than 32 for the x and y dimension");
+    }
+
     // create a new single real matrix on the heap to place output data on (wastes memory but is more usable than in-place)
     plhs[0] = mxCreateNumericArray(image_dims, (mwSize* ) image_size, mxSINGLE_CLASS, mxREAL);
     outArray = (float *) mxGetData(plhs[0]);

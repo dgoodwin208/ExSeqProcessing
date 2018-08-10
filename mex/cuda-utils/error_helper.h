@@ -10,6 +10,7 @@
 #define cudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
 #define cudaCheckError() __cudaCheckError(__FILE__, __LINE__)
 #define cudaCheckPtr(ptr) __cudaCheckPtr(ptr, __FILE__, __LINE__)
+#define cudaCheckPtrDevice(ptr) __cudaCheckPtrDevice(ptr, __FILE__, __LINE__)
 
 static const char *_cudaGetErrorEnum(cufftResult error) {
     switch (error) {
@@ -57,9 +58,18 @@ inline void __cufftSafeCall(cufftResult err, const char *file, const int line)
     }
 }
 
-__device__
 inline 
 void __cudaCheckPtr(void* ptr, const char* file, const int line)
+{
+    if (ptr == NULL) {
+        printf("Error: Null Ptr. Exiting in %s at line %s", file, line );
+        exit(1);
+    }
+}
+
+__device__
+inline 
+void __cudaCheckPtrDevice(void* ptr, const char* file, const int line)
 {
     if (ptr == NULL) {
         printf("Error: exiting all threads in %s at line %s", file, line );

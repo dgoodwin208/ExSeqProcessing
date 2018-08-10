@@ -9,7 +9,9 @@
 #include <cstring>
 #include <cmath>
 #include <complex>
+#include <stdexcept>
 #include "error_helper.h"
+#include "cuda_timer.h"
 
 // includes, project
 #include <device_launch_parameters.h>
@@ -19,6 +21,8 @@
 #include <cufft.h>
 #include <cufftXt.h>
 #include <cuda_runtime.h>
+
+/*#define DEBUG_OUTPUT*/
 
 typedef thrust::host_vector<double, thrust::system::cuda::experimental::pinned_allocator<double>> pinnedDblHostVector;
 typedef thrust::host_vector<unsigned int, thrust::system::cuda::experimental::pinned_allocator<int>> pinnedUIntHostVector;
@@ -76,12 +80,13 @@ void product(cufftComplex *signal1, int size1, cufftComplex *signal2, dim3 gridS
 }
 
 // 3D FFT on the _device_
-void signalFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
+void complex_fft3_1GPU(cufftComplex *d_signal, int NX, int NY, int NZ,
+        int direction) {
 
-  int NRANK, n[] = {NX, NY, NZ};
   cufftHandle plan;
-
-  NRANK = 3;
+  int n[] = {NX, NY, NZ};
+  int NRANK = 3;
+  int batch = 1;
 
     // Initializes the worksize variable
     /*size_t *worksize;                                   */
@@ -90,38 +95,13 @@ void signalFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
 
     //cufftSafeCall(cufftCreate(&plan));
   //cufftSafeCall(cufftMakePlan3d(plan, NX, NY, NZ, CUFFT_C2C, worksize)); 
+  // if inembed and onembed are set to NULL, other advanced params are ignored
   cufftSafeCall(cufftPlanMany(&plan, NRANK, n,
               NULL, 1, NX*NY*NZ, // *inembed, istride, idist
               NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
-              CUFFT_C2C, 1));
+              CUFFT_C2C, batch));
 
-
-  cufftSafeCall(cufftExecC2C(plan, d_signal, d_signal, CUFFT_FORWARD) ); 
-
-}
-
-
-// 3D IFFT on the _device_
-void signalIFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ) {
-
-  int NRANK, n[] = {NX, NY, NZ};
-  cufftHandle plan;
-
-  NRANK = 3;
-
-  if (cufftPlanMany(&plan, NRANK, n,
-              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
-              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
-              CUFFT_C2C, 1) != CUFFT_SUCCESS){
-    printf ("Failed to plan 3D IFFT\n");
-    exit (0);
-  }
-
-
-  if (cufftExecC2C(plan, d_signal, d_signal, CUFFT_INVERSE) != CUFFT_SUCCESS){
-    printf ("Failed to exec 3D IFFT\n");
-    exit (0);
-  }
+  cufftSafeCall(cufftExecC2C(plan, d_signal, d_signal, direction) ); 
 
 }
 
@@ -131,17 +111,10 @@ void cudaConvolution3D(cufftComplex *d_signal1, unsigned int* size1, cufftComple
     int N = size1[0] * size1[1] * size1[2];
     if (benchmark)
         printf("cudaConvolution3D");
-    cufftutils::signalFFT3D(d_signal1, size1[0], size1[1], size1[2]);
-    //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("signal 1 fft failed.\n");
-    //exit(1);
-    //}
 
-    cufftutils::signalFFT3D(d_signal2, size2[0], size2[1], size2[2]);
-    //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("signal 2 fft failed.\n");
-    //exit(1);
-    //}
+    cufftutils::complex_fft3_1GPU(d_signal1, size1[0], size1[1], size1[2], CUFFT_FORWARD);
+
+    cufftutils::complex_fft3_1GPU(d_signal2, size2[0], size2[1], size2[2], CUFFT_FORWARD);
 
     if (benchmark) {
         printf("\n Manual input FFT\n");
@@ -151,21 +124,12 @@ void cudaConvolution3D(cufftComplex *d_signal1, unsigned int* size1, cufftComple
     }
 
     cufftutils::product(d_signal1, N, d_signal2, gridSize, blockSize);
-    //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("pwProd kernel failed.\n");
-    //exit(1);
-    //}
-    //printDeviceData(d_signal1, size1, "PwProd");
     if (benchmark) {
         printf("\n Manual product \n");
         cufftutils::printDeviceData(d_signal1, N);
     }
 
-    cufftutils::signalIFFT3D(d_signal1, size1[0], size1[1], size1[2]);
-    //if ((cudaGetLastError()) != cudaSuccess) {
-    //printf ("signal ifft failed.\n");
-    //exit(1);
-    //}
+    cufftutils::complex_fft3_1GPU(d_signal1, size1[0], size1[1], size1[2], CUFFT_INVERSE);
 }
 
 __global__ 
@@ -270,9 +234,26 @@ void convolve_host(const cufftComplex *signal, long signal_size,
 }
 
 
-// Compute pad length per given dimension lengths
+/* 
+   Compute pad length per given dimension lengths
+   This can produce issues for cufft since Multi-GPUs have strict size reqs related to prime factors.
+   For 2D and 3D transforms, the dimensions must factor into primes less than or equal to 127.
+   In general, powers of two are fastest, but they can come with a prohibitive memory cost.
+   Simply choosing the next power of two for each dimension could result in a data matrices 
+   up to 8 times larger than original, this is unnacceptable. The next best performance 
+   comes from numbers that are a multiples of the primes 2, 3, 5, and 7. Therefore multiples
+   of these prime factors are chosen to save GPU memory for larger dimension sizes.
+
+   */
 long get_pad_idx(long m, long n) {
-    return m + n - 1;
+    long min = m + n - 1;
+    long next = pow(2, ceil(log(min) / log(2)));
+    if ((next == 512) && (min <= 140)) { return 140; }
+    if ((next == 512) && (min <= 210)) { return 210; }
+    if ((next == 1024) && (min <= 630)) { return 630; }
+    if ((next == 2048) && (min <= 1260)) { return 1260; }
+    if ((next == 4096) && (min <= 2100)) { return 2100; }
+    return next;
 }
 
 __device__ __host__
@@ -331,7 +312,7 @@ void initialize_inputs_par(float* hostI, float* hostF, cufftComplex
         // always place into c-order for cuda processing, revert in trim_pad()
         pad_idx = convert_idx(i, j, k, pad_size, false); 
         if (benchmark)
-            printf("asdf %d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
+            printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
                     i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
 
         if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
@@ -447,19 +428,22 @@ void trim_pad(int trim_idxs[3][2], unsigned int* size, unsigned int* pad_size, b
                 pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
 
                 hostO[idx] = host_data_input[pad_idx].x;
-                if (benchmark)
-                    printf("%f\n", host_data_input[pad_idx].x);
+                /*if (benchmark)*/
+                    /*printf("%f\n", host_data_input[pad_idx].x);*/
             }
         }
     }
 }
 
 int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned int* size, unsigned int* filterdimA, bool column_order, int benchmark) {
-    // hardcoded, func only supports 3D convolutions
+
+    if (((size[0] + filterdimA[0] - 1) < 32) || ( (size[1] + filterdimA[1] - 1) < 32 )) {
+        throw std::invalid_argument("FFT can not compute with data less than 32 for the x and y dimension");
+    }
 
     long long N = ((long long) size[0]) * size[1] * size[2];
     if (benchmark)
-        printf("Using %d GPUs on a %dx%dx%d grid, N:%d\n",1, size[0], size[1], size[2], N);
+        printf("Using %d GPUs on a %dx%dx%d grid, N:%lld\n",1, size[0], size[1], size[2], N);
 
     unsigned int pad_size[3];
     int trim_idxs[3][2];
@@ -469,7 +453,7 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsign
     long long size_of_data = N_padded * sizeof(cufftComplex);
 
     if (benchmark)
-        printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
+        printf("Padded to a %dx%dx%d grid, N:%lld\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
 
     //Create complex variables on host
     if (benchmark)
@@ -497,9 +481,9 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsign
 
     if (benchmark) {
         printf("\n1GPU host_data_input elements:%d\n", N_padded);
-        cufftutils::printDeviceData(host_data_input, N_padded);
+        /*cufftutils::printDeviceData(host_data_input, N_padded);*/
         printf("\n1GPU host_data_kernel elements:%d\n", N_padded);
-        cufftutils::printDeviceData(host_data_kernel, N_padded);
+        /*cufftutils::printDeviceData(host_data_kernel, N_padded);*/
     }
 
     if (benchmark)
@@ -558,15 +542,22 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsign
     return 0;
 }
 
+/* 
+   Main 3D convolution function for multiple GPUs
+*/
 int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned int* size, unsigned int* filterdimA, bool column_order, int benchmark) {
-    // hardcoded, func only supports 3D convolutions
+
+    if (((size[0] + filterdimA[0] - 1) < 32) || ( (size[1] + filterdimA[1] - 1) < 32 )) {
+        throw std::invalid_argument("FFT can not compute with data less than 32 for the x and y dimension");
+    }
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
 
     long long N = ((long long) size[0]) * size[1] * size[2];
-    if (benchmark)
+    CudaTimer timer;
+    if (benchmark) {
         printf("Using %d GPUs on a %dx%dx%d grid, N:%d\n",nGPUs, size[0], size[1], size[2], N);
-    /*long long N_kernel = ((long long) filterdimA[0]) * filterdimA[1] * filterdimA[2];*/
+    }
 
     unsigned int pad_size[3];
     int trim_idxs[3][2];
@@ -575,45 +566,34 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
 
-    if (benchmark)
-        printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
-
-    //Create complex variables on host
-    if (benchmark)
-        printf("malloc input and output\n");
-    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_input) { printf("malloc input failed"); }
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_kernel) { printf("malloc kernel failed"); }
-
-    float elapsed = 0.0f;
-    cudaEvent_t start, stop;
     if (benchmark) {
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start, 0);
+        printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
+        timer.reset();
     }
 
-    if (benchmark)
-        printf("Initialize input and kernel\n");
+    //Create complex variables on host
+    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
+    cudaCheckPtr(host_data_input);
+    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
+    cudaCheckPtr(host_data_kernel);
+
+    if (benchmark) {
+        printf("Malloc input and output: %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
 
     cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
 
-    /*// Synchronize GPUs before moving forward*/
-    /*for (i = 0; i<nGPUs; ++i){*/
-        /*cudaSetDevice(deviceNum[i]);*/
-        /*cudaDeviceSynchronize();*/
-    /*}*/
-
     if (benchmark) {
-        /*printf("\nhost_data_input elements:%d\n", N_padded);*/
-        /*cufftutils::printHostData(host_data_input, N_padded);*/
-        /*printf("\nhost_data_kernel elements:%d\n", N_padded);*/
-        /*cufftutils::printHostData(host_data_kernel, N_padded);*/
+        printf("Input and output successfully initialized: %.1f s\n", timer.get_laptime());
     }
 
-    if (benchmark)
-        printf("Input and output successfully initialized\n");
+#ifdef DEBUG_OUTPUT
+        printf("\nhost_data_input elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_input, N_padded);
+        printf("\nhost_data_kernel elements:%d\n", N_padded);
+        cufftutils::printHostData(host_data_kernel, N_padded);
+#endif
 
     // Set GPU's to use 
     int deviceNum[nGPUs];
@@ -634,36 +614,41 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     // Allocates memory for the worksize variable, which tells cufft how many GPUs it has to work with
     worksize =(size_t*)malloc(sizeof(size_t) * nGPUs);  
     
-    if (benchmark)
-        printf("Make plan 3d\n");
     // Create the plan for cufft, each element of worksize is the workspace for that GPU
     // multi-gpus must have a complex to complex transform
     cufftSafeCall( cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize)); 
-    /*cufftSafeCall(cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize)); */
 
+    if (benchmark) {
+        timer.reset();
+    }
     // Allocate data on multiple gpus using the cufft routines
     // Initialize transform array - to be split among GPU's and transformed in place using cufftX
-    if (benchmark)
-        printf("Allocate mGPU\n");
     cudaLibXtDesc *device_data_input, *device_data_kernel;
     cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_input, CUFFT_XT_FORMAT_INPLACE));
     cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_kernel, CUFFT_XT_FORMAT_INPLACE));
 
-    if (benchmark)
-        printf("Xt memcpy\n");
+    if (benchmark) {
+        printf("XtMalloc kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
+
     // Copy the data from 'host' to device using cufftXt formatting
     cufftSafeCall(cufftXtMemcpy(plan_fft3, device_data_input, host_data_input, CUFFT_COPY_HOST_TO_DEVICE));
     cufftSafeCall(cufftXtMemcpy(plan_fft3, device_data_kernel, host_data_kernel, CUFFT_COPY_HOST_TO_DEVICE));
 
     // Perform FFT on multiple GPUs
-    if (benchmark)
-        printf("Forward 3d FFT input on multiple GPUs\n");
+    if (benchmark) {
+        printf("XtMemcpy kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
     cufftSafeCall(cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_FORWARD));
     cufftSafeCall(cufftXtExecDescriptorC2C(plan_fft3, device_data_kernel, device_data_kernel, CUFFT_FORWARD));
 
     // multiply both ffts and scale output
-    if (benchmark)
-        printf("Matrix Multiply on multiple GPUs\n");
+    if (benchmark) {
+        printf("Forward 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
 
     for (int i = 0; i<nGPUs; ++i){
         cudaSetDevice(deviceNum[i]);
@@ -673,22 +658,23 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
         // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
         int size_device = int(device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
 
-        if (benchmark) {
-            printf("\n\nDevice: %d, elements: %d", deviceNum[i], size_device);
-            printf("\ninput FFT deviceNum:%d\n", deviceNum[i]);
-            /*cufftutils::printDeviceData(input_data_on_gpu, size_device);*/
-            printf("\nkernel FFT deviceNum:%d\n", deviceNum[i]);
-            /*cufftutils::printDeviceData(kernel_data_on_gpu, size_device);*/
-        }
+#ifdef DEBUG_OUTPUT
+            printf("Device: %d, elements: %d\n", deviceNum[i], size_device);
+            printf("\nInput FFT deviceNum:%d\n", deviceNum[i]);
+            cufftutils::printDeviceData(input_data_on_gpu, size_device);
+            printf("\nKernel FFT deviceNum:%d\n", deviceNum[i]);
+            cufftutils::printDeviceData(kernel_data_on_gpu, size_device);
+#endif
 
         // product is in-place for the second matrix passed (input)
         ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, 
                 (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N_padded);
 
-        if (benchmark) {
+#ifdef DEBUG_OUTPUT
             printf("\nProduct deviceNum:%d\n", deviceNum[i]);
-            /*cufftutils::printDeviceData(input_data_on_gpu, size_device);*/
-        }
+            cufftutils::printDeviceData(input_data_on_gpu, size_device);
+#endif
+
     }
 
     // Synchronize GPUs
@@ -698,34 +684,36 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     }
 
     // Perform inverse FFT on multiple GPUs
-    if (benchmark)
-        printf("Inverse 3d FFT on multiple GPUs\n");
+    if (benchmark) {
+        printf("Complex Matrix Multiply 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
     cufftSafeCall(cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE));
 
     if (benchmark) {
-        cudaEventRecord(stop, 0);
-        cudaDeviceSynchronize();
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsed, start, stop);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-        printf(" Full convolution cost %.2f ms\n", elapsed);
+        printf("Inverse 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
+        timer.reset();
     }
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
     cufftSafeCall(cufftXtMemcpy (plan_fft3, host_data_input, device_data_input, CUFFT_COPY_DEVICE_TO_HOST));
 
-    if (benchmark) {
-        /*printf("Print hostO final\n");*/
-        /*cufftutils::printHostData(host_data_input, N_padded);*/
-        printf("Place results in output\n");
-    }
+#ifdef DEBUG_OUTPUT
+        printf("Print hostO final\n");
+        cufftutils::printHostData(host_data_input, N_padded);
+#endif
 
+    if (benchmark) {
+        printf("XtMemcpy image only on multiple GPUs: %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
 
     cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input, benchmark);
 
-    if (benchmark)
+    if (benchmark) {
+        printf("`trim_pad`: %.4f s\n", timer.get_laptime());
         printf("Cufft completed successfully\n");
+    }
 
     // Synchronize GPUs
     for (int i = 0; i<nGPUs; ++i){
@@ -750,187 +738,35 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     return 0;
 }
 
-int fft3_test(float * data, unsigned int* size, unsigned int* length, float* outArray, bool column_order) {
-     
-    int nGPUs;
-    cudaGetDeviceCount(&nGPUs);
-    printf("No. of GPU on node %d\n", nGPUs);
-
-    /*FIXME account for length*/
-    int i, j, k, idx;
-    int N = size[0] * size[1] * size[2];
-    /*int max_thread = 1024;*/
-
-    //Create complex variables on host
-    cufftComplex *u = (cufftComplex *)malloc(sizeof(cufftComplex) * N);
-    cufftComplex *u_fft = (cufftComplex *)malloc(sizeof(cufftComplex) * N);
-
-    // Initialize the transform memory 
-    for ( int i = 0; i < N; i++)
-    {
-        u[i].x = data[i];
-        u[i].y = 0.0f;
-
-        u_fft[i].x = 0.0f;
-        u_fft[i].y = 0.0f;
-    }
-
-    // Set GPU's to use and list device properties
-    int deviceNum[nGPUs];
-    for(i = 0; i<nGPUs; ++i)
-    {
-        deviceNum[i] = i;
-    }
-
-    /*printf("Running Multi_GPU_FFT_check using %d GPUs on a %dx%dx%d grid.\n",nGPUs, size[0], size[1], size[2]);*/
-
-    // Launch CUDA kernel to convert to complex
-    /*cudaSetDevice(deviceNum[0]);*/
-    /*initialize<<<N / max_thread + 1, max_thread>>>(N, data, u, u_fft);*/
-
-    /*// Synchronize GPUs before moving forward*/
-    /*for (i = 0; i<nGPUs; ++i){*/
-        /*cudaSetDevice(deviceNum[i]);*/
-        /*cudaDeviceSynchronize();*/
-    /*}*/
-
-    /*float elapsed = 0.0f;*/
-    /*cudaEvent_t start, stop;*/
-    /*cudaEventCreate(&start);*/
-    /*cudaEventCreate(&stop);*/
-    /*cudaEventRecord(start, 0);*/
-
-    // Initialize CUFFT for multiple GPUs //
-
-    // Create empty plan that will be used for the FFT
-    cufftHandle plan;
-    cufftSafeCall(cufftCreate(&plan));
-
-    // Tell cuFFT which GPUs to use
-    cufftSafeCall(cufftXtSetGPUs (plan, nGPUs, deviceNum));
-
-    // Create the plan for the FFT
-    // Initializes the worksize variable
-    size_t *worksize;                                   
-    // Allocates memory for the worksize variable, which tells cufft how many GPUs it has to work with
-    worksize =(size_t*)malloc(sizeof(size_t) * nGPUs);  
-    
-    // Create the plan for cufft, each element of worksize is the workspace for that GPU
-    // multi-gpus must have a complex to complex transform
-    cufftSafeCall(cufftMakePlan3d(plan, size[0], size[1], size[2], CUFFT_C2C, worksize)); 
-
-    /*printf("The size of the worksize is %lu\n", worksize[0]);*/
-
-    // Initialize transform array - to be split among GPU's and transformed in place using cufftX
-    cudaLibXtDesc *device_data_input;
-    // Allocate data on multiple gpus using the cufft routines
-    cufftSafeCall(cufftXtMalloc(plan, (cudaLibXtDesc **)&device_data_input, CUFFT_XT_FORMAT_INPLACE));
-
-    // Copy the data from 'host' to device using cufftXt formatting
-    cufftSafeCall(cufftXtMemcpy(plan, device_data_input, u, CUFFT_COPY_HOST_TO_DEVICE));
-
-    // Perform FFT on multiple GPUs
-    printf("Forward 3d FFT on multiple GPUs\n");
-    cufftSafeCall(cufftXtExecDescriptorC2C(plan, device_data_input, device_data_input, CUFFT_FORWARD));
-
-    /*cudaEventRecord(stop, 0);*/
-    /*cudaEventSynchronize(stop);*/
-    /*cudaEventElapsedTime(&elapsed, start, stop);*/
-    /*cudaEventDestroy(start);*/
-    /*cudaEventDestroy(stop);*/
-    /*printf("1 FFTs cost %.2f ms\n", elapsed);*/
-
-    // Perform inverse FFT on multiple GPUs
-    printf("Inverse 3d FFT on multiple GPUs\n");
-    cufftSafeCall(cufftXtExecDescriptorC2C(plan, device_data_input, device_data_input, CUFFT_INVERSE));
-
-    // Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)
-    cufftSafeCall(cufftXtMemcpy (plan, u_fft, device_data_input, CUFFT_COPY_DEVICE_TO_HOST));
-
-    // Scale output to match input (cuFFT does not automatically scale FFT output by 1/N)
-    cudaSetDevice(deviceNum[0]);
-
-    // cuFFT does not scale transform to 1 / N 
-    for (int idx=0; idx < N; idx++) {
-        u_fft[idx].x = u_fft[idx].x / ( (float)N );
-        u_fft[idx].y = u_fft[idx].y / ( (float)N );
-    }
-
-    /*scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);*/
-
-    /*for (i = 0; i<nGPUs; ++i){*/
-        /*cudaSetDevice(deviceNum[i]);*/
-        /*idx = i*NX_per_GPU*NY*NZ;                // sets the index value of the data to send to each gpu*/
-        /*scaleResult<<<gridSize, blockSize>>>(NX_per_GPU, &u_fft[idx]);*/
-    /*}*/
-
-    /*// Synchronize GPUs*/
-    /*for (i = 0; i<nGPUs; ++i){*/
-        /*cudaSetDevice(deviceNum[i]);*/
-        /*cudaDeviceSynchronize();*/
-    /*}*/
-
-    // Test results to make sure that u = u_fft
-    float error = 0.0;
-    for (i = 0; i<size[0]; ++i){
-        for (j = 0; j<size[1]; ++j){
-            for (k = 0; k<size[2]; ++k){
-                idx = k + j*size[2] + size[2]*size[1]*i;
-                // error += (float)u[idx].x - sin(x)*cos(y)*cos(z);
-                error += abs((float)u[idx].x - (float)u_fft[idx].x);
-                // printf("At idx = %d, the value of the error is %f\n",idx,(float)u[idx].x - (float)u_fft[idx].x);
-                // printf("At idx = %d, the value of the error is %f\n",idx,error);
-
-            }
-        }
-    }
-    printf("The sum of the error is %4.4g\n",error);
-
-    // Deallocate variables
-
-    // Free malloc'ed variables
-    free(worksize);
-    // Free cuda malloc'ed variables
-    cudaFree(u);
-    cudaFree(u_fft);
-    // Free cufftX malloc'ed variables
-    cufftSafeCall(cufftXtFree(device_data_input));
-    // cufftSafeCall(cufftXtFree(u_reorder));
-    // Destroy FFT plan
-    cufftSafeCall(cufftDestroy(plan));
-
-    return 0;
-}
 
 /* Entry function for the fft3_cuda.mexa64 function
    */
 int fft3(float * data, unsigned int* size, unsigned int* length, float* outArray, bool column_order) {
      
+    if ((size[0] < 32) || ( size[1] < 32 )) {
+        throw std::invalid_argument("FFT can not compute with data less than 32 for the x and y dimension");
+    }
+
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
 
     /*FIXME account for length*/
-    int i, j, k, idx;
     int N = size[0] * size[1] * size[2];
     /*int max_thread = 1024;*/
 
     //Create complex variables on host
-    cufftComplex *u = (cufftComplex *)malloc(sizeof(cufftComplex) * N);
     cufftComplex *u_fft = (cufftComplex *)malloc(sizeof(cufftComplex) * N);
 
     // Initialize the transform memory 
     for ( int i = 0; i < N; i++)
     {
-        u[i].x = data[i];
-        u[i].y = 0.0f;
-
-        u_fft[i].x = 0.0f;
+        u_fft[i].x = data[i];
         u_fft[i].y = 0.0f;
     }
 
     // Set GPU's to use and list device properties
     int deviceNum[nGPUs];
-    for(i = 0; i<nGPUs; ++i)
+    for(int i = 0; i<nGPUs; ++i)
     {
         deviceNum[i] = i;
     }
@@ -942,7 +778,7 @@ int fft3(float * data, unsigned int* size, unsigned int* length, float* outArray
     /*initialize<<<N / max_thread + 1, max_thread>>>(N, data, u, u_fft);*/
 
     /*// Synchronize GPUs before moving forward*/
-    /*for (i = 0; i<nGPUs; ++i){*/
+    /*for (int i = 0; i<nGPUs; ++i){*/
         /*cudaSetDevice(deviceNum[i]);*/
         /*cudaDeviceSynchronize();*/
     /*}*/
@@ -974,15 +810,11 @@ int fft3(float * data, unsigned int* size, unsigned int* length, float* outArray
     cufftSafeCall(cufftXtMalloc(plan, (cudaLibXtDesc **)&device_data_input, CUFFT_XT_FORMAT_INPLACE));
 
     // Copy the data from 'host' to device using cufftXt formatting
-    cufftSafeCall(cufftXtMemcpy(plan, device_data_input, u, CUFFT_COPY_HOST_TO_DEVICE));
+    cufftSafeCall(cufftXtMemcpy(plan, device_data_input, u_fft, CUFFT_COPY_HOST_TO_DEVICE));
 
     // Perform FFT on multiple GPUs
     printf("Forward 3d FFT on multiple GPUs\n");
     cufftSafeCall(cufftXtExecDescriptorC2C(plan, device_data_input, device_data_input, CUFFT_FORWARD));
-
-    // Perform inverse FFT on multiple GPUs
-    printf("Inverse 3d FFT on multiple GPUs\n");
-    cufftSafeCall(cufftXtExecDescriptorC2C(plan, device_data_input, device_data_input, CUFFT_INVERSE));
 
     // Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)
     cufftSafeCall(cufftXtMemcpy (plan, u_fft, device_data_input, CUFFT_COPY_DEVICE_TO_HOST));
@@ -998,38 +830,22 @@ int fft3(float * data, unsigned int* size, unsigned int* length, float* outArray
 
     /*scaleResult<<<N / max_thread + 1, max_thread>>>(N, u_fft);*/
 
-    /*for (i = 0; i<nGPUs; ++i){*/
+    /*for (int i = 0; i<nGPUs; ++i){*/
         /*cudaSetDevice(deviceNum[i]);*/
         /*idx = i*NX_per_GPU*NY*NZ;                // sets the index value of the data to send to each gpu*/
         /*scaleResult<<<gridSize, blockSize>>>(NX_per_GPU, &u_fft[idx]);*/
     /*}*/
 
     /*// Synchronize GPUs*/
-    /*for (i = 0; i<nGPUs; ++i){*/
+    /*for (int i = 0; i<nGPUs; ++i){*/
         /*cudaSetDevice(deviceNum[i]);*/
         /*cudaDeviceSynchronize();*/
     /*}*/
 
-    // Test results to make sure that u = u_fft
-    float error = 0.0;
-    for (i = 0; i<size[0]; ++i){
-        for (j = 0; j<size[1]; ++j){
-            for (k = 0; k<size[2]; ++k){
-                idx = k + j*size[2] + size[2]*size[1]*i;
-                error += abs((float)u[idx].x - (float)u_fft[idx].x);
-                // printf("At idx = %d, the value of the error is %f\n",idx,error);
-
-            }
-        }
-    }
-    printf("The sum of the error is %4.4g\n",error);
-
     // Deallocate variables
-
     // Free malloc'ed variables
     free(worksize);
     // Free cuda malloc'ed variables
-    cudaFree(u);
     cudaFree(u_fft);
     // Free cufftX malloc'ed variables
     cufftSafeCall(cufftXtFree(device_data_input));

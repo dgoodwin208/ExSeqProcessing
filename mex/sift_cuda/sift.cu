@@ -497,11 +497,11 @@ void create_descriptor(
     z = padding_z - dw;
     
     uint16_t* ix = (uint16_t*) &(idx_scratch[thread_idx * sift_params.nFaces]);
-    cudaCheckPtr(ix);
+    cudaCheckPtrDevice(ix);
     thrust::sequence(thrust::device, ix, ix + sift_params.nFaces);
 
     double *yy = (double*) &(yy_scratch[thread_idx * sift_params.nFaces]);
-    cudaCheckPtr(yy);
+    cudaCheckPtrDevice(yy);
 
     if (sift_params.TwoPeak_Flag) {
         int radius = rint(sift_params.xyScale * 3.0);
@@ -509,12 +509,12 @@ void create_descriptor(
         // init ori hist indices
         int ori_hist_len = sift_params.nFaces; //default 80
         uint16_t* ori_hist_idx = &(ori_idx_scratch[ori_hist_len * thread_idx]);
-        cudaCheckPtr(ori_hist_idx);
+        cudaCheckPtrDevice(ori_hist_idx);
         thrust::sequence(thrust::device, ori_hist_idx, ori_hist_idx + ori_hist_len);
 
         //init ori histogram
         double* ori_hist = &(ori_scratch[ori_hist_len * thread_idx]);
-        cudaCheckPtr(ori_hist);
+        cudaCheckPtrDevice(ori_hist);
         memset(ori_hist, 0.0, ori_hist_len * sizeof(double));
 
         build_ori_hists(x, y, z, idx, x_stride, y_stride, radius, image,
