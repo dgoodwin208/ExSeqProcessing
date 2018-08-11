@@ -550,6 +550,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     if (((size[0] + filterdimA[0] - 1) < 32) || ( (size[1] + filterdimA[1] - 1) < 32 )) {
         throw std::invalid_argument("FFT can not compute with data less than 32 for the x and y dimension");
     }
+
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
 
@@ -644,14 +645,19 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     cufftSafeCall(cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_FORWARD));
     cufftSafeCall(cufftXtExecDescriptorC2C(plan_fft3, device_data_kernel, device_data_kernel, CUFFT_FORWARD));
 
-    // multiply both ffts and scale output
     if (benchmark) {
         printf("Forward 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
         timer.reset();
     }
 
+    // multiply both ffts and scale output
+    cudaStream_t streams[nGPUs];
     for (int i = 0; i<nGPUs; ++i){
-        cudaSetDevice(deviceNum[i]);
+        cudaSafeCall(cudaSetDevice(deviceNum[i]));
+        cudaStream_t current_stream = streams[i];
+        cudaSafeCall(cudaStreamCreateWithFlags(&current_stream,
+                    cudaStreamNonBlocking));
+
         cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;
         input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
         kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
@@ -667,8 +673,9 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
 #endif
 
         // product is in-place for the second matrix passed (input)
-        ComplexPointwiseMulAndScale<<<32, 256>>>((cufftComplex*) kernel_data_on_gpu, 
+        ComplexPointwiseMulAndScale<<<32, 256, 0, current_stream>>>((cufftComplex*) kernel_data_on_gpu, 
                 (cufftComplex*) input_data_on_gpu, size_device, 1.0f / (float) N_padded);
+        cudaCheckError();
 
 #ifdef DEBUG_OUTPUT
             printf("\nProduct deviceNum:%d\n", deviceNum[i]);
@@ -679,20 +686,21 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
 
     // Synchronize GPUs
     for (int i = 0; i<nGPUs; ++i){
-        cudaSetDevice(deviceNum[i]);
-        cudaDeviceSynchronize();
+        cudaSafeCall(cudaSetDevice(deviceNum[i]));
+        cudaSafeCall(cudaDeviceSynchronize());
     }
 
-    // Perform inverse FFT on multiple GPUs
     if (benchmark) {
         printf("Complex Matrix Multiply 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
-        timer.reset();
     }
+
+    CudaTimer timer2;
+    // Perform inverse FFT on multiple GPUs
     cufftSafeCall(cufftXtExecDescriptorC2C(plan_fft3, device_data_input, device_data_input, CUFFT_INVERSE));
 
     if (benchmark) {
-        printf("Inverse 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer.get_laptime());
-        timer.reset();
+        printf("Inverse 3d FFT kernel and image on multiple GPUs: %.4f s\n", timer2.get_laptime());
+        timer2.reset();
     }
 
      /*Copy the output data from multiple gpus to the 'host' result variable (automatically reorders the data from output to natural order)*/
@@ -704,14 +712,14 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
 #endif
 
     if (benchmark) {
-        printf("XtMemcpy image only on multiple GPUs: %.4f s\n", timer.get_laptime());
-        timer.reset();
+        printf("XtMemcpy image only on multiple GPUs: %.4f s\n", timer2.get_laptime());
+        timer2.reset();
     }
 
     cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input, benchmark);
 
     if (benchmark) {
-        printf("`trim_pad`: %.4f s\n", timer.get_laptime());
+        printf("`trim_pad`: %.4f s\n", timer2.get_laptime());
         printf("Cufft completed successfully\n");
     }
 

@@ -265,9 +265,9 @@ TEST_F(ConvnCufftTest, DISABLED_PrintDeviceDataTest) {
     cudaFree(device_data_input);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
+TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
     int benchmark = 0;
-    unsigned int size[3] = {50, 50, 5};
+    unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int algo = 1;
@@ -318,7 +318,8 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
 
 TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     int benchmark = 0;
-    unsigned int size[3] = {50, 50, 5};
+    /*unsigned int size[3] = {50, 50, 5};*/
+    unsigned int size[3] = {500, 500, 100};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int N = size[0] * size[1] * size[2];
@@ -626,9 +627,9 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
+TEST_F(ConvnCufftTest, ConvnFullImageTest) {
     /*unsigned int size[3] = {512, 512, 141};*/
-    unsigned int size[3] = {2034, 2024, 208};
+    unsigned int size[3] = {1024, 1024, 126};
     unsigned int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
     bool column_order = true;
@@ -649,7 +650,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
 
     // generate params
     int benchmark = 0;

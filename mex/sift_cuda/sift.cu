@@ -1117,6 +1117,7 @@ void Sift::runOnStream(
 
 #ifdef DEBUG_OUTPUT
         logger_->debug("create_descriptor");
+        timer.reset()
 #endif
 
         // sift_params.fv_centers must be placed on device since array passed to cuda kernel
