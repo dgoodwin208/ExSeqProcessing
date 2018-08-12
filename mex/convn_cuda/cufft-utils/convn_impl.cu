@@ -566,35 +566,58 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
 
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
+    long long float_size = N* sizeof(float);
 
     if (benchmark) {
         printf("Padded to a %dx%dx%d grid, N:%d\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
         timer.reset();
     }
 
-    //Create complex variables on host
+    float* devI, *devF;
+    cudaMalloc(&devI, float_size);
+    cudaMalloc(&devF, float_size);
+    cudaMemcpy(devI, hostI, float_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(devF, hostF, float_size, cudaMemcpyHostToDevice);
+
+    cufftComplex* device_input_raw,* device_kernel_raw;
+    cudaMalloc(&device_input_raw, size_of_data);
+    cudaMalloc(&device_kernel_raw, size_of_data);
+
+    /*//Create complex variables on host*/
     cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
     cudaCheckPtr(host_data_input);
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    cudaCheckPtr(host_data_kernel);
+    /*cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);*/
+    /*cudaCheckPtr(host_data_kernel);*/
 
     if (benchmark) {
         printf("Malloc input and output: %.4f s\n", timer.get_laptime());
         timer.reset();
     }
 
-    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+    dim3 blockSize(32, 32, 1);
+    // round up
+    dim3 gridSize((pad_size[0] + blockSize.x - 1) / blockSize.x, 
+            (pad_size[1] + blockSize.y - 1) / blockSize.y, (pad_size[2] + blockSize.z - 1) / blockSize.z);
+
+    if (benchmark)
+        printf("gridSize %d,%d,%d\n", gridSize.x, gridSize.y, gridSize.z);
+
+    /*cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);*/
+    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI, devF, device_input_raw, 
+            device_kernel_raw, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
+    cudaCheckErrors()
 
     if (benchmark) {
         printf("Input and output successfully initialized: %.1f s\n", timer.get_laptime());
     }
 
-#ifdef DEBUG_OUTPUT
-        printf("\nhost_data_input elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_input, N_padded);
-        printf("\nhost_data_kernel elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_kernel, N_padded);
-#endif
+/*#ifdef DEBUG_OUTPUT*/
+        /*printf("\nhost_data_input elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_input, N_padded);*/
+        /*printf("\nhost_data_kernel elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_kernel, N_padded);*/
+/*#endif*/
 
     // Set GPU's to use 
     int deviceNum[nGPUs];
@@ -634,8 +657,8 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     }
 
     // Copy the data from 'host' to device using cufftXt formatting
-    cufftSafeCall(cufftXtMemcpy(plan_fft3, device_data_input, host_data_input, CUFFT_COPY_HOST_TO_DEVICE));
-    cufftSafeCall(cufftXtMemcpy(plan_fft3, device_data_kernel, host_data_kernel, CUFFT_COPY_HOST_TO_DEVICE));
+    cufftSafeCall(cufftXtMemcpy(plan_fft3, device_data_input, device_input_raw, CUFFT_COPY_DEVICE_TO_DEVICE));
+    cufftSafeCall(cufftXtMemcpy(plan_fft3, device_data_kernel, device_kernel_raw, CUFFT_COPY_DEVICE_TO_DEVICE));
 
     // Perform FFT on multiple GPUs
     if (benchmark) {
@@ -733,7 +756,6 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
     free(worksize);
     // Free malloc'ed variables
     free(host_data_input);
-    free(host_data_kernel);
 
     // Destroy FFT plan
     // must be destroyed to free enough memory for inverse

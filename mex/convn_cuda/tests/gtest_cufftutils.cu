@@ -6,6 +6,7 @@
 #include <cufft.h>
 #include <cufftXt.h>
 #include "error_helper.h"
+#include "cuda_timer.h"
 /*#include <cuda.h>*/
 
 #include <vector>
@@ -318,8 +319,7 @@ TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
 
 TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     int benchmark = 0;
-    /*unsigned int size[3] = {50, 50, 5};*/
-    unsigned int size[3] = {500, 500, 100};
+    unsigned int size[3] = {50, 50, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int N = size[0] * size[1] * size[2];
@@ -410,6 +410,7 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI, devF, device_data_input, 
             device_data_kernel, size[0], size[1], size[2], pad_size[0], pad_size[1], 
             pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
+    cudaCheckError();
     cudaDeviceSynchronize();
 
     //passing column order should still output c-order data
@@ -418,6 +419,7 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
             size[1], size[2], pad_size[0], pad_size[1], pad_size[2],
             filterdimA[0], filterdimA[1], filterdimA[2], !column_order,
             benchmark);
+    cudaCheckError();
     cudaDeviceSynchronize();
 
     if (benchmark)
@@ -606,7 +608,7 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
 }
 
 TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
-    unsigned int size[3] = {512, 512, 126};
+    unsigned int size[3] = {1024, 1024, 126};
     unsigned int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
     bool column_order = false;
@@ -627,8 +629,7 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, ConvnFullImageTest) {
-    /*unsigned int size[3] = {512, 512, 141};*/
+TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     unsigned int size[3] = {1024, 1024, 126};
     unsigned int filterdimA[3] = {5, 5, 5};
     int benchmark = 1;
