@@ -24,7 +24,6 @@ end
 %we skip the calclation of the SIFT descriptor to save time
 
 LoadParams;
-save_mat = true;
 image_size = size(img);
 sift_params.image_size0 = image_size(1);
 sift_params.image_size1 = image_size(2);
@@ -44,35 +43,7 @@ map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_s
 for i=1:N
     map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = 0; % select the keypoint element
 end
-unique_N = nnz(~map);
-assert(N == unique_N); % check for duplicates
 map = int8(map);
-
-if save_mat
-    assert(all(size(map) == size(img)));
-
-    f = fopen('test_map.bin', 'w');
-    fwrite(f, image_size(1), 'uint32');
-    fwrite(f, image_size(2), 'uint32');
-    fwrite(f, image_size(3), 'uint32');
-    fwrite(f, double(map), 'double');
-    fclose(f);
-    fprintf('Saved test_map with %d real keypoints\n', N);
-
-    f = fopen('test_img.bin', 'w');
-    fwrite(f, image_size(1), 'uint32');
-    fwrite(f, image_size(2), 'uint32');
-    fwrite(f, image_size(3), 'uint32');
-    fwrite(f, double(img), 'double');
-    fclose(f);
-    fprintf('Saved test_img \n');
-
-    f = fopen('fv_centers.bin', 'w');
-    fwrite(f, sift_params.fv_centers_len, 'uint32');
-    fwrite(f, double(sift_params.fv_centers), 'double');
-    fclose(f);
-    fprintf('Saved fv \n');
-end
 
 keys = sift_cuda(img, map, sift_params);
 keys = num2cell(keys);
