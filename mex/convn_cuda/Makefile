@@ -1,4 +1,4 @@
-TARGET=lib-cufft-utils lib-utils convn_cuda.o convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 convn_cuda.mexa64 fft3_cuda.mexa64 cmd_convn_cuda  lib-tests # lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 
+TARGET=lib-cufft-utils lib-utils convn_cuda.o convn_cuda.mexa64 cmd_convn_cuda  lib-tests # convn_1GPU_cuda.o fft3_cuda.o convn_1GPU_cuda.mexa64 fft3_cuda.mexa64 lib-cuda-utils lib-cudnn-utils convn_arrayfire.mexa64 convn_arrayfire_cuda.mexa64 
 
 SOURCES := $(wildcard convn_cuda.cpp fft3_cuda.cpp)
 OBJS := $(SOURCES:.cpp=.o)

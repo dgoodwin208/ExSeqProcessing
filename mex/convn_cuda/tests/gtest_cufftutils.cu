@@ -266,13 +266,12 @@ TEST_F(ConvnCufftTest, DISABLED_PrintDeviceDataTest) {
     cudaFree(device_data_input);
 }
 
-TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
     int benchmark = 0;
     unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int algo = 1;
-    //float tol = .0001;
     float tol = .00001;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
@@ -317,9 +316,9 @@ TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
     matrix_is_equal(hostO, hostO_1GPU, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
+TEST_F(ConvnCufftTest, DISABLED_DeviceInitInputsTest) {
     int benchmark = 0;
-    unsigned int size[3] = {50, 50, 5};
+    unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int N = size[0] * size[1] * size[2];
@@ -358,31 +357,24 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
     long long float_size = N* sizeof(float);
+    long long kernel_float_size = N_kernel* sizeof(float);
 
     if (benchmark)
         printf("cudaMalloc\n");
-    cufftComplex* device_data_input,* device_data_kernel,* device_data_input_column,* device_data_kernel_column;
-    /*float* devI = new float[N];*/
-    /*float* devF = new float[N_kernel];*/
-    /*float* devI_column = new float[N];*/
-    /*float* devF_column = new float[N_kernel];*/
-    cudaMalloc(&device_data_input_column, size_of_data);
-    cudaMalloc(&device_data_kernel_column, size_of_data);
-    cudaMalloc(&device_data_input, size_of_data);
-    cudaMalloc(&device_data_kernel, size_of_data);
     float* devI, *devF, *devI_column, *devF_column;
-    cudaMalloc(&devI, float_size);
-    cudaMalloc(&devF, float_size);
-    cudaMalloc(&devI_column, float_size);
-    cudaMalloc(&devF_column, float_size);
+    cudaMalloc(&devI, float_size); cudaCheckPtr(devI);
+    cudaMalloc(&devF, kernel_float_size); cudaCheckPtr(devF);
+
+    cudaMalloc(&devI_column, float_size); cudaCheckPtr(devI_column);
+    cudaMalloc(&devF_column, kernel_float_size); cudaCheckPtr(devF_column);
 
     if (benchmark)
         printf("cudaMemcpy\n");
     // Copy the data from 'host' to device using cufftXt formatting
-    cudaMemcpy(devI, hostI, float_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(devF, hostF, float_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(devI_column, hostI_column, float_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(devF_column, hostF_column, float_size, cudaMemcpyHostToDevice);
+    cudaSafeCall(cudaMemcpy(devI, hostI, float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devF, hostF, kernel_float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devI_column, hostI_column, float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devF_column, hostF_column, kernel_float_size, cudaMemcpyHostToDevice));
 
     /*if (benchmark) {*/
         /*printf("\ndevI elements:%d\n", N);*/
@@ -394,45 +386,140 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
         /*free(h);*/
     /*}*/
 
-    dim3 blockSize(32, 32, 1);
-    // round up
-    dim3 gridSize((pad_size[0] + blockSize.x - 1) / blockSize.x, 
-            (pad_size[1] + blockSize.y - 1) / blockSize.y, (pad_size[2] + blockSize.z - 1) / blockSize.z);
-    if (benchmark)
-        printf("gridSize %d,%d,%d\n", gridSize.x, gridSize.y, gridSize.z);
-    ASSERT_LE(blockSize.x * blockSize.y * blockSize.z, 1024);
-    ASSERT_GE(gridSize.x * blockSize.x, pad_size[0]);
-    ASSERT_GE(gridSize.y * blockSize.y, pad_size[1]);
-    ASSERT_GE(gridSize.z * blockSize.z, pad_size[2]);
+    int nGPUs;
+    cudaGetDeviceCount(&nGPUs);
 
-    if (benchmark)
-        printf("check pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
-    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI, devF, device_data_input, 
-            device_data_kernel, size[0], size[1], size[2], pad_size[0], pad_size[1], 
-            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
-    cudaCheckError();
-    cudaDeviceSynchronize();
+    // Set GPU's to use 
+    int deviceNum[nGPUs];
+    for(int i = 0; i<nGPUs; ++i)
+    {
+        deviceNum[i] = i;
+    }
 
-    //passing column order should still output c-order data
-    cufftutils::initialize_inputs_par<<<gridSize, blockSize>>>(devI_column, devF_column, 
-            device_data_input_column, device_data_kernel_column, size[0],
-            size[1], size[2], pad_size[0], pad_size[1], pad_size[2],
-            filterdimA[0], filterdimA[1], filterdimA[2], !column_order,
-            benchmark);
-    cudaCheckError();
-    cudaDeviceSynchronize();
+    // declare empty plan that will be used for FFT / IFFT
+    cufftHandle plan_fft3;
+    cufftSafeCall(cufftCreate(&plan_fft3));
+
+    // Tell cuFFT which GPUs to use
+    cufftSafeCall(cufftXtSetGPUs (plan_fft3, nGPUs, deviceNum));
+
+    // Allocates memory for the worksize variable, which tells cufft how many GPUs it has to work with
+    size_t *worksize;                                   
+    worksize =(size_t*)malloc(sizeof(size_t) * nGPUs);  
+    
+    // Create the plan for cufft, each element of worksize is the workspace for that GPU
+    // multi-gpus must have a complex to complex transform
+    cufftSafeCall(cufftMakePlan3d(plan_fft3, pad_size[0], pad_size[1], pad_size[2], CUFFT_C2C, worksize)); 
+
+    // Allocate data on multiple gpus using the cufft routines
+    // Initialize transform array - to be split among GPU's and transformed in place using cufftX
+    cudaLibXtDesc *device_data_input, *device_data_kernel;
+    cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_input, CUFFT_XT_FORMAT_INPLACE));
+    cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_kernel, CUFFT_XT_FORMAT_INPLACE));
+
+    // Initialize data from device to device LibXtDescriptor using cufftXt formatting
+    cudaStream_t streams[nGPUs];
+    long long start = 0;
+    long long blockSize = 32;
+    long long gridSize;
+    int starts[nGPUs];
+    cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;
+    cufftComplex *host_data_input = (cufftComplex *) malloc(size_of_data);
+    cudaCheckPtr(host_data_input);
+    cufftComplex *host_data_kernel = (cufftComplex *) malloc(size_of_data);
+    cudaCheckPtr(host_data_kernel);
+    for (int i = 0; i<nGPUs; ++i){
+        cudaSafeCall(cudaSetDevice(deviceNum[i]));
+        cudaStream_t current_stream = streams[i];
+        cudaSafeCall(cudaStreamCreateWithFlags(&current_stream,
+                    cudaStreamNonBlocking));
+
+        input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
+        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
+        // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
+        long long size_device = long(device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+
+        gridSize = (size_device + blockSize - 1) / blockSize; // round up
+        ASSERT_GE(gridSize * blockSize, size_device);
+        if (benchmark)
+            printf("size_device: %lld, gridSize: %d, start: %d\n", size_device, gridSize, start);
+
+        cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize, 0, current_stream>>>(devI, devF, input_data_on_gpu, 
+                kernel_data_on_gpu, size_device, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+                pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
+        cudaCheckError();
+        starts[i] = start;
+        start += size_device;
+    }
+    ASSERT_EQ(start, N_padded);
+
+    // Synchronize GPUs
+    for (int i = 0; i<nGPUs; ++i){
+        cudaSafeCall(cudaSetDevice(deviceNum[i]));
+        cudaSafeCall(cudaDeviceSynchronize());
+        // Copy the data from 'host' to device using cufftXt formatting
+        input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
+        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
+        cudaSafeCall(cudaMemcpy(host_data_input+ starts[i], input_data_on_gpu,
+                    device_data_input->descriptor->size[deviceNum[i]],
+                    cudaMemcpyDeviceToHost));
+        cudaSafeCall(cudaMemcpy(host_data_kernel+ starts[i],
+                    kernel_data_on_gpu,
+                    device_data_kernel->descriptor->size[deviceNum[i]],
+                    cudaMemcpyDeviceToHost));
+    }
+
+    // Allocate data on multiple gpus using the cufft routines
+    // Initialize transform array - to be split among GPU's and transformed in place using cufftX
+    cudaLibXtDesc *device_data_input_column, *device_data_kernel_column;
+    cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_input_column, CUFFT_XT_FORMAT_INPLACE));
+    cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_kernel_column, CUFFT_XT_FORMAT_INPLACE));
+
+    // Initialize data from device to device LibXtDescriptor using cufftXt formatting
+    start = 0;
+    cufftComplex *host_data_input_column = (cufftComplex *)malloc(size_of_data);
+    cudaCheckPtr(host_data_input_column);
+    cufftComplex *host_data_kernel_column = (cufftComplex *)malloc(size_of_data);
+    cudaCheckPtr(host_data_kernel_column);
+    for (int i = 0; i<nGPUs; ++i){
+        cudaSafeCall(cudaSetDevice(deviceNum[i]));
+        cudaStream_t current_stream = streams[i];
+        cudaSafeCall(cudaStreamCreateWithFlags(&current_stream,
+                    cudaStreamNonBlocking));
+
+        input_data_on_gpu = (cufftComplex*) (device_data_input_column->descriptor->data[deviceNum[i]]);
+        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel_column->descriptor->data[deviceNum[i]]);
+        // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
+        long long size_device = long(device_data_input_column->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+
+        gridSize = (size_device + blockSize - 1) / blockSize; // round up
+        ASSERT_GE(gridSize * blockSize, size_device);
+        if (benchmark)
+            printf("size_device: %lld, gridSize: %d, start: %d\n", size_device, gridSize, start);
+
+        cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize, 0, current_stream>>>(devI_column, devF_column, input_data_on_gpu, 
+                kernel_data_on_gpu, size_device, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+                pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], !column_order, benchmark);
+        cudaCheckError();
+
+        starts[i] = start;
+        start += size_device;
+    }
+    ASSERT_EQ(start, N_padded);
 
     if (benchmark)
         printf("Copy back to host for error checking");
-    // Copy the data from 'host' to device using cufftXt formatting
-    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    cufftComplex *host_data_input_column = (cufftComplex *)malloc(size_of_data);
-    cufftComplex *host_data_kernel_column = (cufftComplex *)malloc(size_of_data);
-    cudaMemcpy(host_data_input, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_data_kernel, device_data_kernel, size_of_data, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_data_input_column, device_data_input_column, size_of_data, cudaMemcpyDeviceToHost);
-    cudaMemcpy(host_data_kernel_column, device_data_kernel_column, size_of_data, cudaMemcpyDeviceToHost);
+
+    // Synchronize GPUs for column
+    for (int i = 0; i<nGPUs; ++i){
+        cudaSafeCall(cudaSetDevice(deviceNum[i]));
+        cudaSafeCall(cudaDeviceSynchronize());
+        input_data_on_gpu = (cufftComplex*) (device_data_input_column->descriptor->data[deviceNum[i]]);
+        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel_column->descriptor->data[deviceNum[i]]);
+        // Copy the data from 'host' to device using cufftXt formatting
+        cudaSafeCall(cudaMemcpy(host_data_input_column + starts[i], input_data_on_gpu, device_data_input_column->descriptor->size[deviceNum[i]], cudaMemcpyDeviceToHost));
+        cudaSafeCall(cudaMemcpy(host_data_kernel_column + starts[i], kernel_data_on_gpu, device_data_kernel_column->descriptor->size[deviceNum[i]], cudaMemcpyDeviceToHost));
+    }
 
     if (benchmark) {
         printf("\nhost_data_input elements:%d\n", N_padded);
@@ -491,9 +578,20 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     delete[] hostF;
     free(host_data_input);
     free(host_data_kernel);
+    cudaFree(devI);
+    cudaFree(devF);
+    cudaFree(devI_column);
+    cudaFree(devF_column);
+
+    // Destroy FFT plan
+    cufftSafeCall(cufftDestroy(plan_fft3));
+
+    // Free cufftX malloc'ed variables
+    cufftSafeCall(cufftXtFree(device_data_input));
+    cufftSafeCall(cufftXtFree(device_data_kernel));
 }
 
-TEST_F(ConvnCufftTest, InitializePadTest) {
+TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     int benchmark = 0;
     //int size[3] = {2, 2, 3};
     unsigned int size[3] = {50, 50, 5};
@@ -605,6 +703,7 @@ TEST_F(ConvnCufftTest, InitializePadTest) {
     delete[] hostF;
     free(host_data_input);
     free(host_data_kernel);
+
 }
 
 TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
@@ -629,9 +728,11 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
-    unsigned int size[3] = {1024, 1024, 126};
-    unsigned int filterdimA[3] = {5, 5, 5};
+TEST_F(ConvnCufftTest, ConvnFullImageTest) {
+    /*unsigned int size[3] = {1024, 1024, 126};*/
+    /*unsigned int filterdimA[3] = {5, 5, 5};*/
+    unsigned int size[3] = {31, 31, 2};
+    unsigned int filterdimA[] = {2, 2, 2};
     int benchmark = 1;
     bool column_order = true;
     int algo = 1;

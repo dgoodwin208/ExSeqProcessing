@@ -5,6 +5,14 @@
 
 namespace cufftutils {
 
+    __global__
+    void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
+            host_data_input[], cufftComplex host_data_kernel[], long long N, long
+            long start, unsigned int size0, unsigned int size1, unsigned int size2,
+            unsigned int pad_size0, unsigned int pad_size1, unsigned int pad_size2,
+            unsigned int filterdimA0, unsigned int filterdimA1, unsigned int
+            filterdimA2, bool column_order, int benchmark);
+        
     void printHostData(cufftComplex *a, int size);
 
     void printDeviceData(cufftComplex *a, int size);
