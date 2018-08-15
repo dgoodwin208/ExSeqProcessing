@@ -21,7 +21,7 @@ function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,chann
         return
     end
 
-    use_tmp_files = params.USE_TMP_FILES_IN_NORM;
+    use_tmp_files = params.USE_TMP_FILES;
 
     % Normalize the data
     basename = sprintf('%s_round%03d',fileroot_name,roundnum);
@@ -33,8 +33,6 @@ function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,chann
             fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{4},params.IMAGE_EXT)) }, use_tmp_files);
 
     if use_tmp_files
-        disp(ret)
-
         chan1_norm_fname = ret{1};
         chan2_norm_fname = ret{2};
         chan3_norm_fname = ret{3};
