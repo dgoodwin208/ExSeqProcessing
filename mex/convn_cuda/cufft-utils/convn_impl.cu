@@ -328,8 +328,8 @@ void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
         // always place into c-order for cuda processing, revert in trim_pad()
         pad_idx = convert_idx(i, j, k, pad_size, false); 
         if (benchmark)
-            printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
-                    i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
+            printf("pad_image_idx:%lld %d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
+                    pad_image_idx, i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
 
         if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
             host_data_kernel[pad_idx].x = hostF[idx_filter];
