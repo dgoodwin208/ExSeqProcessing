@@ -77,11 +77,11 @@ lib-tests:
 clean:
 	-rm *.mexa64 *.o
 	-rm ../convn_cuda.mexa64
-	-rm ../convn_1GPU_cuda.mexa64
-	-rm ../fft3_cuda.mexa64
 	@make -C tests clean
 	@make -C utils clean
 	@make -C cufft-utils clean
+	#-rm ../convn_1GPU_cuda.mexa64
+	#-rm ../fft3_cuda.mexa64
 	#-rm ../convn_arrayfire.mexa64
 	#@make -C cuda-utils clean
 	#@make -C cudnn-utils clean

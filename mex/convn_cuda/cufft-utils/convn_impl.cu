@@ -256,12 +256,22 @@ long get_pad_idx(long m, long n) {
     return next;
 }
 
-__device__ __host__
-long long convert_idx(long i, long j, long k, unsigned int* matrix_size, bool column_order) {
+
+long long convert_idx(long i, long j, long k, unsigned int *matrix_size, bool column_order) {
     if (column_order) {
         return i + j * matrix_size[0] + ((long long) k) * matrix_size[0] * matrix_size[1];
     } else {
         return k + j * matrix_size[2] + ((long long) i) * matrix_size[2] * matrix_size[1];
+    }
+}
+
+__forceinline__ __device__ 
+long long convert_idx_gpu(long i, long j, long k, unsigned int matrix_size0, 
+        unsigned int matrix_size1, unsigned int matrix_size2, bool column_order) {
+    if (column_order) {
+        return i + j * matrix_size0 + ((long long) k) * matrix_size0 * matrix_size1;
+    } else {
+        return k + j * matrix_size2 + ((long long) i) * matrix_size2 * matrix_size1;
     }
 }
 
@@ -309,29 +319,26 @@ void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
     if (thread_idx >= size_device) {return;}
     long long pad_image_idx = thread_idx + start;
 
-    // Place in matrix padded to 0
-    unsigned int pad_size[3] = {pad_size0, pad_size1, pad_size2};
-    unsigned int filterdimA[3] = {filterdimA0, filterdimA1, filterdimA2};
-    unsigned int size[3] = {size0, size1, size2};
-
     // identify corresponding index
     unsigned int i, j, k;
-    ind2sub(pad_size[0], pad_size[1], pad_image_idx, i, j, k);
+    ind2sub(pad_size0, pad_size1, pad_image_idx, i, j, k);
 
+    // Place in matrix padded to 0
     long long idx;
     long long idx_filter;
     long long pad_idx;
-    if ((i < pad_size[0]) && (j < pad_size[1]) && ( k < pad_size[2])) { 
+    if ((i < pad_size0) && (j < pad_size1) && ( k < pad_size2)) { 
 
-        idx = convert_idx(i, j, k, size, column_order);
-        idx_filter = convert_idx(i, j, k, filterdimA, column_order);
+        idx = convert_idx_gpu(i, j, k, size0, size1, size2, column_order);
+        idx_filter = convert_idx_gpu(i, j, k, filterdimA0, filterdimA1, filterdimA2, column_order);
         // always place into c-order for cuda processing, revert in trim_pad()
-        pad_idx = convert_idx(i, j, k, pad_size, false); 
-        if (benchmark)
-            printf("pad_image_idx:%lld %d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
-                    pad_image_idx, i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
+        pad_idx = convert_idx_gpu(i, j, k, pad_size0, pad_size1, pad_size2, false); 
+        if (benchmark) {
+            printf("pad_image_idx:%lld %d,%d,%d idx:%lld, idx_filter:%lld, pad_idx:%lld, colord:%d\n", 
+                    pad_image_idx, i, j, k, idx, idx_filter, pad_idx, column_order);
+        }
 
-        if ((i < filterdimA[0]) && (j < filterdimA[1]) && (k < filterdimA[2])) {
+        if ((i < filterdimA0) && (j < filterdimA1) && (k < filterdimA2)) {
             host_data_kernel[pad_idx].x = hostF[idx_filter];
         } else {
             host_data_kernel[pad_idx].x = 0.0f;
@@ -340,7 +347,7 @@ void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
 
         // keep in Matlab Column-order but switch order of dimensions in createPlan
         // to accomplish c-order FFT transforms
-        if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
+        if ((i < size0) && (j < size1) && (k < size2) ) {
             host_data_input[pad_idx].x = hostI[idx];
         } else {
             host_data_input[pad_idx].x = 0.0f;
@@ -377,10 +384,10 @@ void initialize_inputs_par(float* hostI, float* hostF, cufftComplex
     /*for ( long i = index; i < pad_size[0]; i += stride) { */
     if ((i < pad_size[0]) && (j < pad_size[1]) && ( k < pad_size[2])) { 
 
-        idx = convert_idx(i, j, k, size, column_order);
-        idx_filter = convert_idx(i, j, k, filterdimA, column_order);
+        idx = convert_idx_gpu(i, j, k, size0, size1, size2, column_order);
+        idx_filter = convert_idx_gpu(i, j, k, filterdimA0, filterdimA1, filterdimA2, column_order);
         // always place into c-order for cuda processing, revert in trim_pad()
-        pad_idx = convert_idx(i, j, k, pad_size, false); 
+        pad_idx = convert_idx_gpu(i, j, k, pad_size0, pad_size1, pad_size2, false); 
         if (benchmark)
             printf("%d,%d,%d idx:%d, idx_filter:%d, pad_idx:%d, hostI[idx]:%f\n", 
                     i, j, k, idx, idx_filter, pad_idx, hostI[idx]);
@@ -462,19 +469,15 @@ void trim_pad_par(int trim_idxs00, int trim_idxs01, int trim_idxs10,
     int j = blockIdx.y * blockDim.y + threadIdx.y;
     int k = blockIdx.z * blockDim.z + threadIdx.z;
 
-    unsigned int pad_size[3] = {pad_size0, pad_size1, pad_size2};
-    unsigned int size[3] = {size0, size1, size2};
-
     long long idx;
     long long pad_idx;
-    // FIXME check these ifs are legal in C
-    if (trim_idxs00 <= i < trim_idxs01) {
+    if ((trim_idxs00 <= i) && (i < trim_idxs01)) {
         if (trim_idxs10 <= j < trim_idxs11) {
             if (trim_idxs20 <= k < trim_idxs21) {
-                idx = cufftutils::convert_idx(i - trim_idxs00,
-                        j - trim_idxs10, k - trim_idxs20, size, column_order);
+                idx = cufftutils::convert_idx_gpu(i - trim_idxs00,
+                        j - trim_idxs10, k - trim_idxs20, size0, size1, size2, column_order);
                 // data always processed, stored in c-order, see initialize_inputs()
-                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
+                pad_idx = cufftutils::convert_idx_gpu(i, j, k, pad_size0, pad_size1, pad_size2, false);
 
                 hostO[idx] = host_data_input[pad_idx].x;
                 if (benchmark)
@@ -596,8 +599,7 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsign
         cudaEventDestroy(start);
         cudaEventDestroy(stop);
         printf(" Full convolution cost %.2f ms\n", elapsed);
-    }
-
+    } 
     if (benchmark)
         printf("Cufft completed successfully\n");
 
