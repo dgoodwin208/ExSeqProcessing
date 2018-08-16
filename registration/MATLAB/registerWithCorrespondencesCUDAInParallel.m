@@ -3,14 +3,15 @@
 function success_code = registerWithCorrespondencesCUDAInParallel(run_num_list)
 
     loadParameters;
+    sem_name = sprintf('/%s.gr',getenv('USER'));
 
     calcCorrespondencesForFixed(regparams.FIXED_RUN);
 
-    semaphore('/gr','open',1);
-    ret = semaphore('/gr','getvalue');
+    semaphore(sem_name,'open',1);
+    ret = semaphore(sem_name,'getvalue');
     if ret ~= 1
-        semaphore('/gr','unlink');
-        semaphore('/gr','open',1);
+        semaphore(sem_name,'unlink');
+        semaphore(sem_name,'open',1);
     end
 
     arg_list = {};
@@ -62,7 +63,7 @@ function success_code = registerWithCorrespondencesCUDAInParallel(run_num_list)
 
     if strcmp(regparams.REGISTRATION_TYPE,'affine')
         fprintf('Ending the registration after the affine\n');
-        semaphore('/gr','unlink');
+        semaphore(sem_name,'unlink');
         return;
     end
 
@@ -90,6 +91,6 @@ function success_code = registerWithCorrespondencesCUDAInParallel(run_num_list)
         return;
     end
 
-    semaphore('/gr','unlink');
+    semaphore(sem_name,'unlink');
 
 end

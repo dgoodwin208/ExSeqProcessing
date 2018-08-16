@@ -16,7 +16,8 @@ function calcCorrespondencesCUDA(moving_run)
 
 %profile on;
 
-semaphore('/gr','open',1); % it is no effective if the semaphore is already open
+sem_name = sprintf('/%s.gr',getenv('USER'));
+semaphore(sem_name,'open',1); % it is no effective if the semaphore is already open
 
 loadParameters;
 
@@ -199,7 +200,7 @@ if ~exist(output_keys_filename,'file')
             size(DM_SIFT_norm)
 
             while true
-                ret = semaphore('/gr','trywait');
+                ret = semaphore(sem_name,'trywait');
                 if ret == 0
                     break;
                 else
@@ -209,7 +210,7 @@ if ~exist(output_keys_filename,'file')
             tic;
             correspondences_sift = match_3DSIFTdescriptors_cuda(DM_SIFT_norm,DF_SIFT_norm);
             toc;
-            ret = semaphore('/gr','post');
+            ret = semaphore(sem_name,'post');
             
             fprintf('calculating ShapeContext descriptors...\n');
             %We create a shape context descriptor for the same keypoint
@@ -220,7 +221,7 @@ if ~exist(output_keys_filename,'file')
             DM_SC=ShapeContext(LM_SIFT,LM_SC);
 
 %            while true
-%                ret = semaphore('/gr','trywait');
+%                ret = semaphore(sem_name,'trywait');
 %                if ret == 0
 %                    break;
 %                else
@@ -231,7 +232,7 @@ if ~exist(output_keys_filename,'file')
 %            fprintf('calculating ShapeContext correspondences...\n');
 %            correspondences_sc = match_3DSIFTdescriptors_cuda(DM_SC',DF_SC');
 %            toc;
-%            ret = semaphore('/gr','post');
+%            ret = semaphore(sem_name,'post');
 %
 %            fprintf('SIFT-only correspondences get %i matches, SC-only gets %i matches\n',...
 %                size(correspondences_sift,2),size(correspondences_sc,2));
@@ -242,7 +243,7 @@ if ~exist(output_keys_filename,'file')
 %            fprintf('There unique %i matches if we take the union of the two methods\n', size(correspondences,2));
 %
 %            while true
-%                ret = semaphore('/gr','trywait');
+%                ret = semaphore(sem_name,'trywait');
 %                if ret == 0
 %                    break;
 %                else
@@ -253,7 +254,7 @@ if ~exist(output_keys_filename,'file')
 %            tic;
 %            correspondences = match_3DSIFTdescriptors_cuda([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
 %            toc;
-%            ret = semaphore('/gr','post');
+%            ret = semaphore(sem_name,'post');
 
             correspondences=correspondences_sift;
             
