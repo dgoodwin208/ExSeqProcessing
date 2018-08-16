@@ -4,12 +4,13 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
 
     % get max_jobs
     loadParameters;
+    sem_name = sprintf('/%s.gc',getenv('USER'));
 
-    semaphore('/gc','open',1);
-    ret = semaphore('/gc','getvalue');
+    semaphore(sem_name,'open',1);
+    ret = semaphore(sem_name,'getvalue');
     if ret ~= 1
-        semaphore('/gc','unlink');
-        semaphore('/gc','open',1);
+        semaphore(sem_name,'unlink');
+        semaphore(sem_name,'open',1);
     end
 
     run_num_list_size = length(run_num_list);
@@ -28,6 +29,6 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
     [success_code, output] = batch_process('calcDesc', @calculateDescriptors, run_num_list, arg_list, ...
         postfix_list, params.CALC_DESC_MAX_POOL_SIZE, max_jobs, params.CALC_DESC_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 
-    semaphore('/gc','unlink');
+    semaphore(sem_name,'unlink');
 end
 

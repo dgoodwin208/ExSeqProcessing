@@ -15,8 +15,8 @@
 
 function keys = calculate_3DSIFT_cuda(img, keypts,skipDescriptor)
 
-
-semaphore('/gc','open',1); % it is no effective if the semaphore is already open
+sem_name = sprintf('/%s.gc',getenv('USER'));
+semaphore(sem_name,'open',1); % it is no effective if the semaphore is already open
 
 %By default, we calculate the descriptor
 if nargin<3
@@ -48,7 +48,7 @@ end
 map = int8(map);
 
 while true
-    ret = semaphore('/gc','trywait');
+    ret = semaphore(sem_name,'trywait');
     if ret == 0
         break;
     else
@@ -58,7 +58,7 @@ end
 
 keys = sift_cuda(img, map, sift_params);
 
-ret = semaphore('/gc','post');
+ret = semaphore(sem_name,'post');
 
 keys = num2cell(keys);
 

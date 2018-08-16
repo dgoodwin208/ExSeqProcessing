@@ -35,13 +35,13 @@ Hz(:,:,2) = hp(2)*h*h';
 Hz(:,:,3) = hp(3)*h*h';
 
 
-
 % making filters (note that we're ignoring the fx, fy fz now)
 clear fx fy fz
 
 %if cuda
+    %sem_name = sprintf('/%s.gc',getenv('USER'));
     %while true
-        %ret = semaphore('/gr','trywait');
+        %ret = semaphore(sem_name,'trywait');
         %if ret == 0
             %break;
         %else
@@ -49,7 +49,7 @@ clear fx fy fz
         %end
     %end
     %convn_cuda(...
-    %ret = semaphore('/gr','post');
+    %ret = semaphore(sem_name,'post');
 %end
 
 % applying sobel edge detector in the horizontal direction

@@ -15,6 +15,7 @@
 function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
     
     loadParameters;
+    sem_name = sprintf('/%s.gc',getenv('USER'));
     options = {};
     options.Power2Flag = false;
     options.CastSingle = true;
@@ -34,7 +35,7 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
         h  = fspecial3('gaussian',blur_size); 
         %if cuda
             %while true
-                %ret = semaphore('/gr','trywait');
+                %ret = semaphore(sem_name,'trywait');
                 %if ret == 0
                     %break;
                 %else
@@ -42,7 +43,7 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
                 %end
             %end
             %convn_cuda(...
-            %ret = semaphore('/gr','post');
+            %ret = semaphore(sem_name,'post');
         %else
             img_blur = convnfft(img,h,'same',[],options);
         %end
