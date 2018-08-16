@@ -316,7 +316,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
     matrix_is_equal(hostO, hostO_1GPU, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_DeviceInitInputsTest) {
+TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     int benchmark = 0;
     unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
@@ -728,12 +728,12 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, ConvnFullImageTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     /*unsigned int size[3] = {1024, 1024, 126};*/
     /*unsigned int filterdimA[3] = {5, 5, 5};*/
     unsigned int size[3] = {31, 31, 2};
     unsigned int filterdimA[] = {2, 2, 2};
-    int benchmark = 1;
+    int benchmark = 0;
     bool column_order = true;
     int algo = 1;
     float tol = .0001;
@@ -752,7 +752,7 @@ TEST_F(ConvnCufftTest, ConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
 
     // generate params
     int benchmark = 0;
