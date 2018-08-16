@@ -5,10 +5,17 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
     % get max_jobs
     loadParameters;
 
+    semaphore('/gc','open',1);
+    ret = semaphore('/gc','getvalue');
+    if ret ~= 1
+        semaphore('/gc','unlink');
+        semaphore('/gc','open',1);
+    end
+
     run_num_list_size = length(run_num_list);
     desc_size = regparams.ROWS_DESC * regparams.COLS_DESC;
     max_jobs  = run_num_list_size * desc_size;
-    cuda=false;
+    cuda=true;
 
     arg_list = {};
     postfix_list = {};
@@ -21,5 +28,6 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
     [success_code, output] = batch_process('calcDesc', @calculateDescriptors, run_num_list, arg_list, ...
         postfix_list, params.CALC_DESC_MAX_POOL_SIZE, max_jobs, params.CALC_DESC_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 
+    semaphore('/gc','unlink');
 end
 

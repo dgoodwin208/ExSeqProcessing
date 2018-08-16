@@ -32,10 +32,10 @@ function calculateDescriptors(run_num,varargin)
 %Load all the parameters per file
 % loadExperimentParams;
 loadParameters;
-if size(varargin,2)==1
-    error('ERROR: You must specify both a start and an end index');
-elseif size(varargin,2)==2
-    start_idx = varargin{1}; end_idx = varargin{2};
+if size(varargin,2) < 4
+    error('ERROR: You must specify both a start and an end index and cuda parameter');
+elseif size(varargin,2)==4
+    start_idx = varargin{1}; end_idx = varargin{2}; cuda = varargin{4};
 else
     start_idx = 1; end_idx = regparams.COLS_DESC*regparams.ROWS_DESC;
 end
@@ -161,8 +161,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
                 fprintf('Sees that the file %s already exists, skipping\n',outputfilename);
                 continue;
             else
-                %keys = SWITCH_tile_processing(tile_img);
-                keys = SWITCH_tile_processingInParallel(tile_img,skipDescriptor);
+                keys = SWITCH_tile_processingInParallel(tile_img,skipDescriptor,cuda);
             end
             
             %There is a different terminology for the x,y coordinates that

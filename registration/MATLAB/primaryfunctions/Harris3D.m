@@ -12,7 +12,7 @@
 % Date: August 2015
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function  res_vect = Harris3D(test_img,blur_dim, options)
+function  res_vect = Harris3D(test_img,blur_dim, options, cuda)
 
 %Creating 3D sobel filters
 h = [ -1; 2; 1];
@@ -38,6 +38,19 @@ Hz(:,:,3) = hp(3)*h*h';
 
 % making filters (note that we're ignoring the fx, fy fz now)
 clear fx fy fz
+
+%if cuda
+    %while true
+        %ret = semaphore('/gr','trywait');
+        %if ret == 0
+            %break;
+        %else
+            %pause(1);
+        %end
+    %end
+    %convn_cuda(...
+    %ret = semaphore('/gr','post');
+%end
 
 % applying sobel edge detector in the horizontal direction
 Ix = convnfft(test_img,Hx,'same',[],options);
