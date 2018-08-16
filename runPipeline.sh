@@ -1,27 +1,10 @@
 #!/bin/bash
 
-SEMAPHORE_LIST=(/g0 /g1 /g2 /g3 /qn_c0 /qn_c1 /qn_c2 /qn_c3 /gr)
-function clear_semaphores() {
-
-    existed_sem_list=()
-    for ((i=0; i<${#SEMAPHORE_LIST[*]}; i++)); do
-        sem_status=$(./utils/semaphore/semaphore ${SEMAPHORE_LIST[i]} getvalue | grep OK)
-        if [ -n "${sem_status}" ]; then
-            existed_sem_list+=( ${SEMAPHORE_LIST[i]} )
-        fi
-    done
-
-    if [ ${#existed_sem_list[*]} -gt 0 ]; then
-        echo "Semaphores have left."
-        for ((i=0; i<${#existed_sem_list[*]}; i++)); do
-            ./utils/semaphore/semaphore ${existed_sem_list[i]} unlink
-        done
-    fi
-}
-
 function trap_handle() {
     kill 0
-    clear_semaphores
+    if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
+        rm /dev/shm/sem.$USER*
+    fi
     exit
 }
 
@@ -196,7 +179,9 @@ shift $((OPTIND - 1))
 
 ###### clear semaphores
 
-clear_semaphores
+if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
+    rm /dev/shm/sem.$USER*
+fi
 
 
 ###### check directories

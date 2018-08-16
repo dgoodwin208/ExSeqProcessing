@@ -91,6 +91,8 @@ protected:
 
     utils::AsyncQueue<std::shared_ptr<RadixSort1Info>> radixsort1_queue_;
 
+    std::string user_name_;
+
     std::shared_ptr<spdlog::logger> logger_;
 
     const size_t FILEREAD_BUFSIZE  = 1024*256;

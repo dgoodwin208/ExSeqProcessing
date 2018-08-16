@@ -1,9 +1,11 @@
 #include <sstream>
 #include <fstream>
 #include <iomanip>
+#include <string>
 #include <utility>
 #include <exception>
 #include <chrono>
+#include <cstdlib>
 #include <cassert>
 #include <cstring>
 #include <semaphore.h>
@@ -52,6 +54,8 @@ QuantileNormImpl::QuantileNormImpl(const std::string& datadir,
       use_hdf5_(use_hdf5),
       use_tmp_files_(use_tmp_files)
 {
+    user_name_ = std::getenv("USER");
+
     logger_ = spdlog::get("mex_logger");
 
     size_t free_size;
@@ -842,7 +846,7 @@ int
 QuantileNormImpl::selectGPU() {
     int idx_gpu = -1;
     for (size_t i = 0; i < num_gpus_; i++) {
-        std::string sem_name = "/g" + std::to_string(i);
+        std::string sem_name = "/" + user_name_ + ".g" + std::to_string(i);
 //        logger_->trace("[{}] sem_name = {}", basename_, sem_name);
         sem_t *sem;
         sem = sem_open(sem_name.c_str(), O_RDWR);
@@ -866,7 +870,7 @@ QuantileNormImpl::selectGPU() {
 
 void
 QuantileNormImpl::unselectGPU(const int idx_gpu) {
-    std::string sem_name = "/g" + std::to_string(idx_gpu);
+    std::string sem_name = "/" + user_name_ + ".g" + std::to_string(idx_gpu);
     sem_t *sem;
     sem = sem_open(sem_name.c_str(), O_RDWR);
     int ret = errno;
@@ -887,7 +891,7 @@ QuantileNormImpl::unselectGPU(const int idx_gpu) {
 
 void
 QuantileNormImpl::selectCore(const int idx_core_group) {
-    std::string sem_name = "/qn_c" + std::to_string(idx_core_group);
+    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
 //    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
     sem_t *sem;
     sem = sem_open(sem_name.c_str(), O_RDWR);
@@ -912,7 +916,7 @@ QuantileNormImpl::selectCore(const int idx_core_group) {
 
 int
 QuantileNormImpl::selectCoreNoblock(const int idx_core_group) {
-    std::string sem_name = "/qn_c" + std::to_string(idx_core_group);
+    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
 //    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
     sem_t *sem;
     sem = sem_open(sem_name.c_str(), O_RDWR);
@@ -932,7 +936,7 @@ QuantileNormImpl::selectCoreNoblock(const int idx_core_group) {
 
 void
 QuantileNormImpl::unselectCore(const int idx_core_group) {
-    std::string sem_name = "/qn_c" + std::to_string(idx_core_group);
+    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
 //    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
     sem_t *sem;
     sem = sem_open(sem_name.c_str(), O_RDWR);
