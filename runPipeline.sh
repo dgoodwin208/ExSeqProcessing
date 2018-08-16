@@ -1,6 +1,9 @@
 #!/bin/bash
 
 function trap_handle() {
+    if [ -n "${PID_PERF_PROFILE}" ]; then
+        kill -- -${PID_PERF_PROFILE}
+    fi
     kill 0
     if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
         rm /dev/shm/sem.$USER*
@@ -31,12 +34,22 @@ function usage() {
     echo "  -L    log directory"
     echo "  -G    use GPUs (default: no)"
     echo "  -H    use HDF5 format for intermediate files (default: no)"
+    echo "  -J    set # of concurrent jobs for color-correction, normalization;  5,10"
     echo "  -P    mode to get performance profile"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
     exit 1
+}
+
+function check_number() {
+    local NUM=$1
+    expr $NUM + 1 > /dev/null 2>&1
+    if [ $? -ge 2 ]; then
+        return 1
+    fi
+    return 0
 }
 
 export TZ=America/New_York
@@ -66,6 +79,9 @@ fi
 TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
 USE_TMP_FILES_IN_NORM=$(sed -ne "s#params.USE_TMP_FILES_IN_NORM *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
 
+COLOR_CORRECTION_MAX_RUN_JOBS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+COLOR_CORRECTION_MAX_POOL_SIZE=$(sed -ne "s#params.COLOR_CORRECTION_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+COLOR_CORRECTION_MAX_THREADS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 NORMALIZATION_MAX_RUN_JOBS=$(sed -ne "s#params.NORM_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 NORMALIZATION_MAX_POOL_SIZE=$(sed -ne "s#params.NORM_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 NORMALIZATION_MAX_THREADS=0
@@ -88,15 +104,16 @@ PUNCTA_MAX_RUN_JOBS=$(sed -ne "s#params.PUNCTA_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p
 PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 PUNCTA_MAX_THREADS=0
 
-FILE_BASENAME=exseqautoframea1
-CHANNELS="'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'"
+FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+CHANNELS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
+
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 REGISTRATION_CHANNEL=summedNorm
 PUNCTA_EXTRACT_CHANNEL=summedNorm
 REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
-USE_GPUS=false
+USE_GPU_CUDA=false
 USE_HDF5=false
 PERF_PROFILE=false
 
@@ -104,13 +121,12 @@ NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:GHPyh OPT
+while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:GHJ:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
             if [ $ROUND_NUM != "auto" ]; then
-                expr $ROUND_NUM + 1 > /dev/null 2>&1
-                if [ $? -ge 2 ]; then
+                if ! check_number ${ROUND_NUM}; then
                     echo "# of rounds is not number; ${ROUND_NUM}"
                     exit 1
                 fi
@@ -125,8 +141,7 @@ do
             PUNCTA_EXTRACT_CHANNELS="'${REGISTRATION_CHANNEL}'"
             ;;
         B)  REFERENCE_ROUND=$OPTARG
-                expr $REFERENCE_ROUND + 1 > /dev/null 2>&1
-                if [ $? -ge 2 ]; then
+                if ! check_number ${REFERENCE_ROUND}; then
                     echo "reference round is not number; ${REFERENCE_ROUND}"
                     exit 1
                 fi
@@ -159,9 +174,35 @@ do
             ;;
         s)  ARG_SKIP_STAGES=$OPTARG
             ;;
-        G)  USE_GPUS=true
+        G)  USE_GPU_CUDA=true
             ;;
         H)  USE_HDF5=true
+            ;;
+        J)  IFS=, read NJOBS_CC NJOBS_NORM TMP <<<$OPTARG
+            if [ -n "${NJOBS_CC}" ]; then
+                if check_number ${NJOBS_CC}; then
+                    if [ ${NJOBS_CC} -eq 0 ]; then
+                        echo "# of jobs for color-correction is zero"
+                        exit 1
+                    fi
+                    COLOR_CORRECTION_MAX_RUN_JOBS=${NJOBS_CC}
+                else
+                    echo "${NJOBS_CC} is not number"
+                    exit 1
+                fi
+            fi
+            if [ -n "${NJOBS_NORM}" ]; then
+                if check_number ${NJOBS_NORM}; then
+                    if [ ${NJOBS_NORM} -eq 0 ]; then
+                        echo "# of jobs for normalization is zero"
+                        exit 1
+                    fi
+                    NORMALIZATION_MAX_RUN_JOBS=${NJOBS_NORM}
+                else
+                    echo "${NJOBS_NORM} is not number"
+                    exit 1
+                fi
+            fi
             ;;
         P)  PERF_PROFILE=true
             ;;
@@ -228,8 +269,13 @@ fi
 if [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; then
     echo "Temporary dir. is not empty."
 
-    echo "Delete? (y/n)"
-    read -sn1 ANSW
+    if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
+        echo "Delete? (y/n)"
+        read -sn1 ANSW
+    else
+        ANSW='y'
+    fi
+
     if [ $ANSW = 'y' -o $ANSW = 'Y' ]; then
         echo -n "Deleting.. "
         find ${TEMP_DIR} -type f -exec rm '{}' \;
@@ -365,7 +411,7 @@ echo "  reference round        :  ${REFERENCE_ROUND}"
 echo "  processing channels    :  ${CHANNELS}"
 echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
 echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
-echo "  use GPUs               :  ${USE_GPUS}"
+echo "  use GPU_CUDA           :  ${USE_GPU_CUDA}"
 echo "  intermediate image ext :  ${IMAGE_EXT}"
 echo
 echo "Stages"
@@ -410,6 +456,7 @@ echo "========================================================================="
 echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
 echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
 
+printf "  color-correction       :  %2d,%2d,%2d\n" ${COLOR_CORRECTION_MAX_RUN_JOBS} ${COLOR_CORRECTION_MAX_POOL_SIZE} ${COLOR_CORRECTION_MAX_THREADS}
 printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
 printf "  registration           :\n"
 printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
@@ -437,7 +484,9 @@ echo
 
 
 if [ "${PERF_PROFILE}" = "true" ]; then
+    set -m
     ./tests/perf-profile/get-stats.sh &
+    set +m
     PID_PERF_PROFILE=$!
     sleep 1
 fi
@@ -484,6 +533,8 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
+    -e "s#\(params.COLOR_CORRECTION_MAX_RUN_JOBS\) *= *.*;#\1 = ${COLOR_CORRECTION_MAX_RUN_JOBS};#" \
+    -e "s#\(params.NORM_MAX_RUN_JOBS\) *= *.*;#\1 = ${NORMALIZATION_MAX_RUN_JOBS};#" \
     -i.back \
     ./loadParameters.m
 
@@ -514,8 +565,15 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-all.log -r "${ERR_HDL_PRECODE} run('downsample_all.m'); ${ERR_HDL_POSTCODE}"
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};colorcorrection_3D_poc(i);end; ${ERR_HDL_POSTCODE}"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end; ${ERR_HDL_POSTCODE}"
+
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} colorcorrection_3D_cuda(${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    if ls matlab-color-correction-*.log > /dev/null 2>&1; then
+        mv matlab-color-correction-*.log ${LOG_DIR}/
+    else
+        echo "No job log files."
+    fi
+
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-apply.log -r "${ERR_HDL_PRECODE} run('downsample_applycolorshiftstofullres.m'); ${ERR_HDL_POSTCODE}"
     ) & wait $!
 else
@@ -544,7 +602,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 #    cp 1_deconvolution/*ch00.${IMAGE_EXT} 2_color-correction/
 
     (
-    if [ ${USE_GPUS} == "true" ]; then
+    if [ ${USE_GPU_CUDA} == "true" ]; then
         matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-normalization.log -r "${ERR_HDL_PRECODE} normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
 
         if ls matlab-normalization-*.log > /dev/null 2>&1; then
@@ -670,7 +728,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         echo "Skipping registration of the reference round"
         echo $rounds
         # registerWithCorrespondences for ${REFERENCE_ROUND} and i
-        if [ ${USE_GPUS} == "true" ]; then
+        if [ ${USE_GPU_CUDA} == "true" ]; then
             matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regCorr-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesCUDAInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         else
             #Because the matching is currently single-threaded, we can parpool it in one loop
@@ -739,6 +797,12 @@ stage_idx=$(( $stage_idx + 1 ))
 
 
 
+if [ "${PERF_PROFILE}" = "true" ]; then
+    kill -- -${PID_PERF_PROFILE}
+    PID_PERF_PROFILE=
+    sleep 1
+    tests/perf-profile/summarize-stat-logs.sh logs
+fi
 
 echo "========================================================================="
 echo "pipeline finished"; date

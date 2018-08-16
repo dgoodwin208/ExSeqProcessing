@@ -2,6 +2,8 @@ function colorcorrection_3D_poc(roundnum)
 
 loadParameters;
 
+maxNumCompThreads(params.COLOR_CORRECTION_MAX_THREADS);
+
 if params.DO_DOWNSAMPLE
     FILEROOT_NAME = sprintf('%s-downsample',params.FILE_BASENAME);
 else
@@ -68,29 +70,74 @@ tic; disp('save file 2');
 save3DImage_uint16(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
 
-data_cols = zeros(length(reshape(chan1,[],1)),4);
-data_cols(:,1) = reshape(chan1,[],1);
-data_cols(:,2) = reshape(chan2_shift,[],1);
-data_cols(:,3) = reshape(chan3,[],1);
-data_cols(:,4) = reshape(chan4_shift,[],1);
+%data_cols = zeros(length(reshape(chan1,[],1)),4);
+%data_cols(:,1) = reshape(chan1,[],1);
+%data_cols(:,2) = reshape(chan2_shift,[],1);
+%data_cols(:,3) = reshape(chan3,[],1);
+%data_cols(:,4) = reshape(chan4_shift,[],1);
 
 %     %Normalize the data
 tic; 
 fprintf('quantilenorm_simple starting\n');
-data_cols_norm = quantilenorm_simple(data_cols);
+%num_sem_gpus = ones(1, gpuDeviceCount());
+%quantilenorm_cuda_init(num_sem_gpus);
+
+%data_cols_norm = quantilenorm_simple(data_cols);
+use_tmp_files = params.USE_TMP_FILES;
+basename = sprintf('%s_round%03d',FILEROOT_NAME,roundnum);
+ret = ...
+    quantilenorm_cuda(params.tempDir,basename, { ...
+        fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.%s'     ,FILEROOT_NAME,roundnum,params.IMAGE_EXT)), ...
+        fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)), ...
+        fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.%s'     ,FILEROOT_NAME,roundnum,params.IMAGE_EXT)), ...
+        fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)) }, use_tmp_files);
+
+%quantilenorm_cuda_final(length(num_sem_gpus));
+
+if use_tmp_files
+    chan1_norm_fname = ret{1};
+    chan2_norm_fname = ret{2};
+    chan3_norm_fname = ret{3};
+    chan4_norm_fname = ret{4};
+    image_size = ret{5};
+    image_height = image_size(1);
+    image_width  = image_size(2);
+%    num_slices   = image_size(3);
+
+    chan1_norm = load_binary_image(params.tempDir,chan1_norm_fname,image_height,image_width);
+    chan2_norm = load_binary_image(params.tempDir,chan2_norm_fname,image_height,image_width);
+    chan3_norm = load_binary_image(params.tempDir,chan3_norm_fname,image_height,image_width);
+    chan4_norm = load_binary_image(params.tempDir,chan4_norm_fname,image_height,image_width);
+
+    tic;
+    delete(fullfile(params.tempDir,chan1_norm_fname), ...
+           fullfile(params.tempDir,chan2_norm_fname), ...
+           fullfile(params.tempDir,chan3_norm_fname), ...
+           fullfile(params.tempDir,chan4_norm_fname));
+    disp('delete the rest temp files'); toc;
+else
+    mat_norm = ret{1};
+    image_size = ret{2};
+
+    chan1_norm = reshape(mat_norm(:,1),image_size);
+    chan2_norm = reshape(mat_norm(:,2),image_size);
+    chan3_norm = reshape(mat_norm(:,3),image_size);
+    chan4_norm = reshape(mat_norm(:,4),image_size);
+end
 fprintf('quantilenorm end\n');
 toc
 
 % reshape the normed results back into 3d images
-chan1_norm = reshape(data_cols_norm(:,1),size(chan1));
-chan2_norm = reshape(data_cols_norm(:,2),size(chan2));
-chan3_norm = reshape(data_cols_norm(:,3),size(chan3));
-chan4_norm = reshape(data_cols_norm(:,4),size(chan4));
+%chan1_norm = reshape(data_cols_norm(:,1),size(chan1));
+%chan2_norm = reshape(data_cols_norm(:,2),size(chan2));
+%chan3_norm = reshape(data_cols_norm(:,3),size(chan3));
+%chan4_norm = reshape(data_cols_norm(:,4),size(chan4));
 
 fixed_chans_norm = (chan1_norm + chan2_norm + chan4_norm)/3;
 
 %Clear up memory
-clear data_cols data_cols_norm
+%clear data_cols data_cols_norm
+clear data_cols_norm
 
 fixed_chans_norm_beads = fixed_chans_norm(:,:,params.BEAD_ZSTART:end);
 chan3_norm_beads = chan3_norm(:,:,params.BEAD_ZSTART:end);
@@ -115,3 +162,15 @@ save(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_colorcalcs.mat',FILEROOT_NAME,rou
 
 end
 
+function image = load_binary_image(loaddir,image_fname,image_height,image_width)
+    fid = fopen(fullfile(loaddir,image_fname),'r');
+    count = 1;
+    while ~feof(fid)
+        sub_image = fread(fid,[image_height,image_width],'float');
+        if ~isempty(sub_image)
+            image(:,:,count) = double(sub_image);
+            count = count + 1;
+        end
+    end
+    fclose(fid);
+end
