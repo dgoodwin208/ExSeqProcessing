@@ -684,7 +684,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         (
         rounds=$(seq -s' ' 1 ${ROUND_NUM})
         # calculateDescriptors for all rounds in parallel
-        if [ ${USE_GPUS} == "true" ]; then
+        if [ ${USE_GPU_CUDA} == "true" ]; then
             matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsCUDAInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         else
             matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-calcDesc-group.log -r "${ERR_HDL_PRECODE} calculateDescriptorsInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
