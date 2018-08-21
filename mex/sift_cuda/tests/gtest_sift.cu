@@ -39,14 +39,16 @@ protected:
 
     template <class T>
     void print_arr(T * arr, int N) {
+        printf("print_arr\n");
         for (int i=0; i < N; i++) {
-            logger_->debug("\t[{}]={}", i, arr[i]);
+            /*logger_->debug("\t[{}]={}", i, arr[i]);*/
+            printf("\t[%d]=%.5f\n", i, arr[i]);
         }
     }
 
 };
 
-TEST_F(SiftTest, DotProductTest) {
+TEST_F(SiftTest, DISABLED_DotProductTest) {
     int cols = 3;
     double first[3] = {1,2,3};
     double *dfirst;
@@ -138,6 +140,7 @@ TEST_F(SiftTest, GetBinIdxTest) {
     cudaFree(i_bin);
     cudaFree(j_bin);
     cudaFree(k_bin);
+    free(fv_centers);
 }
 
 TEST_F(SiftTest, BinSub2Ind1Test) {
@@ -183,6 +186,7 @@ TEST_F(SiftTest, BinSub2Ind1Test) {
     ASSERT_EQ(temp, max - 8);
 
     cudaFree(bin_index);
+    free(fv_centers);
 }
 
 
@@ -249,6 +253,7 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
     const unsigned int x_size = 3;
     const unsigned int y_size = 3;
     const unsigned int z_size = 3;
+    long long N = x_size * y_size * z_size;
     const unsigned int keypoint_num = 1;
     cudautils::SiftParams sift_params;
     double* fv_centers = sift_defaults(&sift_params, x_size,
@@ -256,49 +261,67 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
     sift_params.MagFactor = 1;
     sift_params.Tessel_thresh = 1;
 
-    thrust::device_vector<double> device_centers(fv_centers,
-            fv_centers + sift_params.fv_centers_len);
-
+    double *image, *h_image;
     // create img
-    thrust::device_vector<double> image(x_size * y_size * z_size);
-    thrust::sequence(image.begin(), image.end());
+    h_image = (double*) malloc(sizeof(double) * N);
+    cudaMalloc(&image, sizeof(double) * N);
+    for (int i=0; i < N; i++) {
+        h_image[i] = i;
+    }
+    cudaMemcpy(image, h_image, N * sizeof(double), cudaMemcpyHostToDevice);
 
+    double* device_centers;
+    // sift_params.fv_centers must be placed on device since array passed to cuda kernel
+    // default fv_centers_len 80 * 3 (3D) = 240;
+    cudaSafeCall(cudaMalloc((void **) &device_centers,
+                sizeof(double) * sift_params.fv_centers_len));
+    cudaSafeCall(cudaMemcpy((void *) device_centers, (const void *) fv_centers,
+            (size_t) sizeof(double) * sift_params.fv_centers_len,
+            cudaMemcpyHostToDevice));
+    
     unsigned long long idx = 14; // center of cube
     int r = 1;
     int c = 1;
     int t = 1;
     unsigned int x_stride = x_size;
     unsigned int y_stride = y_size;
-    thrust::device_vector<uint16_t> ix(sift_params.fv_centers_len);
-    thrust::device_vector<double> yy(sift_params.fv_centers_len);
-    thrust::device_vector<double> vect(3);// = {1.0, 0.0, 0.0};
+    double* yy, *h_yy;
+    cudaMalloc(&yy, sizeof(double) * sift_params.fv_centers_len);
+    h_yy = (double*) malloc(sizeof(double) * sift_params.fv_centers_len);
+    uint16_t* ix;
+    cudaMalloc(&ix, sizeof(uint16_t) * sift_params.fv_centers_len);
+    double vect[3] = {1.0, 0.0, 0.0};
+    double *dvect;
+    cudaMalloc(&dvect, sizeof(double) * 3);
+    cudaMemcpy(dvect, vect, sizeof(double) * 3, cudaMemcpyHostToDevice);
 
     double mag; 
-    cudautils::get_grad_ori_vector_wrap<<<1,1>>>(thrust::raw_pointer_cast(&image[0]), 
-            idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
-            thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
-            sift_params, thrust::raw_pointer_cast(&device_centers[0]), &mag);
-    thrust::host_vector<double> h_yy(yy);
+    cudautils::get_grad_ori_vector_wrap<<<1,1>>>(image,
+            idx, x_stride, y_stride, r, c, t, dvect, yy, ix, sift_params,
+            device_centers, &mag);
+    cudaMemcpy(h_yy, yy, sizeof(double) * sift_params.fv_centers_len, cudaMemcpyDeviceToHost);
+
+    print_arr(h_yy, sift_params.fv_centers_len);
 
     // make sure yy's values are descending
     double max = h_yy[0];
-    for (int i=0; i < sift_params.nFaces; i++) {
+    for (int i=1; i < sift_params.nFaces; i++) {
         ASSERT_GE(max, h_yy[i]);
-        max = h_yy[i];
+        max = h_yy[i]; //update
     }
         
-    /*print_arr(thrust::raw_pointer_cast(&h_yy[0]), sift_params.fv_centers_len);*/
+    free(fv_centers);
 }
 
-TEST_F(SiftTest, SiftBoundaryTest) {
+TEST_F(SiftTest, DISABLED_SiftBoundaryTest) {
 
     const unsigned int x_size = 10;
     const unsigned int y_size = 10;
     const unsigned int z_size = 6;
+    long long N = x_size * y_size * z_size;
     const unsigned int keypoint_num = 1;
     const unsigned int num_gpus = 2;
     const unsigned int num_streams = 1;
-    long image_size = x_size * y_size * z_size;
     const unsigned int x_sub_size = x_size;
     const unsigned int y_sub_size = y_size / num_gpus;
     const unsigned int dx = x_sub_size;
@@ -309,16 +332,28 @@ TEST_F(SiftTest, SiftBoundaryTest) {
     double* fv_centers = sift_defaults(&sift_params, x_size,
             y_size, z_size, keypoint_num);
 
+    /*// create img*/
+    /*double *image, *h_image; */
+    /*int8_t *map, *h_map;*/
+    /*h_image = (double*) malloc(sizeof(double) * N);*/
+    /*h_map = (int8_t*) malloc(sizeof(int8_t) * N);*/
+    /*cudaMalloc(&image, sizeof(double) * N);*/
+    /*cudaMalloc(&map, sizeof(int8_t) * N);*/
+    /*for (int i=0; i < N; i++) {*/
+        /*h_image[i] = i;*/
+        /*h_map[i] = 1;*/
+    /*}*/
+
     // create img
-    thrust::host_vector<double> image(image_size);
+    thrust::host_vector<double> image(N);
     thrust::generate(image.begin(), image.end(), rand);
 
     // create map
-    thrust::host_vector<int8_t> map(image_size);
-    thrust::fill_n(map.begin(), image_size, 1.0);
+    thrust::host_vector<int8_t> map(N);
+    thrust::fill_n(map.begin(), N, 1.0);
 
     // test a keypoint in the last pixel
-    map[image_size - 1] = 0.0; //select for processing
+    map[N - 1] = 0.0; //select for processing
 
     // investigate a boundary point between GPUs
     int x = 5;
@@ -327,6 +362,8 @@ TEST_F(SiftTest, SiftBoundaryTest) {
     long long idx = x + x_size * y + x_size * y_size * z;
     map[idx] = 0.0; // select this point for processing
 
+    /*cudaMemcpy(image, h_image, N * sizeof(double), cudaMemcpyHostToDevice);*/
+    /*cudaMemcpy(map, h_map, N * sizeof(int8_t), cudaMemcpyHostToDevice);*/
 
     std::shared_ptr<cudautils::Sift> ni =
         std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
@@ -335,14 +372,15 @@ TEST_F(SiftTest, SiftBoundaryTest) {
 
     cudautils::CudaTaskExecutor executor(num_gpus, num_streams, ni);
 
-    ni->setImage(thrust::raw_pointer_cast(image.data()));
-    ni->setMap(thrust::raw_pointer_cast(map.data()));
+    ni->setImage(image.data());
+    ni->setMap(map.data());
 
     executor.run();
 
+    free(fv_centers);
 }
 
-TEST_F(SiftTest, SiftSimpleTest) {
+TEST_F(SiftTest, DISABLED_SiftSimpleTest) {
 
     const unsigned int x_size = 10;
     const unsigned int y_size = 10;
@@ -389,10 +427,11 @@ TEST_F(SiftTest, SiftSimpleTest) {
 
     executor.run();
 
+    free(fv_centers);
 }
 
 // Check output with saved binary 
-TEST_F(SiftTest, CheckBinaryTest) {
+TEST_F(SiftTest, DISABLED_CheckBinaryTest) {
 
         std::string in_image_filename1("test_img.bin");
         std::string in_map_filename2("test_map.bin");
@@ -480,8 +519,8 @@ TEST_F(SiftTest, CheckBinaryTest) {
         fout.close();
 
         ASSERT_EQ(system("diff test_output.bin gtest_output.bin"), 0);
+        free(fv_centers);
 }
-
 
 // Disabled to speed up quick test runs
 TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
@@ -535,6 +574,7 @@ TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
     cudautils::Keypoint_store keystore;
     ni->getKeystore(&keystore);
 
+    free(fv_centers);
 }
 
 

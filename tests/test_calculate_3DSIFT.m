@@ -14,7 +14,7 @@ LoadParams;
 
 % keypoint 9 is rejected
 %keys = res_vect(9, :)
-%keys = [1, 1, 1];
+keys = [1, 1, 1];
 %keys = res_vect(1:10, :);
 %keys = res_vect;
 
@@ -52,7 +52,7 @@ for i=1:N
     end
 
     if found
-        if skipDescriptors || isequal(cuda_key.ivec', key.ivec);
+        if skipDescriptors || isequal(cuda_key.ivec, key.ivec);
             %fprintf('Keypoint %d succeeded match\n', i);
             match = match + 1;
         else

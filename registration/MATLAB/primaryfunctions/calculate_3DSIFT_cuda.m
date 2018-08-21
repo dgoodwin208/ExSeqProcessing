@@ -40,7 +40,6 @@ assert(sift_params.fv_centers_len / 3 == sift_params.nFaces);
 
 sift_params.keypoint_num = size(keypts,1);
 N = size(keypts,1);
-fprintf('SIFT3D cuda processing %d keypoints\n', N);
 map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_size2);
 for i=1:N
     map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = 0; % select the keypoint element
@@ -56,6 +55,7 @@ while true
     end
 end
 
+fprintf('SIFT3D cuda processing %d keypoints\n', N);
 keys = sift_cuda(img, map, sift_params);
 
 ret = semaphore(sem_name,'post');

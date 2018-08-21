@@ -212,8 +212,9 @@ double get_grad_ori_vector(double* image, long long idx, unsigned int
 
 #ifdef DEBUG_NUMERICAL
     printf("ggov N%d fv_len%d DIMS%d idx%lld vect0 %.4f vect1 %.4f vect2 %.4f image[idx] %.4f r%d c%d t%d yy %.4f %.4f %.4f %.4f ix %d %d %d %d eq:%d diff:%.54f\n",
-        N, sift_params.fv_centers_len, DIMS, idx, vect[0], vect[1], vect[2], image[idx], r, c, t, yy[0], yy[1], yy[2], yy[3],
-        ix[0], ix[1], ix[2], ix[3], yy[2] == yy[3], yy[2] - yy[3]);
+        N, sift_params.fv_centers_len, DIMS, idx, vect[0], vect[1], vect[2],
+        image[idx], r, c, t, yy[0], yy[1], yy[2], yy[3], ix[0], ix[1], ix[2],
+        ix[3], yy[2] == yy[3], yy[2] - yy[3]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[0], device_centers[3 * ix[0]], device_centers[3 * ix[0] + 1], device_centers[3 * ix[0] + 2]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[1], device_centers[3 * ix[1]], device_centers[3 * ix[1] + 1], device_centers[3 * ix[1] + 2]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[2], device_centers[3 * ix[2]], device_centers[3 * ix[2] + 1], device_centers[3 * ix[2] + 2]);
@@ -227,10 +228,9 @@ void get_grad_ori_vector_wrap(double* image, long long idx, unsigned int
         x_stride, unsigned int y_stride, int r, int c, int t, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers, double* mag) {
 
-    *mag = cudautils::get_grad_ori_vector(thrust::raw_pointer_cast(&image[0]), 
-        idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
-        thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
-        sift_params, thrust::raw_pointer_cast(&device_centers[0]));
+    *mag = cudautils::get_grad_ori_vector(image, 
+        idx, x_stride, y_stride, r, c, t, vect,
+        yy, ix, sift_params, device_centers);
     return;
 }
 
@@ -1117,7 +1117,7 @@ void Sift::runOnStream(
 
 #ifdef DEBUG_OUTPUT
         logger_->debug("create_descriptor");
-        timer.reset()
+        timer.reset();
 #endif
 
         // sift_params.fv_centers must be placed on device since array passed to cuda kernel

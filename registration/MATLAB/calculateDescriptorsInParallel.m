@@ -8,7 +8,7 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
     run_num_list_size = length(run_num_list);
     desc_size = regparams.ROWS_DESC * regparams.COLS_DESC;
     max_jobs  = run_num_list_size * desc_size;
-    cuda=false;
+    cuda=true;
 
     arg_list = {};
     postfix_list = {};

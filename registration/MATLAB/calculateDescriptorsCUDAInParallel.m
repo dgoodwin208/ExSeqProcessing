@@ -22,7 +22,7 @@ function success_code = calculateDescriptorsInParallel(run_num_list)
     postfix_list = {};
     for job_idx = 1:max_jobs
         [run_num, target_idx] = getJobIds(run_num_list, job_idx, desc_size);
-        arg_list{end+1} = {run_num, target_idx, target_idx,cuda};
+        arg_list{end+1} = {run_num, target_idx, target_idx, cuda};
         postfix_list{end+1} = strcat(num2str(run_num), '-', num2str(target_idx));
     end
 

@@ -76,15 +76,15 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
 
                 if (!sift_params.skipDescriptor) {
                     // Initialize the ivec array
-                    const mwSize dims[2] = {(int) sift_params.descriptor_len, 1};
+                    const mwSize dims[2] = {1, (int) sift_params.descriptor_len};
                     if ((mxIvec = 
                             mxCreateNumericArray(1, dims,
-                                mxDOUBLE_CLASS, mxREAL)) == NULL)
+                                mxUINT8_CLASS, mxREAL)) == NULL)
                             return NULL;
 
                     ivec = (double *) mxGetData(mxIvec); 
                     for (int j = 0; j < sift_params.descriptor_len; j++) 
-                        ivec[j] = key->ivec[j];
+                        ivec[j] = (uint8_t) key->ivec[j];
 
                     // Copy the scale 
                     mxtScale = mxCreateDoubleScalar(key->tScale);
@@ -243,11 +243,17 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
 
-        if (x_substream_stride > sift_params.image_size0) 
-            mexErrMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "x_substream_stride can not excede the image x dimension size");
+        if (x_substream_stride > sift_params.image_size0) {
+            x_substream_stride = (int) (sift_params.image_size0 / stream_num);
+            x_substream_stride =  x_substream_stride < 20 ? 20 : x_substream_stride;
+            mexWarnMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "x_substream_stride can not excede the image x dimension size\n\tSwitched x_substream_stride");
+        }
 
-        if (y_substream_stride > (sift_params.image_size1 / num_gpus) )
-            mexErrMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_substream_stride can not excede the image y dimension size divided by number of GPUs");
+        if (y_substream_stride > (sift_params.image_size1 / num_gpus) ) {
+            y_substream_stride = (int) (sift_params.image_size1 / (num_gpus * stream_num));
+            y_substream_stride =  y_substream_stride < 20 ? 20 : y_substream_stride;
+            mexWarnMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_substream_stride can not excede the image ydimension size\n\tSwitched y_substream_stride");
+        }
 
         cudautils::Keypoint_store keystore;
 

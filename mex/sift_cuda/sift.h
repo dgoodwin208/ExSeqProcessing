@@ -202,8 +202,8 @@ class Sift : public cudautils::CudaTask {
                 const unsigned int z_size)
             : sub2ind(x_size, y_size, z_size) {
             size_t volume_size = x_size * y_size * z_size;
-            cudaSafeCall(cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable));
             cudaSafeCall(cudaHostAlloc(&h_map, volume_size * sizeof(int8_t), cudaHostAllocPortable));
+            cudaSafeCall(cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable));
             // keypoint
             cudaSafeCall(cudaHostAlloc(&keystore,
                     sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));

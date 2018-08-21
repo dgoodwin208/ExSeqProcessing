@@ -22,10 +22,10 @@ libcudautils.a: $(OBJS) $(CU_OBJS)
 	ar crs $@ $^
 
 .cu.o: $(CU_SRCS) $(HEADERS)
-	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -O0 -c -o $*.o $<
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -c -o $*.o $<
 
 .cpp.o: $(SRCS) $(HEADERS)
-	g++ $(CXXFLAGS) $(CPPFLAGS) -fPIC -c -O0 -o $@ $<
+	g++ $(CXXFLAGS) $(CPPFLAGS) -fPIC -c -o $@ $<
 
 clean:
 	@rm -f *.o *.a

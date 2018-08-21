@@ -32,10 +32,10 @@ function calculateDescriptors(run_num,varargin)
 %Load all the parameters per file
 % loadExperimentParams;
 loadParameters;
-if size(varargin,2) < 4
+if size(varargin,2) < 3
     error('ERROR: You must specify both a start and an end index and cuda parameter');
-elseif size(varargin,2)==4
-    start_idx = varargin{1}; end_idx = varargin{2}; cuda = varargin{4};
+elseif size(varargin,2)==3
+    start_idx = varargin{1}; end_idx = varargin{2}; cuda = varargin{3};
 else
     start_idx = 1; end_idx = regparams.COLS_DESC*regparams.ROWS_DESC;
 end

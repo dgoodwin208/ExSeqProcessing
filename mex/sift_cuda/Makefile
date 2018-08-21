@@ -36,11 +36,11 @@ $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
 	make -C $(CUDA_UTILS_DIR)
 
 %.o: %.cu $(CU_SRCS)
-	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -O2 -c -o $@ $<
+	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -c -o $@ $<
 	#nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -g -G -O0 -c -o $@ $<
 
 cmd_sift_cuda: $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a 
-	g++ -O2 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
+	g++ -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 	#g++ -fvar-tracking-assignments -g -O0 -o $@ $^ -L$(CUDA_LIB) -lcudart -lpthread
 
 #tests

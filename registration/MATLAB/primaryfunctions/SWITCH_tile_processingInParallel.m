@@ -48,13 +48,13 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
             img_blur = convnfft(img,h,'same',[],options);
         %end
         if ~isempty(res_vect) 
-            if cuda
-                keys_cell{i} = calculate_3DSIFT_cuda(img_blur, res_vect,skipDescriptor);
-            else
+            %if cuda
+                %keys_cell{i} = calculate_3DSIFT_cuda(img_blur, res_vect,skipDescriptor);
+            %else
+            %FIXME removed until SIFT is guaranteed stable with 20 rounds
                 keys_cell{i} = calculate_3DSIFT(img_blur, res_vect,skipDescriptor);
-            end
-        end
-    else
+            %end
+        else
             fprintf('WARNING: no keypoints found for blur size %i\n',blur_size);
             keys_cell{i} = [];
         end
