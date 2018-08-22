@@ -13,7 +13,7 @@ function makeMIPimages(inputFiles, outputFile)
     a_c = {};
     a_r = {};
     for i = 1:num_input
-        d = load3DTif_uint16(fullfile(inputFiles(i).folder,inputFiles(i).name));
+        d = load3DImage_uint16(fullfile(inputFiles(i).folder,inputFiles(i).name));
 
         if i == 1
             size_r = size(d,1);
