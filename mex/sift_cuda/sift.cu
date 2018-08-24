@@ -1131,19 +1131,19 @@ void Sift::runOnStream(
         
 #ifdef DEBUG_OUTPUT_MATRIX
 
-        printf("Print image\n");
-        cudaStreamSynchronize(stream_data->stream);
-        int sub_volume_size = x_sub_stride_ * y_sub_stride_ * z_stride_;
-        double* dbg_h_image = (double*) malloc(sizeof(double) * sub_volume_size);
-        cudaSafeCall(cudaMemcpy((void **) dbg_h_image, subdom_data->padded_image,
-                sizeof(double) * sub_volume_size,
-                cudaMemcpyDeviceToHost));
-        // print
-        for (int i=0; i < sub_volume_size; i++) {
-            if (dbg_h_image[i] != 0.0) {
-                printf("host image[%d]: %f\n", i, dbg_h_image[i]);
-            }
-        }
+        /*printf("Print image\n");*/
+        /*cudaStreamSynchronize(stream_data->stream);*/
+        /*int sub_volume_size = x_sub_stride_ * y_sub_stride_ * z_stride_;*/
+        /*double* dbg_h_image = (double*) malloc(sizeof(double) * sub_volume_size);*/
+        /*cudaSafeCall(cudaMemcpy((void **) dbg_h_image, subdom_data->padded_image,*/
+                /*sizeof(double) * sub_volume_size,*/
+                /*cudaMemcpyDeviceToHost));*/
+        /*// print*/
+        /*for (int i=0; i < sub_volume_size; i++) {*/
+            /*if (dbg_h_image[i] != 0.0) {*/
+                /*printf("host image[%d]: %f\n", i, dbg_h_image[i]);*/
+            /*}*/
+        /*}*/
 
 #endif
 

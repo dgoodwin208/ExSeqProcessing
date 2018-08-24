@@ -108,27 +108,17 @@ int main(int argc, char* argv[]) {
         const unsigned int y_sub_size = y_size / num_gpus;
         const unsigned int dw = 0;
 
-        const unsigned int dx = min(x_substream_stride, x_sub_size);
-        const unsigned int dy = min(y_substream_stride, y_sub_size);
-
-        logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={}",
-                x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw);
+        logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},x_substream_stride={},y_substream_stride={},dw={},# of streams={}",
+                x_size, y_size, z_size, x_sub_size, y_sub_size,
+                x_substream_stride, y_substream_stride, dw, stream_num);
 
         cudautils::Keypoint_store keystore;
         try {
 
             cudautils::sift_bridge( logger, x_size, y_size, z_size, x_sub_size,
-                    y_sub_size, dx, dy, dw, num_gpus, stream_num, &in_image[0],
-                    &in_map[0], sift_params, fv_centers, &keystore);
-
-
-            // print keystore 
-            for (int i=0; i < keystore.len; i++) {
-                cudautils::Keypoint key = keystore.buf[i];
-                for (int j=0; j < sift_params.descriptor_len; j++) {
-                    printf("%d:%.0f\n", i, key.ivec[j]);
-                }
-            }
+                    y_sub_size, x_substream_stride, y_substream_stride, dw,
+                    num_gpus, stream_num, &in_image[0], &in_map[0],
+                    sift_params, fv_centers, &keystore);
 
         } catch (...) {
             logger->error("Internal unknown error occurred during CUDA execution");
@@ -136,10 +126,18 @@ int main(int argc, char* argv[]) {
         }
 
         logger->info("save Keystore start");
-        std::ofstream fout(out_filename, std::ios::binary);
-        if (fout.is_open()) {
-            fout.write((char*) &keystore, sizeof(keystore));
-            fout.close();
+        FILE* pFile = fopen(out_filename.c_str(), "w");
+        if (pFile != NULL) {
+            // print keystore 
+            for (int i=0; i < keystore.len; i++) {
+                cudautils::Keypoint key = keystore.buf[i];
+                fprintf(pFile, "Keypoint:%d\n", i);
+                for (int j=0; j < sift_params.descriptor_len; j++) {
+                    fprintf(pFile, "\t%d: %d\n", j, (int) key.ivec[j]);
+                }
+            }
+
+            fclose(pFile);
         } else { 
             throw std::invalid_argument( "Unable to open output file");
         }

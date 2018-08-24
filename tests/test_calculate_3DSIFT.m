@@ -1,22 +1,24 @@
 
+sem_name = sprintf('/%s.gc',getenv('USER'));
+semaphore(sem_name,'open',1);
+ret = semaphore(sem_name,'getvalue');
+if ret ~= 1
+    semaphore(sem_name,'unlink');
+    semaphore(sem_name,'open',1);
+end
+
 %fn = fullfile('/mp/nas1/share/ExSEQ/ExSeqAutoFrameA1/3_normalization/exseqautoframea1_round006_ch03SHIFT.tif');
-fn = fullfile('/mp/nas1/share/ExSEQ/AutoSeq2/xy01/3_normalization/exseqauto-xy01_round001_ch01SHIFT.tif');
+%fn = fullfile('/mp/nas1/share/ExSEQ/AutoSeq2/xy01/3_normalization/exseqauto-xy01_round001_ch01SHIFT.tif');
+fn = fullfile('3_normalization/exseqauto-xy01-downsample_round001_ch01SHIFT.tif');
 img = load3DTif_uint16(fn);
-%img = 1:27;
-%img = reshape(img, 3,3,3);
-%keys = [2,2,2];
-%img = img(1:10, 1:10, 1:6);
 
-keys = [5,5,3];
 LoadParams;
-% saved keypoints for 2048 2048 141 image
-%load res_vect
+% saved keypoints for 1024 1024 126 image
+load res_vect
+keys = res_vect;
 
-% keypoint 9 is rejected
-%keys = res_vect(9, :)
-keys = [1, 1, 1];
-%keys = res_vect(1:10, :);
-%keys = res_vect;
+img = img(1:30, 1:90, 1:30);
+keys = [15,45,15];
 
 skipDescriptors = false;
 
@@ -24,7 +26,7 @@ tic
 sift_keys_cuda = calculate_3DSIFT_cuda(img, keys, skipDescriptors);
 cuda_time = toc;
 N = length(sift_keys_cuda);
-fprintf('Finished CUDA SIFT len %d\n', N);
+fprintf('Finished CUDA SIFT len %d in %.1f s\n', N, cuda_time);
 
 tic
 sift_keys = calculate_3DSIFT(img, keys, skipDescriptors);
@@ -81,14 +83,4 @@ fprintf('Run N=%d TwoPeak %d fv real\n\tPercent match: %.5f\n\tPercent error amo
     N, sift_params.TwoPeak_Flag, pmatch, rel_error, match, mismatch, mismatch_remove);
 fprintf('\tCuda time: %.1f Original time: %.1f Comparison: %.1f\n', cuda_time, orig_time, comparison);
 
-%load 3DSIFTkeys % loads old keys
-
-%assert(isequal(new_keys, keys))
-
-%start= 1;
-%for i=1:N
-    %keypts(i, 1) = start;
-    %start = start + 120;
-%end
-%keypts
-
+semaphore(sem_name,'unlink');

@@ -41,14 +41,14 @@ protected:
     void print_arr(T * arr, int N) {
         printf("print_arr\n");
         for (int i=0; i < N; i++) {
-            /*logger_->debug("\t[{}]={}", i, arr[i]);*/
-            printf("\t[%d]=%.5f\n", i, arr[i]);
+            logger_->debug("\t[{}]={}", i, arr[i]);
+            /*printf("\t[%d]=%.5f\n", i, arr[i]);*/
         }
     }
 
 };
 
-TEST_F(SiftTest, DISABLED_DotProductTest) {
+TEST_F(SiftTest, DotProductTest) {
     int cols = 3;
     double first[3] = {1,2,3};
     double *dfirst;
@@ -301,8 +301,6 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
             device_centers, &mag);
     cudaMemcpy(h_yy, yy, sizeof(double) * sift_params.fv_centers_len, cudaMemcpyDeviceToHost);
 
-    print_arr(h_yy, sift_params.fv_centers_len);
-
     // make sure yy's values are descending
     double max = h_yy[0];
     for (int i=1; i < sift_params.nFaces; i++) {
@@ -313,7 +311,7 @@ TEST_F(SiftTest, get_grad_ori_vectorTest) {
     free(fv_centers);
 }
 
-TEST_F(SiftTest, DISABLED_SiftBoundaryTest) {
+TEST_F(SiftTest, SiftBoundaryTest) {
 
     const unsigned int x_size = 10;
     const unsigned int y_size = 10;
@@ -380,7 +378,7 @@ TEST_F(SiftTest, DISABLED_SiftBoundaryTest) {
     free(fv_centers);
 }
 
-TEST_F(SiftTest, DISABLED_SiftSimpleTest) {
+TEST_F(SiftTest, SiftSimpleTest) {
 
     const unsigned int x_size = 10;
     const unsigned int y_size = 10;
@@ -431,11 +429,12 @@ TEST_F(SiftTest, DISABLED_SiftSimpleTest) {
 }
 
 // Check output with saved binary 
-TEST_F(SiftTest, DISABLED_CheckBinaryTest) {
+TEST_F(SiftTest, CheckBinaryTest) {
 
         std::string in_image_filename1("test_img.bin");
         std::string in_map_filename2("test_map.bin");
         std::string out_filename("gtest_output.bin");
+        // Compares to test_output.bin file in tests/
 
         unsigned int x_size, y_size, z_size, x_size1, y_size1, z_size1;
 
@@ -506,24 +505,27 @@ TEST_F(SiftTest, DISABLED_CheckBinaryTest) {
         cudautils::Keypoint_store keystore;
         ni->getKeystore(&keystore);
 
-        std::ofstream fout(out_filename, std::ios::binary);
-
-        for (int i=0; i < keystore.len; i++) {
-            cudautils::Keypoint key = keystore.buf[i];
-            for (int j=0; j < sift_params.descriptor_len; j++) {
-                printf("%d:%.1f\n", i, key.ivec[j]);
+        FILE* pFile = fopen(out_filename.c_str(), "w");
+        if (pFile != NULL) {
+            // print keystore 
+            for (int i=0; i < keystore.len; i++) {
+                cudautils::Keypoint key = keystore.buf[i];
+                fprintf(pFile, "Keypoint:%d\n", i);
+                for (int j=0; j < sift_params.descriptor_len; j++) {
+                    fprintf(pFile, "\t%d: %d\n", j, (int) key.ivec[j]);
+                }
             }
+            fclose(pFile);
+        } else { 
+            throw std::invalid_argument( "Unable to open output file\nMake sure `test_output.bin` is in current dir: tests/");
         }
-
-        fout.write((char*) &keystore, sizeof(keystore));
-        fout.close();
-
+ 
         ASSERT_EQ(system("diff test_output.bin gtest_output.bin"), 0);
         free(fv_centers);
 }
 
 // Disabled to speed up quick test runs
-TEST_F(SiftTest, DISABLED_SiftFullImageTest) {
+TEST_F(SiftTest, SiftFullImageTest) {
 
     const unsigned int x_size = 1024;
     const unsigned int y_size = 1024;

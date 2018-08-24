@@ -5,7 +5,7 @@ function [] = make_sift_binaries(img, map, image_size, sift_params, N)
     fwrite(f, image_size(1), 'uint32');
     fwrite(f, image_size(2), 'uint32');
     fwrite(f, image_size(3), 'uint32');
-    fwrite(f, double(map), 'double');
+    fwrite(f, int8(map), 'int8');
     fclose(f);
     fprintf('Saved test_map with %d real keypoints\n', N);
 
