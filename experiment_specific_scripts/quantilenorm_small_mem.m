@@ -244,9 +244,10 @@ function save_bin(filename,data)
 end
 
 function idx_gpu = selectGPU()
+    sem_name = sprintf('/%s.g',getenv('USER'));
     idx_gpu = 0;
     for i = 1:gpuDeviceCount
-        ret = semaphore(['/g' num2str(i)],'trywait');
+        ret = semaphore([sem_name num2str(i)],'trywait');
         if ret == 0
             idx_gpu = i;
             break
@@ -255,18 +256,20 @@ function idx_gpu = selectGPU()
 end
 
 function unselectGPU(idx_gpu)
-    ret = semaphore(['/g' num2str(idx_gpu)],'post');
+    sem_name = sprintf('/%s.g%d',getenv('USER'),idx_gpu);
+    ret = semaphore(sem_name,'post');
     if ret == -1
-        fprintf('unselect [/g%d] failed.\n',idx_gpu);
+        fprintf('unselect [%s] failed.\n',sem_name);
     end
 end
 
 function ret = selectCore(num_core_sem)
+    sem_name = sprintf('/%s.c%d',getenv('USER'),num_core_num);
     count = 1;
     while true
-        ret = semaphore(['/c' num2str(num_core_sem)],'trywait');
+        ret = semaphore(sem_name,'trywait');
         if ret == 0
-            fprintf('selectCore[/c%d count=%d]\n',num_core_sem,count);
+            fprintf('selectCore[%s count=%d]\n',sem_name,count);
             break
         end
         count = count + 1;
@@ -275,16 +278,18 @@ function ret = selectCore(num_core_sem)
 end
 
 function ret = selectCoreNoblock(num_core_sem)
-    ret = semaphore(['/c' num2str(num_core_sem)],'trywait');
+    sem_name = sprintf('/%s.c%d',getenv('USER'),num_core_num);
+    ret = semaphore(sem_name,'trywait');
     if ret == 0
-        fprintf('selectCoreNoblock[/c%d]\n',num_core_sem);
+        fprintf('selectCoreNoblock[%s]\n',sem_name);
     end
 end
 
 function unselectCore(num_core_sem)
-    ret = semaphore(['/c' num2str(num_core_sem)],'post');
+    sem_name = sprintf('/%s.c%d',getenv('USER'),num_core_num);
+    ret = semaphore(sem_name,'post');
     if ret == -1
-        fprintf('unselect [/c%d] failed.\n',num_core_sem);
+        fprintf('unselect [%s] failed.\n',sem_name);
     end
 end
 

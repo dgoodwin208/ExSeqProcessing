@@ -1,2 +1,7 @@
-sift_cuda
+cmd_sift_cuda
 tests/gtest_sift
+!fv_centers.bin
+!tests/fv_centers.bin
+!tests/test_img.bin
+!tests/test_map.bin
+!tests/test_output.bin

@@ -9,6 +9,7 @@
 #include <tuple>
 #include <random>
 #include <iostream>
+#include <cstdlib>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -87,9 +88,11 @@ protected:
         // overwritten for TEST
         gpu_mem_total_ = 700000; // = 680K
 
+        std::string user_name = std::getenv("USER");
+
         mode_t old_umask = umask(0);
         for (size_t i = 0; i < num_gpus_; i++) {
-            std::string sem_name = "/g" + std::to_string(i);
+            std::string sem_name = "/" + user_name + ".g" + std::to_string(i);
             sem_unlink(sem_name.c_str());
             sem_open(sem_name.c_str(), O_CREAT|O_RDWR, 0777, 1);
         }
@@ -133,8 +136,9 @@ protected:
         remove("img_2.h5");
         remove("img_3.h5");
 
+        std::string user_name = std::getenv("USER");
         for (size_t i = 0; i < num_gpus_; i++) {
-            std::string sem_name = "/g" + std::to_string(i);
+            std::string sem_name = "/" + user_name + ".g" + std::to_string(i);
             sem_unlink(sem_name.c_str());
         }
     }

@@ -5,6 +5,8 @@
 #include <random>
 #include <thread>
 #include <future>
+#include <string>
+#include <cstdlib>
 #include <semaphore.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -25,14 +27,17 @@ class RadixSortGPUStressTest : public ::testing::Test {
 protected:
     std::vector<unsigned int> keys_;
     std::vector<double> values_;
+    std::string user_name_;
     std::shared_ptr<spdlog::logger> logger_;
 
     RadixSortGPUStressTest() {
         logger_ = spdlog::basic_logger_mt("mex_logger", "mex.log");
 
+        user_name_ = std::getenv("USER");
+
         mode_t old_umask = umask(0);
         for (size_t i = 0; i < GPU_NUM; i++) {
-            std::string sem_name = "/g" + std::to_string(i);
+            std::string sem_name = "/" + user_name_ + ".g" + std::to_string(i);
             sem_unlink(sem_name.c_str());
             sem_open(sem_name.c_str(), O_CREAT|O_RDWR, 0777, 1);
         }
@@ -46,7 +51,7 @@ protected:
     }
     virtual ~RadixSortGPUStressTest() {
         for (size_t i = 0; i < GPU_NUM; i++) {
-            std::string sem_name = "/g" + std::to_string(i);
+            std::string sem_name = "/" + user_name_ + ".g" + std::to_string(i);
             sem_unlink(sem_name.c_str());
         }
     }
@@ -55,7 +60,7 @@ protected:
     selectGPU(const std::string& target) {
         int idx_gpu = -1;
         for (size_t i = 0; i < GPU_NUM; i++) {
-            std::string sem_name = "/g" + std::to_string(i);
+            std::string sem_name = "/" + user_name_ + ".g" + std::to_string(i);
             sem_t *sem;
             sem = sem_open(sem_name.c_str(), O_RDWR);
             int ret = errno;
@@ -78,7 +83,7 @@ protected:
 
     void
     unselectGPU(const std::string& target, const int idx_gpu) {
-        std::string sem_name = "/g" + std::to_string(idx_gpu);
+        std::string sem_name = "/" + user_name_ + ".g" + std::to_string(idx_gpu);
         sem_t *sem;
         sem = sem_open(sem_name.c_str(), O_RDWR);
         int ret = errno;
@@ -102,9 +107,12 @@ public:
     radixSortThread(const std::string& target) {
         logger_->info("[{}] start", target);
 
+        size_t num_loops = 100;
+        logger_->info("[{}] num_loops={}", target, num_loops);
+
         int ret;
         auto interval_sec = std::chrono::seconds(1);
-        while (1) {
+        for (size_t i = 0; i < num_loops; i++) {
             int idx_gpu = selectGPU(target);
             if (idx_gpu >= 0) {
                 logger_->info("[{}] radixSort2FromData: idx_gpu = {}", target, idx_gpu);

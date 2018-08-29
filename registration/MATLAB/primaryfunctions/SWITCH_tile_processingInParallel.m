@@ -12,9 +12,10 @@
 % Date: August 2015
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
+function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
     
     loadParameters;
+    sem_name = sprintf('/%s.gc',getenv('USER'));
     options = {};
     options.Power2Flag = false;
     options.CastSingle = true;
@@ -29,13 +30,31 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor)
     for i = 1:length(blur_size_list)
         blur_size = blur_size_list(i);
         %Blurring is done inside the Harris keypoint detection code
-        res_vect = Harris3D(img, blur_size, options);
+        res_vect = Harris3D(img, blur_size, options, cuda);
+        save res_vect res_vect
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
-        img_blur = convnfft(img,h,'same',[],options);
+        %if cuda
+            %while true
+                %ret = semaphore(sem_name,'trywait');
+                %if ret == 0
+                    %break;
+                %else
+                    %pause(1);
+                %end
+            %end
+            %convn_cuda(...
+            %ret = semaphore(sem_name,'post');
+        %else
+            img_blur = convnfft(img,h,'same',[],options);
+        %end
         if ~isempty(res_vect) 
-            keys_cell{i} = calculate_3DSIFT_cuda(img_blur, res_vect,skipDescriptor);
-    else
+            if cuda
+                keys_cell{i} = calculate_3DSIFT_cuda(img_blur, res_vect,skipDescriptor);
+            else
+                keys_cell{i} = calculate_3DSIFT(img_blur, res_vect,skipDescriptor);
+            end
+        else
             fprintf('WARNING: no keypoints found for blur size %i\n',blur_size);
             keys_cell{i} = [];
         end

@@ -1,6 +1,7 @@
 function apply3DTPSWarping(moving_run,do_downsample)
 
 loadParameters;
+sem_name = sprintf('/%s.gr',getenv('USER'));
 
 if do_downsample
     filename_root = sprintf('%s-downsample',params.FILE_BASENAME);
@@ -60,7 +61,7 @@ for c = 1:length(regparams.CHANNELS)
     toc;
     
     while true
-        ret = semaphore('/gr','trywait');
+        ret = semaphore(sem_name,'trywait');
         if ret == 0
             break;
         else
@@ -71,7 +72,7 @@ for c = 1:length(regparams.CHANNELS)
     [ outputImage_interp ] = TPS3DApplyCUDA(in1D_total,out1D_total,imgToWarp,img_total_size,data_channel);
     fprintf('transform image with 3DTPS in %s channel. ',data_channel);
     toc(t_tps3dapply);
-    ret = semaphore('/gr','post');
+    ret = semaphore(sem_name,'post');
 
     outputfile = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_registered.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
     save3DImage_uint16(outputImage_interp,outputfile);

@@ -10,8 +10,8 @@ function success_code = registerWithCorrespondencesInParallel(run_num_list)
     postfix_list = {};
     for run_num = run_num_list
         arg_list_1{end+1} = {run_num};
-        arg_list_2{end+1} = {run_num,true};
-        arg_list_3{end+1} = {run_num,false};
+        arg_list_2{end+1} = {run_num,false};
+        arg_list_3{end+1} = {run_num,true};
         postfix_list{end+1} = num2str(run_num);
     end
 

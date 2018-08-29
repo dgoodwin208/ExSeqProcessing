@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "radixsort.h"
+#include "gpudevice.h"
 
 #include "spdlog/spdlog.h"
 
@@ -56,22 +57,27 @@ TEST_F(RadixSortTest, GpuOutOfMemoryTest) {
     std::vector<unsigned int> keys;
     std::vector<double> values;
 
-    const size_t DATA_SIZE = 1024*1024*200;
+    const size_t SMALL_DATA_SIZE = 1024*1024*200;
 
     std::mt19937 mt(1);
-    for (size_t i = 0; i < DATA_SIZE; i++) {
+    for (size_t i = 0; i < SMALL_DATA_SIZE; i++) {
         keys.push_back(mt());
         values.push_back((double)i);
     }
 
     ASSERT_NO_THROW(cudautils::radixsort(keys, values));
 
-    keys.resize(DATA_SIZE * 5);
-    values.resize(DATA_SIZE * 5);
+    size_t gpu_total_size;
+    size_t gpu_free_size;
+    cudautils::get_gpu_mem_size(gpu_free_size, gpu_total_size);
+    size_t LARGE_DATA_SIZE = gpu_total_size / (sizeof(unsigned int) + sizeof(double)) * 0.5;
 
-    for (size_t i = 0; i < DATA_SIZE * 4; i++) {
+    keys.resize(LARGE_DATA_SIZE);
+    values.resize(LARGE_DATA_SIZE);
+
+    for (size_t i = 0; i < LARGE_DATA_SIZE * 4; i++) {
         keys.push_back(mt());
-        values.push_back((double)(i + DATA_SIZE * 4));
+        values.push_back((double)(i + LARGE_DATA_SIZE * 4));
     }
 
     EXPECT_THROW(cudautils::radixsort(keys, values), std::bad_alloc);

@@ -15,6 +15,8 @@
 
 function keys = calculate_3DSIFT_cuda(img, keypts,skipDescriptor)
 
+sem_name = sprintf('/%s.gc',getenv('USER'));
+semaphore(sem_name,'open',1); % it is no effective if the semaphore is already open
 
 %By default, we calculate the descriptor
 if nargin<3
@@ -24,7 +26,6 @@ end
 %we skip the calclation of the SIFT descriptor to save time
 
 LoadParams;
-save_mat = false;
 image_size = size(img);
 sift_params.image_size0 = image_size(1);
 sift_params.image_size1 = image_size(2);
@@ -39,28 +40,28 @@ assert(sift_params.fv_centers_len / 3 == sift_params.nFaces);
 
 sift_params.keypoint_num = size(keypts,1);
 N = size(keypts,1);
-fprintf('SIFT3D cuda processing %d keypoints\n', N);
-map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_size2);
+map = ones(sift_params.image_size0, sift_params.image_size1, sift_params.image_size2, 'int8');
 for i=1:N
-    map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = 0; % select the keypoint element
-end
-unique_N = nnz(~map);
-map = int8(map);
-
-if save_mat
-    fprintf('Save map with %d real keypoints\n', N);
-    f = fopen('map_2kypts.bin', 'w');
-    fwrite(f, map);
-    fclose(f);
-
-    fprintf('Save img \n');
-    f = fopen('img_2kypts.bin', 'w');
-    fwrite(f, img);
-    fclose(f);
+    map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = int8(0); % select the keypoint element
 end
 
+while true
+    ret = semaphore(sem_name,'trywait');
+    if ret == 0
+        break;
+    else
+        pause(1);
+    end
+end
+
+fprintf('Start SIFT3D cuda calculation\n', N);
+tic;
 keys = sift_cuda(img, map, sift_params);
-keys = num2cell(keys);
+stime = toc;
+fprintf('Finished SIFT3D cuda processing in %.1f s\n', stime);
 
+ret = semaphore(sem_name,'post');
+
+keys = num2cell(keys);
 
 return 

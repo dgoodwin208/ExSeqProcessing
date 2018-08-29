@@ -14,6 +14,7 @@
 
 #include "cuda_task.h"
 #include "sift_types.h"
+#include "error_helper.h"
 
 #include "spdlog/spdlog.h"
 
@@ -23,57 +24,6 @@
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
 //#define DEBUG_NO_THREADING
-
-// error handling code, derived from funcs in old cutil lib
-#define cudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
-#define cudaCheckError() __cudaCheckError(__FILE__, __LINE__)
-#define cudaCheckPtr(ptr) __cudaCheckPtr(ptr, __FILE__, __LINE__)
-
-__device__
-inline 
-void __cudaCheckPtr(void* ptr, const char* file, const int line)
-{
-    if (ptr == NULL) {
-        printf("Error: exiting all threads in %s at line %s", file, line );
-        asm("trap;");
-    }
-}
-
-inline void __cudaSafeCall(cudaError err, const char *file, const int line)
-{
-    if (cudaSuccess != err )
-    {  
-        fprintf( stderr, "cudaSafeCall() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString( err ) );
-        exit( -1 );
-    }
-    return;
-}
-
-inline void __cudaCheckError( const char *file, const int line)
-{
-    cudaError err = cudaGetLastError();
-    if (cudaSuccess != err) {
-        fprintf(stderr, "cudaCheckError() failed at %s:%i : %s\n",
-                file, line, cudaGetErrorString( err ) );
-        exit (-1);
-    }
-
-    // check for asynchronous errors during execution of kernel
-    // Warning this can sig. lower performance of code
-    // make sure this section is not executed in production binaries
-#ifdef DEBUG_OUTPUT
-    /*err = cudaDeviceSynchronize();*/
-    //if (cudaSuccess != err)
-    //{
-        //fprintf( stderr, "cudaCheckError() with sync failed at %s:%i : %s\n",
-                //file, line, cudaGetErrorString( err ) );
-        //exit( -1 );
-    //}
-#endif
-    
-    return;
-}
 
 
 namespace cudautils {
@@ -252,8 +202,8 @@ class Sift : public cudautils::CudaTask {
                 const unsigned int z_size)
             : sub2ind(x_size, y_size, z_size) {
             size_t volume_size = x_size * y_size * z_size;
-            cudaSafeCall(cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable));
             cudaSafeCall(cudaHostAlloc(&h_map, volume_size * sizeof(int8_t), cudaHostAllocPortable));
+            cudaSafeCall(cudaHostAlloc(&h_image, volume_size * sizeof(double), cudaHostAllocPortable));
             // keypoint
             cudaSafeCall(cudaHostAlloc(&keystore,
                     sizeof(cudautils::Keypoint_store), cudaHostAllocPortable));

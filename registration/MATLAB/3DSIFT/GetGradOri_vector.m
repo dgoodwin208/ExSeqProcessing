@@ -24,16 +24,16 @@ if s > slices
     s = slices;
 end
 
-%% Check if computed the gradient previously before
-%if (precomp_grads.count(r,c,s) > 0)
-    %precomp_grads.count(r,c,s) = precomp_grads.count(r,c,s) + 1; %increment counter
-    %% retrieve the data
-    %mag = precomp_grads.mag(r,c,s);
-    %vect = precomp_grads.vect(r,c,s, 1, 3);
-    %yy = precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1);
-    %ix = precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1);
-    %return
-%end
+% Check if computed the gradient previously before
+if (precomp_grads.count(r,c,s) > 0)
+    precomp_grads.count(r,c,s) = precomp_grads.count(r,c,s) + 1; %increment counter
+    % retrieve the data
+    mag = precomp_grads.mag(r,c,s);
+    vect = precomp_grads.vect(r,c,s, 1, 3);
+    yy = precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1);
+    ix = precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1);
+    return
+end
 
 if (c == 1)
     xgrad = 2.0 * (double(pix(r,c+1,s)) - double(pix(r,c,s)));

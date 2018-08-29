@@ -35,7 +35,7 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
 
     mxArray *mxKp;
     double xyScale, tScale;
-    double* ivec;
+    uint8_t* ivec;
     int xNum, yNum, zNum, tscaleNum, xyscaleNum, ivecNum;
 
     /* Keypoint struct information */
@@ -70,21 +70,21 @@ mxArray *kp2mx(cudautils::Keypoint_store * kp,
         for (int i = 0; i < numKp; i++) {
 
                 mxArray *x, *y, *z, *mxtScale, *mxxyScale, *mxIvec;
-                double *ivec;
+                uint8_t *ivec;
 
                 cudautils::Keypoint *const key = kp->buf + i;
 
                 if (!sift_params.skipDescriptor) {
                     // Initialize the ivec array
-                    const mwSize dims[2] = {(int) sift_params.descriptor_len, 1};
+                    const mwSize dims[2] = {1, (int) sift_params.descriptor_len};
                     if ((mxIvec = 
-                            mxCreateNumericArray(1, dims,
-                                mxDOUBLE_CLASS, mxREAL)) == NULL)
+                            mxCreateNumericArray(2, dims,
+                                mxUINT8_CLASS, mxREAL)) == NULL)
                             return NULL;
 
-                    ivec = (double *) mxGetData(mxIvec); 
+                    ivec = (uint8_t *) mxGetData(mxIvec); 
                     for (int j = 0; j < sift_params.descriptor_len; j++) 
-                        ivec[j] = key->ivec[j];
+                        ivec[j] = (uint8_t) key->ivec[j];
 
                     // Copy the scale 
                     mxtScale = mxCreateDoubleScalar(key->tScale);
@@ -243,12 +243,6 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         int num_gpus = cudautils::get_gpu_num();
         logger->info("# of gpus = {}", num_gpus);
 
-        if (x_substream_stride > sift_params.image_size0) 
-            mexErrMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "x_substream_stride can not excede the image x dimension size");
-
-        if (y_substream_stride > (sift_params.image_size1 / num_gpus) )
-            mexErrMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_substream_stride can not excede the image y dimension size divided by number of GPUs");
-
         cudautils::Keypoint_store keystore;
 
         double *in_image;
@@ -267,21 +261,31 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
         // size to assign each GPU
         unsigned int x_sub_size = x_size;
         unsigned int y_sub_size = (unsigned int) y_size / num_gpus;
+
         // stride must be <= GPU data size
-        unsigned int dx = std::min((unsigned int)x_substream_stride,
-                (unsigned int)x_sub_size);
-        unsigned int dy = std::min((unsigned int)y_substream_stride,
-                (unsigned int)y_sub_size);
+        if (x_substream_stride > x_sub_size) {
+            x_substream_stride =  x_sub_size;
+            stream_num = 1;
+            mexWarnMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "x_substream_stride can not excede the image x dimension size\n\tSwitched x_substream_stride");
+        }
+
+        if (y_substream_stride > y_sub_size ) {
+            y_substream_stride =  y_sub_size;
+            stream_num = 1;
+            mexWarnMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_substream_stride can not excede the image ydimension size / # of GPUs\n\tSwitched y_substream_stride");
+        }
+
         // padding not needed for SIFT
         const unsigned int dw = 0; //default: 0, pad width each side, each dim
 
-        logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
-                x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, stream_num);
+        logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},x_substream_stride={},y_substream_stride={}, dw={}, # of streams={}",
+                x_size, y_size, z_size, x_sub_size, y_sub_size,
+                x_substream_stride, y_substream_stride, dw, stream_num);
 
         try {
             cudautils::sift_bridge(
-                    logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx,
-                    dy, dw, num_gpus, stream_num, in_image, in_map,
+                    logger, x_size, y_size, z_size, x_sub_size, y_sub_size, x_substream_stride,
+                    y_substream_stride, dw, num_gpus, stream_num, in_image, in_map,
                     sift_params, fv_centers, &keystore);
 
         } catch (...) {

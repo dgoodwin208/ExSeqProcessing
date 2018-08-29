@@ -10,10 +10,9 @@
 #include <thrust/iterator/reverse_iterator.h>
 
 #include <cuda_runtime.h>
-/*#include <helper_cuda.h>*/
 #include <cmath>
-/*#include <numeric> //std::inner_product*/
 
+#include "math.h"
 #include "sift.h"
 #include "matrix_helper.h"
 #include "cuda_timer.h"
@@ -51,7 +50,7 @@ struct isnan_test {
 // this is why i, j, and k are dimensions of stride sift_params.IndexSize
 __forceinline__ __device__ 
 int bin_sub2ind_row(int i, int j, int k, uint16_t l, const cudautils::SiftParams sift_params) {
-    return (int) l + sift_params.nFaces * (k + j * pow(sift_params.IndexSize, 1) + i
+    return (int) l + sift_params.nFaces * (k + j * sift_params.IndexSize + i
             * pow(sift_params.IndexSize, 2));
 }
 
@@ -213,8 +212,9 @@ double get_grad_ori_vector(double* image, long long idx, unsigned int
 
 #ifdef DEBUG_NUMERICAL
     printf("ggov N%d fv_len%d DIMS%d idx%lld vect0 %.4f vect1 %.4f vect2 %.4f image[idx] %.4f r%d c%d t%d yy %.4f %.4f %.4f %.4f ix %d %d %d %d eq:%d diff:%.54f\n",
-        N, sift_params.fv_centers_len, DIMS, idx, vect[0], vect[1], vect[2], image[idx], r, c, t, yy[0], yy[1], yy[2], yy[3],
-        ix[0], ix[1], ix[2], ix[3], yy[2] == yy[3], yy[2] - yy[3]);
+        N, sift_params.fv_centers_len, DIMS, idx, vect[0], vect[1], vect[2],
+        image[idx], r, c, t, yy[0], yy[1], yy[2], yy[3], ix[0], ix[1], ix[2],
+        ix[3], yy[2] == yy[3], yy[2] - yy[3]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[0], device_centers[3 * ix[0]], device_centers[3 * ix[0] + 1], device_centers[3 * ix[0] + 2]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[1], device_centers[3 * ix[1]], device_centers[3 * ix[1] + 1], device_centers[3 * ix[1] + 2]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[2], device_centers[3 * ix[2]], device_centers[3 * ix[2] + 1], device_centers[3 * ix[2] + 2]);
@@ -228,10 +228,9 @@ void get_grad_ori_vector_wrap(double* image, long long idx, unsigned int
         x_stride, unsigned int y_stride, int r, int c, int t, double vect[3], double* yy, uint16_t* ix,
         const cudautils::SiftParams sift_params, double* device_centers, double* mag) {
 
-    *mag = cudautils::get_grad_ori_vector(thrust::raw_pointer_cast(&image[0]), 
-        idx, x_stride, y_stride, r, c, t, thrust::raw_pointer_cast(&vect[0]),
-        thrust::raw_pointer_cast(&yy[0]), thrust::raw_pointer_cast(&ix[0]),
-        sift_params, thrust::raw_pointer_cast(&device_centers[0]));
+    *mag = cudautils::get_grad_ori_vector(image, 
+        idx, x_stride, y_stride, r, c, t, vect,
+        yy, ix, sift_params, device_centers);
     return;
 }
 
@@ -498,11 +497,11 @@ void create_descriptor(
     z = padding_z - dw;
     
     uint16_t* ix = (uint16_t*) &(idx_scratch[thread_idx * sift_params.nFaces]);
-    cudaCheckPtr(ix);
+    cudaCheckPtrDevice(ix);
     thrust::sequence(thrust::device, ix, ix + sift_params.nFaces);
 
     double *yy = (double*) &(yy_scratch[thread_idx * sift_params.nFaces]);
-    cudaCheckPtr(yy);
+    cudaCheckPtrDevice(yy);
 
     if (sift_params.TwoPeak_Flag) {
         int radius = rint(sift_params.xyScale * 3.0);
@@ -510,12 +509,12 @@ void create_descriptor(
         // init ori hist indices
         int ori_hist_len = sift_params.nFaces; //default 80
         uint16_t* ori_hist_idx = &(ori_idx_scratch[ori_hist_len * thread_idx]);
-        cudaCheckPtr(ori_hist_idx);
+        cudaCheckPtrDevice(ori_hist_idx);
         thrust::sequence(thrust::device, ori_hist_idx, ori_hist_idx + ori_hist_len);
 
         //init ori histogram
         double* ori_hist = &(ori_scratch[ori_hist_len * thread_idx]);
-        cudaCheckPtr(ori_hist);
+        cudaCheckPtrDevice(ori_hist);
         memset(ori_hist, 0.0, ori_hist_len * sizeof(double));
 
         build_ori_hists(x, y, z, idx, x_stride, y_stride, radius, image,
@@ -1118,6 +1117,7 @@ void Sift::runOnStream(
 
 #ifdef DEBUG_OUTPUT
         logger_->debug("create_descriptor");
+        timer.reset();
 #endif
 
         // sift_params.fv_centers must be placed on device since array passed to cuda kernel
@@ -1131,19 +1131,19 @@ void Sift::runOnStream(
         
 #ifdef DEBUG_OUTPUT_MATRIX
 
-        printf("Print image\n");
-        cudaStreamSynchronize(stream_data->stream);
-        int sub_volume_size = x_sub_stride_ * y_sub_stride_ * z_stride_;
-        double* dbg_h_image = (double*) malloc(sizeof(double) * sub_volume_size);
-        cudaSafeCall(cudaMemcpy((void **) dbg_h_image, subdom_data->padded_image,
-                sizeof(double) * sub_volume_size,
-                cudaMemcpyDeviceToHost));
-        // print
-        for (int i=0; i < sub_volume_size; i++) {
-            if (dbg_h_image[i] != 0.0) {
-                printf("host image[%d]: %f\n", i, dbg_h_image[i]);
-            }
-        }
+        /*printf("Print image\n");*/
+        /*cudaStreamSynchronize(stream_data->stream);*/
+        /*int sub_volume_size = x_sub_stride_ * y_sub_stride_ * z_stride_;*/
+        /*double* dbg_h_image = (double*) malloc(sizeof(double) * sub_volume_size);*/
+        /*cudaSafeCall(cudaMemcpy((void **) dbg_h_image, subdom_data->padded_image,*/
+                /*sizeof(double) * sub_volume_size,*/
+                /*cudaMemcpyDeviceToHost));*/
+        /*// print*/
+        /*for (int i=0; i < sub_volume_size; i++) {*/
+            /*if (dbg_h_image[i] != 0.0) {*/
+                /*printf("host image[%d]: %f\n", i, dbg_h_image[i]);*/
+            /*}*/
+        /*}*/
 
 #endif
 

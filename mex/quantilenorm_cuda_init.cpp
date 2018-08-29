@@ -8,6 +8,8 @@
  *
  *=================================================================*/
 
+#include <string>
+#include <cstdlib>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -72,12 +74,14 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_init:notDouble","Input matrix must be type double.");
         }
 
+        std::string user_name = std::getenv("USER");
+
         const mxArray *gpu_ptr = prhs[0];
-        init_semaphores(gpu_ptr, "/g");
+        init_semaphores(gpu_ptr, "/" + user_name + ".g");
 
         if (nrhs == 2) {
             const mxArray *core_ptr = prhs[1];
-            init_semaphores(core_ptr, "/qn_c");
+            init_semaphores(core_ptr, "/" + user_name + ".qn_c");
         }
 
         logger->flush();

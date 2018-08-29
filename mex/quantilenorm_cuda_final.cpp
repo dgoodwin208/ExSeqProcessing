@@ -8,6 +8,8 @@
  *
  *=================================================================*/
 
+#include <string>
+#include <cstdlib>
 #include <semaphore.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -64,12 +66,14 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
             mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda_final:notScalar","Input must be type scalar.");
         }
 
+        std::string user_name = std::getenv("USER");
+
         int num_gpu_sem = (int)mxGetScalar(prhs[0]);
-        finalize_semaphores(num_gpu_sem, "/g");
+        finalize_semaphores(num_gpu_sem, "/" + user_name + ".g");
 
         if (nrhs == 2) {
             int num_core_sem = (int)mxGetScalar(prhs[1]);
-            finalize_semaphores(num_core_sem, "/qn_c");
+            finalize_semaphores(num_core_sem, "/" + user_name + ".qn_c");
         }
 
         logger->flush();

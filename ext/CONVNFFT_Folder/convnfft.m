@@ -22,7 +22,7 @@ function A = convnfft(A, B, shape, dims, options)
 %   C = CONVNFFT(..., SHAPE, DIMS, OPTIONS)
 %
 %   OPTIONS is structure with following optional fields
-%       - 'GPU', boolean. If GPU is TRUE Jacket/GPU FFT engine will be used
+%       - 'GPU', boolean. If GPU is TRUE GPU FFT engine will be used
 %       By default GPU is FALSE.
 %       - 'Power2Flag', boolean. If it is TRUE, use FFT with length rounded
 %       to the next power-two. It is faster but requires more memory.
@@ -73,8 +73,6 @@ dims = reshape(dims, 1, []); % row (needed for for-loop index)
 GPU = getoption(options, 'GPU', false);
 % cast to single flag
 CastSingle = getoption(options, 'CastSingle', false);
-% Check if Jacket is installed
-GPU = GPU && ~isempty(which('ginfo'));
 
 if CastSingle
     A = single(A);
@@ -121,17 +119,9 @@ else
     lfftfun = @(l) l;
 end
 
-if GPU % GPU/Jacket FFT
-    if strcmp(classA,'single')
-        A = gsingle(A);
-    else
-        A = gdouble(A);
-    end
-    if strcmp(classB,'single')
-        B = gsingle(B);
-    else
-        B = gdouble(B);
-    end
+if GPU % GPU FFT
+    A = gpuArray(A);
+    B = gpuArray(B);
     % Do the FFT
     subs(1:ndims(A)) = {':'};
     for dim=dims
@@ -177,7 +167,7 @@ else
 end
 
 % Back to the non-Fourier space
-if GPU % GPU/Jacket FFT
+if GPU % GPU FFT
     for dim=dims(end:-1:1) % reverse loop
         A = ifft(A,[]);
         % Swap back the dimensions
@@ -203,14 +193,10 @@ else
     A = A(subs{:});
 end
 
-% GPU/Jacket
+% GPU
 if GPU
     % Cast the type back
-    if strcmp(class(A),'gsingle')
-        A = single(A);
-    else
-        A = double(A);
-    end
+    A = gather(A);
 end
 
 if CastSingle
