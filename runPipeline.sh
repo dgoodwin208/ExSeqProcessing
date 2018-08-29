@@ -525,6 +525,7 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
     -e "s#\(params.transcriptResultsDir\) *= *.*;#\1 = '${TRANSCRIPT_DIR}';#" \
     -e "s#\(params.reportingDir\) *= *.*;#\1 = '${REPORTING_DIR}';#" \
+    -e "s#\(params.USEGPU\) *= *.*;#\1 = '${USE_GPUS}';#" \
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
     -e "s#\(params.REFERENCE_ROUND_WARP\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
