@@ -417,8 +417,8 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cudaMalloc(&kernel_data_on_gpu, size_of_data); cudaCheckPtr(kernel_data_on_gpu);
     cudaMalloc(&input_data_on_gpu_column, size_of_data); cudaCheckPtr(input_data_on_gpu_column);
     cudaMalloc(&kernel_data_on_gpu_column, size_of_data); cudaCheckPtr(kernel_data_on_gpu_column);
-    long long start = 0;
 
+    long long start = 0;
     long long blockSize = 32;
     long long gridSize;
     gridSize = (N_padded + blockSize - 1) / blockSize; // round up
@@ -458,9 +458,11 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
                     kernel_data_on_gpu + starts[i],
                     device_data_kernel->descriptor->size[deviceNum[i]],
                     cudaMemcpyDeviceToHost));
-        printf("start[%d]=%d, length:%d\n", i, starts[i],
-                device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex)); 
-        cufftutils::printHostData(host_data_input + starts[i], device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+        if (benchmark) {
+            printf("start[%d]=%d, length:%d\n", i, starts[i],
+                    device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex)); 
+            cufftutils::printHostData(host_data_input + starts[i], device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+        }
     }
 
     // Allocate data on multiple gpus using the cufft routines
@@ -566,6 +568,10 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cudaFree(devF);
     cudaFree(devI_column);
     cudaFree(devF_column);
+    cudaSafeCall(cudaFree(input_data_on_gpu));
+    cudaSafeCall(cudaFree(input_data_on_gpu_column));
+    cudaSafeCall(cudaFree(kernel_data_on_gpu));
+    cudaSafeCall(cudaFree(kernel_data_on_gpu_column));
 
     // Destroy FFT plan
     cufftSafeCall(cufftDestroy(plan_fft3));
@@ -578,6 +584,7 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
 TEST_F(ConvnCufftTest, InitializePadTestGPU) {
     int benchmark = 0;
     unsigned int size[3] = {31, 31, 5};
+    /*unsigned int size[3] = {1024, 1024, 126};*/
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = true;
     int N = size[0] * size[1] * size[2];
@@ -744,12 +751,20 @@ TEST_F(ConvnCufftTest, InitializePadTestGPU) {
     free(host_data_input);
     free(host_data_kernel);
 
+    cudaSafeCall(cudaFree(devI));
+    cudaSafeCall(cudaFree(devF));
+    cudaSafeCall(cudaFree(devI_column));
+    cudaSafeCall(cudaFree(devF_column));
+    cudaSafeCall(cudaFree(input_data_on_gpu));
+    cudaSafeCall(cudaFree(input_data_on_gpu_column));
+    cudaSafeCall(cudaFree(kernel_data_on_gpu));
+    cudaSafeCall(cudaFree(kernel_data_on_gpu_column));
 }
 
 TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     unsigned int size[3] = {1024, 1024, 126};
     unsigned int filterdimA[3] = {5, 5, 5};
-    int benchmark = 1;
+    int benchmark = 0;
     bool column_order = false;
     int algo = 1;
     float tol = .0001;
@@ -768,12 +783,12 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
-    /*unsigned int size[3] = {1024, 1024, 126};*/
-    /*unsigned int filterdimA[3] = {5, 5, 5};*/
-    unsigned int size[3] = {31, 31, 2};
-    unsigned int filterdimA[] = {2, 2, 2};
-    int benchmark = 0;
+TEST_F(ConvnCufftTest, ConvnFullImageTest) {
+    unsigned int size[3] = {1024, 1024, 126};
+    unsigned int filterdimA[3] = {5, 5, 5};
+    /*unsigned int size[3] = {31, 31, 2};*/
+    /*unsigned int filterdimA[] = {2, 2, 2};*/
+    int benchmark = 1;
     bool column_order = true;
     int algo = 1;
     float tol = .0001;
@@ -789,7 +804,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnFullImageTest) {
     cufftutils::conv_handler(data, kernel, data, algo, size,
             filterdimA, column_order, benchmark);
 
-    matrix_is_zero(data, size, column_order, benchmark, tol);
+    matrix_is_zero(data, size, column_order, 0, tol);
 }
 
 TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
@@ -799,7 +814,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
     float tol = .8;
     int algo = 0;
     bool column_order = false;
-    unsigned int size[3] = {50, 50, 5};
+    unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[] = {2, 2, 2};
     int filtersize = filterdimA[0]*filterdimA[1]*filterdimA[2];
     int insize = size[0]*size[1]*size[2];
