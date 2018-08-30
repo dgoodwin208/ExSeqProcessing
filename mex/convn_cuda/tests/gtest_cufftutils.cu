@@ -30,11 +30,11 @@ static void initImageVal(float* image, int imageSize, float val) {
 
 //Generate uniform numbers [0,1)
 static void initImage(float* image, int imageSize) {
-    static unsigned seed = 123456789;
+    /*static unsigned seed = 123456789;*/
     for (int index = 0; index < imageSize; index++) {
-        seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;
-        image[index] = float(seed)*2.3283064e-10; //2^-32
-        //image[index] = (float) index;
+        /*seed = ( 1103515245 * seed + 12345 ) & 0xffffffff;*/
+        /*image[index] = float(seed)*2.3283064e-10; //2^-32*/
+        image[index] = (float) index;
         //image[index] = (float) sin(index); //2^-32
         //printf("image(index) %.4f\n", image[index]);
     }
@@ -66,7 +66,7 @@ void matrix_is_equal_complex(cufftComplex* first, cufftComplex* second, unsigned
             for (int k = 0; k<size[2]; ++k) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
                 if (benchmark)
-                    printf("idx:%d\n", idx);
+                    printf("checking idx:%d...\n", idx);
                 ASSERT_NEAR(first[idx].x, second[idx].x, tol);
                 ASSERT_NEAR(first[idx].y, second[idx].y, tol);
             }
@@ -318,6 +318,7 @@ TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
 
 TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     int benchmark = 0;
+    // minimum acceptable size for cufft functions
     unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
@@ -333,16 +334,20 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     initImage(hostI, N);
     initImage(hostF, N_kernel);
 
-    /*if (benchmark) {*/
-        /*printf("\nhostI elements:%d\n", N);*/
-        /*for (long i = 0; i < N; i++)*/
-           /*printf("%f\n", hostI[i]);*/
-    /*}*/
-
+    // copy the matrices into column order for comparison
     if (benchmark)
         printf("Matrix conversions\n");
     cufftutils::convert_matrix(hostI, hostI_column, size, column_order);
     cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
+
+    if (benchmark) {
+        printf("\nhostF:%d\n", N_kernel);
+        for (int i = 0; i < N_kernel; i++)
+            printf("hostF[%d]=%.3f\n", i, hostF[i]);
+        printf("\nhostF_column:%d\n", N_kernel);
+        for (int i = 0; i < N_kernel; i++)
+            printf("hostF_column[%d]=%.3f\n", i, hostF_column[i]);
+    }
 
     unsigned int pad_size[3];
     int trim_idxs[3][2];
@@ -376,16 +381,6 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cudaSafeCall(cudaMemcpy(devI_column, hostI_column, float_size, cudaMemcpyHostToDevice));
     cudaSafeCall(cudaMemcpy(devF_column, hostF_column, kernel_float_size, cudaMemcpyHostToDevice));
 
-    /*if (benchmark) {*/
-        /*printf("\ndevI elements:%d\n", N);*/
-        /*float *h = (float *) malloc(float_size);*/
-        /*cudaMemcpy(h, devI, float_size, cudaMemcpyDeviceToHost);*/
-        /*for (long long i = 0; i < N; i++) {*/
-            /*printf("%f\n", h[i]);*/
-        /*}*/
-        /*free(h);*/
-    /*}*/
-
     int nGPUs;
     cudaGetDeviceCount(&nGPUs);
 
@@ -417,56 +412,55 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_input, CUFFT_XT_FORMAT_INPLACE));
     cufftSafeCall(cufftXtMalloc(plan_fft3, &device_data_kernel, CUFFT_XT_FORMAT_INPLACE));
 
-    // Initialize data from device to device LibXtDescriptor using cufftXt formatting
-    cudaStream_t streams[nGPUs];
+    cufftComplex *input_data_on_gpu, *kernel_data_on_gpu, *input_data_on_gpu_column, *kernel_data_on_gpu_column;
+    cudaMalloc(&input_data_on_gpu, size_of_data); cudaCheckPtr(input_data_on_gpu);
+    cudaMalloc(&kernel_data_on_gpu, size_of_data); cudaCheckPtr(kernel_data_on_gpu);
+    cudaMalloc(&input_data_on_gpu_column, size_of_data); cudaCheckPtr(input_data_on_gpu_column);
+    cudaMalloc(&kernel_data_on_gpu_column, size_of_data); cudaCheckPtr(kernel_data_on_gpu_column);
     long long start = 0;
+
     long long blockSize = 32;
     long long gridSize;
+    gridSize = (N_padded + blockSize - 1) / blockSize; // round up
+    ASSERT_GE(gridSize * blockSize, N_padded);
+    if (benchmark)
+        printf("N_padded: %lld, gridSize: %d\n", N_padded, gridSize);
+
+    cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize>>>(devI, devF, input_data_on_gpu, 
+            kernel_data_on_gpu, N_padded, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
+    cudaCheckError();
+
+    cudaSafeCall(cudaDeviceSynchronize());
+
+    // Initialize data from device to device LibXtDescriptor using cufftXt formatting
     int starts[nGPUs];
-    cufftComplex *input_data_on_gpu, *kernel_data_on_gpu;
     cufftComplex *host_data_input = (cufftComplex *) malloc(size_of_data);
     cudaCheckPtr(host_data_input);
     cufftComplex *host_data_kernel = (cufftComplex *) malloc(size_of_data);
     cudaCheckPtr(host_data_kernel);
     for (int i = 0; i<nGPUs; ++i){
-        cudaSafeCall(cudaSetDevice(deviceNum[i]));
-        cudaStream_t current_stream = streams[i];
-        cudaSafeCall(cudaStreamCreateWithFlags(&current_stream,
-                    cudaStreamNonBlocking));
 
-        input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
-        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
-        // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
         long long size_device = long(device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+        long long size_device_kernel = long(device_data_kernel->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
+        ASSERT_EQ(size_device_kernel, size_device);
 
-        gridSize = (size_device + blockSize - 1) / blockSize; // round up
-        ASSERT_GE(gridSize * blockSize, size_device);
-        if (benchmark)
-            printf("size_device: %lld, gridSize: %d, start: %d\n", size_device, gridSize, start);
-
-        cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize, 0, current_stream>>>(devI, devF, input_data_on_gpu, 
-                kernel_data_on_gpu, size_device, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
-                pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
-        cudaCheckError();
         starts[i] = start;
         start += size_device;
     }
     ASSERT_EQ(start, N_padded);
 
-    // Synchronize GPUs
-    for (int i = 0; i<nGPUs; ++i){
-        cudaSafeCall(cudaSetDevice(deviceNum[i]));
-        cudaSafeCall(cudaDeviceSynchronize());
-        // Copy the data from 'host' to device using cufftXt formatting
-        input_data_on_gpu = (cufftComplex*) (device_data_input->descriptor->data[deviceNum[i]]);
-        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel->descriptor->data[deviceNum[i]]);
-        cudaSafeCall(cudaMemcpy(host_data_input+ starts[i], input_data_on_gpu,
+    for (int i = 0; i<nGPUs; ++i) {
+        cudaSafeCall(cudaMemcpy(host_data_input + starts[i], input_data_on_gpu + starts[i],
                     device_data_input->descriptor->size[deviceNum[i]],
                     cudaMemcpyDeviceToHost));
-        cudaSafeCall(cudaMemcpy(host_data_kernel+ starts[i],
-                    kernel_data_on_gpu,
+        cudaSafeCall(cudaMemcpy(host_data_kernel + starts[i],
+                    kernel_data_on_gpu + starts[i],
                     device_data_kernel->descriptor->size[deviceNum[i]],
                     cudaMemcpyDeviceToHost));
+        printf("start[%d]=%d, length:%d\n", i, starts[i],
+                device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex)); 
+        cufftutils::printHostData(host_data_input + starts[i], device_data_input->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
     }
 
     // Allocate data on multiple gpus using the cufft routines
@@ -481,26 +475,20 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cudaCheckPtr(host_data_input_column);
     cufftComplex *host_data_kernel_column = (cufftComplex *)malloc(size_of_data);
     cudaCheckPtr(host_data_kernel_column);
-    for (int i = 0; i<nGPUs; ++i){
-        cudaSafeCall(cudaSetDevice(deviceNum[i]));
-        cudaStream_t current_stream = streams[i];
-        cudaSafeCall(cudaStreamCreateWithFlags(&current_stream,
-                    cudaStreamNonBlocking));
 
-        input_data_on_gpu = (cufftComplex*) (device_data_input_column->descriptor->data[deviceNum[i]]);
-        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel_column->descriptor->data[deviceNum[i]]);
-        // multiply, scale both arrays, keep product inplace on device_data_input cudaLibXtDesc
+    cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize>>>(devI_column, devF_column, input_data_on_gpu_column, 
+            kernel_data_on_gpu_column, N_padded, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], !column_order, benchmark);
+    cudaCheckError();
+
+    cudaSafeCall(cudaDeviceSynchronize());
+
+    for (int i = 0; i<nGPUs; ++i){
         long long size_device = long(device_data_input_column->descriptor->size[deviceNum[i]] / sizeof(cufftComplex));
 
-        gridSize = (size_device + blockSize - 1) / blockSize; // round up
         ASSERT_GE(gridSize * blockSize, size_device);
         if (benchmark)
             printf("size_device: %lld, gridSize: %d, start: %d\n", size_device, gridSize, start);
-
-        cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize, 0, current_stream>>>(devI_column, devF_column, input_data_on_gpu, 
-                kernel_data_on_gpu, size_device, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
-                pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], !column_order, benchmark);
-        cudaCheckError();
 
         starts[i] = start;
         start += size_device;
@@ -512,34 +500,29 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
 
     // Synchronize GPUs for column
     for (int i = 0; i<nGPUs; ++i){
-        cudaSafeCall(cudaSetDevice(deviceNum[i]));
-        cudaSafeCall(cudaDeviceSynchronize());
-        input_data_on_gpu = (cufftComplex*) (device_data_input_column->descriptor->data[deviceNum[i]]);
-        kernel_data_on_gpu = (cufftComplex*) (device_data_kernel_column->descriptor->data[deviceNum[i]]);
-        // Copy the data from 'host' to device using cufftXt formatting
-        cudaSafeCall(cudaMemcpy(host_data_input_column + starts[i], input_data_on_gpu, device_data_input_column->descriptor->size[deviceNum[i]], cudaMemcpyDeviceToHost));
-        cudaSafeCall(cudaMemcpy(host_data_kernel_column + starts[i], kernel_data_on_gpu, device_data_kernel_column->descriptor->size[deviceNum[i]], cudaMemcpyDeviceToHost));
+        cudaSafeCall(cudaMemcpy(host_data_input_column + starts[i], input_data_on_gpu_column + starts[i], device_data_input_column->descriptor->size[deviceNum[i]], cudaMemcpyDeviceToHost));
+        cudaSafeCall(cudaMemcpy(host_data_kernel_column + starts[i], kernel_data_on_gpu_column + starts[i], device_data_kernel_column->descriptor->size[deviceNum[i]], cudaMemcpyDeviceToHost));
     }
 
     if (benchmark) {
+        /*printf("\nhost_data_input elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_input, N_padded);*/
         printf("\nhost_data_input elements:%d\n", N_padded);
         cufftutils::printHostData(host_data_input, N_padded);
-        printf("\nhost_data_kernel elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_kernel, N_padded);
 
-        printf("\nhost_data_input_column elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_input_column, N_padded);
-        printf("\nhost_data_kernel_column elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_kernel_column, N_padded);
+        /*printf("\nhost_data_input_column elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_input_column, N_padded);*/
+        /*printf("\nhost_data_kernel_column elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_kernel_column, N_padded);*/
     }
 
     // Check that initialize inputs put both row and column ordered matrix into c-order
     matrix_is_equal_complex(host_data_input, host_data_input_column, size, 
-            column_order, benchmark, 0.0); //tol=0.0 means exactly equal
+            column_order, 0, 0.0); //tol=0.0 means exactly equal
     matrix_is_equal_complex(host_data_kernel, host_data_kernel_column, size, 
-            column_order, benchmark, 0.0);
+            column_order, 0, 0.0);
 
-    // test padding is correct for c-order
+    /*// test padding is correct for c-order*/
     long long idx;
     long long pad_idx;
     long long idx_filter;
@@ -547,12 +530,13 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
         for (int j = 0; j<pad_size[1]; ++j) {
             for (int k = 0; k<pad_size[2]; ++k) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
-                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
                 idx_filter = cufftutils::convert_idx(i, j, k, filterdimA, column_order);
+                // we always place into c-order for processing in initialize_inputs_1GPU
+                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
 
                 if (benchmark) {
-                    printf("pad_idx=%d idx=%d (%d %d %d) %d | ",
-                            pad_idx, idx, i, j, k, (int) host_data_input[pad_idx].x);
+                    printf("pad_idx=%lld idx=%lld idx_filter=%lld (%d %d %d) | ",
+                            pad_idx, idx, idx_filter, i, j, k);
                 }
 
                 if ((i < size[0]) && (j < size[1]) && (k < size[2]) ) {
@@ -568,12 +552,12 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
                     ASSERT_EQ(host_data_kernel[pad_idx].x, 0.0f);
                 }
                 ASSERT_EQ(host_data_kernel[pad_idx].y, 0.0f);
-
             }
             if (benchmark)
                 printf("\n");
         }
     }
+
     delete[] hostI;
     delete[] hostF;
     free(host_data_input);
@@ -591,12 +575,11 @@ TEST_F(ConvnCufftTest, DeviceInitInputsTest) {
     cufftSafeCall(cufftXtFree(device_data_kernel));
 }
 
-TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
+TEST_F(ConvnCufftTest, InitializePadTestGPU) {
     int benchmark = 0;
-    //int size[3] = {2, 2, 3};
-    unsigned int size[3] = {50, 50, 5};
+    unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
-    bool column_order = false;
+    bool column_order = true;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     
@@ -604,7 +587,6 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     float* hostF = new float[N_kernel]; 
     float* hostI_column = new float[N]; 
     float* hostF_column = new float[N_kernel]; 
-
 
     // Create two random images
     initImage(hostI, N);
@@ -615,15 +597,19 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     cufftutils::convert_matrix(hostI, hostI_column, size, column_order);
     cufftutils::convert_matrix(hostF, hostF_column, filterdimA, column_order);
 
+    if (benchmark) {
+        printf("\nhostI:%d\n", N);
+        for (int i = 0; i < N; i++)
+            printf("hostI[%d]=%.3f\n", i, hostI[i]);
+        printf("\nhostI_column:%d\n", N);
+        for (int i = 0; i < N; i++)
+            printf("hostI_column[%d]=%.3f\n", i, hostI_column[i]);
+    }
+
+
     unsigned int pad_size[3];
     int trim_idxs[3][2];
     cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
-
-    // test pad size and trim
-    for (int i=0; i < 3; i++) {
-        // check for mem alloc issues
-        ASSERT_EQ((trim_idxs[i][1] - trim_idxs[i][0]), size[i] ) ;
-    }
 
     if (benchmark) {
         printf("size %d, %d, %d\n", size[0], size[1], size[2]);
@@ -633,36 +619,90 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
     }
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
+    long long float_size = N* sizeof(float);
+    long long kernel_float_size = N_kernel* sizeof(float);
 
-    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    cufftComplex *host_data_input_column = (cufftComplex *)malloc(size_of_data);
-    cufftComplex *host_data_kernel_column = (cufftComplex *)malloc(size_of_data);
+    if (benchmark)
+        printf("cudaMalloc\n");
+    float* devI, *devF, *devI_column, *devF_column;
+    cudaMalloc(&devI, float_size); cudaCheckPtr(devI);
+    cudaMalloc(&devF, kernel_float_size); cudaCheckPtr(devF);
 
-    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel,
-            size, pad_size, filterdimA, column_order);
+    cudaMalloc(&devI_column, float_size); cudaCheckPtr(devI_column);
+    cudaMalloc(&devF_column, kernel_float_size); cudaCheckPtr(devF_column);
+
+    if (benchmark)
+        printf("cudaMemcpy\n");
+    // Copy the data from 'host' to device using cufftXt formatting
+    cudaSafeCall(cudaMemcpy(devI, hostI, float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devF, hostF, kernel_float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devI_column, hostI_column, float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devF_column, hostF_column, kernel_float_size, cudaMemcpyHostToDevice));
+
+    cufftComplex *input_data_on_gpu, *kernel_data_on_gpu, *input_data_on_gpu_column, *kernel_data_on_gpu_column;
+    cudaMalloc(&input_data_on_gpu, size_of_data); cudaCheckPtr(input_data_on_gpu);
+    cudaMalloc(&kernel_data_on_gpu, size_of_data); cudaCheckPtr(kernel_data_on_gpu);
+    cudaMalloc(&input_data_on_gpu_column, size_of_data); cudaCheckPtr(input_data_on_gpu_column);
+    cudaMalloc(&kernel_data_on_gpu_column, size_of_data); cudaCheckPtr(kernel_data_on_gpu_column);
+    long long start = 0;
+
+    long long blockSize = 32;
+    long long gridSize;
+    gridSize = (N_padded + blockSize - 1) / blockSize; // round up
+    ASSERT_GE(gridSize * blockSize, N_padded);
+    if (benchmark)
+        printf("N_padded: %lld, gridSize: %d\n", N_padded, gridSize);
+
+    cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize>>>(devI, devF, input_data_on_gpu, 
+            kernel_data_on_gpu, N_padded, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], column_order, benchmark);
+    cudaCheckError();
+
+    cudaSafeCall(cudaDeviceSynchronize());
 
     //passing column order should still output c-order data
-    cufftutils::initialize_inputs(hostI_column, hostF_column, host_data_input_column,
-            host_data_kernel_column, size, pad_size, filterdimA, !column_order);
+    cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize>>>(devI_column, devF_column, input_data_on_gpu_column, 
+            kernel_data_on_gpu_column, N_padded, start, size[0], size[1], size[2], pad_size[0], pad_size[1], 
+            pad_size[2], filterdimA[0], filterdimA[1], filterdimA[2], !column_order, benchmark);
+    cudaCheckError();
+
+    cudaSafeCall(cudaDeviceSynchronize());
+
+    cufftComplex *host_data_input = (cufftComplex *) malloc(size_of_data);
+    cudaCheckPtr(host_data_input);
+    cufftComplex *host_data_input_column = (cufftComplex *) malloc(size_of_data);
+    cudaCheckPtr(host_data_input_column);
+    cufftComplex *host_data_kernel = (cufftComplex *) malloc(size_of_data);
+    cudaCheckPtr(host_data_kernel);
+    cufftComplex *host_data_kernel_column = (cufftComplex *) malloc(size_of_data);
+    cudaCheckPtr(host_data_kernel_column);
+
+    cudaSafeCall(cudaMemcpy(host_data_input, input_data_on_gpu,
+                size_of_data, cudaMemcpyDeviceToHost));
+    cudaSafeCall(cudaMemcpy(host_data_input_column, input_data_on_gpu_column,
+                size_of_data, cudaMemcpyDeviceToHost));
+    cudaSafeCall(cudaMemcpy(host_data_kernel, kernel_data_on_gpu,
+                size_of_data, cudaMemcpyDeviceToHost));
+    cudaSafeCall(cudaMemcpy(host_data_kernel_column, kernel_data_on_gpu_column,
+                size_of_data, cudaMemcpyDeviceToHost));
 
     if (benchmark) {
         printf("\nhost_data_input elements:%d\n", N_padded);
         cufftutils::printHostData(host_data_input, N_padded);
-        printf("\nhost_data_kernel elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_kernel, N_padded);
+        /*printf("\nhost_data_kernel elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_kernel, N_padded);*/
 
-        printf("\nhost_data_input_column elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_input_column, N_padded);
-        printf("\nhost_data_kernel_column elements:%d\n", N_padded);
-        cufftutils::printHostData(host_data_kernel_column, N_padded);
+        /*printf("\nhost_data_input_column elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_input_column, N_padded);*/
+        /*printf("\nhost_data_kernel_column elements:%d\n", N_padded);*/
+        /*cufftutils::printHostData(host_data_kernel_column, N_padded);*/
     }
 
     // Check that initialize inputs put both row and column ordered matrix into c-order
     matrix_is_equal_complex(host_data_input, host_data_input_column, size, 
-            column_order, benchmark, 0.0);
-    matrix_is_equal_complex(host_data_kernel, host_data_kernel, size, 
-            column_order, benchmark, 0.0);
+            column_order, 0, 0.0);
+    matrix_is_equal_complex(host_data_kernel, host_data_kernel_column, size, 
+            column_order, 0, 0.0);
 
     // test padding is correct for c-order
     long long idx;
@@ -672,11 +712,11 @@ TEST_F(ConvnCufftTest, DISABLED_InitializePadTest) {
         for (int j = 0; j<pad_size[1]; ++j) {
             for (int k = 0; k<pad_size[2]; ++k) {
                 idx = cufftutils::convert_idx(i, j, k, size, column_order);
-                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, column_order);
                 idx_filter = cufftutils::convert_idx(i, j, k, filterdimA, column_order);
+                pad_idx = cufftutils::convert_idx(i, j, k, pad_size, false);
 
                 if (benchmark) {
-                    printf("pad_idx=%d idx=%d (%d %d %d) %d | ",
+                    printf("pad_idx=%d idx=%d (%d %d %d) %.3f | ",
                             pad_idx, idx, i, j, k, (int) host_data_input[pad_idx].x);
                 }
 

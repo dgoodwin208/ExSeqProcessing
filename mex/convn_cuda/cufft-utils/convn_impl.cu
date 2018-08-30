@@ -56,7 +56,7 @@ void pwProd(cufftComplex *signal1, int size1, cufftComplex *signal2) {
 void printHostData(cufftComplex *a, int size) {
 
   for (int i = 0; i < size; i++)
-    printf("%.1f %.1f\n", a[i].x, a[i].y);
+    printf("[%d]=%.3f %.3f\n", i, a[i].x, a[i].y);
 }
 
 
@@ -300,16 +300,19 @@ void ind2sub(const unsigned int x_stride, const unsigned int y_stride, const uns
 
     y = i / x_stride;
     x = i - y * x_stride;
-    //// column-major order since image is from matlab
-    //int x, y, z;
-    //x = idx % sift_params.image_size0;
-    //y = (idx - x)/sift_params.image_size0 % sift_params.image_size1;
-    //z = ((idx - x)/sift_params.image_size0 - y)/sift_params.image_size1;
+}
+
+// column-major order since image is from matlab
+__forceinline__ __device__
+void ind2sub_col(const unsigned int x_stride, const unsigned int y_stride, const unsigned long long idx, unsigned int& x, unsigned int& y, unsigned int& z) {
+    x = idx % x_stride;
+    y = (idx - x)/x_stride % y_stride;
+    z = ((idx - x)/x_stride - y)/y_stride;
 }
 
 __global__
-void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
-        host_data_input[], cufftComplex host_data_kernel[], long long size_device, long
+void initialize_inputs_1GPU(float* src_img, float* src_flt, cufftComplex
+        dst_img[], cufftComplex dst_flt[], long long size_device, long
         long start, unsigned int size0, unsigned int size1, unsigned int size2,
         unsigned int pad_size0, unsigned int pad_size1, unsigned int pad_size2,
         unsigned int filterdimA0, unsigned int filterdimA1, unsigned int
@@ -321,40 +324,44 @@ void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
 
     // identify corresponding index
     unsigned int i, j, k;
-    ind2sub(pad_size0, pad_size1, pad_image_idx, i, j, k);
+    ind2sub_col(pad_size0, pad_size1, pad_image_idx, i, j, k);
 
     // Place in matrix padded to 0
     long long idx;
     long long idx_filter;
     long long pad_idx;
-    if ((i < pad_size0) && (j < pad_size1) && ( k < pad_size2)) { 
+    if ((i < pad_size0) && (j < pad_size1) && (k < pad_size2)) { 
 
         idx = convert_idx_gpu(i, j, k, size0, size1, size2, column_order);
         idx_filter = convert_idx_gpu(i, j, k, filterdimA0, filterdimA1, filterdimA2, column_order);
         // always place into c-order for cuda processing, revert in trim_pad()
         pad_idx = convert_idx_gpu(i, j, k, pad_size0, pad_size1, pad_size2, false); 
-        if (benchmark) {
-            printf("pad_image_idx:%lld %d,%d,%d idx:%lld, idx_filter:%lld, pad_idx:%lld, colord:%d\n", 
-                    pad_image_idx, i, j, k, idx, idx_filter, pad_idx, column_order);
-        }
 
         if ((i < filterdimA0) && (j < filterdimA1) && (k < filterdimA2)) {
-            host_data_kernel[pad_idx].x = hostF[idx_filter];
+            dst_flt[pad_idx].x = src_flt[idx_filter];
+            /*if (benchmark) {*/
+                /*printf("added pad_image_idx:%lld i%d,j%d,k%d idx:%lld, idx_filter:%lld, pad_idx:%lld, dst_flt[pad_idx] %.3f\n", */
+                        /*pad_image_idx, i, j, k, idx, idx_filter, pad_idx, dst_flt[pad_idx].x);*/
+            /*}*/
         } else {
-            host_data_kernel[pad_idx].x = 0.0f;
+            dst_flt[pad_idx].x = 0.0f;
         }
-        host_data_kernel[pad_idx].y = 0.0f; // y is complex component
+        dst_flt[pad_idx].y = 0.0f; // y is complex component
 
         // keep in Matlab Column-order but switch order of dimensions in createPlan
         // to accomplish c-order FFT transforms
         if ((i < size0) && (j < size1) && (k < size2) ) {
-            host_data_input[pad_idx].x = hostI[idx];
+            dst_img[pad_idx].x = src_img[idx];
         } else {
-            host_data_input[pad_idx].x = 0.0f;
+            dst_img[pad_idx].x = 0.0f;
         }
-        host_data_input[pad_idx].y = 0.0f; 
-    } else {
-        // FIXME this should never be executed
+        dst_img[pad_idx].y = 0.0f; 
+
+        if (benchmark) {
+            printf("pad_image_idx:%lld i%d,j%d,k%d idx:%lld, idx_filter:%lld, pad_idx:%lld, dst_img[pad_idx].x %.3f, dst_flt[pad_idx] %.3f\n", 
+                    pad_image_idx, i, j, k, idx, idx_filter, pad_idx, dst_img[pad_idx].x, dst_flt[pad_idx].x);
+        }
+    } else { // FIXME this should never be executed
         cudaCheckPtrDevice(NULL); //throw error
     }
 }
