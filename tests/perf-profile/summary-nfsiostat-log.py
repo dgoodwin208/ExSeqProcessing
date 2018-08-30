@@ -39,9 +39,58 @@ comp_calls = re.compile('^([0-9]*) .*')
 comp_pages_per_call = re.compile('^\(([0-9.]*) pages .*')
 
 # =============================================================================
+class StatClass:
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self.op_per_sec = ''
+        self.rpc_bklog = ''
+        self.read_ops_per_sec = ''
+        self.read_kb_per_sec = ''
+        self.read_kb_per_op = ''
+        self.read_retrans = ''
+        self.read_retrans_pc = ''
+        self.read_avg_rtt = ''
+        self.read_avg_exe = ''
+        self.write_ops_per_sec = ''
+        self.write_kb_per_sec = ''
+        self.write_kb_per_op = ''
+        self.write_retrans = ''
+        self.write_retrans_pc = ''
+        self.write_avg_rtt = ''
+        self.write_avg_exe = ''
+        self.num_calls_in_readpage = ''
+        self.num_pages_in_readpage = ''
+        self.num_calls_in_readpages = ''
+        self.num_pages_in_readpages = ''
+        self.readpages_per_call = ''
+        self.num_calls_in_writepage = ''
+        self.num_pages_in_writepage = ''
+        self.num_calls_in_writepages = ''
+        self.num_pages_in_writepages = ''
+        self.writepages_per_call = ''
+
+    def print(self, fs_path, base_time, elapsed_time):
+        total_hours, remainder = divmod(elapsed_time.total_seconds(), 3600)
+        total_minutes, total_seconds = divmod(remainder, 60)
+        sys.stdout.write('%s,%d:%02d:%02d,%-8s,' % (base_time + elapsed_time, total_hours, total_minutes, total_seconds, fs_path))
+        sys.stdout.write('%8s,%5s,' % (self.op_per_sec, self.rpc_bklog))
+        sys.stdout.write('%11s,%11s,%8s,%s,%s,' % (self.read_ops_per_sec, self.read_kb_per_sec, self.read_kb_per_op, self.read_retrans, self.read_retrans_pc))
+        sys.stdout.write('%8s,%8s,' % (self.read_avg_rtt, self.read_avg_exe))
+        sys.stdout.write('%11s,%11s,%8s,%s,%s,' % (self.write_ops_per_sec, self.write_kb_per_sec, self.write_kb_per_op, self.write_retrans, self.write_retrans_pc))
+        sys.stdout.write('%8s,%8s,' % (self.write_avg_rtt, self.write_avg_exe))
+        sys.stdout.write('%8s,%8s,' % (self.num_calls_in_readpage, self.num_pages_in_readpage))
+        sys.stdout.write('%8s,%10s,%8s,' % (self.num_calls_in_readpages, self.num_pages_in_readpages, self.readpages_per_call))
+        sys.stdout.write('%8s,%8s,' % (self.num_calls_in_writepage, self.num_pages_in_writepage))
+        sys.stdout.write('%8s,%10s,%8s\n' % (self.num_calls_in_writepages, self.num_pages_in_writepages, self.writepages_per_call))
+
+# =============================================================================
 
 INTERVALS = 5 # sec.
 prv_term = ''
+
+stat = StatClass()
 
 sys.stdout.write('datetime,time,fs-path,op/s,rpc-bklog,')
 sys.stdout.write('read-ops/s,read-kb/s,read-kb/op,read-retrans,read-retrans(%),read-avg-rtt,read-avg-exe,')
@@ -49,44 +98,34 @@ sys.stdout.write('write-ops/s,write-kb/s,write-kb/op,write-retrans,write-retrans
 sys.stdout.write('calls-in-readpage,pages-in-readpage,calls-in-readpages,pages-in-readpages,readpages/call,')
 sys.stdout.write('calls-in-writepage,pages-in-writepage,calls-in-writepages,pages-in-writepages,writepages/call\n')
 
-record_start_time = None
-is_first = True
+fs_path = 'none'
+count_table = {}
 for line in open(logfile, 'r'):
     line = line.rstrip()
 
     if re.search('^datetime: ', line):
-        base_time = datetime.strptime(line, 'datetime: %Y/%m/%d %H:%M:%S')
+        if fs_path in count_table:
+            elapsed_time = count_table[fs_path] * timedelta(seconds=INTERVALS)
+            stat.print(fs_path, base_time, elapsed_time)
+        fs_path = 'none'
         count_table = {}
 
-    elif re.search(' mounted on ', line):
-        if not is_first:
-            if fs_path not in count_table:
-                count_table[fs_path] = 0
+        base_time = datetime.strptime(line, 'datetime: %Y/%m/%d %H:%M:%S')
 
-            accm_time = count_table[fs_path] * timedelta(seconds=INTERVALS)
+    elif re.search(' mounted on ', line):
+        if fs_path not in count_table:
+            count_table[fs_path] = 1
+            stat.clear()
+        else:
+            elapsed_time = count_table[fs_path] * timedelta(seconds=INTERVALS)
 
             if is_all_period == True or (base_time + accm_time >= start_time and base_time + accm_time <= end_time):
-                elapsed_time = base_time + accm_time - record_start_time
-                total_hours, remainder = divmod(elapsed_time.total_seconds(), 3600)
-                total_minutes, total_seconds = divmod(remainder, 60)
-                sys.stdout.write('%s,%d:%02d:%02d,%-8s,' % (base_time + accm_time, total_hours, total_minutes, total_seconds, fs_path))
-                sys.stdout.write('%8s,%5s,' % (op_per_sec, rpc_bklog))
-                sys.stdout.write('%11s,%11s,%8s,%s,%s,' % (read_ops_per_sec, read_kb_per_sec, read_kb_per_op, read_retrans, read_retrans_pc))
-                sys.stdout.write('%8s,%8s,' % (read_avg_rtt, read_avg_exe))
-                sys.stdout.write('%11s,%11s,%8s,%s,%s,' % (write_ops_per_sec, write_kb_per_sec, write_kb_per_op, write_retrans, write_retrans_pc))
-                sys.stdout.write('%8s,%8s,' % (write_avg_rtt, write_avg_exe))
-                sys.stdout.write('%8s,%8s,' % (num_calls_in_readpage, num_pages_in_readpage))
-                sys.stdout.write('%8s,%10s,%8s,' % (num_calls_in_readpages, num_pages_in_readpages, readpages_per_call))
-                sys.stdout.write('%8s,%8s,' % (num_calls_in_writepage, num_pages_in_writepage))
-                sys.stdout.write('%8s,%10s,%8s\n' % (num_calls_in_writepages, num_pages_in_writepages, writepages_per_call))
+                stat.print(fs_path, base_time, elapsed_time)
 
-            elif is_all_period == False and base_time + accm_time > end_time:
+            elif is_all_period == False and base_time + elapsed_time > end_time:
                 break
 
             count_table[fs_path] = count_table[fs_path] + 1
-        else:
-            record_start_time = base_time
-            is_first = False
 
         m = comp_fs_path.search(line)
         if m == None:
@@ -107,8 +146,8 @@ for line in open(logfile, 'r'):
             print('call and pages regex is wrong.')
             sys.exit(1)
 
-        num_calls_in_readpage = m.group(1)
-        num_pages_in_readpage = m.group(2)
+        stat.num_calls_in_readpage = m.group(1)
+        stat.num_pages_in_readpage = m.group(2)
 
     elif re.search(' nfs_readpages\(\) ', line):
         m = comp_call_pages.search(line)
@@ -116,8 +155,8 @@ for line in open(logfile, 'r'):
             print('call and pages regex is wrong.')
             sys.exit(1)
 
-        num_calls_in_readpages = m.group(1)
-        num_pages_in_readpages = m.group(2)
+        stat.num_calls_in_readpages = m.group(1)
+        stat.num_pages_in_readpages = m.group(2)
 
         prv_term = 'readpages'
 
@@ -127,8 +166,8 @@ for line in open(logfile, 'r'):
             print('call and pages regex is wrong.')
             sys.exit(1)
 
-        num_calls_in_writepage = m.group(1)
-        num_pages_in_writepage = m.group(2)
+        stat.num_calls_in_writepage = m.group(1)
+        stat.num_pages_in_writepage = m.group(2)
 
     elif re.search(' nfs_writepages\(\) ', line):
         m = comp_call_pages.search(line)
@@ -136,8 +175,8 @@ for line in open(logfile, 'r'):
             print('call and pages regex is wrong.')
             sys.exit(1)
 
-        num_calls_in_writepages = m.group(1)
-        num_pages_in_writepages = m.group(2)
+        stat.num_calls_in_writepages = m.group(1)
+        stat.num_pages_in_writepages = m.group(2)
 
         prv_term = 'writepages'
 
@@ -147,7 +186,7 @@ for line in open(logfile, 'r'):
             print('call and pages regex is wrong.')
             sys.exit(1)
 
-        num_calls_in_updatepage = m.group(1)
+        stat.num_calls_in_updatepage = m.group(1)
 
     else:
         if prv_term == 'rpc bklog':
@@ -156,8 +195,8 @@ for line in open(logfile, 'r'):
                 print('# of values is wrong in rpc bklog.')
                 sys.exit(1)
 
-            op_per_sec = values[0]
-            rpc_bklog = values[1]
+            stat.op_per_sec = values[0]
+            stat.rpc_bklog = values[1]
 
             prv_term = ''
 
@@ -167,13 +206,13 @@ for line in open(logfile, 'r'):
                 print('# of values is wrong in read.')
                 sys.exit(1)
 
-            read_ops_per_sec = values[0]
-            read_kb_per_sec = values[1]
-            read_kb_per_op = values[2]
-            read_retrans = values[3]
-            read_retrans_pc = values[4][1:-2]
-            read_avg_rtt = values[5]
-            read_avg_exe = values[6]
+            stat.read_ops_per_sec = values[0]
+            stat.read_kb_per_sec = values[1]
+            stat.read_kb_per_op = values[2]
+            stat.read_retrans = values[3]
+            stat.read_retrans_pc = values[4][1:-2]
+            stat.read_avg_rtt = values[5]
+            stat.read_avg_exe = values[6]
 
             prv_term = ''
 
@@ -183,13 +222,13 @@ for line in open(logfile, 'r'):
                 print('# of values is wrong in write.')
                 sys.exit(1)
 
-            write_ops_per_sec = values[0]
-            write_kb_per_sec = values[1]
-            write_kb_per_op = values[2]
-            write_retrans = values[3]
-            write_retrans_pc = values[4][1:-2]
-            write_avg_rtt = values[5]
-            write_avg_exe = values[6]
+            stat.write_ops_per_sec = values[0]
+            stat.write_kb_per_sec = values[1]
+            stat.write_kb_per_op = values[2]
+            stat.write_retrans = values[3]
+            stat.write_retrans_pc = values[4][1:-2]
+            stat.write_avg_rtt = values[5]
+            stat.write_avg_exe = values[6]
 
             prv_term = ''
 
@@ -203,7 +242,7 @@ for line in open(logfile, 'r'):
                 print('readpages regex is wrong.')
                 sys.exit(1)
 
-            readpages_per_call = m.group(1)
+            stat.readpages_per_call = m.group(1)
 
             prv_term = ''
 
@@ -217,7 +256,7 @@ for line in open(logfile, 'r'):
                 print('writepages regex is wrong.')
                 sys.exit(1)
 
-            writepages_per_call = m.group(1)
+            stat.writepages_per_call = m.group(1)
 
             prv_term = ''
 

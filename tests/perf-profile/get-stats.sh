@@ -10,6 +10,8 @@ if [ ! -d $LOGDIR ]; then
   mkdir $LOGDIR
 fi
 
+lsblk > $LOGDIR/lsblk.txt
+
 TOPLOG=$LOGDIR/top-$(date '+%Y%m%d').log
 VMLOG=$LOGDIR/vmstat-$(date '+%Y%m%d').log
 IOLOG=$LOGDIR/iostat-$(date '+%Y%m%d').log
