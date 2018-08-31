@@ -100,6 +100,7 @@ sys.stdout.write('calls-in-writepage,pages-in-writepage,calls-in-writepages,page
 
 fs_path = 'none'
 count_table = {}
+first_base_time = None
 for line in open(logfile, 'r'):
     line = line.rstrip()
 
@@ -111,15 +112,17 @@ for line in open(logfile, 'r'):
         count_table = {}
 
         base_time = datetime.strptime(line, 'datetime: %Y/%m/%d %H:%M:%S')
+        if first_base_time == None:
+            first_base_time = base_time
 
     elif re.search(' mounted on ', line):
         if fs_path not in count_table:
             count_table[fs_path] = 1
             stat.clear()
         else:
-            elapsed_time = count_table[fs_path] * timedelta(seconds=INTERVALS)
+            elapsed_time = count_table[fs_path] * timedelta(seconds=INTERVALS) + (base_time - first_base_time)
 
-            if is_all_period == True or (base_time + accm_time >= start_time and base_time + accm_time <= end_time):
+            if is_all_period == True or (base_time + elapsed_time >= start_time and base_time + elapsed_time <= end_time):
                 stat.print(fs_path, base_time, elapsed_time)
 
             elif is_all_period == False and base_time + elapsed_time > end_time:
