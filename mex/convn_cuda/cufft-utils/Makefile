@@ -12,9 +12,6 @@ libcufftutils.a: $(OBJ)
 %.o: %.cu
 	$(NVCC) $(NVCC_FLAGS) -o $@ $(CUFFTLIB) -I$(CUDA_UTILS_DIR) -c $^ 
 
-#main.exe: convn_impl.cu
-	#$(NVCC) $(NVCC_FLAGS) $^ -g -o $@ $(CUFFTLIB)
-
 clean:
 	rm -rf *.o *.exe *.a
 

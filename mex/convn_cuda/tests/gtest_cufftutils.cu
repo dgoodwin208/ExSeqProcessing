@@ -221,30 +221,6 @@ TEST_F(ConvnCufftTest, DISABLED_FFTInverseBasicTest) {
     cufftSafeCall(cufftDestroy(plan));
 }
 
-TEST_F(ConvnCufftTest, DISABLED_FFTBasicTest) {
-    unsigned int size[3] = {50, 50, 5};
-    unsigned int filterdimA[3] = {5, 5, 5};
-    bool column_order = 0;
-    int N = size[0] * size[1] * size[2];
-    int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
-    
-    //printf("Initializing cufft sin array\n");
-    float* data = new float[N]; 
-    float* outArray = new float[N]; 
-    float* kernel = new float[N_kernel]; 
-
-    //printf("Sin array created\n");
-    for (int i=0; i < N; i++)
-        data[i] = sin(i);
-
-
-    //printf("Initializing kernel\n");
-    for (int i=0; i < N_kernel; i++)
-        kernel[i] = sin(i);
-
-    cufftutils::fft3(data, size, size, outArray, column_order);
-}
-
 TEST_F(ConvnCufftTest, DISABLED_PrintDeviceDataTest) {
     long long N = 10;
     long long size_of_data = sizeof(cufftComplex)*N;
@@ -783,12 +759,99 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, benchmark, tol);
 }
 
+TEST_F(ConvnCufftTest, TrimPadTest) {
+    int benchmark = 0;
+    // minimum acceptable size for cufft functions
+    unsigned int size[3] = {31, 31, 5};
+    unsigned int filterdimA[3] = {2, 2, 2};
+    bool column_order = false;
+    int N = size[0] * size[1] * size[2];
+    
+    float* hostO = new float[N]; 
+
+    // Create sequential image for ease of debug
+    initImage(hostO, N);
+
+    unsigned int pad_size[3];
+    int trim_idxs[3][2];
+    cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
+
+    if (benchmark) {
+        printf("size %d, %d, %d\n", size[0], size[1], size[2]);
+        printf("pad_size %d, %d, %d\n", pad_size[0], pad_size[1], pad_size[2]);
+        for (int i=0; i < 3; i++) 
+            printf("trim_idxs[%d]=%d, %d\n", i, trim_idxs[i][0], trim_idxs[i][1]);
+    }
+    long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
+    long long size_of_data = N_padded * sizeof(cufftComplex);
+    long long float_size = N* sizeof(float);
+
+    cufftComplex *host_data_input = (cufftComplex *) malloc(size_of_data);
+    float *transferO = (float *) malloc(float_size);
+    for (int i = 0; i < N_padded; i++) {
+        host_data_input[i].x = (float) i;
+        host_data_input[i].y = (float) 0;
+    }
+
+    if (benchmark)
+        printf("cudaMalloc\n");
+    float* deviceO;
+    cufftComplex *device_data_input; 
+    cudaMalloc(&device_data_input, size_of_data); cudaCheckPtr(device_data_input);
+    cudaMalloc(&deviceO, float_size); cudaCheckPtr(deviceO);
+
+    if (benchmark)
+        printf("cudaMemcpy\n");
+    // Copy the data from 'host' to device using cufftXt formatting
+    cudaSafeCall(cudaMemcpy(device_data_input, host_data_input, size_of_data, cudaMemcpyHostToDevice));
+
+    if (benchmark)
+        printf("trim_pad\n");
+    CudaTimer timer;
+    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input, 0);
+    if (benchmark) {
+        printf("trim_pad elapsed %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
+
+    int blockSize = 256;
+    if (benchmark) {
+        printf("trim_pad_1GPU\n");
+        printf("blockSize:%d\n", blockSize);
+    }
+    cufftutils::trim_pad_1GPU<<<(N_padded + blockSize - 1) / blockSize, blockSize>>>(trim_idxs[0][0],
+            trim_idxs[0][1], trim_idxs[1][0], trim_idxs[1][1], trim_idxs[2][0],
+            trim_idxs[2][1], size[0], size[1], size[2], pad_size[0],
+            pad_size[1], pad_size[2], N_padded, column_order, deviceO, device_data_input,
+            benchmark);
+    if (benchmark) {
+        printf("trim_pad_1GPU elapsed %.4f s\n", timer.get_laptime());
+        timer.reset();
+    }
+
+    cudaSafeCall(cudaMemcpy(transferO, deviceO, float_size, cudaMemcpyDeviceToHost));
+
+    if (benchmark) {
+        printf("\nhostO elements:%d\n", N);
+          for (int i = 0; i < N; i++)
+            printf("[%d]=%.3f\n", i, hostO[i]);
+        printf("\ntransferO elements:%d\n", N);
+          for (int i = 0; i < N; i++)
+            printf("[%d]=%.3f\n", i, transferO[i]);
+    }
+
+    matrix_is_equal(hostO, transferO, size, column_order, benchmark, 0.0);
+
+    free(hostO);
+    free(transferO);
+    cudaSafeCall(cudaFree(device_data_input));
+    cudaSafeCall(cudaFree(deviceO));
+}
+
 TEST_F(ConvnCufftTest, ConvnFullImageTest) {
     unsigned int size[3] = {1024, 1024, 126};
     unsigned int filterdimA[3] = {5, 5, 5};
-    /*unsigned int size[3] = {31, 31, 2};*/
-    /*unsigned int filterdimA[] = {2, 2, 2};*/
-    int benchmark = 1;
+    int benchmark = 0;
     bool column_order = true;
     int algo = 1;
     float tol = .0001;
@@ -807,7 +870,7 @@ TEST_F(ConvnCufftTest, ConvnFullImageTest) {
     matrix_is_zero(data, size, column_order, 0, tol);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnColumnOrderingTest) {
+TEST_F(ConvnCufftTest, ConvnColumnOrderingTest) {
 
     // generate params
     int benchmark = 0;

@@ -198,7 +198,7 @@ function [t_fft, t_cuda, t_sep, t_fft_pad, t_fft_gpu, t_imf, t_imf_gpu, img_blur
     % Multi GPU section
     gpuDevice(1); % reset GPU avail mem
     tic;
-    img_blur_cuda = convn_cuda(img, h);
+    img_blur_cuda = convn_cuda(img, h, 1);
     t_cuda = toc;
     err = compute_err(img_blur_cuda, img_blur_fft);
     norm_err = norm(img_blur_fft(:)-img_blur_cuda(:)) / norm(img_blur_fft(:))
