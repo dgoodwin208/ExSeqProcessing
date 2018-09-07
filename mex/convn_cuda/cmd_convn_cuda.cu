@@ -1,11 +1,11 @@
 /*=================================================================
  * cmd_convn_cuda.cu - perform convolution on volumetric image data 
  *
- *  ./cmd_convn_cuda vol_image.bin filter.bin
+ *  ./cmd_convn_cuda vol_image.bin filter.bin output.bin
  *
  *  Input:
- *    vol_image:  volume image data (float)
- *    filter:        filter data (float)
+ *    vol_image.bin:  volume image data (float)
+ *    filter.bin:        filter data (float)
  *
  *  Output:
  *    output.bin: convolved output image (float)
@@ -102,10 +102,10 @@ int main(int argc, char* argv[]) {
             int algo = 0; // forward convolve
             bool column_order = true; // bool for 
             int benchmark = 1;
-            // pading the image to m + n -1 per dimension
-            /* create a pointer to the real data in the input array,  */
-            cufftutils::conv_handler(in_image.data(), in_filter.data(),
-                    outArray.data(), algo, image_size, filter_size,
+            // padding the image to m + n -1 or greater per dimension
+            // create a pointer to the real data in the input array
+            cufftutils::conv_handler(&in_image[0], &in_filter[0],
+                    &outArray[0], algo, image_size, filter_size,
                     column_order, benchmark);
 
             logger->info("`cufftutils::conv_handler` executed successfully");

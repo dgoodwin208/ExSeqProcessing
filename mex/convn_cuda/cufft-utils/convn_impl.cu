@@ -460,7 +460,10 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsign
     cufftutils::get_pad_trim(size, filterdimA, pad_size, trim_idxs);
 
     long long N_padded = pad_size[0] * pad_size[1] * pad_size[2];
+    long long N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     long long size_of_data = N_padded * sizeof(cufftComplex);
+    long long float_size = N* sizeof(float);
+    long long kernel_float_size = N_kernel* sizeof(float);
 
     if (benchmark)
         printf("Padded to a %dx%dx%d grid, N:%lld\n",pad_size[0], pad_size[1], pad_size[2], N_padded);
@@ -468,85 +471,64 @@ int conv_1GPU_handler(float* hostI, float* hostF, float* hostO, int algo, unsign
     //Create complex variables on host
     if (benchmark)
         printf("malloc input and output\n");
-    cufftComplex *host_data_input = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_input) { printf("malloc input failed"); }
-    cufftComplex *host_data_kernel = (cufftComplex *)malloc(size_of_data);
-    if (!host_data_kernel) { printf("malloc kernel failed"); }
 
-    float elapsed = 0.0f;
-    cudaEvent_t start, stop;
-    if (benchmark) {
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start, 0);
-    }
+    float* devI, *devF;
+    cudaSafeCall(cudaMalloc(&devI, float_size)); cudaCheckPtr(devI);
+    cudaSafeCall(cudaMalloc(&devF, kernel_float_size)); cudaCheckPtr(devF);
+    cudaSafeCall(cudaMemcpy(devI, hostI, float_size, cudaMemcpyHostToDevice));
+    cudaSafeCall(cudaMemcpy(devF, hostF, kernel_float_size, cudaMemcpyHostToDevice));
+
+    // Allocate data on multiple gpus using the cufft routines
+    cufftComplex *device_data_input, *device_data_kernel;
+    cudaSafeCall(cudaMalloc(&device_data_input, size_of_data)); cudaCheckPtr(device_data_input);
+    cudaSafeCall(cudaMalloc(&device_data_kernel, size_of_data)); cudaCheckPtr(device_data_kernel);
+
+    long long start = 0;
+    long long blockSize = 256;
+    long long gridSize;
+    gridSize = (N_padded + blockSize - 1) / blockSize; // round up
 
     if (benchmark)
         printf("Initialize input and kernel\n");
 
-    cufftutils::initialize_inputs(hostI, hostF, host_data_input, host_data_kernel, size, pad_size, filterdimA, column_order);
+    cufftutils::initialize_inputs_1GPU<<<gridSize, blockSize>>>(devI, devF,
+            device_data_input, device_data_kernel, N_padded, start, size[0],
+            size[1], size[2], pad_size[0], pad_size[1], pad_size[2],
+            filterdimA[0], filterdimA[1], filterdimA[2], column_order,
+            benchmark);
+    cudaCheckError();
 
-    // Synchronize GPU before moving forward
-    cudaDeviceSynchronize();
-
-    if (benchmark) {
-        printf("\n1GPU host_data_input elements:%d\n", N_padded);
-        /*cufftutils::printDeviceData(host_data_input, N_padded);*/
-        printf("\n1GPU host_data_kernel elements:%d\n", N_padded);
-        /*cufftutils::printDeviceData(host_data_kernel, N_padded);*/
-    }
+    cudaSafeCall(cudaDeviceSynchronize());
 
     if (benchmark)
         printf("Input and output successfully initialized\n");
 
     if (benchmark)
-        printf("cudaMalloc\n");
-    cufftComplex* device_data_input;
-    cufftComplex* device_data_kernel;
-    cudaMalloc(&device_data_input, size_of_data);
-    cudaMalloc(&device_data_kernel, size_of_data);
-
-    if (benchmark)
-        printf("cudaMemcpy\n");
-    // Copy the data from 'host' to device using cufftXt formatting
-    cudaMemcpy(device_data_input, host_data_input, size_of_data, cudaMemcpyHostToDevice);
-    cudaMemcpy(device_data_kernel, host_data_kernel, size_of_data, cudaMemcpyHostToDevice);
-
-    if (benchmark)
         printf("conv3D\n");
-    const dim3 blockSize(16, 16, 1);
-    const dim3 gridSize(N_padded / 16 + 1, N_padded / 16 + 1, 1);
+    const dim3 blockSize3(16, 16, 1);
+    const dim3 gridSize3(N_padded / 16 + 1, N_padded / 16 + 1, 1);
     cufftutils::cudaConvolution3D_1GPU(device_data_input, pad_size, device_data_kernel, pad_size, 
-            blockSize, gridSize, benchmark);
+            blockSize3, gridSize3, benchmark);
 
-    cudaMemcpy(host_data_input, device_data_input, size_of_data, cudaMemcpyDeviceToHost);
+    cufftutils::trim_pad_1GPU<<<gridSize, blockSize>>>(trim_idxs[0][0],
+            trim_idxs[0][1], trim_idxs[1][0], trim_idxs[1][1], trim_idxs[2][0],
+            trim_idxs[2][1], size[0], size[1], size[2], pad_size[0],
+            pad_size[1], pad_size[2], N_padded, column_order, devI, device_data_input,
+            benchmark);
+    cudaCheckError();
+    cudaDeviceSynchronize();
+
+    cudaSafeCall(cudaMemcpy(hostO, devI, float_size, cudaMemcpyDeviceToHost));
 
     if (benchmark) {
-        printf("Print hostO_1GPU final\n");
-        cufftutils::printHostData(host_data_input, N_padded);
+        printf("Cufft completed successfully\n");
     }
 
-    cufftutils::trim_pad(trim_idxs, size, pad_size, column_order, hostO, host_data_input, benchmark);
-
-    if (benchmark) {
-        cudaEventRecord(stop, 0);
-        cudaDeviceSynchronize();
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsed, start, stop);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-        printf(" Full convolution cost %.2f ms\n", elapsed);
-    } 
-    if (benchmark)
-        printf("Cufft completed successfully\n");
-
-    // Free malloc'ed variables
-    free(host_data_input);
-    free(host_data_kernel);
-
     // Free cufftX malloc'ed variables
-    cudaFree(device_data_input);
-    cudaFree(device_data_kernel);
+    cudaSafeCall(cudaFree(device_data_input));
+    cudaSafeCall(cudaFree(device_data_kernel));
+    cudaSafeCall(cudaFree(devI));
+    cudaSafeCall(cudaFree(devF));
 
     return 0;
 }
@@ -771,6 +753,7 @@ int conv_handler(float* hostI, float* hostF, float* hostO, int algo, unsigned in
             trim_idxs[2][1], size[0], size[1], size[2], pad_size[0],
             pad_size[1], pad_size[2], N_padded, column_order, devI, input_data_on_gpu,
             benchmark);
+    cudaCheckError();
     cudaDeviceSynchronize();
 
     if (benchmark) {

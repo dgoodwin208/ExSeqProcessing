@@ -242,13 +242,13 @@ TEST_F(ConvnCufftTest, DISABLED_PrintDeviceDataTest) {
     cudaFree(device_data_input);
 }
 
-TEST_F(ConvnCufftTest, DISABLED_ConvnCompare1GPUTest) {
+TEST_F(ConvnCufftTest, ConvnCompare1GPUTest) {
     int benchmark = 0;
     unsigned int size[3] = {31, 31, 5};
     unsigned int filterdimA[3] = {2, 2, 2};
     bool column_order = false;
     int algo = 1;
-    float tol = .00001;
+    float tol = 1;
     int N = size[0] * size[1] * size[2];
     int N_kernel = filterdimA[0] * filterdimA[1] * filterdimA[2];
     if (benchmark)
@@ -750,7 +750,7 @@ TEST_F(ConvnCufftTest, DISABLED_1GPUConvnFullImageTest) {
     float* data = new float[N]; 
     float* kernel = new float[N_kernel]; 
 
-    initImage(data, N); //random input matrix
+    initImage(data, N); 
     initImageVal(kernel, N_kernel, 0.0); //kernel of zeros
 
     cufftutils::conv_1GPU_handler(data, kernel, data, algo, size,
@@ -861,7 +861,7 @@ TEST_F(ConvnCufftTest, ConvnFullImageTest) {
     float* data = new float[N]; 
     float* kernel = new float[N_kernel]; 
 
-    initImage(data, N); //random input matrix
+    initImage(data, N); 
     initImageVal(kernel, N_kernel, 0.0); //kernel of zeros
 
     cufftutils::conv_handler(data, kernel, data, algo, size,
