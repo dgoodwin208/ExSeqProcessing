@@ -1,187 +1,169 @@
 
-% loadParameters;
+%ROUNDS = 5:10;%1:params.NUM_ROUNDS;
+ROUNDS = 1:params.NUM_ROUNDS;
+for roundnum = ROUNDS
+    %try
+%    summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s_HP.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
+%    summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
+    summed_norm = load3DImage_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
 
-
-%M is the mask
-m = {};
-%centroids are the location
-centroids = {};
-
-chan_strs = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
-chan_minimums = [110 150 140 60];
-for round_num = [5 10 15]%[3,4,5,6,7,8,9,10,12,13,14,15,18,19]
-    
-    for chan_num = 1:params.NUM_CHANNELS
-        tic
-        chan_str = chan_strs{chan_num};
-        
-        %This is the normal line
-        %filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,round_num,chan_str));
-        %This is the debug exploration: 
-
-        filename_in = fullfile('/home/dgoodwin/ExSeqProcessing/3_normalization',sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,round_num,chan_str));
-        stack_in = load3DTif_uint16(filename_in);
-        
-        %Todo: trim the registration (not relevant in the crop)
-        backfind_stack_in = stack_in;
-        backfind_stack_in(backfind_stack_in<chan_minimums(chan_num))=Inf;
-        
-        background = min(backfind_stack_in,[],3);
-        background(isinf(background))=chan_minimums(chan_num);
-        
-        toc
-        tic
-        stack_original = stack_in;
-        stack_in = dog_filter(stack_in);
-        
-        %min project of 3D image
-        back_dog = dog_filter2d(background);
-        %avoding registration artifacts
-        %2* is a magic number that just works
-        back_dogmax = 2*max(max(back_dog(5:end-5,5:end-5,:))); % avoid weird edge effects
-        
-        fgnd_mask = zeros(size(stack_in));
-        fgnd_mask(stack_in>back_dogmax) = 1; % use first slice to determine threshold for dog
-        fgnd_mask = logical(fgnd_mask); % and get mask
-        
-        stack_in(~fgnd_mask) = 0; % thresholded using dog background
-        
-        
-        %max project pxls
-        %z = -Inf(size(stack_in));
-        %z(fgnd_mask) = zscore(single(stack_original(fgnd_mask)));
-        fgnd_cell{chan_num} = fgnd_mask;
-        stack_cell{chan_num} = stack_in;
-        %z_cell{chan_num} = z;
-        % max project normalized stuff; after setting bkgd to 0
+    %NEW: 08/01/2018: high pass filter before segmentation
+    %fprintf('Creating GPU array\n');
+    %summed_norm_gpu = gpuArray(single(summed_norm));
+    %fprintf('Bluring\n');
+    %img_blur_gpu = imgaussfilt3(summed_norm_gpu,[30 30 30*(.17/.4)]);
+    %fprintf('Gathering\n');
+    %img_blur = gather(img_blur_gpu);
+    tic
+    fprintf('Starting CPU-based convolution\n');
+    img_blur = imgaussfilt3(single(summed_norm),[30 30 30*(.17/.4)],'FilterDomain','frequency');
+    toc
+    summed_norm = max(summed_norm - img_blur,0);
+    fprintf('Done!\n');
+%    save3DTif_uint16(summed_norm,fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s_HP.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
+    save3DImage_uint16(summed_norm,fullfile(params.punctaSubvolumeDir,sprintf('%s_round%.03i_%s_%s_HP.%s',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
+    %catch
+%	fprintf('Failed to load round %i\n',roundnum)
+%        continue;
+%    end
+    %remove any zeros by just putting the mean of the data in:
+    %summed_norm(summed_norm==0) = mean(summed_norm(summed_norm>0)); 
+    if ~exist('total_summed_norm','var')
+        total_summed_norm = summed_norm;
+    else
+        total_summed_norm = total_summed_norm + summed_norm;
+        %geometric meean exploration:
+        %total_summed_norm = total_summed_norm.*summed_norm;
     end
-    
-    %logical OR all foregrounds together
-    allmask = fgnd_cell{1} | fgnd_cell{2} | fgnd_cell{3} | fgnd_cell{4};
-    
-    %initializig the array of size of the 3d image
-    z_cell{1} = -Inf(size(stack_in));
-    z_cell{2} = -Inf(size(stack_in));
-    z_cell{3} = -Inf(size(stack_in));
-    z_cell{4} = -Inf(size(stack_in));
-    
-    %calculate the zscore of all the foreground pixels (done across channels),
-    %done per channel
-    z_cell{1}(allmask) = zscore(single(stack_cell{1}(allmask)));
-    z_cell{2}(allmask) = zscore(single(stack_cell{2}(allmask)));
-    z_cell{3}(allmask) = zscore(single(stack_cell{3}(allmask)));
-    z_cell{4}(allmask) = zscore(single(stack_cell{4}(allmask)));
-    
-    %re-masking foreground, now used per channel.
-    z_cell{1}(~fgnd_cell{1}) = -Inf;
-    z_cell{2}(~fgnd_cell{2}) = -Inf;
-    z_cell{3}(~fgnd_cell{3}) = -Inf;
-    z_cell{4}(~fgnd_cell{4}) = -Inf;
-    
-    %Create a new mask per channel based on when a channel is the winner
-    [m{1},m{2},m{3},m{4}] = maxprojmask(z_cell{1}, z_cell{2}, z_cell{3}, z_cell{4});
-    
-    for chan_num = 1:params.NUM_CHANNELS
-        
-        stack_in = stack_cell{chan_num};
-        
-        % max project
-        
-        %set nonlargest to 0
-        stack_in(~m{chan_num}) = 0;
-        neg_masked_image = -int32(stack_in);
-        neg_masked_image(~stack_in) = inf;
-        toc
-        tic
-        L = uint32(watershed(neg_masked_image));
-        L(~stack_in) = 0;
-        fprintf('wshed\n');
-        
-        toc
-        
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_registered.tif',params.FILE_BASENAME,round_num,chan_strs{chan_num}));
-        img = load3DTif_uint16(filename_in);
-        
-        candidate_puncta= regionprops(L,img, 'WeightedCentroid', 'PixelIdxList');
-        indices_to_remove = [];
-        for i= 1:length(candidate_puncta)
-            if size(candidate_puncta(i).PixelIdxList,1)< params.PUNCTA_SIZE_THRESHOLD ...
-                || size(candidate_puncta(i).PixelIdxList,1)>150
-                indices_to_remove = [indices_to_remove i];
-            end
-        end
-        
-        good_indices = 1:length(candidate_puncta);
-        good_indices(indices_to_remove) = [];
-        
-        filtered_puncta = candidate_puncta(good_indices);
-        fprintf('Round%i, Chan %i: removed %i candidate puncta for being too small or large\n',...
-            round_num,chan_num,length(candidate_puncta)-length(filtered_puncta));
-        
-        
-        
-       % centroids_temp = zeros(length(filtered_puncta),3);
-        voxels_temp = cell(length(filtered_puncta),1);
-        for p_idx = 1:length(filtered_puncta)
-        %    centroids_temp(p_idx,:) = filtered_puncta(p_idx).WeightedCentroid;
-            voxels_temp{p_idx} = filtered_puncta(p_idx).PixelIdxList;
-        end
-        
-        centroids{round_num, chan_num} = filtered_puncta;
-        
-        output_img = zeros(size(stack_in));
-        
-        for i= 1:length(filtered_puncta)
-            %Set the pixel value to somethign non-zero
-            output_img(filtered_puncta(i).PixelIdxList)=100;
-        end
-        
-        filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_round%.03i_%s_puncta.tif',params.FILE_BASENAME,round_num,chan_strs{chan_num}));
-        save3DTif_uint16(output_img,filename_out);
-        
-    end
-    
-    
+
 end
 
-%combine the centroid objects into a single set of centroids+pixels per
-%round
-%%
-puncta_centroids = cell(params.NUM_ROUNDS,1);
-puncta_voxels = cell(params.NUM_ROUNDS,1);
-puncta_baseguess = cell(params.NUM_ROUNDS,1);
+%If geometric mean
+%total_summed_norm = total_summed_norm.^(1/params.NUM_ROUNDS);
 
-for rnd_idx=1:params.NUM_ROUNDS
-    num_puncta_per_round = 0;
-    for c_idx = 1:params.NUM_CHANNELS
-        num_puncta_per_round = num_puncta_per_round + numel(centroids{rnd_idx,c_idx});
+min_total = min(total_summed_norm(:));
+total_summed_norm_scaled = total_summed_norm - min_total;
+total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
+%save3DTif_uint16(total_summed_norm_scaled,fullfile(params.registeredImagesDir,sprintf('%s_allsummedSummedNorm.tif',params.FILE_BASENAME)));
+save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
+
+%Note the original size of the data before upscaling to isotropic voxels
+data = total_summed_norm_scaled;
+
+img_origsize = data;
+
+%This requires knowledge of the Z and XY resolutions
+%Z_upsample_factor = .5/.175;
+Z_upsample_factor = params.ZRES/params.XRES;
+
+indices_orig = 1:size(data,3); %Note the indices of the original size of the image
+query_pts_interp = 1:1/Z_upsample_factor:size(data,3); %Query points for interpolation
+
+%Do the opposite of the interpolation
+data_interp = interp1(indices_orig,squeeze(data(1,1,:)),query_pts_interp);
+data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
+
+%Interpolate using pieceswise cubic interpolation, 
+%pchip and cubic actually are the same, according to MATLAB doc in 2016b
+for y = 1:size(data,1)
+    for x = 1:size(data,2)
+        data_interpolated(y,x,:) = interp1(indices_orig,squeeze(data(y,x,:)),query_pts_interp,'pchip');
     end
+    
+    if mod(y,200)==0
+        fprintf('\t%i/%i rows interpolated\n',y,size(data,1));
+    end
+end
+
+%Now use the punctafeinder's dog filtering approach
+stack_in = data_interpolated;
+stack_orig = stack_in;
+stack_in = dog_filter(stack_in);
+
+%Thresholding is still the most sensitive part of this pipeline, so results
+%must be analyzed with this two lines of code in mind
+thresh = multithresh(stack_in,1);
+fgnd_mask = stack_in>thresh(1);
+
+%Ignore the background via thresholding and calculate watershed
+stack_in(~fgnd_mask) = 0; % thresholded using dog background
+neg_masked_image = -int32(stack_in);
+neg_masked_image(~stack_in) = inf;
+
+tic
+fprintf('Watershed running...');
+L = uint32(watershed(neg_masked_image));
+L(~stack_in) = 0;
+fprintf('DONE\n');
+toc
+
+%Now we downsample the output of the watershed, L, back into the original
+%space
+data = double(L); %interpolation needs double or single, L is integer
+data_interp = interp1(query_pts_interp,squeeze(data(1,1,:)),indices_orig);
+data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
+
+for y = 1:size(data,1)
+    for x = 1:size(data,2)
+        %'Nearest' = nearest neighbor, means there should be no new values
+        %being created
+        data_interpolated(y,x,:) = interp1(query_pts_interp,squeeze(data(y,x,:)),indices_orig,'nearest');
+    end
+    
+    if mod(y,200)==0
+        fprintf('\t%i/%i rows processed\n',y,size(data,1));
+    end
+end
+L_origsize = uint32(data_interpolated);
+
+%Extract the puncta from the watershed output (no longer interpolated)
+%params.PUNCTA_SIZE_THRESHOLD = 30; 
+%params.PUNCTA_SIZE_MAX = 2000; 
+
+candidate_puncta= regionprops(L_origsize,img_origsize, 'WeightedCentroid', 'PixelIdxList');
+indices_to_remove = [];
+for i= 1:length(candidate_puncta)
+    if size(candidate_puncta(i).PixelIdxList,1)< params.PUNCTA_SIZE_THRESHOLD ...
+        || size(candidate_puncta(i).PixelIdxList,1)> params.PUNCTA_SIZE_MAX
+        indices_to_remove = [indices_to_remove i];
+    end
+end
+
+good_indices = 1:length(candidate_puncta);
+good_indices(indices_to_remove) = [];
+
+filtered_puncta = candidate_puncta(good_indices);
+
+output_img = zeros(size(img_origsize));
+
+for i= 1:length(filtered_puncta)
+    %Set the pixel value to somethign non-zero
+    output_img(filtered_puncta(i).PixelIdxList)=100;
+end
+
+filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
+save3DImage_uint16(output_img,filename_out);
+        
+
+%Creating the list of voxels and centroids per round is entirely
+%unnecessary, but keeping it in for now for easy of processing
+%for rnd_idx=1:params.NUM_ROUNDS
+    num_puncta_per_round = length(filtered_puncta);
     
     %initialize the vectors for the particular round
-    centroids_per_round = zeros(num_puncta_per_round,3);
-    centroids_chan_per_round = zeros(num_puncta_per_round,1);
     voxels_per_round = cell(num_puncta_per_round,1);
-    
-    ctr = 1;
-    for c_idx = 1:params.NUM_CHANNELS
-        round_objects = centroids{rnd_idx,c_idx};
-        for r_idx = 1:size(round_objects,1)
-            %Note the centroid of the puncta
-            centroids_per_round(ctr,:) = round_objects(r_idx).WeightedCentroid;
-            %Note which round it was present in from the punctafeinder
-            centroids_chan_per_round(ctr) = c_idx;
-            %Note the indices of this puncta
-            voxels_per_round{ctr} = round_objects(r_idx).PixelIdxList;
-            ctr = ctr +1;
-        end
+    centroids_per_round = zeros(num_puncta_per_round,3);
+
+    for ctr = 1:num_puncta_per_round
+        %Note the indices of this puncta
+        voxels_per_round{ctr} = filtered_puncta(ctr).PixelIdxList;
+        centroids_per_round(ctr,:) = filtered_puncta(ctr).WeightedCentroid;
     end
     
-    puncta_centroids{rnd_idx} = centroids_per_round;
-    puncta_voxels{rnd_idx} = voxels_per_round;
-    puncta_baseguess{rnd_idx} = centroids_chan_per_round;
-end
-
+    puncta_centroids = centroids_per_round;
+    puncta_voxels = voxels_per_round;
+%end
 
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
-save(filename_centroids, 'puncta_centroids','puncta_voxels','puncta_baseguess', '-v7.3');
+save(filename_centroids, 'puncta_centroids','puncta_voxels', '-v7.3');
 
