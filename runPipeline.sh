@@ -34,7 +34,7 @@ function usage() {
     echo "  -L    log directory"
     echo "  -G    use GPUs (default: no)"
     echo "  -H    use HDF5 format for intermediate files (default: no)"
-    echo "  -J    set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg;  5,10,10,4,4"
+    echo "  -J    set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P    mode to get performance profile"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
@@ -618,8 +618,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-all.log -r "${ERR_HDL_PRECODE} run('downsample_all.m'); ${ERR_HDL_POSTCODE}"
 
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end; ${ERR_HDL_POSTCODE}"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} colorcorrection_3D_cuda(${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    if [ ${USE_GPU_CUDA} == "true" ]; then
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} colorcorrection_3D_cuda(${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    else
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM}; colorcorrection_3D(i); end; ${ERR_HDL_POSTCODE}"
+    fi
     if ls matlab-color-correction-*.log > /dev/null 2>&1; then
         mv matlab-color-correction-*.log ${LOG_DIR}/
     else

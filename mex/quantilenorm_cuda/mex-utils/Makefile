@@ -1,7 +1,7 @@
 SOURCES := $(wildcard *.cpp)
 OBJS := $(SOURCES:.cpp=.o)
 
-MATLAB_INC=/usr/local/MATLAB/R2017a/extern/include
+MATLAB_INC=/usr/local/MATLAB/R2018a/extern/include
 
 all: libmexutils.a
 
