@@ -131,10 +131,10 @@ if ~exist(output_keys_filename,'file')
             tile_img_moving = imgMoving_total(ymin_moving:ymax_moving, xmin_moving:xmax_moving,:);
             
             %Before calculating any features, make sure the tile is not empty
-            if checkIfTileEmpty(tile_img_moving,regparams.EMPTY_TILE_THRESHOLD)
-                disp('Sees the moving tile to be empty');
-                continue
-            end
+            %if checkIfTileEmpty(tile_img_moving,regparams.EMPTY_TILE_THRESHOLD)
+            %    disp('Sees the moving tile to be empty');
+            %    continue
+            %end
             
             %FindRelevant keys not only finds the total keypoints, but converts
             %those keypoints to the scope of the specific tile, not the global

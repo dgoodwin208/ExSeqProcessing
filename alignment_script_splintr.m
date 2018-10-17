@@ -1,31 +1,10 @@
 %% To load multiple basecalls:
 
-LIBRARY_FILE = 'groundtruth_dictionary_slice_v6_unique_everything_highcomplex.mat';
+LIBRARY_FILE = 'groundtruth_dictionary_splintr2';
 ptr = 1;
 
-for fov_index = [1 2 4 5 6 7 8 9 10]
-    
-    loadParameters;
-    params.deconvolutionImagesDir= sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/1_deconvolution',fov_index);
-    params.colorCorrectionImagesDir= sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/2_color-correction',fov_index);
-    params.registeredImagesDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/4_registration',fov_index);
-    params.punctaSubvolumeDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/5_puncta-extraction',fov_index);
-    params.transcriptResultsDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/6_transcripts',fov_index);
-    params.FILE_BASENAME = sprintf('exseqauto-xy%.2i',fov_index);
-    params.NUM_ROUNDS = 20;
-    
- %        basecallingz;
-      %   load(fullfile(params.transcriptResultsDir,sprintf('%s_basecalls_z_dff.mat',params.FILE_BASENAME)))
-%     puncta_roicollect_bgincl; delete(gcp('nocreate'));
-    %try
-    %basecalling;
-    %catch%
-    %fprintf('Error: likely an old version of puncta used. redoing. \n');
-    %puncta_roicollect_bgincl; delete(gcp('nocreate'));
+loadParameters;
     basecalling;
-   % end
-
-%    load(fullfile(params.transcriptResultsDir,sprintf('%s_basecalls_meanpuncta.mat',params.FILE_BASENAME)))
     
     num_reads = size(insitu_transcripts,1);
     
@@ -37,11 +16,6 @@ for fov_index = [1 2 4 5 6 7 8 9 10]
     base_calls_normedpixel_intensity_total(ptr:ptr+num_reads-1,:,:) = base_calls_normedpixel_intensity;
     puncta_centroids_total(ptr:ptr+num_reads-1,:) = puncta_centroids;
     puncta_voxels_total(ptr:ptr+num_reads-1) = puncta_voxels;
-    fovs(ptr:ptr+num_reads-1) = fov_index;
-    
-    ptr = ptr+num_reads;
-    fprintf('Completed round %i\n',fov_index);
-end
 
 readlength = size(insitu_transcripts_total,2);
 
@@ -64,14 +38,15 @@ end
 
 ST_confThresh_changeable = 2;
 ST_confThresh_fixed = 6;
-ST_editScoreMax = 2;
+ST_editScoreMax = 1;
 ST_numDrops = 100;
 
 %% Remove low complexity reads first:
 
 num_puncta = size(insitu_transcripts,1);
 
-H = Entropy(insitu_transcripts');
+%H = Entropy(insitu_transcripts');
+H = 5*ones(size(insitu_transcripts,1),1);
 indices_filtered_entropy = find(H'>1);
 
 fprintf('Discarding %i low entropy reads\n',num_puncta-length(indices_filtered_entropy));
@@ -83,7 +58,7 @@ base_calls_rawpixel_intensity_filtered = base_calls_rawpixel_intensity(indices_f
 base_calls_normedpixel_intensity_filtered = base_calls_normedpixel_intensity(indices_filtered_entropy,:,:);
 puncta_centroids_filtered = puncta_centroids(indices_filtered_entropy,:);
 puncta_voxels_filtered = puncta_voxels(indices_filtered_entropy);
-fovs_filtered = fovs(indices_filtered_entropy);
+%fovs_filtered = fovs(indices_filtered_entropy);
 
 %% Now remove garbage reads
 %Garbage is the mean confidence is less than 5
@@ -97,7 +72,7 @@ base_calls_rawpixel_intensity_keep = base_calls_rawpixel_intensity_filtered(indi
 base_calls_normedpixel_intensity_keep= base_calls_normedpixel_intensity_filtered(indices_keep,:,:);
 puncta_centroids_keep = puncta_centroids_filtered(indices_keep,:);
 puncta_voxels_keep = puncta_voxels_filtered(indices_keep);
-fovs_keep = fovs_filtered(indices_keep);
+%fovs_keep = fovs_filtered(indices_keep);
 
 fprintf('Removed %i garbage reads removal \n',...
     length(indices_filtered_entropy) - length(indices_keep));
@@ -148,7 +123,7 @@ if searchForPerfects
             transcript.pos = puncta_centroids_keep(t,:);
             transcript.voxels = puncta_voxels_keep{t};
             transcript.hamming_score = 0;
-            transcript.fov = fovs_keep(t);
+            %transcript.fov = fovs_keep(t);
             transcript.known_sequence_matched = groundtruth_codes(perfect_match,:);
             transcript.name = gtlabels{perfect_match};
             
@@ -158,7 +133,7 @@ if searchForPerfects
             img_transcript_2ndplace_SHUFFLED = insitu_transcripts_2ndplace_keep(shuffleindices);
             img_confidence = insitu_transcripts_confidence_keep(t,:);
             img_confidence_SHUFFLED = img_confidence(shuffleindices);
-            [matchingIdxSHUFFLED, ~] = shaharTieUniqueGene(img_transcript_SHUFFLED,img_confidence_SHUFFLED',groundtruth_codes,gtlabels,ST_confThresh_fixed,ST_numDrops,ST_editScoreMax);
+            [matchingIdxSHUFFLED, ~] = shaharTieSeconds(img_transcript_SHUFFLED,img_confidence_SHUFFLED',groundtruth_codes,gtlabels,ST_confThresh_fixed,ST_numDrops,ST_editScoreMax);
             %Note if the shuffled version of this transcript got a match!
             %Use the index (1) just in case there are multiple hits
             transcript.shufflehit = matchingIdxSHUFFLED(1)>0;
@@ -182,7 +157,7 @@ base_calls_rawpixel_intensity_keep(perfect_match_indices,:,:) = [];
 base_calls_normedpixel_intensity_keep(perfect_match_indices,:,:) = [];
 puncta_centroids_keep(perfect_match_indices,:) = [];
 puncta_voxels_keep(perfect_match_indices) = [];
-fovs_keep(perfect_match_indices) = [];
+%fovs_keep(perfect_match_indices) = [];
 
 %% Remove any entries with less than
 
@@ -199,7 +174,7 @@ base_calls_rawpixel_intensity_keep(indices_discard,:,:) = [];
 base_calls_normedpixel_intensity_keep(indices_discard,:,:) = [];
 puncta_centroids_keep(indices_discard,:) = [];
 puncta_voxels_keep(indices_discard) = [];
-fovs_keep(indices_discard) = [];
+%fovs_keep(indices_discard) = [];
 fprintf('Removed %i in situ with too many low quality bases\n',length(indices_discard));
 
 
@@ -225,7 +200,7 @@ fprintf('Removed %i in situ with too many low quality bases\n',length(indices_di
 transcript_objects = cell(size(insitu_transcripts_keep,1),1);
 
 tic
-SAMPLE_SIZE = 10000; % size(insitu_transcripts_keep,1);
+SAMPLE_SIZE = 1000; % size(insitu_transcripts_keep,1);
 random_indices = randperm(size(insitu_transcripts_keep,1),SAMPLE_SIZE);
 shufflehits = zeros(size(insitu_transcripts_keep,1),1);
 
@@ -247,9 +222,9 @@ parfor p_idx= 1:size(insitu_transcripts_keep,1) %r_idx = 1:length(random_indices
     img_confidence_SHUFFLED = img_confidence(shuffleindices);
     %Match the real thing
     
-    [matchingIdx, best_score] = shaharTieUniqueGene(img_transcript,img_confidence',groundtruth_codes,gtlabels,ST_confThresh_fixed,ST_numDrops,ST_editScoreMax);
+    [matchingIdx, best_score] = shaharTieSeconds(img_transcript,img_confidence',groundtruth_codes,gtlabels,ST_confThresh_fixed,ST_numDrops,ST_editScoreMax);
     %Match a shuffled version as a control
-   [matchingIdxSHUFFLED, ~] = shaharTieUniqueGene(img_transcript_SHUFFLED,img_confidence_SHUFFLED',groundtruth_codes,gtlabels,ST_confThresh_fixed,ST_numDrops,ST_editScoreMax);
+   [matchingIdxSHUFFLED, ~] = shaharTieSeconds(img_transcript_SHUFFLED,img_confidence_SHUFFLED',groundtruth_codes,gtlabels,ST_confThresh_fixed,ST_numDrops,ST_editScoreMax);
     %Note if the shuffled version of this transcript got a match!
     %Use the index (1) just in case there are multiple hits
     shufflehits(p_idx) = matchingIdxSHUFFLED(1)>0;
@@ -263,7 +238,7 @@ parfor p_idx= 1:size(insitu_transcripts_keep,1) %r_idx = 1:length(random_indices
     transcript.img_transcript_absValuePixel=intensities;
     transcript.img_transcript_normedValuePixel=squeeze(base_calls_normedpixel_intensity_keep(p_idx,:,:));
     transcript.pos = puncta_centroids_keep(p_idx,:);
-    transcript.fov = fovs_keep(p_idx);
+    %transcript.fov = fovs_keep(p_idx);
     transcript.voxels = puncta_voxels_keep{p_idx};
     transcript.hamming_score = best_score;
     transcript.shufflehit = shufflehits(p_idx);
@@ -300,17 +275,19 @@ fprintf('dff: changable=%i, fixed=%i, editMax=%i, sample size %i: %i %i %f %f\n'
 
 %cycle through Fovs to get a breakdown:
 transcript_objects = transcript_objects(~cellfun('isempty',transcript_objects));
-for f = unique(fovs)
+%for f = unique(fovs)
     %Get all the transcript objects for an fov and aligned
-    matchindices_allaligned = cell2mat(cellfun(@(x) [isfield(x,'name') && (x.fov==f)], transcript_objects,'UniformOutput',0));
-    matchindices_all = cell2mat(cellfun(@(x) [(x.fov==f)], transcript_objects,'UniformOutput',0));
-    matchindices_shuffled = cell2mat(cellfun(@(x) [(x.fov==f) && x.shufflehit], transcript_objects,'UniformOutput',0));
+    matchindices_allaligned = cell2mat(cellfun(@(x) [isfield(x,'name')], transcript_objects,'UniformOutput',0));
+    %matchindices_allaligned = logical(ones(length(transcript_objects),1));
+    %matchindices_allaligned = cell2mat(cellfun(@(x) [isfield(x,'name') && (x.fov==f)], transcript_objects,'UniformOutput',0));
+    matchindices_all = cell2mat(cellfun(@(x) [(true)], transcript_objects,'UniformOutput',0));
+    matchindices_shuffled = cell2mat(cellfun(@(x) [(true) && x.shufflehit], transcript_objects,'UniformOutput',0));
     count_allaligned = sum(matchindices_allaligned);
     count_all = sum(matchindices_all);
     count_shuffled = sum(matchindices_shuffled);
     fprintf('\tFOV %i:\t%i puncta,\t%i nonshuf matches,\t%i shuf matches,\t%.2f fp\n',...
-        f,count_all,count_allaligned,count_shuffled,count_shuffled/count_allaligned);
-end
+        1,count_all,count_allaligned,count_shuffled,count_shuffled/count_allaligned);
+%end
 
 %         end
 %     end
@@ -326,7 +303,7 @@ writeCSVfromTranscriptObjects(transcript_objects_all(didalign_mask),output_file)
 
 false_hits = sum(shufflehits);
 
-fprintf('Saved transcript_matches_objects! %i hits w %i shuffledhits \n',length(hits_pos)+length(perfect_matches),false_hits);
+fprintf('Saved transcript_matches_objects! %i hits w %i shuffledhits \n',sum(hits_pos)+length(perfect_matches),false_hits);
 %%
 
 
