@@ -34,7 +34,7 @@ function usage() {
     echo "  -L    log directory"
     echo "  -G    use GPUs (default: no)"
     echo "  -H    use HDF5 format for intermediate files (default: no)"
-    echo "  -J    set # of concurrent jobs for color-correction, and normalization;  5,10"
+    echo "  -J    set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P    mode to get performance profile"
     echo "  -e    execution stages;  exclusively use for skip stages"
     echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
@@ -180,7 +180,7 @@ do
             ;;
         H)  USE_HDF5=true
             ;;
-        J)  IFS=, read NJOBS_CC NJOBS_NORM TMP <<<$OPTARG
+        J)  IFS=, read NJOBS_CC NJOBS_NORM NJOBS_CALCD NJOBS_REGC NJOBS_AFFINE TMP <<<$OPTARG
             if [ -n "${NJOBS_CC}" ]; then
                 if check_number ${NJOBS_CC}; then
                     if [ ${NJOBS_CC} -eq 0 ]; then
@@ -202,6 +202,42 @@ do
                     NORMALIZATION_MAX_RUN_JOBS=${NJOBS_NORM}
                 else
                     echo "${NJOBS_NORM} is not number"
+                    exit 1
+                fi
+            fi
+            if [ -n "${NJOBS_CALCD}" ]; then
+                if check_number ${NJOBS_CALCD}; then
+                    if [ ${NJOBS_CALCD} -eq 0 ]; then
+                        echo "# of jobs for calc-descriptors is zero"
+                        exit 1
+                    fi
+                    CALC_DESC_MAX_RUN_JOBS=${NJOBS_CALCD}
+                else
+                    echo "${NJOBS_CALCD} is not number"
+                    exit 1
+                fi
+            fi
+            if [ -n "${NJOBS_REGC}" ]; then
+                if check_number ${NJOBS_REGC}; then
+                    if [ ${NJOBS_REGC} -eq 0 ]; then
+                        echo "# of jobs for reg-with-correspondences is zero"
+                        exit 1
+                    fi
+                    REG_CORR_MAX_RUN_JOBS=${NJOBS_REGC}
+                else
+                    echo "${NJOBS_REGC} is not number"
+                    exit 1
+                fi
+            fi
+            if [ -n "${NJOBS_AFFINE}" ]; then
+                if check_number ${NJOBS_AFFINE}; then
+                    if [ ${NJOBS_AFFINE} -eq 0 ]; then
+                        echo "# of jobs for affine-transform-in-reg is zero"
+                        exit 1
+                    fi
+                    AFFINE_MAX_RUN_JOBS=${NJOBS_AFFINE}
+                else
+                    echo "${NJOBS_AFFINE} is not number"
                     exit 1
                 fi
             fi
@@ -352,6 +388,7 @@ RAJLABTOOLS_DIR=$(cd "${RAJLABTOOLS_DIR}" && pwd)
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
+
 if [ $ROUND_NUM = "auto" ]; then
     ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "*_${CHANNEL_ARRAY[0]}.tif" | wc -l)
 fi
@@ -483,6 +520,15 @@ if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
 fi
 echo
 
+echo "## symbolic link check"
+ls -ld ${DECONVOLUTION_DIR}
+ls -ld ${COLOR_CORRECTION_DIR}
+ls -ld ${NORMALIZATION_DIR}
+ls -ld ${REGISTRATION_DIR}
+ls -ld ${PUNCTA_DIR}
+ls -ld ${TRANSCRIPT_DIR}
+echo
+
 
 if [ "${PERF_PROFILE}" = "true" ]; then
     set -m
@@ -539,6 +585,9 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
     -e "s#\(params.DOWN_SAMPLING_MAX_POOL_SIZE\) *= *.*;#\1 = ${DOWN_SAMPLING_MAX_POOL_SIZE};#" \
     -e "s#\(params.COLOR_CORRECTION_MAX_RUN_JOBS\) *= *.*;#\1 = ${COLOR_CORRECTION_MAX_RUN_JOBS};#" \
     -e "s#\(params.NORM_MAX_RUN_JOBS\) *= *.*;#\1 = ${NORMALIZATION_MAX_RUN_JOBS};#" \
+    -e "s#\(params.CALC_DESC_MAX_RUN_JOBS\) *= *.*;#\1 = ${CALC_DESC_MAX_RUN_JOBS};#" \
+    -e "s#\(params.REG_CORR_MAX_RUN_JOBS\) *= *.*;#\1 = ${REG_CORR_MAX_RUN_JOBS};#" \
+    -e "s#\(params.AFFINE_MAX_RUN_JOBS\) *= *.*;#\1 = ${AFFINE_MAX_RUN_JOBS};#" \
     -i.back \
     ./loadParameters.m
 
@@ -570,8 +619,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-downsample-all.log -r "${ERR_HDL_PRECODE} run('downsample_all.m'); ${ERR_HDL_POSTCODE}"
 
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM};try; colorcorrection_3D_poc(i);catch; colorcorrection_3D(i); end; end; ${ERR_HDL_POSTCODE}"
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} colorcorrection_3D_cuda(${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    if [ ${USE_GPU_CUDA} == "true" ]; then
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} colorcorrection_3D_cuda(${ROUND_NUM}); ${ERR_HDL_POSTCODE}"
+    else
+        matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-color-correction.log -r "${ERR_HDL_PRECODE} for i=1:${ROUND_NUM}; colorcorrection_3D(i); end; ${ERR_HDL_POSTCODE}"
+    fi
     if ls matlab-color-correction-*.log > /dev/null 2>&1; then
         mv matlab-color-correction-*.log ${LOG_DIR}/
     else
@@ -761,7 +813,7 @@ stage_idx=$(( $stage_idx + 1 ))
 
 # puncta extraction
 echo "========================================================================="
-echo "puncta extraction"; date
+echo "Puncta extraction"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
@@ -785,7 +837,7 @@ stage_idx=$(( $stage_idx + 1 ))
 
 # base calling of transcripts
 echo "========================================================================="
-echo "base calling"; date
+echo "Base calling"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
@@ -802,6 +854,8 @@ stage_idx=$(( $stage_idx + 1 ))
 
 
 if [ "${PERF_PROFILE}" = "true" ]; then
+    echo "========================================================================="
+    echo "Profile logs summary"; date
     kill -- -${PID_PERF_PROFILE}
     PID_PERF_PROFILE=
     sleep 1
@@ -809,6 +863,6 @@ if [ "${PERF_PROFILE}" = "true" ]; then
 fi
 
 echo "========================================================================="
-echo "pipeline finished"; date
+echo "Pipeline finished"; date
 echo
 

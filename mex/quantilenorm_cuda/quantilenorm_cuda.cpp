@@ -129,7 +129,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         } catch (ExceptionToMATLAB& ex) {
             mexErrMsgIdAndTxt(ex.getMatlabId().c_str(), ex.getMessage().c_str());
         } catch (...) {
-            mexErrMsgIdAndTxt("MATLAB:quantilenorm_impl:unknownError", "internal unknown error occurred");
+            mexErrMsgIdAndTxt("MATLAB:quantilenorm_cuda:unknownError", "internal unknown error occurred");
         }
 
 

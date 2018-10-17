@@ -5,6 +5,22 @@
 
 namespace cufftutils {
 
+    __global__
+    void trim_pad_1GPU(int trim_idxs00, int trim_idxs01, int trim_idxs10, 
+            int trim_idxs11, int trim_idxs20, int trim_idxs21, unsigned int size0, unsigned int
+            size1, unsigned int size2, unsigned int pad_size0, unsigned int
+            pad_size1, unsigned int pad_size2, long long size_device, bool
+            column_order, float* hostO, cufftComplex* host_data_input, int
+            benchmark);
+
+    __global__
+    void initialize_inputs_1GPU(float* hostI, float* hostF, cufftComplex
+            host_data_input[], cufftComplex host_data_kernel[], long long N, long
+            long start, unsigned int size0, unsigned int size1, unsigned int size2,
+            unsigned int pad_size0, unsigned int pad_size1, unsigned int pad_size2,
+            unsigned int filterdimA0, unsigned int filterdimA1, unsigned int
+            filterdimA2, bool column_order, int benchmark);
+        
     void printHostData(cufftComplex *a, int size);
 
     void printDeviceData(cufftComplex *a, int size);
@@ -18,13 +34,6 @@ namespace cufftutils {
 
     __global__
     void complex_point_mul_scale_par(cufftComplex *a, cufftComplex *b, long long size, float scale);
-
-    __global__
-    void trim_pad_par(int trim_idxs00, int trim_idxs01, int trim_idxs10, 
-            int trim_idxs11, int trim_idxs20, int trim_idxs21, unsigned int size0, unsigned int
-            size1, unsigned int size2, unsigned int pad_size0, unsigned int pad_size1, unsigned int pad_size2, bool
-            column_order, float* hostO, cufftComplex* host_data_input, bool
-            benchmark) ;
 
     __global__
     void initialize_inputs_par(float* hostI, float* hostF, cufftComplex host_data_input[], 
@@ -49,7 +58,7 @@ namespace cufftutils {
 
     void product(cufftComplex *signal1, int size1, cufftComplex *signal2, dim3 gridSize, dim3 blockSize);
 
-    void trim_pad(int trim_idxs[3][2], unsigned int* size, unsigned int* pad_size, bool column_order, float* hostO, cufftComplex* host_data_input) ;
+    void trim_pad(int trim_idxs[3][2], unsigned int* size, unsigned int* pad_size, bool column_order, float* hostO, cufftComplex* host_data_input, int benchmark) ;
 
     void signalFFT3D(cufftComplex *d_signal, int NX, int NY, int NZ);
 

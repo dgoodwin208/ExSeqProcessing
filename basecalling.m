@@ -9,7 +9,7 @@ load(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_pixels.mat',params.
 puncta_set = puncta_set_mean;
 puncta_set_bg = puncta_set_backgroundmedian;
 
-ROUNDS_TO_CALL = 1:4;% 4:20; 
+ROUNDS_TO_CALL =  4:20; 
 NUMCALLEDROUNDS = length(ROUNDS_TO_CALL);
 
 

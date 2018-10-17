@@ -24,10 +24,12 @@ params.NUM_CHANNELS = 4;
 
 %Used for color correction
 %Assuming beads are at the top of the stack, when do they start?
-params.BEAD_ZSTART = 100; %goes to :end
-params.COLOR_OFFSETS3D = [6,6,6];
+params.BEAD_ZSTART = 50; %goes to :end
+params.COLOR_OFFSETS3D = [20,20,20];
 
 
+params.PUNCTA_SIZE_THRESHOLD = 30;
+params.PUNCTA_SIZE_MAX = 2000;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 params.CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 

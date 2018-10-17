@@ -21,7 +21,7 @@ function shift = phaseOnlyCorrelation(baseImg,moveImg,offsets)
     f1 = fftn(baseImg.*hann_window);
     f2 = fftn(moveImg.*hann_window);
     r  = f1.*conj(f2);
-    %r  = r./abs(r);
+    r  = r./abs(r);
     ir = ifftn(r);
 
     ir(offsets(1)+2:end-offsets(1)-1,:,:) = nan(1);

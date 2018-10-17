@@ -3,7 +3,7 @@
 LIBRARY_FILE = 'groundtruth_dictionary_slice_v6_unique_everything_highcomplex.mat';
 ptr = 1;
 
-for fov_index = [1 2 4 5 6 7 8 9 10]
+for fov_index = 1:10 %1 2 3 4 7 8 9 10] %4 6 7 8
     
     loadParameters;
     params.deconvolutionImagesDir= sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/1_deconvolution',fov_index);
@@ -55,9 +55,6 @@ puncta_voxels = puncta_voxels_total;
 
 %%
 
-%LIBRARY_FILE = 'groundtruth_slice_yfp+qs30+locomp.mat';
-%LIBRARY_FILE = 'groundtruth_dictionary_slice_v6_unique_filtered.mat';
-%LIBRARY_FILE = 'groundtruth_dictionary_neuronsv6_unique_filtered.mat';
 if ~exist('gtlabels','var')
     load(LIBRARY_FILE);
 end
@@ -123,6 +120,7 @@ perfect_match_ctr = 1;
 searchForPerfects = true;
 if searchForPerfects
     tic
+    
     hasPerfectMatch = zeros(size(insitu_transcripts_keep,1),1);
     %Parallelize the search for a perfect match
     parfor t = 1:size(insitu_transcripts_confidence_keep,1)
@@ -137,9 +135,7 @@ if searchForPerfects
             img_transcript = insitu_transcripts_keep(t,:);
             img_transcript_2ndplace = insitu_transcripts_2ndplace_keep(t,:);
             
-            perfect_match = find(sum(groundtruth_codes == img_transcript,2)==readlength);
-
-
+            perfect_match = find(sum(groundtruth_codes == img_transcript,2)==readlength); 
             transcript = struct;
             transcript.img_transcript=img_transcript;
             transcript.img_transcript_confidence=insitu_transcripts_confidence_keep(t,:);
@@ -163,7 +159,6 @@ if searchForPerfects
             %Use the index (1) just in case there are multiple hits
             transcript.shufflehit = matchingIdxSHUFFLED(1)>0;
             
-            %perfect_match_indices(perfect_match_ctr) = t;
             perfect_matches{perfect_match_ctr} = transcript;
             perfect_match_ctr = perfect_match_ctr+1;
             
@@ -214,7 +209,6 @@ fprintf('Removed %i in situ with too many low quality bases\n',length(indices_di
 %if exist(outputfilename,'file'); delete(outputfilename); end
 %fastqwrite(outputfilename,fastqstructs);
 
-%%
 
 
 
@@ -272,7 +266,6 @@ parfor p_idx= 1:size(insitu_transcripts_keep,1) %r_idx = 1:length(random_indices
         %If it's a unique match, use the name
         transcript.known_sequence_matched = groundtruth_codes(matchingIdx,:);
         transcript.name = gtlabels{matchingIdx};
-        
         
         hits_pos(p_idx) = 1;
     end

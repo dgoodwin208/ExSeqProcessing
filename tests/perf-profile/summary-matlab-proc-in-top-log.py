@@ -16,8 +16,8 @@ topfile = args.top_log
 
 # =============================================================================
 comp_time_load_averages = re.compile('top - ([0-9]*:[0-9]*:[0-9]*) .*load average: ([^,]*), ([^,]*), ([^,]*)')
-comp_mem = re.compile('MiB Mem : *([0-9.]*)[ +]total, *([0-9.]*)[ +]free, *([0-9.]*)[ +]used, *([0-9.]*)[ +]buff/cache')
-comp_swap = re.compile('MiB Swap: *([0-9.]*)[ +]total, *([0-9.]*)[ +]free, *([0-9.]*)[ +]used. *([0-9.]*)[ +]avail Mem')
+comp_mem = re.compile('(.iB) Mem : *([0-9.]*)[ +]total, *([0-9.]*)[ +]free, *([0-9.]*)[ +]used, *([0-9.]*)[ +]buff/cache')
+comp_swap = re.compile('.iB Swap: *([0-9.]*)[ +]total, *([0-9.]*)[ +]free, *([0-9.]*)[ +]used. *([0-9.]*)[ +]avail Mem')
 
 PROC_LEFT_SEP = 67
 comp_proc_info = re.compile(' *([0-9]*) *([a-z]*) *[0-9]* *[0-9]* *([0-9.]*)([mgt]?) *([0-9.]*)([mgt]?) *([0-9.]*)([mgt]?) ([A-Z]) *([0-9.]*) *([0-9.]*) *([0-9:.]*)')
@@ -42,15 +42,17 @@ class MemUsage:
         self.swap_free = 0
         self.swap_used = 0
         self.avail_mem = 0
+        self.mem_unit = ''
 
     def set_start_time(self, start_time):
         self.start_time = start_time
 
-    def set_mem(self, mem_total, mem_free, mem_used, buf_cache):
+    def set_mem(self, mem_total, mem_free, mem_used, buf_cache, mem_unit):
         self.mem_total = mem_total
         self.mem_free = mem_free
         self.mem_used = mem_used
         self.buf_cache = buf_cache
+        self.mem_unit = mem_unit
 
     def set_swap(self, swap_total, swap_free, swap_used, avail_mem):
         self.swap_total = swap_total
@@ -60,17 +62,17 @@ class MemUsage:
 
     def write_headers(self):
         self.ofile.write('datetime,elapsed_time,')
-        self.ofile.write('mem_total,mem_free,mem_used,swap_total,swap_free,swap_used,buf_cache,avail_mem')
+        self.ofile.write('mem_total,mem_free,mem_used,swap_total,swap_free,swap_used,buf_cache,avail_mem,mem_unit')
         self.ofile.write('\n')
 
     def write_values(self, elapsed_time):
         total_hours, remainder = divmod(elapsed_time.total_seconds(), 3600)
         total_minutes, total_seconds = divmod(remainder, 60)
         self.ofile.write('%s,%d:%02d:%02d,' % (self.start_time + elapsed_time, total_hours, total_minutes, total_seconds))
-        self.ofile.write('%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f' \
+        self.ofile.write('%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%s' \
             % (self.mem_total, self.mem_free, self.mem_used, \
                self.swap_total, self.swap_free, self.swap_used, \
-               self.buf_cache, self.avail_mem))
+               self.buf_cache, self.avail_mem, self.mem_unit))
         self.ofile.write('\n')
 
 class ProcStatus:
@@ -195,21 +197,22 @@ for line in open(topfile, 'r'):
 #        if count == 20:
 #            break
 
-    elif re.search('^MiB Mem', line):
+    elif re.search('^.iB Mem', line):
         m = comp_mem.search(line)
         if m == None:
             print('mem regex is wrong.')
             sys.exit(1)
 
-        mem_total = float(m.group(1))
-        mem_free = float(m.group(2))
-        mem_used = float(m.group(3))
-        buf_cache = float(m.group(4))
+        mem_unit = m.group(1)
+        mem_total = float(m.group(2))
+        mem_free = float(m.group(3))
+        mem_used = float(m.group(4))
+        buf_cache = float(m.group(5))
 
-        mem_usage.set_mem(mem_total, mem_free, mem_used, buf_cache)
+        mem_usage.set_mem(mem_total, mem_free, mem_used, buf_cache, mem_unit)
         continue
 
-    elif re.search('^MiB Swap', line):
+    elif re.search('^.iB Swap', line):
         m = comp_swap.search(line)
         if m == None:
             print('swap regex is wrong.')

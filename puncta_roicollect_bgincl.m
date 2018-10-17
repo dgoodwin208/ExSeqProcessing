@@ -14,9 +14,9 @@ BGREGION_SEARCHXY = 30;
 BGREGION_SEARCHZ = 5;
 %the puncta indices are here in linear form for a specific round
 
-parpool(4); %arbitrary but this parallel loop is memory intensive
-filename_punctaMask = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.tif',params.FILE_BASENAME));
-img_mask = load3DTif_uint16(filename_punctaMask)>0;
+parpool(3); %arbitrary but this parallel loop is memory intensive
+filename_punctaMask = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
+img_mask = load3DImage_uint16(filename_punctaMask)>0;
     
 parfor exp_idx = 1:params.NUM_ROUNDS 
     disp(['round=',num2str(exp_idx)])
@@ -27,8 +27,8 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     pixels_per_rnd_bgmedian = cell(num_insitu_transcripts,params.NUM_CHANNELS);
 
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE));
-        img =  load3DTif_uint16(filename_in);
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
+        img =  load3DImage_uint16(filename_in);
         %Leftover from an experiment of turning each image into a DFF calculation
         %img_blur = imgaussfilt3(single(img),[30 30 30*(params.XRES/params.ZRES)]); 
         %imgdff = (img-img_blur)./(img_blur);

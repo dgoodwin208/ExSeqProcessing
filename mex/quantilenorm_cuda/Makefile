@@ -24,14 +24,14 @@ NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 all: $(TARGET)
 
 quantilenorm_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a $(MEX_UTILS_DIR)/libmexutils.a $(UTILS_DIR)/libutils.a
-	mex -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread -ltbb
+	mex -R2018a -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread -ltbb
 	@cp -a quantilenorm_cuda.mexa64 ../
 
 %.o: %.cpp $(SRCS)
-	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
+	mex -R2018a -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
 
 $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
-	make -C $(CUDA_UTILS_DIR)
+	make -R2018a -C $(CUDA_UTILS_DIR)
 
 %.o: %.cu $(CU_SRCS)
 	nvcc $(NVCCFLAGS) $(CPPFLAGS) -Xcompiler -fPIC -c -o $@ $<
