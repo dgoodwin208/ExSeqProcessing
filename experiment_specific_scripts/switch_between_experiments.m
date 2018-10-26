@@ -2,7 +2,11 @@
 %MUST be ran in root repo directory!
 
 %Eggplant directory:
-target_dir = '/mp/nas0/ExSeq/AutoSeq2/xy10'; %No trailing slash!
+%target_dir = '/mp/nas0/ExSeq/AutoSeq2/xy10HP'; %No trailing slash!
+%target_dir = '/mp/nas0/SplintR/09deconv'; %No trailing slash!
+%target_dir = '/mp/nas0/SplintR/09deconv'; %No trailing slash!
+target_dir = '/mp/nas0/SplintR/09deconv'; %No trailing slash!
+%target_dir = '/mp/nas0/SplintR/splintr2/OzSplintr2/outputroi1_reprocess'; %No trailing slash!
 
 status = system(sprintf('unlink %s','1_deconvolution'));
 status = system(sprintf('unlink %s','2_color-correction'));

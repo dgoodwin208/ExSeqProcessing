@@ -146,10 +146,10 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
                 [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
             
             %Before calculating any features, make sure the tile is not empty
-            if checkIfTileEmpty(tile_img,regparams.EMPTY_TILE_THRESHOLD)
-                disp('This subregion is empty. Skipping');
-                continue
-            end
+            %if checkIfTileEmpty(tile_img,regparams.EMPTY_TILE_THRESHOLD)
+            %    disp('This subregion is empty. Skipping');
+            %    continue
+            %end
             
             %If we're calculating a channel just for shape context, then we
             %only need the keypoint and not the descriptor. So we do a check for any channel that

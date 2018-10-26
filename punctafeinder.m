@@ -1,10 +1,8 @@
 
-%ROUNDS = 5:10;%1:params.NUM_ROUNDS;
 ROUNDS = 1:params.NUM_ROUNDS;
 for roundnum = ROUNDS
-    %try
-%    summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s_HP.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
-%    summed_norm = load3DTif_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
+    
+
     summed_norm = load3DImage_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
 
     %NEW: 08/01/2018: high pass filter before segmentation
@@ -14,14 +12,6 @@ for roundnum = ROUNDS
     %img_blur_gpu = imgaussfilt3(summed_norm_gpu,[30 30 30*(.17/.4)]);
     %fprintf('Gathering\n');
     %img_blur = gather(img_blur_gpu);
-    tic
-    fprintf('Starting CPU-based convolution\n');
-    img_blur = imgaussfilt3(single(summed_norm),[30 30 30*(.17/.4)],'FilterDomain','frequency');
-    toc
-    summed_norm = max(summed_norm - img_blur,0);
-    fprintf('Done!\n');
-%    save3DTif_uint16(summed_norm,fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s_HP.tif',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE)));
-    save3DImage_uint16(summed_norm,fullfile(params.punctaSubvolumeDir,sprintf('%s_round%.03i_%s_%s_HP.%s',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
     %catch
 %	fprintf('Failed to load round %i\n',roundnum)
 %        continue;
@@ -44,7 +34,6 @@ end
 min_total = min(total_summed_norm(:));
 total_summed_norm_scaled = total_summed_norm - min_total;
 total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
-%save3DTif_uint16(total_summed_norm_scaled,fullfile(params.registeredImagesDir,sprintf('%s_allsummedSummedNorm.tif',params.FILE_BASENAME)));
 save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
 
 %Note the original size of the data before upscaling to isotropic voxels

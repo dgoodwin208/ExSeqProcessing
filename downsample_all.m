@@ -6,6 +6,7 @@ if ~params.DO_DOWNSAMPLE
     return;
 end
 
+params.DOWN_SAMPLING_MAX_POOL_SIZE = 5;
 parpool(params.DOWN_SAMPLING_MAX_POOL_SIZE);
 
 parfor rnd_indx = 1:params.NUM_ROUNDS

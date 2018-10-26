@@ -14,7 +14,6 @@ BGREGION_SEARCHXY = 30;
 BGREGION_SEARCHZ = 5;
 %the puncta indices are here in linear form for a specific round
 
-%parpool(4); %arbitrary but this parallel loop is memory intensive
 parpool(3); %arbitrary but this parallel loop is memory intensive
 filename_punctaMask = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
 img_mask = load3DImage_uint16(filename_punctaMask)>0;
@@ -111,7 +110,12 @@ channels_notpresent = squeeze(sum(puncta_set_median==0,2));
 %channels_notpresent is NUM_ROUNDS x NUM Puncta where each value is the
 %number of zero-valued channels in that round and puncta
 
-num_roundsmissing_per_puncta = squeeze(sum(channels_notpresent>2,1));
+%This is worth exploring (DG 09/20/2018). In principle, we only need one channel present, and in the case of high passing the data we might be missing a few channels
+%Was this line:
+%num_roundsmissing_per_puncta = squeeze(sum(channels_notpresent>2,1));
+
+num_roundsmissing_per_puncta = squeeze(sum(channels_notpresent>3,1));
+
 %Create a mask of all puncta that have a non-zero signal in all four
 %channels for all rounds
 %When we high pass the signal before this step, there are a lot of zeros

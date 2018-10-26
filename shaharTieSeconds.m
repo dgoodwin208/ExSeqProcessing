@@ -19,7 +19,7 @@ end
 
 
 changeablebases = find(confidence<=confThreshChange);
-unchangeablebases = find(confidence>=confThreshFixed);
+unchangeablebases = find(confidence>confThreshFixed);
 
 % We'll only allow misses where the confidence is low
 candidate_transcript_hits = dictionary(min_hamming_score_indices,:);
@@ -53,12 +53,26 @@ end
 %Which option has the best recovery using the second brightest base?
 [num_correction, best_idx] = max(error_correctables_2ndmatch);
 
-% If our best option has a change at an unallowable base, then it is not a
-% match
+% If our best option has a change at an unallowable base, then we check if we can keep it
 if max(num_correction)==-1
+    %If there is a unique option for an allowable minimim edit distance, keep it!
+    if length(min_hamming_score_indices)==1 && minEditDist <=editScoreMax
+        dictmatchidx = min_hamming_score_indices;
+        return;
+    %But if we have two options that we can't tell apart, then we can't keep it
+    else
+         dictmatchidx=-1;
+         return;
+     end
+end
+
+%If we have multiple options for the min edit distance, we have to make sure
+%there is a clear winner, otherwise we have to discard
+if sum(error_correctables_2ndmatch==num_correction)>1
     dictmatchidx=-1;
     return;
 end
+
 % fprintf('Min error was %i, w correction: %i\n',minEditDist,minEditDist - num_correction);
 minEditDist = minEditDist - num_correction;
 

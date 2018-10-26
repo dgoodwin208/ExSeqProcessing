@@ -767,7 +767,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
             matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regCorr-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesCUDAInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         else
             #Because the matching is currently single-threaded, we can parpool it in one loop
-            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWCorr-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:20; if i==4;fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
+            #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-registerWCorr-${i}.log -r "${ERR_HDL_PRECODE} parpool; parfor i = 1:${ROUND_NUM}; if i==${REFERENCE_ROUND};fprintf('Skipping reference round\n');continue;end; calcCorrespondences(i);registerWithCorrespondences(i,true);registerWithCorrespondences(i,false); ${ERR_HDL_POSTCODE}"
             matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-regCorr-group.log -r "${ERR_HDL_PRECODE} registerWithCorrespondencesInParallel([$rounds]); ${ERR_HDL_POSTCODE}"
         fi
 
@@ -798,7 +798,6 @@ echo
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} loadParameters; punctafeinder; puncta_roicollect_bgincl; ${ERR_HDL_POSTCODE}"
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} loadParameters; punctafeinder_simple; puncta_subvolumes_simple; ${ERR_HDL_POSTCODE}"
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} punctafeinder_in_parallel; ${ERR_HDL_POSTCODE}"
 
     if ls matlab-puncta-extraction-*.log > /dev/null 2>&1; then
