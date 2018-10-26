@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function trap_handle() {
+function trap_exit_handle() {
     if [ -n "${PID_PERF_PROFILE}" ]; then
         kill -- -${PID_PERF_PROFILE}
     fi
@@ -8,17 +8,26 @@ function trap_handle() {
     if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
         rm /dev/shm/sem.$USER*
     fi
-    exit
 }
 
-trap trap_handle EXIT
+function trap_interrupt_handle() {
+    if [ -n "${PID_PERF_PROFILE}" ]; then
+        kill -- -${PID_PERF_PROFILE}
+    fi
+    kill 0
+    if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
+        rm /dev/shm/sem.$USER*
+    fi
+}
+
+trap trap_exit_handle EXIT
+trap trap_interrupt_handle SIGINT SIGHUP SIGQUIT SIGTERM
 
 
 function usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "  -N    # of rounds; 'auto' means # is calculated from files."
     echo "  -b    file basename"
-    echo "  -c    channel names; ex. 'chn01','ch02corr'"
     echo "  -B    reference round puncta"
     echo "  -d    deconvolution image directory"
     echo "  -C    color correction image directory"
@@ -26,13 +35,12 @@ function usage() {
     echo "  -r    registration image directory"
     echo "  -p    puncta extraction directory"
     echo "  -t    transcript information directory"
-    echo "  -R    registration MATLAB directory"
     echo "  -V    vlfeat lib directory"
     echo "  -I    Raj lab image tools MATLAB directory"
     echo "  -i    reporting directory"
     echo "  -T    temp directory (default: not use temp dir)"
     echo "  -L    log directory"
-    echo "  -G    use GPUs (default: no)"
+    echo "  -G    use GPU and CUDA (default: no)"
     echo "  -H    use HDF5 format for intermediate files (default: no)"
     echo "  -J    set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P    mode to get performance profile"
@@ -40,7 +48,7 @@ function usage() {
     echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
-    exit 1
+    exit
 }
 
 function check_number() {
@@ -64,7 +72,6 @@ REGISTRATION_DIR=4_registration
 PUNCTA_DIR=5_puncta-extraction
 TRANSCRIPT_DIR=6_transcripts
 
-REGISTRATION_PROJ_DIR=registration
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
 RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
 REPORTING_DIR=logs/imgs
@@ -107,12 +114,11 @@ PUNCTA_MAX_THREADS=0
 
 FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
 CHANNELS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
+REGISTRATION_CHANNELS=$(sed -ne "s#regparams.CHANNELS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
+REGISTRATION_CHANNEL_ARRAY=($(echo ${REGISTRATION_CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
-REGISTRATION_CHANNEL=summedNorm
-PUNCTA_EXTRACT_CHANNEL=summedNorm
-REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
 
 USE_GPU_CUDA=false
 USE_HDF5=false
@@ -122,29 +128,24 @@ NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:c:B:d:C:n:r:p:t:R:V:I:T:i:L:e:s:GHJ:Pyh OPT
+while getopts N:b:B:d:C:n:r:p:t:V:I:T:i:L:e:s:GHJ:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
             if [ $ROUND_NUM != "auto" ]; then
                 if ! check_number ${ROUND_NUM}; then
                     echo "# of rounds is not number; ${ROUND_NUM}"
-                    exit 1
+                    exit
                 fi
             fi
             ;;
         b)  FILE_BASENAME=$OPTARG
             REGISTRATION_SAMPLE=${FILE_BASENAME}_
             ;;
-        c)  CHANNELS=$OPTARG
-            CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
-            REGISTRATION_WARP_CHANNELS="'${REGISTRATION_CHANNEL}',${CHANNELS}"
-            PUNCTA_EXTRACT_CHANNELS="'${REGISTRATION_CHANNEL}'"
-            ;;
         B)  REFERENCE_ROUND=$OPTARG
                 if ! check_number ${REFERENCE_ROUND}; then
                     echo "reference round is not number; ${REFERENCE_ROUND}"
-                    exit 1
+                    exit
                 fi
             ;;
         d)  DECONVOLUTION_DIR=$OPTARG
@@ -158,8 +159,6 @@ do
         p)  PUNCTA_DIR=$OPTARG
             ;;
         t)  TRANSCRIPT_DIR=$OPTARG
-            ;;
-        R)  REGISTRATION_PROJ_DIR=$OPTARG
             ;;
         V)  VLFEAT_DIR=$OPTARG
             ;;
@@ -185,60 +184,60 @@ do
                 if check_number ${NJOBS_CC}; then
                     if [ ${NJOBS_CC} -eq 0 ]; then
                         echo "# of jobs for color-correction is zero"
-                        exit 1
+                        exit
                     fi
                     COLOR_CORRECTION_MAX_RUN_JOBS=${NJOBS_CC}
                 else
                     echo "${NJOBS_CC} is not number"
-                    exit 1
+                    exit
                 fi
             fi
             if [ -n "${NJOBS_NORM}" ]; then
                 if check_number ${NJOBS_NORM}; then
                     if [ ${NJOBS_NORM} -eq 0 ]; then
                         echo "# of jobs for normalization is zero"
-                        exit 1
+                        exit
                     fi
                     NORMALIZATION_MAX_RUN_JOBS=${NJOBS_NORM}
                 else
                     echo "${NJOBS_NORM} is not number"
-                    exit 1
+                    exit
                 fi
             fi
             if [ -n "${NJOBS_CALCD}" ]; then
                 if check_number ${NJOBS_CALCD}; then
                     if [ ${NJOBS_CALCD} -eq 0 ]; then
                         echo "# of jobs for calc-descriptors is zero"
-                        exit 1
+                        exit
                     fi
                     CALC_DESC_MAX_RUN_JOBS=${NJOBS_CALCD}
                 else
                     echo "${NJOBS_CALCD} is not number"
-                    exit 1
+                    exit
                 fi
             fi
             if [ -n "${NJOBS_REGC}" ]; then
                 if check_number ${NJOBS_REGC}; then
                     if [ ${NJOBS_REGC} -eq 0 ]; then
                         echo "# of jobs for reg-with-correspondences is zero"
-                        exit 1
+                        exit
                     fi
                     REG_CORR_MAX_RUN_JOBS=${NJOBS_REGC}
                 else
                     echo "${NJOBS_REGC} is not number"
-                    exit 1
+                    exit
                 fi
             fi
             if [ -n "${NJOBS_AFFINE}" ]; then
                 if check_number ${NJOBS_AFFINE}; then
                     if [ ${NJOBS_AFFINE} -eq 0 ]; then
                         echo "# of jobs for affine-transform-in-reg is zero"
-                        exit 1
+                        exit
                     fi
                     AFFINE_MAX_RUN_JOBS=${NJOBS_AFFINE}
                 else
                     echo "${NJOBS_AFFINE} is not number"
-                    exit 1
+                    exit
                 fi
             fi
             ;;
@@ -267,27 +266,17 @@ fi
 
 if [ ! -d "${DECONVOLUTION_DIR}" ]; then
     echo "No deconvolution dir.: ${DECONVOLUTION_DIR}"
-    exit 1
-fi
-
-if [ ! -d "${REGISTRATION_PROJ_DIR}" ]; then
-    echo "No Registration project dir.: ${REGISTRATION_PROJ_DIR}"
-    exit 1
-fi
-
-if [ ! -d "${REGISTRATION_PROJ_DIR}"/MATLAB ]; then
-    echo "No MATLAB dir. in Registration project: ${REGISTRATION_PROJ_DIR}/MATLAB"
-    exit 1
+    exit
 fi
 
 if [ ! -d "${RAJLABTOOLS_DIR}" ]; then
     echo "No Raj lab image tools project dir.: ${RAJLABTOOLS_DIR}"
-    exit 1
+    exit
 fi
 
 if [ ! -d "${VLFEAT_DIR}" ]; then
     echo "No vlfeat library dir.: ${VLFEAT_DIR}"
-    exit 1
+    exit
 fi
 
 
@@ -295,7 +284,7 @@ fi
 
 if [ ! -f ./loadParameters.m.template ]; then
     echo "No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
-    exit 1
+    exit
 fi
 if [ ! -f ./loadParameters.m ]; then
     echo "No 'loadParameters.m' in ExSeqProcessing MATLAB. Copy from a template file"
@@ -381,7 +370,6 @@ REGISTRATION_DIR=$(cd "${REGISTRATION_DIR}" && pwd)
 PUNCTA_DIR=$(cd "${PUNCTA_DIR}" && pwd)
 TRANSCRIPT_DIR=$(cd "${TRANSCRIPT_DIR}" && pwd)
 
-REGISTRATION_PROJ_DIR=$(cd "${REGISTRATION_PROJ_DIR}" && pwd)
 VLFEAT_DIR=$(cd "${VLFEAT_DIR}" && pwd)
 RAJLABTOOLS_DIR=$(cd "${RAJLABTOOLS_DIR}" && pwd)
 
@@ -405,7 +393,7 @@ REG_STAGES=("calc-descriptors" "register-with-correspondences")
 # check stages to be skipped and executed
 if [ ! "${ARG_EXEC_STAGES}" = "" -a ! "${ARG_SKIP_STAGES}" = "" ]; then
     echo "cannot use both -e and -s"
-    exit 1
+    exit
 fi
 
 if [ ! "${ARG_EXEC_STAGES}" = "" ]; then
@@ -447,9 +435,7 @@ echo "  Running on host        :  "`hostname`
 echo "  # of rounds            :  ${ROUND_NUM}"
 echo "  file basename          :  ${FILE_BASENAME}"
 echo "  reference round        :  ${REFERENCE_ROUND}"
-echo "  processing channels    :  ${CHANNELS}"
-echo "  registration channel   :  ${REGISTRATION_CHANNEL}"
-echo "  warp channels          :  ${REGISTRATION_WARP_CHANNELS}"
+echo "  channels               :  ${CHANNELS}"
 echo "  use GPU_CUDA           :  ${USE_GPU_CUDA}"
 echo "  intermediate image ext :  ${IMAGE_EXT}"
 echo
@@ -482,7 +468,6 @@ echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
 echo "  transcripts            :  ${TRANSCRIPT_DIR}"
 echo
-echo "  Registration project   :  ${REGISTRATION_PROJ_DIR}"
 echo "  vlfeat lib             :  ${VLFEAT_DIR}"
 echo "  Raj lab image tools    :  ${RAJLABTOOLS_DIR}"
 echo
@@ -515,7 +500,7 @@ if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
     if [ $ANSW = 'n' -o $ANSW = 'N' ]; then
         echo
         echo 'Canceled.'
-        exit 0
+        exit
     fi
 fi
 echo
@@ -559,14 +544,12 @@ stage_idx=$(( $stage_idx + 1 ))
 
 ###### setup MATLAB scripts
 
-sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
-    -e "s#\(regparams.REGISTERCHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
-    -e "s#\(regparams.CHANNELS\) *= *.*;#\1 = {${REGISTRATION_WARP_CHANNELS}};#" \
-    -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
+sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(regparams.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(regparams.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
     -e "s#\(params.colorCorrectionImagesDir\) *= *.*;#\1 = '${COLOR_CORRECTION_DIR}';#" \
+    -e "s#\(params.normalizedImagesDir\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
     -e "s#\(params.transcriptResultsDir\) *= *.*;#\1 = '${TRANSCRIPT_DIR}';#" \
@@ -575,8 +558,6 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
     -e "s#\(params.REFERENCE_ROUND_WARP\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
-    -e "s#\(params.NUM_CHANNELS\) *= *.*;#\1 = ${#CHANNEL_ARRAY[*]};#" \
-    -e "s#\(params.CHAN_STRS\) *= *.*;#\1 = {${CHANNELS}};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -e "s#\(params.USE_TMP_FILES\) *= *.*;#\1 = ${USE_TMP_FILES};#" \
     -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
@@ -597,7 +578,7 @@ sed -e "s#\(regparams.DATACHANNEL\) *= *.*;#\1 = '${REGISTRATION_CHANNEL}';#" \
 cat << EOF > startup.m
 run('${VLFEAT_DIR}/toolbox/vl_setup')
 
-addpath(genpath('${REGISTRATION_PROJ_DIR}/MATLAB'),genpath('${REGISTRATION_PROJ_DIR}/scripts'),genpath('${RAJLABTOOLS_DIR}'),genpath('$(pwd)'));
+addpath(genpath('${RAJLABTOOLS_DIR}'),genpath('$(pwd)'));
 
 EOF
 
@@ -763,18 +744,17 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
         (
         # make symbolic links of reference-round images because it is not necessary to warp them
-        for ch in ${REGISTRATION_CHANNEL} ${CHANNEL_ARRAY[*]}
+        ref_round=$(printf "round%03d" $REFERENCE_ROUND)
+        for normalized_file in ${NORMALIZATION_DIR}/${FILE_BASENAME}_${ref_round}_*.${IMAGE_EXT}
         do
-            ref_round=$(printf "round%03d" $REFERENCE_ROUND)
-            normalized_file=${NORMALIZATION_DIR/$PWD/..}/${FILE_BASENAME}_${ref_round}_${ch}.${IMAGE_EXT}
-
-            registered_affine_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_affine.${IMAGE_EXT}
-            registered_tps_file=${REGISTRATION_DIR}/${FILE_BASENAME}_${ref_round}_${ch}_registered.${IMAGE_EXT}
+            base_file=$(basename "${normalized_file}")
+            registered_affine_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_affine.${IMAGE_EXT}}
+            registered_tps_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_registered.${IMAGE_EXT}}
             if [ ! -f $registered_affine_file ]; then
-                ln -s $normalized_file $registered_affine_file
+                ln -s ${normalized_file/$PWD/..} $registered_affine_file
             fi
             if [ ! -f $registered_tps_file ]; then
-                ln -s $normalized_file $registered_tps_file
+                ln -s ${normalized_file/$PWD/..} $registered_tps_file
             fi
         done
 
@@ -817,7 +797,8 @@ echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} loadParameters; punctafeinder_simple; puncta_subvolumes_simple; ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} loadParameters; punctafeinder; puncta_roicollect_bgincl; ${ERR_HDL_POSTCODE}"
+    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} loadParameters; punctafeinder_simple; puncta_subvolumes_simple; ${ERR_HDL_POSTCODE}"
     #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-puncta-extraction.log -r "${ERR_HDL_PRECODE} punctafeinder_in_parallel; ${ERR_HDL_POSTCODE}"
 
     if ls matlab-puncta-extraction-*.log > /dev/null 2>&1; then
