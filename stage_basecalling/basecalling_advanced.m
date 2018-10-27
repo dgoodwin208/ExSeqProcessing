@@ -1,7 +1,7 @@
 %New base-calling, correcting for previous rounds fluorescence
 
-%load('/mp/nas0/ExSeq/AutoSeqHippocampus/b3/6_transcripts/exseqauto-b3_transcriptmatches_objectsFULL.mat');
-load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)));
+%load('/mp/nas0/ExSeq/AutoSeqHippocampus/b3/6_base-calling/exseqauto-b3_transcriptmatches_objectsFULL.mat');
+load(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_objects.mat',params.FILE_BASENAME)));
 load('groundtruth_dictionary.mat');
 %% First remove any empty rounds
 discarded_puncta = find(cellfun(@isempty,transcript_objects));
@@ -86,7 +86,7 @@ end
 
 %% Create a new transcript object
 
-%params.transcriptResultsDir = '';
+%params.basecallingResultsDir = '';
 if ~exist('gtlabels','var')
     loadGroundTruth;
 end
@@ -173,12 +173,12 @@ fprintf('Done!\n');
 
 output_csv = strjoin(output_cell,'');
 params.FILE_BASENAME = 'exseqauto-b2';
-output_file = fullfile(params.transcriptResultsDir,sprintf('%s_matchednewcodes.csv',params.FILE_BASENAME));
+output_file = fullfile(params.basecallingResultsDir,sprintf('%s_matchednewcodes.csv',params.FILE_BASENAME));
 
 fileID = fopen(output_file,'w');
 fprintf(fileID,output_csv);
 fclose(fileID);
 
 %%
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objectsMODIFIED.mat',params.FILE_BASENAME)),'transcript_objects_new','transcript_objects','-v7.3');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_objectsMODIFIED.mat',params.FILE_BASENAME)),'transcript_objects_new','transcript_objects','-v7.3');
 fprintf('Saved transcript_matches_objects!\n');

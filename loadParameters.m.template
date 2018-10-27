@@ -7,7 +7,7 @@ params.colorCorrectionImagesDir = '/home/kajita/works/ExSeqProcessing-merge/2_co
 params.normalizedImagesDir = '/home/dgoodwin/ExSeqProcessing/3_normalization';
 params.registeredImagesDir = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
 params.punctaSubvolumeDir = '/home/kajita/works/ExSeqProcessing-merge/5_puncta-extraction';
-params.transcriptResultsDir = '/home/kajita/works/ExSeqProcessing-merge/6_transcripts';
+params.basecallingResultsDir = '/home/kajita/works/ExSeqProcessing-merge/6_base-calling';
 params.reportingDir = '/home/kajita/works/ExSeqProcessing-merge/logs/imgs';
 
 %Microscope parameters
@@ -98,7 +98,7 @@ regparams.EMPTY_TILE_THRESHOLD = .95;
 params.SCALE_PYRAMID = [5];
 
 %temp dir in normalization
-params.tempDir = 'tmp';
+params.tempDir = './tmp-test';
 
 %batch_processing parameters
 params.WAIT_SEC = 10;

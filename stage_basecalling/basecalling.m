@@ -1,6 +1,6 @@
 
 
-load(fullfile(params.transcriptResultsDir,sprintf('%s_puncta_pixels.mat',params.FILE_BASENAME)));
+load(fullfile(params.basecallingResultsDir,sprintf('%s_puncta_pixels.mat',params.FILE_BASENAME)));
 
 %% Because there is some Z dependence on intensity, we do naive basecalling
 % per z slice
@@ -104,7 +104,7 @@ insitu_transcripts = base_calls(:,ROUNDS_TO_CALL);
 insitu_transcripts_2ndplace = base_calls_secondplace(:,ROUNDS_TO_CALL);
 insitu_transcripts_confidence = base_calls_confidence_fast(:,ROUNDS_TO_CALL);
 insitu_transcripts_confidence_fast = insitu_transcripts_confidence;
-save(fullfile(params.transcriptResultsDir,sprintf('%s_basecalls_meanpuncta.mat',params.FILE_BASENAME)),...
+save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls_meanpuncta.mat',params.FILE_BASENAME)),...
     'insitu_transcripts','insitu_transcripts_2ndplace','insitu_transcripts_confidence','insitu_transcripts_confidence_fast',...
     'base_calls_rawpixel_intensity','base_calls_normedpixel_intensity',...
     'puncta_centroids','puncta_voxels','-v7.3');
@@ -117,12 +117,12 @@ for idx = 1:length(headers)
 end
 
 %fastqstructs = saveExSeqToFastQLike(insitu_transcripts,round(insitu_transcripts_confidence),headers);
-%outputfilename = fullfile(params.transcriptResultsDir,sprintf('%s_confidences_phredlike.fastq',params.FILE_BASENAME));
+%outputfilename = fullfile(params.basecallingResultsDir,sprintf('%s_confidences_phredlike.fastq',params.FILE_BASENAME));
 %if exist(outputfilename,'file'); delete(outputfilename); end
 %fastqwrite(outputfilename,fastqstructs);
 
 fastqstructs = saveExSeqToFastQLike(insitu_transcripts,round(insitu_transcripts_confidence),headers);
-outputfilename = fullfile(params.transcriptResultsDir,sprintf('%s_confidences_fast.fastq',params.FILE_BASENAME));
+outputfilename = fullfile(params.basecallingResultsDir,sprintf('%s_confidences_fast.fastq',params.FILE_BASENAME));
 if exist(outputfilename,'file'); delete(outputfilename); end
 fastqwrite(outputfilename,fastqstructs);
 
@@ -133,13 +133,13 @@ for p_idx = 1:size(insitu_transcripts,1)
 end
 
 fastqstructs = saveExSeqToFastQLike(insitu_transcripts_shuffled,round(insitu_transcripts_confidence),headers);
-outputfilename = fullfile(params.transcriptResultsDir,sprintf('%s_confidences_fast_shuffled.fastq',params.FILE_BASENAME));
+outputfilename = fullfile(params.basecallingResultsDir,sprintf('%s_confidences_fast_shuffled.fastq',params.FILE_BASENAME));
 if exist(outputfilename,'file'); delete(outputfilename); end
 fastqwrite(outputfilename,fastqstructs);
 
 
 %fastqstructs = saveExSeqToFastQLike(insitu_transcripts_shuffled,round(insitu_transcripts_confidence),headers);
-%outputfilename = fullfile(params.transcriptResultsDir,sprintf('%s_confidences_phredlike_shuffled.fastq',params.FILE_BASENAME));
+%outputfilename = fullfile(params.basecallingResultsDir,sprintf('%s_confidences_phredlike_shuffled.fastq',params.FILE_BASENAME));
 %if exist(outputfilename,'file'); delete(outputfilename); end
 %fastqwrite(outputfilename,fastqstructs);
 

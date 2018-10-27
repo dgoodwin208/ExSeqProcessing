@@ -1,8 +1,8 @@
 
 loadParameters;
-params.transcriptResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_transcripts';
+params.basecallingResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_base-calling';
 %% Load Ground truth information
-%load(fullfile(params.transcriptResultsDir,'groundtruth_codes.mat'));
+%load(fullfile(params.basecallingResultsDir,'groundtruth_codes.mat'));
 %Turn the Nx3 array into a set of strings
 %gtlabels = {};
 %for i = 1:size(groundtruth_codes,1)
@@ -12,7 +12,7 @@ params.transcriptResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_transcri
 %    end
 %    gtlabels{i}=transcript_string;
 %end
-t = fastaread(fullfile(params.transcriptResultsDir, 'SOLiD_like_reads_in_Illumina_unique_17.fa'));
+t = fastaread(fullfile(params.basecallingResultsDir, 'SOLiD_like_reads_in_Illumina_unique_17.fa'));
 
 groundtruth_codes = zeros(length(t),17);
 gtlabels = cell(length(t),1);

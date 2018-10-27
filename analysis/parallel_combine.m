@@ -47,7 +47,7 @@ for x_idx=1:params.COLS_DESC
         
         params.registeredImagesDir = directory_to_process;
         params.punctaSubvolumeDir = directory_to_process;
-        params.transcriptResultsDir = directory_to_process;
+        params.basecallingResultsDir = directory_to_process;
         params.FILE_BASENAME = sprintf('%s_%i',root_basename,tile_counter);
         
         %load transcript_objects

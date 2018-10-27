@@ -34,9 +34,8 @@ function usage() {
     echo "  -n    normalization image directory"
     echo "  -r    registration image directory"
     echo "  -p    puncta extraction directory"
-    echo "  -t    transcript information directory"
+    echo "  -t    base calling directory"
     echo "  -V    vlfeat lib directory"
-    echo "  -I    Raj lab image tools MATLAB directory"
     echo "  -i    reporting directory"
     echo "  -T    temp directory (default: not use temp dir)"
     echo "  -L    log directory"
@@ -45,7 +44,7 @@ function usage() {
     echo "  -J    set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P    mode to get performance profile"
     echo "  -e    execution stages;  exclusively use for skip stages"
-    echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,transcripts"
+    echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,base-calling"
     echo "  -y    continue interactive questions"
     echo "  -h    print help"
     exit
@@ -70,10 +69,9 @@ COLOR_CORRECTION_DIR=2_color-correction
 NORMALIZATION_DIR=3_normalization
 REGISTRATION_DIR=4_registration
 PUNCTA_DIR=5_puncta-extraction
-TRANSCRIPT_DIR=6_transcripts
+BASE_CALLING_DIR=6_base-calling
 
 VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
-RAJLABTOOLS_DIR=~/lib/matlab/rajlabimagetools
 REPORTING_DIR=logs/imgs
 LOG_DIR=logs
 
@@ -128,7 +126,7 @@ NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:B:d:C:n:r:p:t:V:I:T:i:L:e:s:GHJ:Pyh OPT
+while getopts N:b:B:d:C:n:r:p:t:V:T:i:L:e:s:GHJ:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -158,11 +156,9 @@ do
             ;;
         p)  PUNCTA_DIR=$OPTARG
             ;;
-        t)  TRANSCRIPT_DIR=$OPTARG
+        t)  BASE_CALLING_DIR=$OPTARG
             ;;
         V)  VLFEAT_DIR=$OPTARG
-            ;;
-        I)  RAJLABTOOLS_DIR=$OPTARG
             ;;
         T)  TEMP_DIR=$OPTARG
             USE_TMP_FILES=true
@@ -269,11 +265,6 @@ if [ ! -d "${DECONVOLUTION_DIR}" ]; then
     exit
 fi
 
-if [ ! -d "${RAJLABTOOLS_DIR}" ]; then
-    echo "No Raj lab image tools project dir.: ${RAJLABTOOLS_DIR}"
-    exit
-fi
-
 if [ ! -d "${VLFEAT_DIR}" ]; then
     echo "No vlfeat library dir.: ${VLFEAT_DIR}"
     exit
@@ -338,10 +329,10 @@ if [ ! -d "${PUNCTA_DIR}" ]; then
     mkdir "${PUNCTA_DIR}"
 fi
 
-if [ ! -d "${TRANSCRIPT_DIR}" ]; then
-    echo "No transcript information dir."
-    echo "mkdir ${TRANSCRIPT_DIR}"
-    mkdir "${TRANSCRIPT_DIR}"
+if [ ! -d "${BASE_CALLING_DIR}" ]; then
+    echo "No base calling dir."
+    echo "mkdir ${BASE_CALLING_DIR}"
+    mkdir "${BASE_CALLING_DIR}"
 fi
 
 if [ ! -d "${TEMP_DIR}" ]; then
@@ -368,10 +359,9 @@ COLOR_CORRECTION_DIR=$(cd "${COLOR_CORRECTION_DIR}" && pwd)
 NORMALIZATION_DIR=$(cd "${NORMALIZATION_DIR}" && pwd)
 REGISTRATION_DIR=$(cd "${REGISTRATION_DIR}" && pwd)
 PUNCTA_DIR=$(cd "${PUNCTA_DIR}" && pwd)
-TRANSCRIPT_DIR=$(cd "${TRANSCRIPT_DIR}" && pwd)
+BASE_CALLING_DIR=$(cd "${BASE_CALLING_DIR}" && pwd)
 
 VLFEAT_DIR=$(cd "${VLFEAT_DIR}" && pwd)
-RAJLABTOOLS_DIR=$(cd "${RAJLABTOOLS_DIR}" && pwd)
 
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
@@ -387,7 +377,7 @@ else
     IMAGE_EXT=tif
 fi
 
-STAGES=("setup-cluster" "color-correction" "normalization" "registration" "puncta-extraction" "transcripts")
+STAGES=("setup-cluster" "color-correction" "normalization" "registration" "puncta-extraction" "base-calling")
 REG_STAGES=("calc-descriptors" "register-with-correspondences")
 
 # check stages to be skipped and executed
@@ -466,10 +456,9 @@ echo "  color correction images:  ${COLOR_CORRECTION_DIR}"
 echo "  normalization images   :  ${NORMALIZATION_DIR}"
 echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
-echo "  transcripts            :  ${TRANSCRIPT_DIR}"
+echo "  base calling           :  ${BASE_CALLING_DIR}"
 echo
 echo "  vlfeat lib             :  ${VLFEAT_DIR}"
-echo "  Raj lab image tools    :  ${RAJLABTOOLS_DIR}"
 echo
 echo "  Temporal storage       :  "$(if [ "${USE_TMP_FILES}" = "true" ]; then echo ${TEMP_DIR}; else echo "(on-memory)";fi)
 echo
@@ -511,7 +500,7 @@ ls -ld ${COLOR_CORRECTION_DIR}
 ls -ld ${NORMALIZATION_DIR}
 ls -ld ${REGISTRATION_DIR}
 ls -ld ${PUNCTA_DIR}
-ls -ld ${TRANSCRIPT_DIR}
+ls -ld ${BASE_CALLING_DIR}
 echo
 
 
@@ -552,7 +541,7 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.normalizedImagesDir\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
-    -e "s#\(params.transcriptResultsDir\) *= *.*;#\1 = '${TRANSCRIPT_DIR}';#" \
+    -e "s#\(params.basecallingResultsDir\) *= *.*;#\1 = '${BASE_CALLING_DIR}';#" \
     -e "s#\(params.reportingDir\) *= *.*;#\1 = '${REPORTING_DIR}';#" \
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
@@ -578,7 +567,7 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
 cat << EOF > startup.m
 run('${VLFEAT_DIR}/toolbox/vl_setup')
 
-addpath(genpath('${RAJLABTOOLS_DIR}'),genpath('$(pwd)'));
+addpath(genpath('$(pwd)'));
 
 EOF
 
@@ -814,14 +803,14 @@ echo
 stage_idx=$(( $stage_idx + 1 ))
 
 
-# base calling of transcripts
+# base calling
 echo "========================================================================="
 echo "Base calling"; date
 echo
 
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-transcript-making.log -r "${ERR_HDL_PRECODE} loadParameters; basecalling_simple;  ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-base-calling-making.log -r "${ERR_HDL_PRECODE} loadParameters; basecalling_simple;  ${ERR_HDL_POSTCODE}"
     ) & wait $!
 else
     echo "Skip!"

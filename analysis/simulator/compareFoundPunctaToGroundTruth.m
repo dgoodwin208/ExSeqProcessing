@@ -4,7 +4,7 @@
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids);
 
-filename_transcripts = fullfile(params.transcriptResultsDir, 'transcript_objects.mat');
+filename_transcripts = fullfile(params.basecallingResultsDir, 'transcript_objects.mat');
 load(filename_transcripts);
 
 %Load ground truth:

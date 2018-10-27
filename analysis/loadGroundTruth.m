@@ -1,4 +1,4 @@
-t = fastaread(fullfile(params.transcriptResultsDir, 'SOLiD_like_reads_in_Illumina_unique_17.fa'));
+t = fastaread(fullfile(params.basecallingResultsDir, 'SOLiD_like_reads_in_Illumina_unique_17.fa'));
 
 groundtruth_codes = zeros(length(t),17);
 gtlabels = cell(length(t),1);

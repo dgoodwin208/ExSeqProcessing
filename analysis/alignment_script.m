@@ -10,12 +10,12 @@ for fov_index = 1:10 %1 2 3 4 7 8 9 10] %4 6 7 8
     params.colorCorrectionImagesDir= sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/2_color-correction',fov_index);
     params.registeredImagesDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/4_registration',fov_index);
     params.punctaSubvolumeDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/5_puncta-extraction',fov_index);
-    params.transcriptResultsDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/6_transcripts',fov_index);
+    params.basecallingResultsDir = sprintf('/mp/nas0/ExSeq/AutoSeq2/xy%.2i/6_base-calling',fov_index);
     params.FILE_BASENAME = sprintf('exseqauto-xy%.2i',fov_index);
     params.NUM_ROUNDS = 20;
     
  %        basecallingz;
-      %   load(fullfile(params.transcriptResultsDir,sprintf('%s_basecalls_z_dff.mat',params.FILE_BASENAME)))
+      %   load(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls_z_dff.mat',params.FILE_BASENAME)))
 %     puncta_roicollect_bgincl; delete(gcp('nocreate'));
     %try
     %basecalling;
@@ -25,7 +25,7 @@ for fov_index = 1:10 %1 2 3 4 7 8 9 10] %4 6 7 8
     basecalling;
    % end
 
-%    load(fullfile(params.transcriptResultsDir,sprintf('%s_basecalls_meanpuncta.mat',params.FILE_BASENAME)))
+%    load(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls_meanpuncta.mat',params.FILE_BASENAME)))
     
     num_reads = size(insitu_transcripts,1);
     
@@ -106,7 +106,7 @@ for idx = 1:length(headers)
     headers{idx} = sprintf('puncta=%i x=%i y=%i z=%i',idx,p(1),p(2),p(3));
 end
 fastqstructs = saveExSeqToFastQLike(insitu_transcripts_keep,round(insitu_transcripts_confidence_keep),headers);
-outputfilename = fullfile(params.transcriptResultsDir,'combined_filtered.fastq');
+outputfilename = fullfile(params.basecallingResultsDir,'combined_filtered.fastq');
 if exist(outputfilename,'file'); delete(outputfilename); end
 fastqwrite(outputfilename,fastqstructs);
 
@@ -205,7 +205,7 @@ fprintf('Removed %i in situ with too many low quality bases\n',length(indices_di
 %    headers{idx} = sprintf('puncta=%i x=%i y=%i z=%i',idx,p(1),p(2),p(3));
 %end
 %fastqstructs = saveExSeqToFastQLike(insitu_transcripts,round(insitu_transcripts_confidence),headers);
-%outputfilename = fullfile(params.transcriptResultsDir,'combined_filtered.fastq');
+%outputfilename = fullfile(params.basecallingResultsDir,'combined_filtered.fastq');
 %if exist(outputfilename,'file'); delete(outputfilename); end
 %fastqwrite(outputfilename,fastqstructs);
 
@@ -314,7 +314,7 @@ transcript_objects_all = [transcript_objects', perfect_matches];
 
 didalign_mask = cell2mat(cellfun(@(x) [isfield(x,'name')], transcript_objects_all,'UniformOutput',0));
 
-output_file = fullfile(params.transcriptResultsDir,'xy1-10combinedcodes_dffnoz_meanpucta.csv');
+output_file = fullfile(params.basecallingResultsDir,'xy1-10combinedcodes_dffnoz_meanpucta.csv');
 writeCSVfromTranscriptObjects(transcript_objects_all(didalign_mask),output_file)
 
 false_hits = sum(shufflehits);
@@ -323,13 +323,13 @@ fprintf('Saved transcript_matches_objects! %i hits w %i shuffledhits \n',length(
 %%
 
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_dffmedian_noz_allqualityreads.mat','xy1-10')),...
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_dffmedian_noz_allqualityreads.mat','xy1-10')),...
     'ST_confThresh_fixed','ST_confThresh_changeable','ST_editScoreMax','transcript_objects_all',...
     'GARBAGE_READ_MEAN','LOWQUALITY_BASECALL','LIBRARY_FILE','LOWQUALITY_BASECALL','LOWQUALITY_NUMBERALLOWABLE','false_hits','-v7.3');
 
 
 transcript_objects = transcript_objects_all(didalign_mask);
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_dffmediannoz_alignedreads.mat','xy1-10')),...
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_dffmediannoz_alignedreads.mat','xy1-10')),...
     'ST_confThresh_fixed','ST_confThresh_changeable','ST_editScoreMax','transcript_objects',...
     'GARBAGE_READ_MEAN','LOWQUALITY_BASECALL','LIBRARY_FILE','LOWQUALITY_BASECALL','LOWQUALITY_NUMBERALLOWABLE','false_hits','-v7.3');
 

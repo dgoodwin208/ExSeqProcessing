@@ -79,7 +79,7 @@ for x_idx=1:params.COLS_DESC
         directory_to_process = fullfile(root_registration_directory,sprintf('subpiece%i',tile_counter));
         params.registeredImagesDir = directory_to_process;
         params.punctaSubvolumeDir = directory_to_process;
-        params.transcriptResultsDir = directory_to_process;
+        params.basecallingResultsDir = directory_to_process;
         params.FILE_BASENAME = sprintf('%s_%i',root_basename,tile_counter);
         minipipeline;
         

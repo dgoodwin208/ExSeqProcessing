@@ -22,9 +22,6 @@ oneTimeSetUp() {
     if [ ! -d vlfeat-0.9.20 ]; then
         ln -s ~/lib/matlab/vlfeat-0.9.20
     fi
-    if [ ! -d rajlabimagetools ]; then
-        ln -s ~/lib/matlab/rajlabimagetools
-    fi
 
     if [ ! -d test-results ]; then
         mkdir test-results
@@ -63,9 +60,6 @@ oneTimeTearDown() {
     fi
     if [ -h vlfeat-0.9.20 ]; then
         rm ./vlfeat-0.9.20
-    fi
-    if [ -h rajlabimagetools ]; then
-        rm ./rajlabimagetools
     fi
 
     for d in [2-6]_* test[2-6]_* test_report
@@ -124,9 +118,8 @@ get_values_and_keys() {
     Value[ 9]=$(get_value_by_key "$Log" "normalization images")
     Value[10]=$(get_value_by_key "$Log" "registration images")
     Value[11]=$(get_value_by_key "$Log" "puncta")
-    Value[12]=$(get_value_by_key "$Log" "transcripts")
+    Value[12]=$(get_value_by_key "$Log" "base calling")
     Value[13]=$(get_value_by_key "$Log" "vlfeat lib")
-    Value[14]=$(get_value_by_key "$Log" "Raj lab image tools")
     Value[15]=$(get_value_by_key "$Log" "Temporal storage")
     Value[16]=$(get_value_by_key "$Log" "Reporting")
     Value[17]=$(get_value_by_key "$Log" "Log")
@@ -144,7 +137,7 @@ get_values_and_keys() {
     Key[3]=$(get_key_by_value "$Log" "normalization")
     Key[4]=$(get_key_by_value "$Log" "registration")
     Key[5]=$(get_key_by_value "$Log" "puncta-extraction")
-    Key[6]=$(get_key_by_value "$Log" "transcripts")
+    Key[6]=$(get_key_by_value "$Log" "base-calling")
     Key[7]=$(get_key_by_value "$Log" "calc-descriptors")
     Key[8]=$(get_key_by_value "$Log" "register-with-correspondences")
 }
@@ -195,15 +188,11 @@ assert_all_default_values() {
         assertEquals "$PWD/5_puncta-extraction" "${Value[11]}"
     fi
     if [ ! "${skips[12]}" = "skip" ]; then
-        assertEquals "$PWD/6_transcripts" "${Value[12]}"
+        assertEquals "$PWD/6_base-calling" "${Value[12]}"
     fi
     if [ ! "${skips[13]}" = "skip" ]; then
         vlfeat_dir=$(cd ~/lib/matlab/vlfeat-0.9.20 && pwd)
         assertEquals "$vlfeat_dir" "${Value[13]}"
-    fi
-    if [ ! "${skips[14]}" = "skip" ]; then
-        raj_lab_dir=$(cd ~/lib/matlab/rajlabimagetools && pwd)
-        assertEquals "$raj_lab_dir" "${Value[14]}"
     fi
     if [ ! "${skips[15]}" = "skip" ]; then
         assertEquals "(on-memory)" "${Value[15]}"
@@ -482,25 +471,25 @@ testArgument010_set_puncta_extraction_dir() {
     assertEquals "'${Value[${value_id}]}'" "$param"
 }
 
-testArgument011_set_set_transcript_dir() {
+testArgument011_set_set_base_calling_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
 
     set -m
-    ./runPipeline.sh -y -e ' ' -t test6_transc > $Log 2>&1
+    ./runPipeline.sh -y -e ' ' -t test6_basecalling > $Log 2>&1
     set +m
 
     get_values_and_keys
 
     value_id=12
-    assertEquals "$PWD/test6_transc" "${Value[${value_id}]}"
+    assertEquals "$PWD/test6_basecalling" "${Value[${value_id}]}"
 
     # others are default values
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
 
-    local param=$(sed -ne 's#params.transcriptResultsDir = \(.*\);#\1#p' ./loadParameters.m)
+    local param=$(sed -ne 's#params.basecallingResultsDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 }
 
@@ -527,30 +516,7 @@ testArgument012_set_vlfeat_lib_dir() {
     assertEquals "${Value[${value_id}]}" "$param"
 }
 
-testArgument013_set_rajlabtools_dir() {
-    local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -I ./rajlabimagetools > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=14
-    rajlabtools_dir=$(cd ./rajlabimagetools && pwd)
-    assertEquals "$rajlabtools_dir" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
-    local param_cnt=$(grep -o "${Value[${value_id}]}" ./startup.m | wc -l)
-    assertEquals 1 $param_cnt
-}
-
-testArgument014_set_reporting_dir() {
+testArgument013_set_reporting_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -573,7 +539,7 @@ testArgument014_set_reporting_dir() {
     assertEquals "'${Value[${value_id}]}'" "$param"
 }
 
-testArgument015_set_temp_dir() {
+testArgument014_set_temp_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -599,7 +565,7 @@ testArgument015_set_temp_dir() {
     assertEquals "true" "$param"
 }
 
-testArgument016_set_log_dir() {
+testArgument015_set_log_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -619,7 +585,7 @@ testArgument016_set_log_dir() {
     assert_all_stages_skip
 }
 
-testArgument017_set_gpu_cuda_usage() {
+testArgument016_set_gpu_cuda_usage() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -638,7 +604,7 @@ testArgument017_set_gpu_cuda_usage() {
     assert_all_stages_skip
 }
 
-testArgument018_set_hdf5_usage() {
+testArgument017_set_hdf5_usage() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -660,7 +626,7 @@ testArgument018_set_hdf5_usage() {
     assertEquals "'${Value[${value_id}]}'" "$param"
 }
 
-testArgument019_set_concurrency() {
+testArgument018_set_concurrency() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -712,7 +678,7 @@ testArgument019_set_concurrency() {
     assertEquals "104" "$param"
 }
 
-testArgument020_set_performance_profile() {
+testArgument019_set_performance_profile() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local LogDir=$Result_dir/$curfunc
@@ -830,13 +796,13 @@ testArgument104_skip_stage_puncta_extraction() {
     assert_all_stages_run skip 5
 }
 
-testArgument105_skip_stage_transcripts() {
+testArgument105_skip_stage_base_calling() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
 
     set -m
-    echo 'n' | ./runPipeline.sh -s 'transcripts' > $Log 2>&1
+    echo 'n' | ./runPipeline.sh -s 'base-calling' > $Log 2>&1
     set +m
 
     get_values_and_keys
@@ -890,7 +856,7 @@ testArgument108_skip_all_stages() {
     local Log=$Result_dir/$curfunc/output.log
 
     set -m
-    echo 'n' | ./runPipeline.sh -s 'setup-cluster,color-correction,normalization,registration,puncta-extraction,transcripts' > $Log 2>&1
+    echo 'n' | ./runPipeline.sh -s 'setup-cluster,color-correction,normalization,registration,puncta-extraction,base-calling' > $Log 2>&1
     set +m
 
     get_values_and_keys
@@ -1029,13 +995,13 @@ testArgument115_exec_stage_puncta_extraction() {
     assert_all_stages_skip skip 5
 }
 
-testArgument116_exec_stage_transcripts() {
+testArgument116_exec_stage_base_calling() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
 
     set -m
-    echo 'n' | ./runPipeline.sh -e 'transcripts' > $Log 2>&1
+    echo 'n' | ./runPipeline.sh -e 'base-calling' > $Log 2>&1
     set +m
 
     get_values_and_keys
@@ -1124,20 +1090,7 @@ testArgument201_Error_no_deconvolution_dir() {
     cp -a $INPUT_IMAGE_DIR $DECONVOLUTION_DIR
 }
 
-testArgument202_Error_no_rajlabtools_dir() {
-    local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -I dummy_proj > $Log 2>&1
-    set +m
-
-    message=$(grep "No Raj lab image tools project" "$Log" | wc -l)
-    assertEquals 1 $message
-}
-
-testArgument203_Error_no_vlfeat_dir() {
+testArgument202_Error_no_vlfeat_dir() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -1150,7 +1103,7 @@ testArgument203_Error_no_vlfeat_dir() {
     assertEquals 1 $message
 }
 
-testArgument204_Error_no_load_params_m_template() {
+testArgument203_Error_no_load_params_m_template() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -1167,7 +1120,7 @@ testArgument204_Error_no_load_params_m_template() {
     mv loadParameters.m.template{-orig,}
 }
 
-testArgument205_Error_unacceptable_both_e_and_s_args() {
+testArgument204_Error_unacceptable_both_e_and_s_args() {
     local curfunc=${FUNCNAME[0]}
     mkdir ${Result_dir}/${curfunc}
     local Log=$Result_dir/$curfunc/output.log
@@ -1180,26 +1133,6 @@ testArgument205_Error_unacceptable_both_e_and_s_args() {
     assertEquals 1 $message
 }
 
-# -------------------------------------------------------------------------------------------------
-testRun001_run_pipeline_to_small_data() {
-    local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
-
-    set -m
-    ./runPipeline.sh -B 1 -N 4 -G -s transcripts -y > $Log 2>&1
-    set +m
-
-    term_cnt=$(grep -o "Err" "$Log" | wc -l)
-    assertEquals 0 $term_cnt
-    term_cnt=$(grep -o "No such" "$Log" | wc -l)
-    assertEquals 0 $term_cnt
-
-    term_cnt=$(grep -o "Pipeline finished" "$Log" | wc -l)
-    assertEquals 1 $term_cnt
-
-    cp -a ./loadParameters.m ./startup.m [1-5]_* logs ${Result_dir}/${curfunc}/
-}
 
 # load and run shunit2
 . $SHUNIT2_SRC_DIR/shunit2

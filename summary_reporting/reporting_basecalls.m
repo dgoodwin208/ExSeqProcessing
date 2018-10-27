@@ -8,7 +8,7 @@ loadParameters;
 TARGET_HAMMING_DISTANCE = 1;
 NN_MINIMUM_DISTANCE = 8;
 QUERY_NUMBER = 25;
-load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_objectsMODIFIED.mat',params.FILE_BASENAME)))
+load(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_objectsMODIFIED.mat',params.FILE_BASENAME)))
 load(fullfile(params.punctaSubvolumeDir,sprintf('%s_puncta_rois.mat',params.FILE_BASENAME)))
 
 transcript_objects = transcript_objects_new;
@@ -166,7 +166,7 @@ for rnd_idx = 1:params.NUM_ROUNDS
     
 end
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_chanimagesforpuncta_hdist=%i.mat',params.FILE_BASENAME,TARGET_HAMMING_DISTANCE)),'all_chan_regions','indices');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_chanimagesforpuncta_hdist=%i.mat',params.FILE_BASENAME,TARGET_HAMMING_DISTANCE)),'all_chan_regions','indices');
 
 %% Now actually make the image looping over the cell arrays of the rGB images
 

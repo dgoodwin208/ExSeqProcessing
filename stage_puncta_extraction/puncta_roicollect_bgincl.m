@@ -137,7 +137,7 @@ puncta_centroids = puncta_centroids(signal_complete,:);
 indices_of_good_puncta = find(signal_complete);
 puncta_voxels = puncta_voxels(indices_of_good_puncta);
 
-outputfile = fullfile(params.transcriptResultsDir,sprintf('%s_puncta_pixels.mat',params.FILE_BASENAME));
+outputfile = fullfile(params.basecallingResultsDir,sprintf('%s_puncta_pixels.mat',params.FILE_BASENAME));
 save(outputfile,'puncta_set_median','puncta_set_max','puncta_set_mean',...
     'puncta_centroids','puncta_voxels','puncta_set_backgroundmean',...
     'puncta_set_backgroundmedian','-v7.3');

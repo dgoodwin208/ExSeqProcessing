@@ -8,7 +8,7 @@ puncta_viewed = [];
 
 WINDOW=100;
 
-load(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptsv11.mat',params.FILE_BASENAME)));
+load(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptsv11.mat',params.FILE_BASENAME)));
 transcript_pos = pos;
 indices = randperm(size(pos,1),100);
 
@@ -70,7 +70,7 @@ for rnd_idx = 1:params.NUM_ROUNDS
 end
 puncta_viewed = unique(puncta_viewed);
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_rgbimagesforpuncta.mat',params.FILE_BASENAME)),'all_rgb_regions','puncta_viewed');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_rgbimagesforpuncta.mat',params.FILE_BASENAME)),'all_rgb_regions','puncta_viewed');
 
 %% Now actually make the image looping over the cell arrays of the rGB images
 

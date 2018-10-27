@@ -1,8 +1,8 @@
 
 loadParameters;
 params.registeredImagesDir =  '/Users/Goody/Neuro/ExSeq/exseq20170524/4_registration-cropped';
-params.transcriptResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_transcripts';
-params.punctaSubvolumeDir =   '/Users/Goody/Neuro/ExSeq/exseq20170524/6_transcripts';
+params.basecallingResultsDir = '/Users/Goody/Neuro/ExSeq/exseq20170524/6_base-calling';
+params.punctaSubvolumeDir =   '/Users/Goody/Neuro/ExSeq/exseq20170524/6_base-calling';
 % filedir = 'C:\Users\chenf\Desktop\Output\Renamed\';
 %filedir = '/Users/Shirin/Desktop/color/';
 

@@ -84,7 +84,7 @@ for idx = 1:length(headers)
     headers{idx} = sprintf('puncta=%i x=%i y=%i z=%i',idx,p(1),p(2),p(3));
 end
 fastqstructs = saveExSeqToFastQLike(insitu_transcripts_keep,round(insitu_transcripts_confidence_keep),headers);
-outputfilename = fullfile(params.transcriptResultsDir,'combined_filtered.fastq');
+outputfilename = fullfile(params.basecallingResultsDir,'combined_filtered.fastq');
 if exist(outputfilename,'file'); delete(outputfilename); end
 fastqwrite(outputfilename,fastqstructs);
 
@@ -185,7 +185,7 @@ fprintf('Removed %i in situ with too many low quality bases\n',length(indices_di
 %    headers{idx} = sprintf('puncta=%i x=%i y=%i z=%i',idx,p(1),p(2),p(3));
 %end
 %fastqstructs = saveExSeqToFastQLike(insitu_transcripts,round(insitu_transcripts_confidence),headers);
-%outputfilename = fullfile(params.transcriptResultsDir,'combined_filtered.fastq');
+%outputfilename = fullfile(params.basecallingResultsDir,'combined_filtered.fastq');
 %if exist(outputfilename,'file'); delete(outputfilename); end
 %fastqwrite(outputfilename,fastqstructs);
 
@@ -298,7 +298,7 @@ transcript_objects_all = [transcript_objects', perfect_matches];
 
 didalign_mask = cell2mat(cellfun(@(x) [isfield(x,'name')], transcript_objects_all,'UniformOutput',0));
 
-output_file = fullfile(params.transcriptResultsDir,'xy1-10combinedcodes_dffnoz_meanpucta.csv');
+output_file = fullfile(params.basecallingResultsDir,'xy1-10combinedcodes_dffnoz_meanpucta.csv');
 writeCSVfromTranscriptObjects(transcript_objects_all(didalign_mask),output_file)
 
 false_hits = sum(shufflehits);
@@ -307,13 +307,13 @@ fprintf('Saved transcript_matches_objects! %i hits w %i shuffledhits \n',sum(hit
 %%
 
 
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_dffmedian_noz_allqualityreads.mat','xy1-10')),...
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_dffmedian_noz_allqualityreads.mat','xy1-10')),...
     'ST_confThresh_fixed','ST_confThresh_changeable','ST_editScoreMax','transcript_objects_all',...
     'GARBAGE_READ_MEAN','LOWQUALITY_BASECALL','LIBRARY_FILE','LOWQUALITY_BASECALL','LOWQUALITY_NUMBERALLOWABLE','false_hits','-v7.3');
 
 
 transcript_objects = transcript_objects_all(didalign_mask);
-save(fullfile(params.transcriptResultsDir,sprintf('%s_transcriptmatches_dffmediannoz_alignedreads.mat','xy1-10')),...
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptmatches_dffmediannoz_alignedreads.mat','xy1-10')),...
     'ST_confThresh_fixed','ST_confThresh_changeable','ST_editScoreMax','transcript_objects',...
     'GARBAGE_READ_MEAN','LOWQUALITY_BASECALL','LIBRARY_FILE','LOWQUALITY_BASECALL','LOWQUALITY_NUMBERALLOWABLE','false_hits','-v7.3');
 
