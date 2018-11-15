@@ -1,6 +1,6 @@
 % color correction
 
-function success_code = colorcorrection_cuda(total_round_num)
+function success_code = colorcorrection_3D_cuda(total_round_num)
 
     loadParameters;
 
@@ -21,6 +21,5 @@ function success_code = colorcorrection_cuda(total_round_num)
         postfix_list, params.COLOR_CORRECTION_MAX_POOL_SIZE, max_jobs, params.COLOR_CORRECTION_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
 
     quantilenorm_cuda_final(length(num_sem_gpus));
-
 end
 

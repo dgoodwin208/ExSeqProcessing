@@ -2,6 +2,7 @@ loadParameters;
 
 if ~params.DO_DOWNSAMPLE
     fprintf('Skipping downsample because the parameter file says not necessary\n');
+    fprintf('[DONE]\n');
     return;
 end
 
@@ -34,7 +35,7 @@ for rnd_indx = 1:params.NUM_ROUNDS
     %Create the symlink of chan1 to the new directory
     chan1_outname = fullfile(params.colorCorrectionImagesDir,...
         sprintf('%s_round%.03i_ch00.%s',params.FILE_BASENAME,rnd_indx,params.IMAGE_EXT));
-    command = sprintf('ln -s %s %s',chan1_inname,chan1_outname);
+    command = sprintf('ln -sf %s %s',chan1_inname,chan1_outname);
     system(command);
     fprintf('Created symlink %s \n',chan1_outname);
     
@@ -56,3 +57,22 @@ for rnd_indx = 1:params.NUM_ROUNDS
     
     
 end
+
+
+postcheck = true;
+for rnd_indx = 1:params.NUM_ROUNDS
+    for c = 1:params.NUM_CHANNELS
+        chan_outname = fullfile(params.colorCorrectionImagesDir,...
+        sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
+        if ~exist(chan_outname)
+            postcheck = false;
+            fprintf('[ERROR] no %s file',params.CHAN_STRS{c});
+        end
+    end
+end
+
+if postcheck
+    fprintf('[DONE]\n');
+end
+
+

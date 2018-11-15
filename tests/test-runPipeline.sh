@@ -256,8 +256,9 @@ assert_all_stages_skip() {
 # =================================================================================================
 testArgument001_check_all_stages_skip() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' > $Log 2>&1
@@ -265,12 +266,15 @@ testArgument001_check_all_stages_skip() {
 
     local skip_cnt=$(grep -o 'Skip!' "$Log" | wc -l)
     assertEquals 6 $skip_cnt
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument002_default_values() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh > $Log 2>&1
@@ -280,13 +284,16 @@ testArgument002_default_values() {
 
     assert_all_default_values
     assert_all_stages_run
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 # -------------------------------------------------------------------------------------------------
 testArgument003_set_roundnum() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -N 8 > $Log 2>&1
@@ -303,12 +310,15 @@ testArgument003_set_roundnum() {
 
     local param=$(sed -ne 's#params.NUM_ROUNDS = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "${Value[${value_id}]}" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument004_set_file_basename() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -b test_file_basename > $Log 2>&1
@@ -329,8 +339,9 @@ testArgument004_set_file_basename() {
 
 testArgument005_set_reference_round() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -B 2 > $Log 2>&1
@@ -353,12 +364,15 @@ testArgument005_set_reference_round() {
 
     local param=$(sed -ne 's#params.REFERENCE_ROUND_PUNCTA = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "${Value[${value_id}]}" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument006_set_deconvolution_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -d test1_deconv > $Log 2>&1
@@ -375,12 +389,15 @@ testArgument006_set_deconvolution_dir() {
 
     local param=$(sed -ne 's#params.deconvolutionImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument007_set_color_correction_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -C test2_colorcor > $Log 2>&1
@@ -397,12 +414,15 @@ testArgument007_set_color_correction_dir() {
 
     local param=$(sed -ne 's#params.colorCorrectionImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument008_set_normalization_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -n test3_norm > $Log 2>&1
@@ -422,12 +442,15 @@ testArgument008_set_normalization_dir() {
 
     local param=$(sed -ne 's#params.normalizedImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument009_set_registration_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -r test4_reg > $Log 2>&1
@@ -447,12 +470,15 @@ testArgument009_set_registration_dir() {
 
     local param=$(sed -ne 's#params.registeredImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument010_set_puncta_extraction_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -p test5_puncta > $Log 2>&1
@@ -469,12 +495,15 @@ testArgument010_set_puncta_extraction_dir() {
 
     local param=$(sed -ne 's#params.punctaSubvolumeDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument011_set_set_base_calling_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -t test6_basecalling > $Log 2>&1
@@ -491,12 +520,15 @@ testArgument011_set_set_base_calling_dir() {
 
     local param=$(sed -ne 's#params.basecallingResultsDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument012_set_vlfeat_lib_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -V ./vlfeat-0.9.20 > $Log 2>&1
@@ -514,12 +546,15 @@ testArgument012_set_vlfeat_lib_dir() {
 
     local param=$(sed -ne "s#run('\(.*\)/toolbox.*#\1#p" ./startup.m)
     assertEquals "${Value[${value_id}]}" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument013_set_reporting_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -i test_report > $Log 2>&1
@@ -537,12 +572,15 @@ testArgument013_set_reporting_dir() {
 
     local param=$(sed -ne 's#params.reportingDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument014_set_temp_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -T ${TEMP_DIR_TMP} > $Log 2>&1
@@ -563,12 +601,15 @@ testArgument014_set_temp_dir() {
 
     local param=$(sed -ne 's#params.USE_TMP_FILES = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "true" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument015_set_log_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -L test_logs > $Log 2>&1
@@ -583,12 +624,15 @@ testArgument015_set_log_dir() {
     # others are default values
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument016_set_gpu_cuda_usage() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -G > $Log 2>&1
@@ -602,12 +646,15 @@ testArgument016_set_gpu_cuda_usage() {
     # others are default values
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument017_set_hdf5_usage() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -H > $Log 2>&1
@@ -624,12 +671,15 @@ testArgument017_set_hdf5_usage() {
 
     local param=$(sed -ne 's#params.IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument018_set_concurrency() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e ' ' -J 100,101,102,103,104,105 > $Log 2>&1
@@ -676,13 +726,15 @@ testArgument018_set_concurrency() {
 
     local param=$(sed -ne 's#params.AFFINE_MAX_RUN_JOBS *= *\(.*\);#\1#p' ./loadParameters.m)
     assertEquals "104" "$param"
+
+    mv loadParameters.m logs $Log_dir/
 }
 
 testArgument019_set_performance_profile() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local LogDir=$Result_dir/$curfunc
-    local Log=$LogDir/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     ./runPipeline.sh -y -e 'setup-cluster' -P > $Log 2>&1
@@ -700,14 +752,15 @@ testArgument019_set_performance_profile() {
     assertTrue 'no summary-top.txt' "[ -f logs/summary-top.txt ]"
     assertTrue 'no perf-measurement.ipynb' "[ -f logs/perf-measurement.ipynb ]"
 
-    mv loadParameters.m logs $LogDir/
+    mv loadParameters.m logs $Log_dir/
 }
 
 # -------------------------------------------------------------------------------------------------
 testArgument100_skip_stage_setup_cluster() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'setup-cluster' > $Log 2>&1
@@ -724,8 +777,9 @@ testArgument100_skip_stage_setup_cluster() {
 
 testArgument101_skip_stage_color_correction() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'color-correction' > $Log 2>&1
@@ -742,8 +796,9 @@ testArgument101_skip_stage_color_correction() {
 
 testArgument102_skip_stage_normalization() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'normalization' > $Log 2>&1
@@ -760,8 +815,9 @@ testArgument102_skip_stage_normalization() {
 
 testArgument103_skip_stage_registration() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'registration' > $Log 2>&1
@@ -780,8 +836,9 @@ testArgument103_skip_stage_registration() {
 
 testArgument104_skip_stage_puncta_extraction() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'puncta-extraction' > $Log 2>&1
@@ -798,8 +855,9 @@ testArgument104_skip_stage_puncta_extraction() {
 
 testArgument105_skip_stage_base_calling() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'base-calling' > $Log 2>&1
@@ -816,8 +874,9 @@ testArgument105_skip_stage_base_calling() {
 
 testArgument106_skip_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'calc-descriptors' > $Log 2>&1
@@ -834,8 +893,9 @@ testArgument106_skip_substage_calc_descriptors() {
 
 testArgument107_skip_substage_register_with_correspondences() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'register-with-correspondences' > $Log 2>&1
@@ -852,8 +912,9 @@ testArgument107_skip_substage_register_with_correspondences() {
 
 testArgument108_skip_all_stages() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'setup-cluster,color-correction,normalization,registration,puncta-extraction,base-calling' > $Log 2>&1
@@ -876,8 +937,9 @@ testArgument108_skip_all_stages() {
 
 testArgument109_skip_stage_normalization_and_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'normalization,calc-descriptors' > $Log 2>&1
@@ -895,8 +957,9 @@ testArgument109_skip_stage_normalization_and_substage_calc_descriptors() {
 
 testArgument110_skip_stage_registration_and_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -s 'registration,calc-descriptors' > $Log 2>&1
@@ -917,8 +980,9 @@ testArgument110_skip_stage_registration_and_substage_calc_descriptors() {
 # -------------------------------------------------------------------------------------------------
 testArgument111_exec_stage_setup_cluster() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'setup-cluster' > $Log 2>&1
@@ -933,8 +997,9 @@ testArgument111_exec_stage_setup_cluster() {
 
 testArgument112_exec_stage_color_correction() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'color-correction' > $Log 2>&1
@@ -949,8 +1014,9 @@ testArgument112_exec_stage_color_correction() {
 
 testArgument113_exec_stage_normalization() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'normalization' > $Log 2>&1
@@ -965,8 +1031,9 @@ testArgument113_exec_stage_normalization() {
 
 testArgument114_exec_stage_registration() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'registration' > $Log 2>&1
@@ -981,8 +1048,9 @@ testArgument114_exec_stage_registration() {
 
 testArgument115_exec_stage_puncta_extraction() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'puncta-extraction' > $Log 2>&1
@@ -997,8 +1065,9 @@ testArgument115_exec_stage_puncta_extraction() {
 
 testArgument116_exec_stage_base_calling() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'base-calling' > $Log 2>&1
@@ -1013,8 +1082,9 @@ testArgument116_exec_stage_base_calling() {
 
 testArgument117_exec_substage_calc_descriptors() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'calc-descriptors' > $Log 2>&1
@@ -1029,8 +1099,9 @@ testArgument117_exec_substage_calc_descriptors() {
 
 testArgument118_exec_substage_register_with_correspondences() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'register-with-correspondences' > $Log 2>&1
@@ -1045,8 +1116,9 @@ testArgument118_exec_substage_register_with_correspondences() {
 
 testArgument119_exec_stage_normalization_and_registration() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'normalization,registration' > $Log 2>&1
@@ -1062,8 +1134,9 @@ testArgument119_exec_stage_normalization_and_registration() {
 # -------------------------------------------------------------------------------------------------
 testArgument200_Error_set_roundnum() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -N a > $Log 2>&1
@@ -1075,8 +1148,9 @@ testArgument200_Error_set_roundnum() {
 
 testArgument201_Error_no_deconvolution_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     rm -r $DECONVOLUTION_DIR
 
@@ -1092,8 +1166,9 @@ testArgument201_Error_no_deconvolution_dir() {
 
 testArgument202_Error_no_vlfeat_dir() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -V dummy_proj > $Log 2>&1
@@ -1105,8 +1180,9 @@ testArgument202_Error_no_vlfeat_dir() {
 
 testArgument203_Error_no_load_params_m_template() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     mv loadParameters.m.template{,-orig}
 
@@ -1122,8 +1198,9 @@ testArgument203_Error_no_load_params_m_template() {
 
 testArgument204_Error_unacceptable_both_e_and_s_args() {
     local curfunc=${FUNCNAME[0]}
-    mkdir ${Result_dir}/${curfunc}
-    local Log=$Result_dir/$curfunc/output.log
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
 
     set -m
     echo 'n' | ./runPipeline.sh -e 'registration' -s 'calc-descriptors' > $Log 2>&1
