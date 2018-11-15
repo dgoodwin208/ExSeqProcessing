@@ -2,7 +2,6 @@ function index_pairs = match_3DSIFTdescriptors(desc1,desc2)
 
     sq_threshold = 1.5;
 
-    %profile on;
     dist2 = bsxfun(@plus,sum(desc1.^2,2),sum(desc2.^2,2)') - 2*(desc1*desc2');
 
     [first,idx_f] = min(dist2,[],2);
@@ -11,9 +10,6 @@ function index_pairs = match_3DSIFTdescriptors(desc1,desc2)
 
     passed_index = find(first*sq_threshold < second);
     index_pairs = [passed_index,idx_f(passed_index)]';
-
-    %profile off;
-    %profsave(profile('info'),sprintf('profile-match-3DSIFTdescriptors-%d',i));
 
 end
 

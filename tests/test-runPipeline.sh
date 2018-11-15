@@ -19,9 +19,6 @@ oneTimeSetUp() {
     if [ ! -d test1_deconv ]; then
         cp -a $INPUT_IMAGE_DIR test1_deconv
     fi
-    if [ ! -d vlfeat-0.9.20 ]; then
-        ln -s ~/lib/matlab/vlfeat-0.9.20
-    fi
 
     if [ ! -d test-results ]; then
         mkdir test-results
@@ -57,9 +54,6 @@ oneTimeTearDown() {
     fi
     if [ -d test1_deconv ]; then
         rm -r test1_deconv
-    fi
-    if [ -h vlfeat-0.9.20 ]; then
-        rm ./vlfeat-0.9.20
     fi
 
     for d in [2-6]_* test[2-6]_* test_report
@@ -119,7 +113,6 @@ get_values_and_keys() {
     Value[10]=$(get_value_by_key "$Log" "registration images")
     Value[11]=$(get_value_by_key "$Log" "puncta")
     Value[12]=$(get_value_by_key "$Log" "base calling")
-    Value[13]=$(get_value_by_key "$Log" "vlfeat lib")
     Value[15]=$(get_value_by_key "$Log" "Temporal storage")
     Value[16]=$(get_value_by_key "$Log" "Reporting")
     Value[17]=$(get_value_by_key "$Log" "Log")
@@ -189,10 +182,6 @@ assert_all_default_values() {
     fi
     if [ ! "${skips[12]}" = "skip" ]; then
         assertEquals "$PWD/6_base-calling" "${Value[12]}"
-    fi
-    if [ ! "${skips[13]}" = "skip" ]; then
-        vlfeat_dir=$(cd ~/lib/matlab/vlfeat-0.9.20 && pwd)
-        assertEquals "$vlfeat_dir" "${Value[13]}"
     fi
     if [ ! "${skips[15]}" = "skip" ]; then
         assertEquals "(on-memory)" "${Value[15]}"
@@ -520,32 +509,6 @@ testArgument011_set_set_base_calling_dir() {
 
     local param=$(sed -ne 's#params.basecallingResultsDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
-
-    mv loadParameters.m logs $Log_dir/
-}
-
-testArgument012_set_vlfeat_lib_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -V ./vlfeat-0.9.20 > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=13
-    vlfeat_dir=$(cd ./vlfeat-0.9.20 && pwd)
-    assertEquals "$vlfeat_dir" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
-    local param=$(sed -ne "s#run('\(.*\)/toolbox.*#\1#p" ./startup.m)
-    assertEquals "${Value[${value_id}]}" "$param"
 
     mv loadParameters.m logs $Log_dir/
 }
@@ -1162,20 +1125,6 @@ testArgument201_Error_no_deconvolution_dir() {
     assertEquals 1 $message
 
     cp -a $INPUT_IMAGE_DIR $DECONVOLUTION_DIR
-}
-
-testArgument202_Error_no_vlfeat_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -V dummy_proj > $Log 2>&1
-    set +m
-
-    message=$(grep "No vlfeat library dir" "$Log" | wc -l)
-    assertEquals 1 $message
 }
 
 testArgument203_Error_no_load_params_m_template() {

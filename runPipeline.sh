@@ -35,7 +35,6 @@ function usage() {
     echo "  -r    registration image directory"
     echo "  -p    puncta extraction directory"
     echo "  -t    base calling directory"
-    echo "  -V    vlfeat lib directory"
     echo "  -i    reporting directory"
     echo "  -T    temp directory (default: not use temp dir)"
     echo "  -L    log directory"
@@ -71,7 +70,6 @@ REGISTRATION_DIR=4_registration
 PUNCTA_DIR=5_puncta-extraction
 BASE_CALLING_DIR=6_base-calling
 
-VLFEAT_DIR=~/lib/matlab/vlfeat-0.9.20
 REPORTING_DIR=logs/imgs
 LOG_DIR=logs
 
@@ -126,7 +124,7 @@ NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:B:d:C:n:r:p:t:V:T:i:L:e:s:GHJ:Pyh OPT
+while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:GHJ:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -157,8 +155,6 @@ do
         p)  PUNCTA_DIR=$OPTARG
             ;;
         t)  BASE_CALLING_DIR=$OPTARG
-            ;;
-        V)  VLFEAT_DIR=$OPTARG
             ;;
         T)  TEMP_DIR=$OPTARG
             USE_TMP_FILES=true
@@ -265,11 +261,6 @@ if [ ! -d "${DECONVOLUTION_DIR}" ]; then
     exit
 fi
 
-if [ ! -d "${VLFEAT_DIR}" ]; then
-    echo "No vlfeat library dir.: ${VLFEAT_DIR}"
-    exit
-fi
-
 
 ###### check files
 
@@ -360,8 +351,6 @@ NORMALIZATION_DIR=$(cd "${NORMALIZATION_DIR}" && pwd)
 REGISTRATION_DIR=$(cd "${REGISTRATION_DIR}" && pwd)
 PUNCTA_DIR=$(cd "${PUNCTA_DIR}" && pwd)
 BASE_CALLING_DIR=$(cd "${BASE_CALLING_DIR}" && pwd)
-
-VLFEAT_DIR=$(cd "${VLFEAT_DIR}" && pwd)
 
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
@@ -457,8 +446,6 @@ echo "  normalization images   :  ${NORMALIZATION_DIR}"
 echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
 echo "  base calling           :  ${BASE_CALLING_DIR}"
-echo
-echo "  vlfeat lib             :  ${VLFEAT_DIR}"
 echo
 echo "  Temporal storage       :  "$(if [ "${USE_TMP_FILES}" = "true" ]; then echo ${TEMP_DIR}; else echo "(on-memory)";fi)
 echo
@@ -565,8 +552,6 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
 
 
 cat << EOF > startup.m
-run('${VLFEAT_DIR}/toolbox/vl_setup')
-
 addpath(genpath('$(pwd)'));
 
 EOF

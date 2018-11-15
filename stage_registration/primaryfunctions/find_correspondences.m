@@ -15,7 +15,8 @@ function correspondences = find_correspondences(keys_moving, keys_fixed)
         LF(i,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
     end
 
-    correspondences = vl_ubcmatch(DM',DF',1.5); %1.5 is default
+    %correspondences = vl_ubcmatch(DM',DF',1.5); %1.5 is default
+    correspondences = match_3DSIFTdescriptors(DM,DF,1.5);
 
 end
 % %% Print and plot the results for sanity

@@ -238,7 +238,8 @@ if ~exist(output_keys_filename,'file')
             
             DM_SIFT_norm= DM_SIFT ./ repmat(sum(DM_SIFT,2),1,size(DM_SIFT,2));
             DF_SIFT_norm= DF_SIFT ./ repmat(sum(DF_SIFT,2),1,size(DF_SIFT,2));
-            correspondences_sift = vl_ubcmatch(DM_SIFT_norm',DF_SIFT_norm');
+            %correspondences_sift = vl_ubcmatch(DM_SIFT_norm',DF_SIFT_norm');
+            correspondences_sift = match_3DSIFTdescriptors(DM_SIFT_norm,DF_SIFT_norm);
             
             %We create a shape context descriptor for the same keypoint
             %that has the SIFT descriptor.
@@ -251,7 +252,8 @@ if ~exist(output_keys_filename,'file')
             %[DM_SC,DF_SC]=ShapeContext(LM_SIFT,LM_SC,LF_SIFT,LF_SC);
             
             if 0
-                correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);
+                %correspondences_sc = vl_ubcmatch(DM_SC,DF_SC);
+                correspondences_sc = match_3DSIFTdescriptors(DM_SC',DF_SC');
                 
                 fprintf('SIFT-only correspondences get %i matches, SC-only gets %i matches\n',...
                     size(correspondences_sift,2),size(correspondences_sc,2));
@@ -264,7 +266,8 @@ if ~exist(output_keys_filename,'file')
             end
             
             if 0
-                correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
+                %correspondences = vl_ubcmatch([DM_SC; DM_SIFT_norm'],[DF_SC; DF_SIFT_norm']);
+                correspondences = match_3DSIFTdescriptors([DM_SC; DM_SIFT_norm']',[DF_SC; DF_SIFT_norm']');
             end
             if 1
                 correspondences=correspondences_sift;
