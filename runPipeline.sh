@@ -26,26 +26,27 @@ trap trap_interrupt_handle SIGINT SIGHUP SIGQUIT SIGTERM
 
 function usage() {
     echo "Usage: $0 [OPTIONS]"
-    echo "  -N    # of rounds; 'auto' means # is calculated from files."
-    echo "  -b    file basename"
-    echo "  -B    reference round puncta"
-    echo "  -d    deconvolution image directory"
-    echo "  -C    color correction image directory"
-    echo "  -n    normalization image directory"
-    echo "  -r    registration image directory"
-    echo "  -p    puncta extraction directory"
-    echo "  -t    base calling directory"
-    echo "  -i    reporting directory"
-    echo "  -T    temp directory (default: not use temp dir)"
-    echo "  -L    log directory"
-    echo "  -G    use GPU and CUDA (default: no)"
-    echo "  -H    use HDF5 format for intermediate files (default: no)"
-    echo "  -J    set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
-    echo "  -P    mode to get performance profile"
-    echo "  -e    execution stages;  exclusively use for skip stages"
-    echo "  -s    skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,base-calling"
-    echo "  -y    continue interactive questions"
-    echo "  -h    print help"
+    echo "  --configure     Configure using GUI"
+    echo "  -N              # of rounds; 'auto' means # is calculated from files."
+    echo "  -b              file basename"
+    echo "  -B              reference round puncta"
+    echo "  -d              deconvolution image directory"
+    echo "  -C              color correction image directory"
+    echo "  -n              normalization image directory"
+    echo "  -r              registration image directory"
+    echo "  -p              puncta extraction directory"
+    echo "  -t              base calling directory"
+    echo "  -i              reporting directory"
+    echo "  -T              temp directory (default: not use temp dir)"
+    echo "  -L              log directory"
+    echo "  -G              use GPU and CUDA (default: no)"
+    echo "  -H              use HDF5 format for intermediate files (default: no)"
+    echo "  -J              set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
+    echo "  -P              mode to get performance profile"
+    echo "  -e              execution stages;  exclusively use for skip stages"
+    echo "  -s              skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,base-calling"
+    echo "  -y              continue interactive questions"
+    echo "  -h              print help"
     exit
 }
 
@@ -60,27 +61,14 @@ function check_number() {
 
 export TZ=America/New_York
 
-ROUND_NUM=20
-REFERENCE_ROUND=5
-
-DECONVOLUTION_DIR=1_deconvolution
-COLOR_CORRECTION_DIR=2_color-correction
-NORMALIZATION_DIR=3_normalization
-REGISTRATION_DIR=4_registration
-PUNCTA_DIR=5_puncta-extraction
-BASE_CALLING_DIR=6_base-calling
 
 REPORTING_DIR=logs/imgs
-LOG_DIR=logs
 
 if [ -f ./loadParameters.m ]; then
     PARAMETERS_FILE=./loadParameters.m
 else
     PARAMETERS_FILE=./loadParameters.m.template
 fi
-
-TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-USE_TMP_FILES=false
 
 DOWN_SAMPLING_MAX_POOL_SIZE=$(sed -ne "s#params.DOWN_SAMPLING_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 COLOR_CORRECTION_MAX_RUN_JOBS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
@@ -107,24 +95,87 @@ APPLY3DTPS_MAX_THREADS=$(sed -ne "s#params.APPLY3DTPS_MAX_THREADS *= *\([0-9]*\)
 PUNCTA_MAX_RUN_JOBS=$(sed -ne "s#params.PUNCTA_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 PUNCTA_MAX_THREADS=0
-
-FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-CHANNELS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 REGISTRATION_CHANNELS=$(sed -ne "s#regparams.CHANNELS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
+
+
+
+if [ $# -gt 0 ]; then
+    if [ $1 = "--configure" ]; then
+        python configuration.py
+    fi
+fi
+
+if [ ! -f ./configuration.cfg ]; then
+    python configuration.py
+fi
+
+
+while IFS= read -r line
+do
+        # display $line or do somthing with $line
+    field=$(echo $line | awk -F  "=" '{print $1}')
+    value=$(echo $line | awk -F  "=" '{print $2}')
+    if [ $field = "input_path" ]; then
+        INPUT_FILE_PATH=$value
+    elif [ $field = "basename" ]; then
+        FILE_BASENAME=$value
+    elif [ $field = "channels" ]; then
+        CHANNELS=$value        
+    elif [ $field = "output_path" ]; then
+        OUTPUT_FILE_PATH=$value
+    elif [ $field = "format" ]; then
+        FORMAT=$value
+    elif [ $field = "log_path" ]; then
+        LOG_DIR=$value
+    elif [ $field = "tmp_path" ]; then
+        USE_TMP_FILES=true
+        TEMP_DIR=$value
+    elif [ $field = "total_rounds" ]; then
+        ROUND_NUM=$value
+    elif [ $field = "reference_round" ]; then
+        REFERENCE_ROUND=$value
+    elif [ $field = "acceleration" ]; then
+        ACCELERATION=$value
+    fi
+done < configuration.cfg
+
+
+echo "INPUT_FILE_PATH: $INPUT_FILE_PATH"
+echo "FILE_BASENAME: $FILE_BASENAME"
+echo "OUTPUT_FILE_PATH: $OUTPUT_FILE_PATH"
+echo "FORMAT: $FORMAT"
+echo "LOG_DIR: $LOG_DIR"
+echo "TEMP_DIR: $TEMP_DIR"
+echo "ROUND_NUM: $ROUND_NUM"
+echo "REFERENCE_ROUND: $REFERENCE_ROUND"
+echo "ACCELERATION: $ACCELERATION"
+
+
 
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_CHANNEL_ARRAY=($(echo ${REGISTRATION_CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
 
-USE_GPU_CUDA=false
-USE_HDF5=false
+if [ $ACCELERATION = 'gpu' ]; then
+    USE_GPU_CUDA=true
+else
+    USE_GPU_CUDA=false
+fi
+
+if [ $FORMAT = 'tiff' ]; then
+    USE_HDF5=false
+else
+    USE_HDF5=true
+fi
+
+
 PERF_PROFILE=false
 
 NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:GHJ:Pyh OPT
+while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:GHJ:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -241,6 +292,7 @@ do
             ;;
         \?) usage
             ;;
+        -)
     esac
 done
 
@@ -251,14 +303,6 @@ shift $((OPTIND - 1))
 
 if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
     rm /dev/shm/sem.$USER*
-fi
-
-
-###### check directories
-
-if [ ! -d "${DECONVOLUTION_DIR}" ]; then
-    echo "No deconvolution dir.: ${DECONVOLUTION_DIR}"
-    exit
 fi
 
 
@@ -295,6 +339,20 @@ fi
 
 
 ###### setup directories
+
+
+DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/1_deconvolution
+COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/2_color-correction
+NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
+REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
+PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
+TRANSCRIPT_DIR=${OUTPUT_FILE_PATH}/6_transcripts
+
+if [ ! -d "${DECONVOLUTION_DIR}" ]; then
+    echo "No deconvolution dir."
+    echo "mkdir ${DECONVOLUTION_DIR}"
+    mkdir "${DECONVOLUTION_DIR}"
+fi
 
 if [ ! -d "${COLOR_CORRECTION_DIR}" ]; then
     echo "No color correction dir."
@@ -354,6 +412,10 @@ BASE_CALLING_DIR=$(cd "${BASE_CALLING_DIR}" && pwd)
 
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
+
+for filename in ${INPUT_FILE_PATH}/*.tif; do
+    ln -s $filename ${DECONVOLUTION_DIR}/
+done
 
 
 if [ $ROUND_NUM = "auto" ]; then
@@ -499,6 +561,15 @@ if [ "${PERF_PROFILE}" = "true" ]; then
     sleep 1
 fi
 
+
+###### setup startup.m
+
+cat << EOF > startup.m
+addpath(genpath('$(pwd)'));
+
+EOF
+
+
 stage_idx=0
 
 ###### setup a cluster profile
@@ -547,14 +618,6 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -i.back \
     ./loadParameters.m
 
-
-###### setup startup.m
-
-
-cat << EOF > startup.m
-addpath(genpath('$(pwd)'));
-
-EOF
 
 ###### run pipeline
 
@@ -875,7 +938,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
         loadParameters; punctafeinder; puncta_roicollect_bgincl; \
-        postcheck_pucnta_extraction(); \
+        postcheck_puncta_extraction(); \
         ${ERR_HDL_POSTCODE}"
     #matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} punctafeinder_in_parallel; ${ERR_HDL_POSTCODE}"
 
