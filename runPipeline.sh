@@ -1,6 +1,7 @@
 #!/bin/bash
 
 function trap_exit_handle() {
+    print_stage_status
     if [ -n "${PID_PERF_PROFILE}" ]; then
         kill -- -${PID_PERF_PROFILE}
     fi
@@ -10,24 +11,46 @@ function trap_exit_handle() {
     fi
 }
 
-function trap_interrupt_handle() {
-    if [ -n "${PID_PERF_PROFILE}" ]; then
-        kill -- -${PID_PERF_PROFILE}
+function print_stage_status() {
+    if [ "$printed_stage_status" = "false" ] && [ ${#STAGES_STATUS[*]} -gt 0 ]; then
+        echo "========================================================================="
+        echo "Stage summary"
+        echo "-------------"
+        for((i=0; i<${#STAGES[*]}; i++))
+        do
+            j=$(expr $i + 1)
+            printf "%-20s : %-7s  (%s)\n" ${STAGES[i]} ${STAGES_STATUS[i]} $(print_elapsed_time_from_seconds ${STAGE_SECONDS[i]} ${STAGE_SECONDS[j]})
+        done
+        echo
     fi
-    kill 0
-    if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
-        rm /dev/shm/sem.$USER*
+    printed_stage_status="true"
+}
+
+function print_elapsed_time_from_seconds() {
+    local start_sec=$1
+    local end_sec=$2
+
+    if [ -z "${start_sec}" ] || [ -z "${end_sec}" ]; then
+        return
     fi
+
+    local ss=$(expr ${end_sec} - ${start_sec})
+
+    local hh=$(expr ${ss} / 3600)
+    ss=$(expr ${ss} % 3600)
+    local mm=$(expr ${ss} / 60)
+    ss=$(expr ${ss} % 60)
+
+    printf "%02d:%02d:%02d" ${hh} ${mm} ${ss}
 }
 
 trap trap_exit_handle EXIT
-trap trap_interrupt_handle SIGINT SIGHUP SIGQUIT SIGTERM
 
 
 function usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "  --configure     Configure using GUI"
-    echo "  -N              # of rounds; 'auto' means # is calculated from files."
+    echo "  -N              # of rounds"
     echo "  -b              file basename"
     echo "  -B              reference round puncta"
     echo "  -d              deconvolution image directory"
@@ -179,11 +202,9 @@ while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:GHJ:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
-            if [ $ROUND_NUM != "auto" ]; then
-                if ! check_number ${ROUND_NUM}; then
-                    echo "# of rounds is not number; ${ROUND_NUM}"
-                    exit
-                fi
+            if ! check_number ${ROUND_NUM}; then
+                echo "# of rounds is not number; ${ROUND_NUM}"
+                exit
             fi
             ;;
         b)  FILE_BASENAME=$OPTARG
@@ -323,7 +344,7 @@ if [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; then
     echo "Temporary dir. is not empty."
 
     if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
-        echo "Delete? (y/n)"
+        echo "Delete [${TEMP_DIR}/*]? (y/n)"
         read -sn1 ANSW
     else
         ANSW='y'
@@ -346,7 +367,7 @@ COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/2_color-correction
 NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
 REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
 PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
-TRANSCRIPT_DIR=${OUTPUT_FILE_PATH}/6_transcripts
+BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
 
 if [ ! -d "${DECONVOLUTION_DIR}" ]; then
     echo "No deconvolution dir."
@@ -414,13 +435,12 @@ REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
 for filename in ${INPUT_FILE_PATH}/*.tif; do
-    ln -s $filename ${DECONVOLUTION_DIR}/
+    basename=$(basename $filename)
+    if [ ! -f "${DECONVOLUTION_DIR}/$basename" ]; then
+        ln -s $filename ${DECONVOLUTION_DIR}/
+    fi
 done
 
-
-if [ $ROUND_NUM = "auto" ]; then
-    ROUND_NUM=$(find ${DECONVOLUTION_DIR}/ -name "*_${CHANNEL_ARRAY[0]}.tif" | wc -l)
-fi
 
 if [ "$USE_HDF5" = "true" ]; then
     IMAGE_EXT=h5
@@ -570,25 +590,6 @@ addpath(genpath('$(pwd)'));
 EOF
 
 
-stage_idx=0
-
-###### setup a cluster profile
-echo "========================================================================="
-echo "Setup cluster-profile"; date
-echo
-
-if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
-    (
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-setup-cluster-profile.log -r "${ERR_HDL_PRECODE} setup_cluster_profile(); ${ERR_HDL_POSTCODE}"
-    ) & wait $!
-else
-    echo "Skip!"
-fi
-echo
-
-stage_idx=$(( $stage_idx + 1 ))
-
-
 ###### setup MATLAB scripts
 
 sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
@@ -624,13 +625,36 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
 ERR_HDL_PRECODE='try;'
 ERR_HDL_POSTCODE=' catch ME; disp(ME.getReport); exit(1); end; exit'
 
+stage_idx=0
+printed_stage_status="false"
+
+
+###### setup a cluster profile
+echo "========================================================================="
+echo "Setup cluster-profile"; date
+echo
+
+STAGE_SECONDS[$stage_idx]=$SECONDS
+if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+    (
+    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-setup-cluster-profile.log -r "${ERR_HDL_PRECODE} setup_cluster_profile(); ${ERR_HDL_POSTCODE}"
+    ) & wait $!
+    STAGES_STATUS[$stage_idx]="DONE"
+else
+    STAGES_STATUS[$stage_idx]="SKIPPED"
+    echo "Skip!"
+fi
+echo
+
+stage_idx=$(( $stage_idx + 1 ))
+
+
 # downsampling and color correction
 echo "========================================================================="
 echo "Downsampling & color correction"; date
 echo
 
-
-
+STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
     #(
@@ -645,6 +669,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     ) & wait $!
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
         echo "[ERROR] downsample_all failed."
         exit
     fi
@@ -672,6 +697,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     ) & wait $!
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
         echo "[ERROR] colorcollrection_3D failed."
         exit
     fi
@@ -685,10 +711,14 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     ) & wait $!
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
         echo "[ERROR] downsample_apply failed."
         exit
+    else
+        STAGES_STATUS[$stage_idx]="DONE"
     fi
 else
+        STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
 fi
 echo
@@ -701,7 +731,9 @@ echo "========================================================================="
 echo "Normalization"; date
 echo
 
+STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+
     cwd=$PWD
     pushd ${COLOR_CORRECTION_DIR}
     for f in ${DECONVOLUTION_DIR}/*ch00.${IMAGE_EXT}
@@ -731,8 +763,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ) & wait $!
         # check result
         if [ "$(grep '\[DONE\]' ${stage_log} | wc -l)" -ne 2 ]; then
+            STAGES_STATUS[$stage_idx]="ERROR"
             echo "[ERROR] normalization_cuda failed."
             exit
+        else
+            STAGES_STATUS[$stage_idx]="DONE"
         fi
     else
         stage_log=${LOG_DIR}/matlab-normalization.log
@@ -752,6 +787,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ) & wait $!
         # check result
         if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+            STAGES_STATUS[$stage_idx]="ERROR"
             echo "[ERROR] normalization of full-size images failed."
             exit
         fi
@@ -775,8 +811,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ) & wait $!
         # check result
         if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+            STAGES_STATUS[$stage_idx]="ERROR"
             echo "[ERROR] normalization of downsampled-size images failed."
             exit
+        else
+            STAGES_STATUS[$stage_idx]="DONE"
         fi
     fi
 
@@ -810,6 +849,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         done
     done
 else
+    STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
 fi
 echo
@@ -821,6 +861,7 @@ echo "========================================================================="
 echo "Registration"; date
 echo
 
+STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
     echo "-------------------------------------------------------------------------"
@@ -855,10 +896,12 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
         # check result
         if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+            REG_STAGES_STATUS[$reg_stage_idx]="ERROR"
             echo "[ERROR] calculateDescriptors in registration failed."
             exit
         fi
     else
+        REG_STAGES_STATUS[$reg_stage_idx]="SKIPPED"
         echo "Skip!"
     fi
     reg_stage_idx=$(( $reg_stage_idx + 1 ))
@@ -912,15 +955,18 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
         # check result
         if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+            REG_STAGES_STATUS[$reg_stage_idx]="ERROR"
             echo "[ERROR] registerWithCorrespondences in registration failed."
             exit
         fi
     else
+        REG_STAGES_STATUS[$reg_stage_idx]="SKIPPED"
         echo "Skip!"
     fi
     reg_stage_idx=$(( $reg_stage_idx + 1 ))
 
 else
+    STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
 fi
 echo
@@ -933,7 +979,9 @@ echo "========================================================================="
 echo "Puncta extraction"; date
 echo
 
+STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+
     stage_log=${LOG_DIR}/matlab-puncta-extraction.log
     (
     matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
@@ -951,10 +999,12 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     ) & wait $!
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
         echo "[ERROR] puncta extraction failed."
         exit
     fi
 else
+    STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
 fi
 echo
@@ -967,13 +1017,16 @@ echo "========================================================================="
 echo "Base calling"; date
 echo
 
+STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+
     (
     matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-base-calling-making.log -r "${ERR_HDL_PRECODE} \
         loadParameters; basecalling_simple; \
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 else
+    STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
 fi
 echo
@@ -981,6 +1034,7 @@ echo
 stage_idx=$(( $stage_idx + 1 ))
 
 
+STAGE_SECONDS[$stage_idx]=$SECONDS
 
 if [ "${PERF_PROFILE}" = "true" ]; then
     echo "========================================================================="
@@ -990,6 +1044,8 @@ if [ "${PERF_PROFILE}" = "true" ]; then
     sleep 1
     tests/perf-profile/summarize-stat-logs.sh logs
 fi
+
+print_stage_status
 
 echo "========================================================================="
 echo "Pipeline finished"; date
