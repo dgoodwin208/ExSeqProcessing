@@ -19,7 +19,7 @@ function print_stage_status() {
         for((i=0; i<${#STAGES[*]}; i++))
         do
             j=$(expr $i + 1)
-            printf "%-20s : %-7s  (%s)\n" ${STAGES[i]} ${STAGES_STATUS[i]} $(print_elapsed_time_from_seconds ${STAGE_SECONDS[i]} ${STAGE_SECONDS[j]})
+            printf "%-20s : %-7s  (%s)\n" ${STAGES[i]} "${STAGES_STATUS[i]}" $(print_elapsed_time_from_seconds ${STAGE_SECONDS[i]} ${STAGE_SECONDS[j]})
         done
         echo
     fi
@@ -52,7 +52,7 @@ function usage() {
     echo "  --configure     Configure using GUI"
     echo "  -N              # of rounds"
     echo "  -b              file basename"
-    echo "  -B              reference round puncta"
+    echo "  -B              reference round"
     echo "  -d              deconvolution image directory"
     echo "  -C              color correction image directory"
     echo "  -n              normalization image directory"
@@ -67,7 +67,7 @@ function usage() {
     echo "  -J              set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P              mode to get performance profile"
     echo "  -e              execution stages;  exclusively use for skip stages"
-    echo "  -s              skip stages;  setup-cluster,color-correction,normalization,registration,calc-descriptors,register-with-correspondences,puncta-extraction,base-calling"
+    echo "  -s              skip stages;  setup-cluster,color-correction,normalization,registration,puncta-extraction,base-calling"
     echo "  -y              continue interactive questions"
     echo "  -h              print help"
     exit
@@ -143,7 +143,7 @@ do
     elif [ $field = "basename" ]; then
         FILE_BASENAME=$value
     elif [ $field = "channels" ]; then
-        CHANNELS=$value        
+        CHANNELS=$value
     elif [ $field = "output_path" ]; then
         OUTPUT_FILE_PATH=$value
     elif [ $field = "format" ]; then
@@ -449,7 +449,6 @@ else
 fi
 
 STAGES=("setup-cluster" "color-correction" "normalization" "registration" "puncta-extraction" "base-calling")
-REG_STAGES=("calc-descriptors" "register-with-correspondences")
 
 # check stages to be skipped and executed
 if [ ! "${ARG_EXEC_STAGES}" = "" -a ! "${ARG_SKIP_STAGES}" = "" ]; then
@@ -464,27 +463,11 @@ if [ ! "${ARG_EXEC_STAGES}" = "" ]; then
             SKIP_STAGES[i]="skip"
         fi
     done
-    for((i=0; i<${#REG_STAGES[*]}; i++))
-    do
-        if [ "${ARG_EXEC_STAGES/registration}" = "${ARG_EXEC_STAGES}" -a "${ARG_EXEC_STAGES/${REG_STAGES[i]}}" = "${ARG_EXEC_STAGES}" ]; then
-            SKIP_REG_STAGES[i]="skip"
-        else
-            SKIP_STAGES[3]=
-        fi
-    done
 else
     for((i=0; i<${#STAGES[*]}; i++))
     do
         if [ ! "${ARG_SKIP_STAGES/${STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]; then
             SKIP_STAGES[i]="skip"
-        fi
-    done
-    for((i=0; i<${#REG_STAGES[*]}; i++))
-    do
-        if [ ! "${ARG_SKIP_STAGES/registration}" = "${ARG_SKIP_STAGES}" ]; then
-            SKIP_REG_STAGES[i]="skip"
-        elif [ ! "${ARG_SKIP_STAGES/${REG_STAGES[i]}}" = "${ARG_SKIP_STAGES}" ]; then
-            SKIP_REG_STAGES[i]="skip"
         fi
     done
 fi
@@ -509,16 +492,6 @@ do
         echo -n "                         "
     fi
     echo ":  ${STAGES[i]}"
-done
-echo "Registration sub-stages"
-for((i=0; i<${#REG_STAGES[*]}; i++))
-do
-    if [ "${SKIP_REG_STAGES[i]}" = "skip" ]; then
-        echo -n "                    skip "
-    else
-        echo -n "                         "
-    fi
-    echo ":  ${REG_STAGES[i]}"
 done
 echo
 echo "Directories"
@@ -743,7 +716,6 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         fi
     done
     popd
-#    cp 1_deconvolution/*ch00.${IMAGE_EXT} 2_color-correction/
 
     if [ ${USE_GPU_CUDA} == "true" ]; then
         stage_log=${LOG_DIR}/matlab-normalization.log
@@ -864,106 +836,87 @@ echo
 STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
-    echo "-------------------------------------------------------------------------"
-    echo "Registration - calculateDescriptors"; date
-    echo
-
-    reg_stage_idx=0
-    if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        stage_log=${LOG_DIR}/matlab-calcDesc-group.log
-        (
-        rounds=$(seq -s' ' 1 ${ROUND_NUM})
-        # calculateDescriptors for all rounds in parallel
-        if [ ${USE_GPU_CUDA} == "true" ]; then
-            matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-                calculateDescriptorsCUDAInParallel([$rounds]); \
-                postcheck_calculateDescriptors(${ROUND_NUM}); \
-                ${ERR_HDL_POSTCODE}"
-        else
-            matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-                calculateDescriptorsInParallel([$rounds]); \
-                postcheck_calculateDescriptors(${ROUND_NUM}); \
-                ${ERR_HDL_POSTCODE}"
-        fi
-
-        if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
-            grep -A 40 Error matlab-calcDesc-*.log
-            mv matlab-calcDesc-*.log ${LOG_DIR}/
-        else
-            echo "No log files."
-        fi
-        ) & wait $!
-
-        # check result
-        if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-            REG_STAGES_STATUS[$reg_stage_idx]="ERROR"
-            echo "[ERROR] calculateDescriptors in registration failed."
-            exit
-        fi
+    stage_log=${LOG_DIR}/matlab-calcDesc-group.log
+    (
+    rounds=$(seq -s' ' 1 ${ROUND_NUM})
+    # calculateDescriptors for all rounds in parallel
+    if [ ${USE_GPU_CUDA} == "true" ]; then
+        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
+            calculateDescriptorsCUDAInParallel([$rounds]); \
+            postcheck_calculateDescriptors(${ROUND_NUM}); \
+            ${ERR_HDL_POSTCODE}"
     else
-        REG_STAGES_STATUS[$reg_stage_idx]="SKIPPED"
-        echo "Skip!"
+        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
+            calculateDescriptorsInParallel([$rounds]); \
+            postcheck_calculateDescriptors(${ROUND_NUM}); \
+            ${ERR_HDL_POSTCODE}"
     fi
-    reg_stage_idx=$(( $reg_stage_idx + 1 ))
 
-    echo "-------------------------------------------------------------------------"
-    echo "Registration - registerWithCorrespondences"; date
-    echo
-
-    if [ ! "${SKIP_REG_STAGES[$reg_stage_idx]}" = "skip" ]; then
-        stage_log=${LOG_DIR}/matlab-regCorr-group.log
-        (
-        # make symbolic links of reference-round images because it is not necessary to warp them
-        ref_round=$(printf "round%03d" $REFERENCE_ROUND)
-        for normalized_file in ${NORMALIZATION_DIR}/${FILE_BASENAME}_${ref_round}_*.${IMAGE_EXT}
-        do
-            base_file=$(basename "${normalized_file}")
-            registered_affine_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_affine.${IMAGE_EXT}}
-            registered_tps_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_registered.${IMAGE_EXT}}
-            if [ ! -f $registered_affine_file ]; then
-                ln -s ${normalized_file/$PWD/..} $registered_affine_file
-            fi
-            if [ ! -f $registered_tps_file ]; then
-                ln -s ${normalized_file/$PWD/..} $registered_tps_file
-            fi
-        done
-
-        rounds=$(seq -s' ' 1 ${ROUND_NUM})' '
-        rounds=${rounds/$REFERENCE_ROUND /}
-        echo "Skipping registration of the reference round"
-        echo $rounds
-        if [ ${USE_GPU_CUDA} == "true" ]; then
-            matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-                registerWithCorrespondencesCUDAInParallel([$rounds]); \
-                postcheck_registerWithCorrespondences(${ROUND_NUM}); \
-                ${ERR_HDL_POSTCODE}"
-        else
-            #Because the matching is currently single-threaded, we can parpool it in one loop
-            matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-                registerWithCorrespondencesInParallel([$rounds]); \
-                postcheck_registerWithCorrespondences(${ROUND_NUM}); \
-                ${ERR_HDL_POSTCODE}"
-        fi
-
-        if ls matlab-regCorr-*.log > /dev/null 2>&1; then
-            grep -A 40 Error matlab-regCorr-*.log
-            mv matlab-regCorr-*.log ${LOG_DIR}/
-        else
-            echo "No regCorr-log files."
-        fi
-        ) & wait $!
-
-        # check result
-        if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-            REG_STAGES_STATUS[$reg_stage_idx]="ERROR"
-            echo "[ERROR] registerWithCorrespondences in registration failed."
-            exit
-        fi
+    if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
+        grep -A 40 Error matlab-calcDesc-*.log
+        mv matlab-calcDesc-*.log ${LOG_DIR}/
     else
-        REG_STAGES_STATUS[$reg_stage_idx]="SKIPPED"
-        echo "Skip!"
+        echo "No log files."
     fi
-    reg_stage_idx=$(( $reg_stage_idx + 1 ))
+    ) & wait $!
+
+    # check result
+    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
+        echo "[ERROR] calculateDescriptors in registration failed."
+        exit
+    fi
+#
+    stage_log=${LOG_DIR}/matlab-regCorr-group.log
+    (
+    # make symbolic links of reference-round images because it is not necessary to warp them
+    ref_round=$(printf "round%03d" $REFERENCE_ROUND)
+    for normalized_file in ${NORMALIZATION_DIR}/${FILE_BASENAME}_${ref_round}_*.${IMAGE_EXT}
+    do
+        base_file=$(basename "${normalized_file}")
+        registered_affine_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_affine.${IMAGE_EXT}}
+        registered_tps_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_registered.${IMAGE_EXT}}
+        if [ ! -f $registered_affine_file ]; then
+            ln -s ${normalized_file/$PWD/..} $registered_affine_file
+        fi
+        if [ ! -f $registered_tps_file ]; then
+            ln -s ${normalized_file/$PWD/..} $registered_tps_file
+        fi
+    done
+
+    rounds=$(seq -s' ' 1 ${ROUND_NUM})' '
+    rounds=${rounds/$REFERENCE_ROUND /}
+    echo "Skipping registration of the reference round"
+    echo $rounds
+    if [ ${USE_GPU_CUDA} == "true" ]; then
+        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
+            registerWithCorrespondencesCUDAInParallel([$rounds]); \
+            postcheck_registerWithCorrespondences(${ROUND_NUM}); \
+            ${ERR_HDL_POSTCODE}"
+    else
+        #Because the matching is currently single-threaded, we can parpool it in one loop
+        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
+            registerWithCorrespondencesInParallel([$rounds]); \
+            postcheck_registerWithCorrespondences(${ROUND_NUM}); \
+            ${ERR_HDL_POSTCODE}"
+    fi
+
+    if ls matlab-regCorr-*.log > /dev/null 2>&1; then
+        grep -A 40 Error matlab-regCorr-*.log
+        mv matlab-regCorr-*.log ${LOG_DIR}/
+    else
+        echo "No regCorr-log files."
+    fi
+    ) & wait $!
+
+    # check result
+    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
+        echo "[ERROR] registerWithCorrespondences in registration failed."
+        exit
+    else
+        STAGES_STATUS[$stage_idx]="DONE"
+    fi
 
 else
     STAGES_STATUS[$stage_idx]="SKIPPED"
@@ -989,19 +942,20 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         postcheck_puncta_extraction(); \
         ${ERR_HDL_POSTCODE}"
     #matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} punctafeinder_in_parallel; ${ERR_HDL_POSTCODE}"
-
-    if ls matlab-puncta-extraction-*.log > /dev/null 2>&1; then
-        grep -A 40 Error matlab-puncta-extraction-*.log
-        mv matlab-puncta-extraction-*.log ${LOG_DIR}/
-    else
-        echo "No job log files."
-    fi
+    #if ls matlab-puncta-extraction-*.log > /dev/null 2>&1; then
+    #    grep -A 40 Error matlab-puncta-extraction-*.log
+    #    mv matlab-puncta-extraction-*.log ${LOG_DIR}/
+    #else
+    #    echo "No job log files."
+    #fi
     ) & wait $!
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
         echo "[ERROR] puncta extraction failed."
         exit
+    else
+        STAGES_STATUS[$stage_idx]="DONE"
     fi
 else
     STAGES_STATUS[$stage_idx]="SKIPPED"

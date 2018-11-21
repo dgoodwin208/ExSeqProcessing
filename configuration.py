@@ -47,7 +47,7 @@ try:
 	Label(root, text="Format:", font="Tahoma 10 bold").grid(row=5, column=1, padx=10, pady=1,  sticky=W)
 	Radiobutton(root, text="tiff", variable=fmt, value="tiff").grid(row=5, column=2, padx=10, pady=1,  sticky=W)
 
-	Radiobutton(root, text="hdf-5", variable=fmt, value="hdf-5").grid(row=6, column=2, padx=10, pady=1,  sticky=W)
+	Radiobutton(root, text="hdf5", variable=fmt, value="hdf5").grid(row=6, column=2, padx=10, pady=1,  sticky=W)
 
 	sep = ttk.Separator(root, orient=HORIZONTAL)
 	sep.grid(row=7, column=0, columnspan=4, sticky="ew")
@@ -103,7 +103,7 @@ except:
 	ch_prefix = input("Enter the channel prefix: ")
 	path=subprocess.check_output('read -e -p "Enter path for output files: " var ; echo $var',shell=True).rstrip()
 	folder_path["output"] = path.decode('utf-8')	
-	fmt = input("Enter 1 for tiff, Enter 2 for hdf-5: ")
+	fmt = input("Enter 1 for tiff, Enter 2 for hdf5: ")
 	path=subprocess.check_output('read -e -p "Enter path for temporary storage: " var ; echo $var',shell=True).rstrip()
 	folder_path["temp"] = path.decode('utf-8')	
 	path=subprocess.check_output('read -e -p "Enter path for log files: " var ; echo $var',shell=True).rstrip()
@@ -116,7 +116,7 @@ except:
 	if(fmt == 1):
 		fmt = "tiff"
 	else:
-		fmt = "hdf-5"
+		fmt = "hdf5"
 
 	total_rounds = int(total_rounds)
 	ref_round = int(ref_round)

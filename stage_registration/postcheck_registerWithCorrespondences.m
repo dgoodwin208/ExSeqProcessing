@@ -35,7 +35,6 @@ function ret = postcheck_registerWithCorrespondences(total_round_num)
         end
         ret = postcheck;
 
-        fprintf('Ending the registration after the affine\n');
         return;
     end
 
