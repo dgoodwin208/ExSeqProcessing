@@ -14,13 +14,13 @@ fprintf('3DTPSWarp RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FI
 
 maxNumCompThreads(params.TPS3DWARP_MAX_THREADS);
 
-affinekeys_filename = fullfile(regparams.OUTPUTDIR,sprintf('affinekeys_%s_round%03d.h5',filename_root,moving_run));
+affinekeys_filename = fullfile(params.registeredImagesDir,sprintf('affinekeys_%s_round%03d.h5',filename_root,moving_run));
 if ~exist(affinekeys_filename)
     fprintf('affinekeys file was not created.\n');
     exit
 end
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 if isequal(params.IMAGE_EXT,'tif')
@@ -40,7 +40,7 @@ keyM_total = h5read(affinekeys_filename,'/keyM_total');
 keyF_total = h5read(affinekeys_filename,'/keyF_total');
 toc;
 
-output_TPS_filename = fullfile(regparams.OUTPUTDIR,sprintf('TPSMap_%s_round%03d.h5',filename_root,moving_run));
+output_TPS_filename = fullfile(params.registeredImagesDir,sprintf('TPSMap_%s_round%03d.h5',filename_root,moving_run));
 if ~exist(output_TPS_filename,'file')
 
     %These keypoints have now been modified by the affine warp, so are in

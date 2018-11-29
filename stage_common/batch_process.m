@@ -1,5 +1,5 @@
 function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg_list, ...
-    postfix_list, pool, max_jobs, max_running_jobs, wait_sec, output_num, channels)
+    postfix_list, pool, max_jobs, max_running_jobs, wait_sec, log_dir)
 
     success_code = true;
     outputs = {};
@@ -25,8 +25,7 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
 
             disp(['create batch ', num2str(job_idx)]);
             running_jobs(job_idx) = 1; % mark as running
-            jobs{job_idx} = batch(cluster, func, ... 
-                output_num, args, 'Pool', pool, 'CaptureDiary', true);
+            jobs{job_idx} = batch(cluster, func, 0, args, 'Pool', pool, 'CaptureDiary', true);
             job_idx = job_idx + 1;
         else
             for job_idx_running = find(running_jobs==1)
@@ -50,18 +49,11 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                     if isempty(job.Tasks(1).Error)
                         % batch finished with no error
                         disp(['batch (',num2str(job_idx_running),') has ', job.State,'.']);
-                        diary(job, ['./matlab-', prefix, '-', postfix, '.log']);
-                        if output_num
-                            job_output = fetchOutputs(job);
-                            centroids_job = job_output{1};
-                            for c_idx = 1:channels
-                                outputs{job_idx_running,c_idx} = centroids_job{job_idx_running,c_idx};
-                            end
-                        end
+                        diary(job, fullfile(log_dir, ['matlab-', prefix, '-', postfix, '.log']));
                     else
                         %batch finished with internal error
                         disp(['batch (',num2str(job_idx_running),') had fatal internal error, see log file.']);
-                        fn = strcat('./matlab-', prefix, '-', postfix, '-fatal.log');
+                        fn = fullfile(log_dir, strcat('matlab-', prefix, '-', postfix, '-fatal.log'));
                         diary(job, fn);
                         % guarantee error message gets logged (appended)
                         if ~isempty(job.Tasks(1).Error)
@@ -81,10 +73,9 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
                     if msg
                         fprintf('Error caused by:\n%s\n', job.Tasks(1).Error.message);
                     end
-                    diary(job, ['./matlab-', prefix, '-', postfix, '-failed.log']);
+                    diary(job, fullfile(log_dir, ['matlab-', prefix, '-', postfix, '-failed.log']));
                     %jobs{job_idx_running} = recreate(job); % causes misc. errors
-                    jobs{job_idx_running} = batch(cluster, func, ... 
-                        output_num, args, 'Pool', 2, 'CaptureDiary', true);
+                    jobs{job_idx_running} = batch(cluster, func, 0, args, 'Pool', 2, 'CaptureDiary', true);
                 end
             end
             if ~is_finished

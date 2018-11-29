@@ -19,7 +19,7 @@ function success_code = batch_memory_errors()
 
     loadParameters;
     [success_code, output] = batch_process('createMemError', @create_memory_error, run_num_list, arg_list, ...
-        postfix_list, params.CALC_DESC_MAX_POOL_SIZE, max_jobs, params.CALC_DESC_MAX_RUN_JOBS, params.WAIT_SEC, 0, []);
+        postfix_list, params.CALC_DESC_MAX_POOL_SIZE, max_jobs, params.CALC_DESC_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
 
 end
 

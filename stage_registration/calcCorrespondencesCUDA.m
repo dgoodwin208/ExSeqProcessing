@@ -6,7 +6,7 @@
 % INPUTS:
 % moving_run: which expeirment do you want to warp accordingly?
 % OUTPUTS:
-% no variables. All outputs saved to regparams.OUTPUTDIR
+% no variables. All outputs saved to params.registeredImagesDir
 %
 % Author: Daniel Goodwin dgoodwin208@gmail.com
 % Date: August 2015
@@ -33,7 +33,7 @@ fprintf('CalcCorrespondencesInCUDA ON MOVING: %i, FIXED: %i\n', moving_run, regp
 maxNumCompThreads(params.REG_CORR_MAX_THREADS);
 
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
     filename_root,moving_run,regparams.CHANNELS{1},params.IMAGE_EXT));
 
 try
@@ -50,7 +50,7 @@ tic;
 keys_moving_total_sift.pos = [];
 keys_moving_total_sift.ivec = [];
 for register_channel = [regparams.REGISTERCHANNELS_SIFT]
-    descriptor_output_dir_moving = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root, ...
+    descriptor_output_dir_moving = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         moving_run,register_channel{1}));
     
     files = dir(fullfile(descriptor_output_dir_moving,'*.mat'));
@@ -73,7 +73,7 @@ fprintf('load sift keys of moving round%03d. ',moving_run);toc;
 tic;
 keys_moving_total_sc.pos = [];
 for register_channel = [regparams.REGISTERCHANNELS_SC]
-    descriptor_output_dir_moving = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root, ...
+    descriptor_output_dir_moving = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         moving_run,register_channel{1}));
     
     files = dir(fullfile(descriptor_output_dir_moving,'*.mat'));
@@ -106,7 +106,7 @@ keyF_total = [];
 %Because it takes up to hours to generate the global list of vetted
 %keys, after we generate them we now save them in the output_keys_filename
 %if it's aready been generated, we can skip directly to the TPS calculation
-output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
+output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
 
 %If we need to run the robust model checking to identify correct
 %correspondences
@@ -149,7 +149,7 @@ if ~exist(output_keys_filename,'file')
             fprintf('findRelevantKeys. keys_moving(mod) ');toc;
 
 
-            filename = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
+            filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
                 filename_root,regparams.FIXED_RUN,y_idx,x_idx));
             if (~exist(filename))
                 fprintf('ShapeContext of fixed image is not calculated.\n');

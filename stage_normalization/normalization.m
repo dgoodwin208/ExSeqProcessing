@@ -1,54 +1,37 @@
 % normalization
 
-function normalization(src_folder_name,dst_folder_name,fileroot_name,channels,total_round_num,do_downsample)
+function success_code = normalization()
 
-    if length(channels) ~= 4
+    loadParameters;
+
+    if length(params.CHAN_STRS) ~= 4
         disp('# of channels is not 4.')
         return
     end
-    
-    if do_downsample
-        fileroot_name = sprintf('%s-%s',fileroot_name, 'downsample');
-    end
-    cluster = parcluster('local_logical_cores');
 
-    tic;
-    disp('===== create batch jobs')
-
-    max_running_jobs = 3;
-    waiting_sec = 10;
-
-    jobs = cell(1,total_round_num);
-    running_jobs = zeros(1,total_round_num);
-    roundnum = 1;
-
-    while roundnum <= total_round_num || sum(running_jobs) > 0
-        if (roundnum <= total_round_num) && (sum(running_jobs) < max_running_jobs)
-            disp(['create batch (',num2str(roundnum),')'])
-            running_jobs(roundnum) = 1;
-            jobs{roundnum} = batch(cluster,@normalizeImage,0,{src_folder_name,dst_folder_name,fileroot_name,channels,roundnum},'CaptureDiary',true);
-            roundnum = roundnum+1;
-        else
-            for job_id = find(running_jobs==1)
-                job = jobs{job_id};
-                is_finished = 0;
-                if strcmp(job.State,'finished') || strcmp(job.State,'failed')
-                    disp(['batch (',num2str(job_id),') has ',job.State,'.'])
-                    diary(job,['./matlab-normalization-',num2str(job_id),'.log']);
-                    running_jobs(job_id) = 0;
-                    delete(job)
-                    is_finished = 1;
-                end
-            end
-            if is_finished == 0
-              disp(['waiting... ',num2str(find(running_jobs==1))])
-              pause(waiting_sec);
-            end
-        end
+    arg_list = {};
+    postfix_list = {};
+    run_num_list = 1:params.NUM_ROUNDS;
+    for run_num = run_num_list
+        arg_list{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.CHAN_STRS, run_num};
+        postfix_list{end+1} = num2str(run_num);
     end
 
-    disp('===== all batch jobs finished')
-    toc;
+    max_jobs = length(run_num_list);
 
+    [success_code, output] = batch_process('normalization', @normalizeImage, run_num_list, arg_list, ...
+        postfix_list, params.NORM_MAX_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+
+    if ~params.DO_DOWNSAMPLE
+        return
+    end
+
+    arg_list_downsample = {};
+    for run_num = run_num_list
+        arg_list_downsample{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,[params.FILE_BASENAME,'-downsample'],params.CHAN_STRS, run_num};
+    end
+
+    [success_code, output] = batch_process('normalization-downsample', @normalizeImage, run_num_list, arg_list_downsample, ...
+        postfix_list, params.NORM_MAX_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
 end
 

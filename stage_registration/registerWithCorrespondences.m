@@ -6,7 +6,7 @@
 % INPUTS:
 % moving_run: which expeirment do you want to warp accordingly?
 % OUTPUTS:
-% no variables. All outputs saved to params.OUTPUTDIR
+% no variables. All outputs saved to params.registeredImagesDir
 %
 % Author: Daniel Goodwin dgoodwin208@gmail.com
 % Date: August 2015
@@ -25,17 +25,17 @@ end
 % regparams.MOVING_RUN = moving_run;
 
 fprintf('RegWithCorr ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
-output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
+output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
 end
 %Load a full-res image 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
 imgFixed_total = load3DImage_uint16(filename);
 %Loading the keys, possibly from the downsampled data
-output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
+output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
 
 %The globalkeys file loads the keyM and keyF matrices that are used to
 %calculate the warps
@@ -87,12 +87,12 @@ for c = 1:length(regparams.CHANNELS)
     tic;
     data_channel = regparams.CHANNELS{c};
     fprintf('load 3D file for affine transform on %s channel\n',data_channel);
-    %filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',params.FILE_BASENAME,moving_run,data_channel,params.IMAGE_EXT));
-    filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    %filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',params.FILE_BASENAME,moving_run,data_channel,params.IMAGE_EXT));
+    filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
     imgToWarp = load3DImage_uint16(filename);
     toc;
     
-    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',...
+    output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',...
         filename_root,moving_run,data_channel,params.IMAGE_EXT));
     
     imgMoving_total_affine = imwarp(imgToWarp,affine3d(affine_tform'),'OutputView',rF);
@@ -110,7 +110,7 @@ end
 %parpool(cluster) %Don't check these changes, this is local hacks
 %toc;
 
-output_TPS_filename = fullfile(regparams.OUTPUTDIR,sprintf('TPSMap_%s_round%03d.mat',filename_root,moving_run));
+output_TPS_filename = fullfile(params.registeredImagesDir,sprintf('TPSMap_%s_round%03d.mat',filename_root,moving_run));
 if exist(output_TPS_filename,'file')==0
     
     %These keypoints have now been modified by the affine warp, so are in
@@ -141,13 +141,13 @@ for c = 1:length(regparams.CHANNELS)
     disp('load 3D file to be warped')
     tic;
     data_channel = regparams.CHANNELS{c};
-    filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
     imgToWarp = load3DImage_uint16(filename);
     toc;
     
     [ outputImage_interp ] = TPS3DApply(in1D_total,out1D_total,imgToWarp,size(imgFixed_total));
     
-    outputfile = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_%s.%s',filename_root,moving_run,data_channel,regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
+    outputfile = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_%s.%s',filename_root,moving_run,data_channel,regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
     save3DImage_uint16(outputImage_interp,outputfile);
 end
 

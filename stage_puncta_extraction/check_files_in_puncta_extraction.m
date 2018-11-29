@@ -1,30 +1,29 @@
-function ret = postcheck_puncta_extraction()
+function [ret,messages] = check_files_in_puncta_extraction()
 
     loadParameters;
 
+    ret = true;
+    messages = {};
+
     filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
     if ~exist(filename_out,'file')
-        fprintf('[ERROR] not created: %s\n',filename_out);
         ret = false;
+        messages{end+1} = sprintf('[ERROR] not created: %s',filename_out);
         return
     end
 
     filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
     if ~exist(filename_centroids,'file')
-        fprintf('[ERROR] not created: %s\n',filename_centroids);
         ret = false;
+        messages{end+1} = sprintf('[ERROR] not created: %s',filename_centroids);
         return
     end
 
     outputfile = fullfile(params.basecallingResultsDir,sprintf('%s_puncta_pixels.mat',params.FILE_BASENAME));
     if ~exist(outputfile,'file')
-        fprintf('[ERROR] not created: %s\n',outputfile);
         ret = false;
+        messages{end+1} = sprintf('[ERROR] not created: %s',outputfile);
         return
     end
-
-    fprintf('[DONE]\n');
-
-    ret = true;
 end
 

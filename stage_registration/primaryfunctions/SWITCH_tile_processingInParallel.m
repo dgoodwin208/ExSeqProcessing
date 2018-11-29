@@ -31,7 +31,6 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
         blur_size = blur_size_list(i);
         %Blurring is done inside the Harris keypoint detection code
         res_vect = Harris3D(img, blur_size, options, cuda);
-        save res_vect res_vect
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
         %if cuda

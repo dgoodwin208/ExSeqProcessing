@@ -35,7 +35,7 @@ fprintf('REGISTRATION:\n');
 for rnd = rounds
     for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTERCHANNELS_SC])
         regChan = register_channel{1};
-        descriptor_output_dir = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s/',filename_root,rnd,regChan));
+        descriptor_output_dir = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s/',filename_root,rnd,regChan));
         if exist(descriptor_output_dir,'dir')
             rmcommand = sprintf('rm -rf %s',descriptor_output_dir);
             system(rmcommand);
@@ -45,21 +45,21 @@ for rnd = rounds
 end
 %global keys files
 for rnd = rounds
-    output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%s_round%03d.mat',filename_root,rnd));
+    output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%s_round%03d.mat',filename_root,rnd));
     delete(output_keys_filename)
     fprintf('Deleted correspondences file: %s\n',output_keys_filename); 
 end
 %Warped files
 for rnd = rounds
     
-    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s-downsample_round%03d_%s_affine.tif',params.FILE_BASENAME,rnd,regparams.CHANNELS{end}));
+    output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s-downsample_round%03d_%s_affine.tif',params.FILE_BASENAME,rnd,regparams.CHANNELS{end}));
     delete(output_affine_filename)
     fprintf('Deleted warped downsampled file: %s\n',output_affine_filename); 
-    output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.tif',params.FILE_BASENAME,rnd,regparams.CHANNELS{end}));
+    output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.tif',params.FILE_BASENAME,rnd,regparams.CHANNELS{end}));
     delete(output_affine_filename)
     fprintf('Deleted warped fullres file: %s\n',output_affine_filename); 
     
-    output_TPS_filename = fullfile(regparams.OUTPUTDIR,sprintf('TPSMap_%s_round%03d.mat',params.FILE_BASENAME,rnd));
+    output_TPS_filename = fullfile(params.registeredImagesDir,sprintf('TPSMap_%s_round%03d.mat',params.FILE_BASENAME,rnd));
     delete(output_TPS_filename)
     fprintf('Deleted TPS file: %s\n',output_TPS_filename); 
 end

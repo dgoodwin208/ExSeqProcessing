@@ -15,7 +15,7 @@ fprintf('CalcCorrespondencesForFixed FIXED: %i\n', fixed_run);
 all_lf_sift_existed = true;
 for x_idx=1:regparams.COLS_TFORM
     for y_idx=1:regparams.ROWS_TFORM
-        lf_sift_filename = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
+        lf_sift_filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
             filename_root,fixed_run,y_idx,x_idx));
         if ~exist(lf_sift_filename)
             all_lf_sift_existed = false;
@@ -28,7 +28,7 @@ if all_lf_sift_existed
     return;
 end
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
     filename_root,fixed_run,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 imgFixed_total = load3DImage_uint16(filename);
@@ -41,7 +41,7 @@ tic;
 keys_fixed_total_sift.pos = [];
 keys_fixed_total_sift.ivec = [];
 for register_channel = [regparams.REGISTERCHANNELS_SIFT]
-    descriptor_output_dir_fixed = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root, ...
+    descriptor_output_dir_fixed = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         fixed_run,register_channel{1}));
 
     files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
@@ -64,7 +64,7 @@ fprintf('load sift keys of fixed round%03d. ',fixed_run);toc;
 tic;
 keys_fixed_total_sc.pos = [];
 for register_channel = [regparams.REGISTERCHANNELS_SC]
-    descriptor_output_dir_fixed = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root, ...
+    descriptor_output_dir_fixed = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         fixed_run,register_channel{1}));
 
     files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
@@ -188,7 +188,7 @@ for x_idx=1:regparams.COLS_TFORM
         toc;
 
         tic;
-        lf_sift_filename = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
+        lf_sift_filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
             filename_root,fixed_run,y_idx,x_idx));
         save(lf_sift_filename,'LF_SIFT','DF_SIFT_norm','DF_SC','img_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');
 %        save(lf_sift_filename,'LF_SIFT','img_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');

@@ -26,7 +26,6 @@ for rnd_indx = 1:params.NUM_ROUNDS
 end
 
 
-params.DOWN_SAMPLING_MAX_POOL_SIZE = 5;
 parpool(params.DOWN_SAMPLING_MAX_POOL_SIZE);
 
 parfor rnd_indx = 1:params.NUM_ROUNDS
@@ -65,32 +64,5 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
         end
 
     end
-end
-
-
-postcheck = true;
-for rnd_indx = 1:params.NUM_ROUNDS
-    for c = 1:params.NUM_CHANNELS
-
-        filename_downsampled = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s-downsample_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,orig_chans{c},params.IMAGE_EXT));
-
-        if ~exist(filename_downsampled,'file')
-            postcheck = false;
-            fprintf('[ERROR] not created: %s\n',filename_downsampled);
-        end
-
-        if isequal(params.IMAGE_EXT,'h5')
-            filename_full_hdf5 = replace(filename_full,'tif','h5');
-            if ~exist(filename_full_hdf5,'file')
-                postcheck = false;
-                fprintf('[ERROR] not created: %s\n',filename_full_hdf5);
-            end
-        end
-    end
-end
-
-if postcheck
-    fprintf('[DONE]\n')
 end
 

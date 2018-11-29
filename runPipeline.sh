@@ -11,16 +11,36 @@ function trap_exit_handle() {
     fi
 }
 
+trap trap_exit_handle EXIT
+
+
 function print_stage_status() {
     if [ "$printed_stage_status" = "false" ] && [ ${#STAGES_STATUS[*]} -gt 0 ]; then
+        local min_sec=${STAGE_SECONDS[0]}
+        local max_sec=${min_sec}
         echo "========================================================================="
         echo "Stage summary"
         echo "-------------"
+        local total_res="SUCCESS"
         for((i=0; i<${#STAGES[*]}; i++))
         do
             j=$(expr $i + 1)
             printf "%-20s : %-7s  (%s)\n" ${STAGES[i]} "${STAGES_STATUS[i]}" $(print_elapsed_time_from_seconds ${STAGE_SECONDS[i]} ${STAGE_SECONDS[j]})
+
+            if [ "${STAGES_STATUS[i]}" = "ERROR" ]; then
+                total_res="FAILURE"
+            fi
+            if [ -n "${STAGE_SECONDS[j]}" ]; then
+                if [ "${min_sec}" -gt "${STAGE_SECONDS[j]}" ]; then
+                    min_sec=${STAGE_SECONDS[j]}
+                fi
+                if [ "${max_sec}" -lt "${STAGE_SECONDS[j]}" ]; then
+                    max_sec=${STAGE_SECONDS[j]}
+                fi
+            fi
         done
+        echo "------------------------------------------"
+        printf "%-20s : %-7s  (%s)\n" "total" "$total_res" $(print_elapsed_time_from_seconds ${min_sec} ${max_sec})
         echo
     fi
     printed_stage_status="true"
@@ -44,8 +64,9 @@ function print_elapsed_time_from_seconds() {
     printf "%02d:%02d:%02d" ${hh} ${mm} ${ss}
 }
 
-trap trap_exit_handle EXIT
-
+function lowercase() {
+    echo $(echo "$1" | tr "[A-Z]" "[a-z]")
+}
 
 function usage() {
     echo "Usage: $0 [OPTIONS]"
@@ -63,7 +84,7 @@ function usage() {
     echo "  -T              temp directory (default: not use temp dir)"
     echo "  -L              log directory"
     echo "  -G              use GPU and CUDA (default: no)"
-    echo "  -H              use HDF5 format for intermediate files (default: no)"
+    echo "  -F              file format of intermediate images (tiff or hdf5)"
     echo "  -J              set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P              mode to get performance profile"
     echo "  -e              execution stages;  exclusively use for skip stages"
@@ -115,9 +136,6 @@ TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#
 APPLY3DTPS_MAX_RUN_JOBS=$(sed -ne "s#params.APPLY3DTPS_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 APPLY3DTPS_MAX_POOL_SIZE=$(sed -ne "s#params.APPLY3DTPS_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 APPLY3DTPS_MAX_THREADS=$(sed -ne "s#params.APPLY3DTPS_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-PUNCTA_MAX_RUN_JOBS=$(sed -ne "s#params.PUNCTA_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-PUNCTA_MAX_THREADS=0
 REGISTRATION_CHANNELS=$(sed -ne "s#regparams.CHANNELS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 
 
@@ -185,12 +203,6 @@ else
     USE_GPU_CUDA=false
 fi
 
-if [ $FORMAT = 'tiff' ]; then
-    USE_HDF5=false
-else
-    USE_HDF5=true
-fi
-
 
 PERF_PROFILE=false
 
@@ -198,7 +210,7 @@ NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:GHJ:Pyh OPT
+while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:GF:J:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -241,7 +253,11 @@ do
             ;;
         G)  USE_GPU_CUDA=true
             ;;
-        H)  USE_HDF5=true
+        F)  FORMAT=$OPTARG
+            if [ $(lowercase "${FORMAT}") != "tiff" ] && [ $(lowercase "${FORMAT}") != "hdf5" ]; then
+                echo "Not support: ${FORMAT}"
+                exit
+            fi
             ;;
         J)  IFS=, read NJOBS_CC NJOBS_NORM NJOBS_CALCD NJOBS_REGC NJOBS_AFFINE TMP <<<$OPTARG
             if [ -n "${NJOBS_CC}" ]; then
@@ -442,7 +458,7 @@ for filename in ${INPUT_FILE_PATH}/*.tif; do
 done
 
 
-if [ "$USE_HDF5" = "true" ]; then
+if [ "$FORMAT" = "hdf5" ]; then
     IMAGE_EXT=h5
 else
     IMAGE_EXT=tif
@@ -575,11 +591,13 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
     -e "s#\(params.basecallingResultsDir\) *= *.*;#\1 = '${BASE_CALLING_DIR}';#" \
     -e "s#\(params.reportingDir\) *= *.*;#\1 = '${REPORTING_DIR}';#" \
+    -e "s#\(params.logDir\) *= *.*;#\1 = '${LOG_DIR}';#" \
     -e "s#\(params.FILE_BASENAME\) *= *.*;#\1 = '${FILE_BASENAME}';#" \
     -e "s#\(params.NUM_ROUNDS\) *= *.*;#\1 = ${ROUND_NUM};#" \
     -e "s#\(params.REFERENCE_ROUND_WARP\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
+    -e "s#\(params.USE_GPU_CUDA\) *= *.*;#\1 = ${USE_GPU_CUDA};#" \
     -e "s#\(params.USE_TMP_FILES\) *= *.*;#\1 = ${USE_TMP_FILES};#" \
     -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
@@ -609,8 +627,12 @@ echo
 
 STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
+    stage_log=${LOG_DIR}/matlab-setup-cluster-profile.log
     (
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-setup-cluster-profile.log -r "${ERR_HDL_PRECODE} setup_cluster_profile(); ${ERR_HDL_POSTCODE}"
+    matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
+        ${ERR_HDL_PRECODE} \
+        setup_cluster_profile(); \
+        ${ERR_HDL_POSTCODE}"
     ) & wait $!
     STAGES_STATUS[$stage_idx]="DONE"
 else
@@ -630,68 +652,25 @@ echo
 STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
-    #(
-    #matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-copy-scopenames-to-regnames.log -r "${ERR_HDL_PRECODE} copy_scope_names_to_reg_names; ${ERR_HDL_POSTCODE}"
-    #) & wait $!
-
-    stage_log=${LOG_DIR}/matlab-downsample-all.log
+    stage_log=${LOG_DIR}/matlab-downsampling-and-color-correction.log
     (
-    matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-        run('downsample_all.m'); \
+    matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
+        ${ERR_HDL_PRECODE} \
+        stage_downsampling_and_color_correction(); \
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
+
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
-        echo "[ERROR] downsample_all failed."
-        exit
-    fi
-
-
-    stage_log=${LOG_DIR}/matlab-color-correction.log
-    (
-    if [ ${USE_GPU_CUDA} == "true" ]; then
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            colorcorrection_3D_cuda(${ROUND_NUM}); \
-            postcheck_color_correction(${ROUND_NUM}); \
-            ${ERR_HDL_POSTCODE}"
-    else
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            for i=1:${ROUND_NUM}; colorcorrection_3D(i); end; \
-            postcheck_color_correction(${ROUND_NUM}); \
-            ${ERR_HDL_POSTCODE}"
-    fi
-    if ls matlab-color-correction-*.log > /dev/null 2>&1; then
-        grep -A 40 Error matlab-color-correction-*.log
-        mv matlab-color-correction-*.log ${LOG_DIR}/
-    else
-        echo "No job log files."
-    fi
-    ) & wait $!
-    # check result
-    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-        STAGES_STATUS[$stage_idx]="ERROR"
-        echo "[ERROR] colorcollrection_3D failed."
-        exit
-    fi
-
-
-    stage_log=${LOG_DIR}/matlab-downsample-apply.log
-    (
-    matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-        run('downsample_applycolorshiftstofullres.m'); \
-        ${ERR_HDL_POSTCODE}"
-    ) & wait $!
-    # check result
-    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-        STAGES_STATUS[$stage_idx]="ERROR"
-        echo "[ERROR] downsample_apply failed."
+        STAGE_SECONDS[$(($stage_idx + 1))]=$SECONDS
+        echo "[ERROR] downsampling and color correction failed."
         exit
     else
         STAGES_STATUS[$stage_idx]="DONE"
     fi
 else
-        STAGES_STATUS[$stage_idx]="SKIPPED"
+    STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
 fi
 echo
@@ -707,119 +686,25 @@ echo
 STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
-    cwd=$PWD
-    pushd ${COLOR_CORRECTION_DIR}
-    for f in ${DECONVOLUTION_DIR}/*ch00.${IMAGE_EXT}
-    do
-        if [ ! -f $(basename $f) ]; then
-            ln -s ${f/$cwd/..}
-        fi
-    done
-    popd
-
-    if [ ${USE_GPU_CUDA} == "true" ]; then
-        stage_log=${LOG_DIR}/matlab-normalization.log
-        (
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            normalization_cuda('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM}); \
-            postcheck_normalization(${ROUND_NUM},true); \
-            postcheck_normalization(${ROUND_NUM},false); \
-            ${ERR_HDL_POSTCODE}"
-
-        if ls matlab-normalization-*.log > /dev/null 2>&1; then
-            grep -A 40 Error matlab-normalization-*.log
-            mv matlab-normalization-*.log ${LOG_DIR}/
-        else
-            echo "No job log files."
-        fi
-        ) & wait $!
-        # check result
-        if [ "$(grep '\[DONE\]' ${stage_log} | wc -l)" -ne 2 ]; then
-            STAGES_STATUS[$stage_idx]="ERROR"
-            echo "[ERROR] normalization_cuda failed."
-            exit
-        else
-            STAGES_STATUS[$stage_idx]="DONE"
-        fi
-    else
-        stage_log=${LOG_DIR}/matlab-normalization.log
-        (
-        #Process the full-resolution data
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},false); \
-            postcheck_normalization(${ROUND_NUM},false); \
+    stage_log=${LOG_DIR}/matlab-normalization.log
+    (
+    matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
+        ${ERR_HDL_PRECODE} \
+        stage_normalization(); \
         ${ERR_HDL_POSTCODE}"
+    ) & wait $!
 
-        if ls matlab-normalization-*.log > /dev/null 2>&1; then
-            grep -A 40 Error matlab-normalization-*.log
-            mv matlab-normalization-*.log ${LOG_DIR}/
-        else
-            echo "No job log files."
-        fi
-        ) & wait $!
-        # check result
-        if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-            STAGES_STATUS[$stage_idx]="ERROR"
-            echo "[ERROR] normalization of full-size images failed."
-            exit
-        fi
+    grep -A 40 "^Error" ${LOG_DIR}/matlab-normalization-*.log
 
-        stage_log=${LOG_DIR}/matlab-normalization-downsample.log
-        (
-        #Process the downsampled data, if specified
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            loadParameters; if params.DO_DOWNSAMPLE; \
-            normalization('${COLOR_CORRECTION_DIR}','${NORMALIZATION_DIR}','${FILE_BASENAME}',{${CHANNELS}},${ROUND_NUM},true);end; \
-            postcheck_normalization(${ROUND_NUM},true); \
-            ${ERR_HDL_POSTCODE}"
-
-        if ls matlab-normalization-*.log > /dev/null 2>&1; then
-            mkdir -p ${LOG_DIR}/downsample
-            grep -A 40 Error matlab-normalization-*.log
-            mv matlab-normalization-*.log ${LOG_DIR}/downsample/
-        else
-            echo "No job log files."
-        fi
-        ) & wait $!
-        # check result
-        if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-            STAGES_STATUS[$stage_idx]="ERROR"
-            echo "[ERROR] normalization of downsampled-size images failed."
-            exit
-        else
-            STAGES_STATUS[$stage_idx]="DONE"
-        fi
+    # check result
+    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
+        STAGE_SECONDS[$(($stage_idx + 1))]=$SECONDS
+        echo "[ERROR] normalization failed."
+        exit
+    else
+        STAGES_STATUS[$stage_idx]="DONE"
     fi
-
-
-    # prepare normalized channel images for warp
-    for((i=0; i<${#CHANNEL_ARRAY[*]}; i++))
-    do
-        for f in $(\ls ${COLOR_CORRECTION_DIR}/*_${CHANNEL_ARRAY[i]}.${IMAGE_EXT})
-        do
-            round_num=$(( $(echo $f | sed -ne "s/.*_round0*\([0-9]\+\)_.*.${IMAGE_EXT}/\1/p") ))
-            if [ $round_num -eq 0 ]; then
-                echo "round number is wrong."
-            fi
-
-            zero_pad_round_num=$(printf "round%03d" $round_num)
-            if [[ $f = *"downsample"* ]]; then
-                # prepare downsampled normalized channel images for warp
-                normalized_ch_downsample_file=${NORMALIZATION_DIR}/${FILE_BASENAME}-downsample_${zero_pad_round_num}_${CHANNEL_ARRAY[i]}.${IMAGE_EXT}
-
-                if [ ! -f $normalized_ch_downsample_file ]; then
-                    ln -s ${f/$PWD/..} $normalized_ch_downsample_file
-                fi
-            else
-                # prepare full-sized normalized channel images for warp
-                normalized_ch_file=${NORMALIZATION_DIR}/${FILE_BASENAME}_${zero_pad_round_num}_${CHANNEL_ARRAY[i]}.${IMAGE_EXT}
-
-                if [ ! -f $normalized_ch_file ]; then
-                    ln -s ${f/$PWD/..} $normalized_ch_file
-                fi
-            fi
-        done
-    done
 else
     STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
@@ -836,88 +721,25 @@ echo
 STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
-    stage_log=${LOG_DIR}/matlab-calcDesc-group.log
+    stage_log=${LOG_DIR}/matlab-registration.log
     (
-    rounds=$(seq -s' ' 1 ${ROUND_NUM})
-    # calculateDescriptors for all rounds in parallel
-    if [ ${USE_GPU_CUDA} == "true" ]; then
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            calculateDescriptorsCUDAInParallel([$rounds]); \
-            postcheck_calculateDescriptors(${ROUND_NUM}); \
-            ${ERR_HDL_POSTCODE}"
-    else
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            calculateDescriptorsInParallel([$rounds]); \
-            postcheck_calculateDescriptors(${ROUND_NUM}); \
-            ${ERR_HDL_POSTCODE}"
-    fi
-
-    if ls matlab-calcDesc-*.log > /dev/null 2>&1; then
-        grep -A 40 Error matlab-calcDesc-*.log
-        mv matlab-calcDesc-*.log ${LOG_DIR}/
-    else
-        echo "No log files."
-    fi
+    matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
+        ${ERR_HDL_PRECODE} \
+        stage_registration(); \
+        ${ERR_HDL_POSTCODE}"
     ) & wait $!
+
+    grep -A 40 "^Error" ${LOG_DIR}/matlab-reg[12]-*.log
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
-        echo "[ERROR] calculateDescriptors in registration failed."
-        exit
-    fi
-#
-    stage_log=${LOG_DIR}/matlab-regCorr-group.log
-    (
-    # make symbolic links of reference-round images because it is not necessary to warp them
-    ref_round=$(printf "round%03d" $REFERENCE_ROUND)
-    for normalized_file in ${NORMALIZATION_DIR}/${FILE_BASENAME}_${ref_round}_*.${IMAGE_EXT}
-    do
-        base_file=$(basename "${normalized_file}")
-        registered_affine_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_affine.${IMAGE_EXT}}
-        registered_tps_file=${REGISTRATION_DIR}/${base_file/.${IMAGE_EXT}/_registered.${IMAGE_EXT}}
-        if [ ! -f $registered_affine_file ]; then
-            ln -s ${normalized_file/$PWD/..} $registered_affine_file
-        fi
-        if [ ! -f $registered_tps_file ]; then
-            ln -s ${normalized_file/$PWD/..} $registered_tps_file
-        fi
-    done
-
-    rounds=$(seq -s' ' 1 ${ROUND_NUM})' '
-    rounds=${rounds/$REFERENCE_ROUND /}
-    echo "Skipping registration of the reference round"
-    echo $rounds
-    if [ ${USE_GPU_CUDA} == "true" ]; then
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            registerWithCorrespondencesCUDAInParallel([$rounds]); \
-            postcheck_registerWithCorrespondences(${ROUND_NUM}); \
-            ${ERR_HDL_POSTCODE}"
-    else
-        #Because the matching is currently single-threaded, we can parpool it in one loop
-        matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-            registerWithCorrespondencesInParallel([$rounds]); \
-            postcheck_registerWithCorrespondences(${ROUND_NUM}); \
-            ${ERR_HDL_POSTCODE}"
-    fi
-
-    if ls matlab-regCorr-*.log > /dev/null 2>&1; then
-        grep -A 40 Error matlab-regCorr-*.log
-        mv matlab-regCorr-*.log ${LOG_DIR}/
-    else
-        echo "No regCorr-log files."
-    fi
-    ) & wait $!
-
-    # check result
-    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
-        STAGES_STATUS[$stage_idx]="ERROR"
-        echo "[ERROR] registerWithCorrespondences in registration failed."
+        STAGE_SECONDS[$(($stage_idx + 1))]=$SECONDS
+        echo "[ERROR] registration failed."
         exit
     else
         STAGES_STATUS[$stage_idx]="DONE"
     fi
-
 else
     STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"
@@ -937,21 +759,16 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
     stage_log=${LOG_DIR}/matlab-puncta-extraction.log
     (
-    matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} \
-        loadParameters; punctafeinder; puncta_roicollect_bgincl; \
-        postcheck_puncta_extraction(); \
+    matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
+        ${ERR_HDL_PRECODE} \
+        stage_puncta_extraction(); \
         ${ERR_HDL_POSTCODE}"
-    #matlab -nodisplay -nosplash -logfile ${stage_log} -r "${ERR_HDL_PRECODE} punctafeinder_in_parallel; ${ERR_HDL_POSTCODE}"
-    #if ls matlab-puncta-extraction-*.log > /dev/null 2>&1; then
-    #    grep -A 40 Error matlab-puncta-extraction-*.log
-    #    mv matlab-puncta-extraction-*.log ${LOG_DIR}/
-    #else
-    #    echo "No job log files."
-    #fi
     ) & wait $!
+
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
+        STAGE_SECONDS[$(($stage_idx + 1))]=$SECONDS
         echo "[ERROR] puncta extraction failed."
         exit
     else
@@ -974,11 +791,23 @@ echo
 STAGE_SECONDS[$stage_idx]=$SECONDS
 if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
 
+    stage_log=${LOG_DIR}/matlab-base-calling-making.log
     (
-    matlab -nodisplay -nosplash -logfile ${LOG_DIR}/matlab-base-calling-making.log -r "${ERR_HDL_PRECODE} \
+    matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
+        ${ERR_HDL_PRECODE} \
         loadParameters; basecalling_simple; \
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
+
+    # check result
+    if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
+        STAGES_STATUS[$stage_idx]="ERROR"
+        STAGE_SECONDS[$(($stage_idx + 1))]=$SECONDS
+        echo "[ERROR] base calling failed."
+        exit
+    else
+        STAGES_STATUS[$stage_idx]="DONE"
+    fi
 else
     STAGES_STATUS[$stage_idx]="SKIPPED"
     echo "Skip!"

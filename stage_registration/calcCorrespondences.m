@@ -6,7 +6,7 @@
 % INPUTS:
 % moving_run: which expeirment do you want to warp accordingly?
 % OUTPUTS:
-% no variables. All outputs saved to regparams.OUTPUTDIR
+% no variables. All outputs saved to params.registeredImagesDir
 %
 % Author: Daniel Goodwin dgoodwin208@gmail.com
 % Date: August 2015
@@ -25,13 +25,13 @@ end
 fprintf('CalcCorrespondences ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
 
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 imgFixed_total = load3DImage_uint16(filename);
 
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
     filename_root,moving_run,regparams.CHANNELS{1},params.IMAGE_EXT));
 
 try
@@ -46,7 +46,7 @@ end
 %Load all descriptors for the MOVING channel
 keys_moving_total = {}; keys_ctr=1;
 for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTERCHANNELS_SC])
-    descriptor_output_dir_moving = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root, ...
+    descriptor_output_dir_moving = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         moving_run,register_channel{1}));
     
     files = dir(fullfile(descriptor_output_dir_moving,'*.mat'));
@@ -70,7 +70,7 @@ end
 %Load all descriptors for the FIXED channel
 keys_fixed_total = {}; keys_ctr=1;
 for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTERCHANNELS_SC])
-    descriptor_output_dir_fixed = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root, ...
+    descriptor_output_dir_fixed = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         regparams.FIXED_RUN,register_channel{1}));
     
     files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
@@ -111,7 +111,7 @@ keyF_total = [];
 %Because it takes up to hours to generate the global list of vetted
 %keys, after we generate them we now save them in the output_keys_filename
 %if it's aready been generated, we can skip directly to the TPS calculation
-output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
+output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
 
 %If we need to run the robust model checking to identify correct
 %correspondences

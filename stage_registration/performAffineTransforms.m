@@ -11,7 +11,7 @@ end
 %params.MOVING_RUN = moving_run;
 
 fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
-output_affine_filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
+output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
@@ -19,7 +19,7 @@ end
 
 maxNumCompThreads(params.AFFINE_MAX_THREADS);
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 if isequal(params.IMAGE_EXT,'tif')
@@ -34,7 +34,7 @@ else
 end
 
 %Loading the keys, possibly from the downsampled data
-output_keys_filename = fullfile(regparams.OUTPUTDIR,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
+output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));
 if (~exist(output_keys_filename))
     fprintf('globalkeys file was not created.\n');
     exit
@@ -90,7 +90,7 @@ keyM_total = keyM_total(:,[2 1 3]);
 
 disp('save affine-transformed keys file as hdf5')
 tic;
-output_affinekeys_filename = fullfile(regparams.OUTPUTDIR,sprintf('affinekeys_%s_round%03d.h5',filename_root,moving_run));
+output_affinekeys_filename = fullfile(params.registeredImagesDir,sprintf('affinekeys_%s_round%03d.h5',filename_root,moving_run));
 if exist(output_affinekeys_filename)
     delete(output_affinekeys_filename);
 end
@@ -101,8 +101,8 @@ h5write(output_affinekeys_filename,'/keyF_total',keyF_total);
 toc;
 
 ch_list = regparams.CHANNELS;
-inputdir = regparams.INPUTDIR;
-outputdir = regparams.OUTPUTDIR;
+inputdir = params.normalizedImagesDir;
+outputdir = params.registeredImagesDir;
 image_ext = params.IMAGE_EXT;
 parfor c = 1:length(ch_list)
     %Load the data to be warped

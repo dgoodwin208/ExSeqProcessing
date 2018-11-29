@@ -58,21 +58,3 @@ for rnd_indx = 1:params.NUM_ROUNDS
     
 end
 
-
-postcheck = true;
-for rnd_indx = 1:params.NUM_ROUNDS
-    for c = 1:params.NUM_CHANNELS
-        chan_outname = fullfile(params.colorCorrectionImagesDir,...
-        sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
-        if ~exist(chan_outname)
-            postcheck = false;
-            fprintf('[ERROR] no %s file',params.CHAN_STRS{c});
-        end
-    end
-end
-
-if postcheck
-    fprintf('[DONE]\n');
-end
-
-

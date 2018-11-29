@@ -16,13 +16,13 @@ fprintf('3DTPSWarpCUDA RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, regparam
 maxNumCompThreads(params.APPLY3DTPS_MAX_THREADS);
 
 
-output_TPS_filename = fullfile(regparams.OUTPUTDIR,sprintf('TPSMap_%s_round%03d.h5',filename_root,moving_run));
+output_TPS_filename = fullfile(params.registeredImagesDir,sprintf('TPSMap_%s_round%03d.h5',filename_root,moving_run));
 if ~exist(output_TPS_filename,'file')
     fprintf('TPSMap file was not created.\n');
     exit
 end
 
-filename = fullfile(regparams.INPUTDIR,sprintf('%s_round%03d_%s.%s',...
+filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 if isequal(params.IMAGE_EXT,'tif')
@@ -56,7 +56,7 @@ for c = 1:length(regparams.CHANNELS)
     disp('load 3D file to be warped')
     tic;
     data_channel = regparams.CHANNELS{c};
-    filename = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
     imgToWarp = load3DImage_uint16(filename);
     toc;
     
@@ -74,7 +74,7 @@ for c = 1:length(regparams.CHANNELS)
     toc(t_tps3dapply);
     ret = semaphore(sem_name,'post');
 
-    outputfile = fullfile(regparams.OUTPUTDIR,sprintf('%s_round%03d_%s_registered.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    outputfile = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_registered.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
     save3DImage_uint16(outputImage_interp,outputfile);
 end
 

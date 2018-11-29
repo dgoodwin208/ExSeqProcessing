@@ -57,7 +57,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     %Loading the image file (tif/hdf5) associated with the reference channel (ie,
     %Lectin) for the image specified by run_num
     %The {1} to register_cahnnel is a gross bit of cell matlab code
-    filename = fullfile(regparams.INPUTDIR,sprintf('%sround%03d_%s.%s',...
+    filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
         filename_root,run_num,regChan,params.IMAGE_EXT));
     img = load3DImage_uint16(filename);
     
@@ -116,7 +116,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
             disp(['Running on row ' num2str(y_idx) ' and col ' num2str(x_idx) ]);
             
             %Make sure the folders for the descriptor outputs exist:
-            descriptor_output_dir = fullfile(regparams.OUTPUTDIR,sprintf('%sround%03d_%s/',filename_root,run_num,register_channel{1}));
+            descriptor_output_dir = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root,run_num,register_channel{1}));
             if exist(descriptor_output_dir,'dir')==0
                 mkdir(descriptor_output_dir);
             end
