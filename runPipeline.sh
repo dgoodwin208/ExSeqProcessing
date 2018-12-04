@@ -1,14 +1,13 @@
 #!/bin/bash
 
 function trap_exit_handle() {
+    rm ${lock_pid_file}
+
     print_stage_status
     if [ -n "${PID_PERF_PROFILE}" ]; then
         kill -- -${PID_PERF_PROFILE}
     fi
     kill 0
-    if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
-        rm /dev/shm/sem.$USER*
-    fi
 }
 
 trap trap_exit_handle EXIT
@@ -336,13 +335,6 @@ done
 shift $((OPTIND - 1))
 
 
-###### clear semaphores
-
-if [ -n "$(find /dev/shm -name sem.$USER*)" ]; then
-    rm /dev/shm/sem.$USER*
-fi
-
-
 ###### check files
 
 if [ ! -f ./loadParameters.m.template ]; then
@@ -609,6 +601,40 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.AFFINE_MAX_RUN_JOBS\) *= *.*;#\1 = ${AFFINE_MAX_RUN_JOBS};#" \
     -i.back \
     ./loadParameters.m
+
+###### clean up flocks
+
+echo "===== clean up lockfiles"
+echo "remove a lockfile of no running proc"
+num_running_procs=0
+for p in $(find /tmp/.exseqproc/ -name run.*.lock)
+do
+    lock_pid=$(cat $p)
+    if [ -z "$(find /proc -maxdepth 1 -name ${lock_pid})" ]; then
+        echo "$p"
+        rm -f $p
+    else
+        num_running_procs=$(expr ${num_running_procs} + 1)
+    fi
+done
+
+if [ "${num_running_procs}" -eq 0 ]; then
+    echo
+    echo "remove unused lockfiles"
+    for l in $(find /tmp/.exseqproc/ -name *.lock)
+    do
+        echo "$l"
+        rm -f $l
+    done
+fi
+echo
+
+lock_pid_file="/tmp/.exseqproc/run.$$.lock"
+echo "$$" > ${lock_pid_file}
+
+echo "===== set a lockfile"
+echo "${lock_pid_file}"
+echo
 
 
 ###### run pipeline
