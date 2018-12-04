@@ -30,7 +30,7 @@ function calculateDescriptors(run_num,varargin)
 %   See also LOADEXPERIMENTPARAMS, PLUS.
 
 %Load all the parameters per file
-% loadExperimentParams;
+
 loadParameters;
 if size(varargin,2) < 3
     error('ERROR: You must specify both a start and an end index and cuda parameter');

@@ -20,7 +20,8 @@ NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 all: $(TARGET)
 
 convn_cuda.mexa64: convn_cuda.o $(CUFFT_DIR)/libcufftutils.a
-	mex -compatibleArrayDims -outdir ../ -output $@ $^ $(CUFFT_DIR)/libcufftutils.a -lmwgpu -L$(CUDA_LIB) -I$(CUDA_INC) -lcufft -lcudart
+	mex -compatibleArrayDims -output $@ $^ $(CUFFT_DIR)/libcufftutils.a -lmwgpu -L$(CUDA_LIB) -I$(CUDA_INC) -lcufft -lcudart
+	@cp -a convn_cuda.mexa64 ../bin/
 
 #convn_1GPU_cuda.mexa64: convn_1GPU_cuda.o $(CUFFT_DIR)/libcufftutils.a
 	#mex -compatibleArrayDims -outdir ../ -output $@ $^ $(CUFFT_DIR)/libcufftutils.a -lmwgpu -L$(CUDA_LIB) -I$(CUDA_INC) -lcufft -lcudart
@@ -63,7 +64,7 @@ lib-tests:
 
 clean:
 	-rm *.mexa64 *.o
-	-rm ../convn_cuda.mexa64
+	-rm ../bin/convn_cuda.mexa64
 	@make -C tests clean
 	@make -C utils clean
 	@make -C cufft-utils clean

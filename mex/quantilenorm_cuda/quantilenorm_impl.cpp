@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstring>
-#include <semaphore.h>
 #include <fcntl.h>
 #include <thrust/sequence.h>
 #include <thrust/execution_policy.h>
@@ -18,6 +17,7 @@
 #include "mex-utils/tiffs.h"
 #include "mex-utils/hdf5.h"
 #include "radixsort.h"
+#include "gpulock.h"
 #include "gpudevice.h"
 
 QuantileNormImpl::QuantileNormImpl()
@@ -508,7 +508,16 @@ QuantileNormImpl::loadRadixSort1TiffData() {
 int
 QuantileNormImpl::radixSort1FromData() {
 
-    int idx_gpu = -1;
+    logger_->info("[{}] radixSort1FromData: selectGPU", basename_);
+    cudautils::GPULock lock(num_gpus_);
+    int idx_gpu = lock.trylock();
+    if (idx_gpu >= 0) {
+        logger_->info("[{}] radixSort1FromData: lock idx_gpu = {}", basename_, idx_gpu);
+    } else {
+        logger_->error("[{}] radixSort1FromData: failed to lock gpus", basename_);
+        return -1;
+    }
+
     while(1) {
         std::shared_ptr<RadixSort1Info> info;
         bool has_data = radixsort1_queue_.pop(info);
@@ -518,19 +527,6 @@ QuantileNormImpl::radixSort1FromData() {
         }
         logger_->info("[{}] radixSort1FromData: start {} ({})", basename_, info->out_filename, info->slice_start);
 
-        if (idx_gpu == -1) {
-            auto interval_sec = std::chrono::seconds(1);
-            logger_->info("[{}] radixSort1FromData: selectGPU {}", basename_, info->out_filename);
-            while (1) {
-                idx_gpu = selectGPU();
-                if (idx_gpu >= 0) {
-                    logger_->info("[{}] idx_gpu = {}", basename_, idx_gpu);
-                    break;
-                } else {
-                    std::this_thread::sleep_for(interval_sec);
-                }
-            }
-        }
 
         try {
             unsigned int idx_start = info->slice_start * image_height_ * image_width_;
@@ -552,13 +548,15 @@ QuantileNormImpl::radixSort1FromData() {
         } catch (std::exception& ex) {
             logger_->error("[{}] end - {}", basename_, ex.what());
             if (idx_gpu != -1) {
-                unselectGPU(idx_gpu);
+                lock.unlock();
+                logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
             }
             return -1;
         } catch (...) {
             logger_->error("[{}] end - unknown error..", basename_);
             if (idx_gpu != -1) {
-                unselectGPU(idx_gpu);
+                lock.unlock();
+                logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
             }
             return -1;
         }
@@ -566,71 +564,11 @@ QuantileNormImpl::radixSort1FromData() {
         logger_->info("[{}] radixSort1FromData: end   {} ({})", basename_, info->out_filename, info->slice_start);
     }
 
-    unselectGPU(idx_gpu);
+    lock.unlock();
+    logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
 
     return 0;
 }
-
-#if 0
-int
-QuantileNormImpl::radixSort1FromData(std::shared_ptr<std::vector<uint16_t>> image, const size_t slice_start, const std::string& out_filename) {
-    int idx_gpu = -1;
-    try {
-        logger_->info("[{}] radixSort1FromData: start {}", basename_, out_filename);
-        unsigned int idx_start = slice_start * image_height_ * image_width_;
-        std::shared_ptr<std::vector<unsigned int>> idx(new std::vector<unsigned int>(image->size()));
-        thrust::sequence(thrust::host, idx->begin(), idx->end(), idx_start);
-
-        auto interval_sec = std::chrono::seconds(1);
-        logger_->info("[{}] radixSort1FromData: selectGPU {}", basename_, out_filename);
-        while (1) {
-            idx_gpu = selectGPU();
-            if (idx_gpu >= 0) {
-                logger_->info("[{}] idx_gpu = {}", basename_, idx_gpu);
-                cudautils::radixsort(*image, *idx);
-
-                unselectGPU(idx_gpu);
-                break;
-            } else {
-//                int ret = selectCoreNoblock(1);
-//                if (ret == 0) {
-//                    logger_->info("[{}] core", basename_);
-//                    cudautils::radixsort_host(*image, *idx);
-//                    unselectCore(1);
-//                    break;
-//                } else {
-                std::this_thread::sleep_for(interval_sec);
-//                }
-            }
-        }
-
-        int ret;
-        std::string out_idx_filename = "idx_" + out_filename;
-        ret = savefile(datadir_, out_idx_filename, idx);
-        ret = savefile(datadir_, out_filename, image);
-
-        unselectCore(0);
-        logger_->info("[{}] radixSort1FromData: end   {}", basename_, out_filename);
-        return ret;
-    } catch (std::exception& ex) {
-            logger_->error("[{}] end - {}", basename_, ex.what());
-            if (idx_gpu != -1) {
-                unselectGPU(idx_gpu);
-            }
-            unselectCore(0);
-            return -1;
-    } catch (...) {
-            logger_->error("[{}] end - unknown error..", basename_);
-            if (idx_gpu != -1) {
-                unselectGPU(idx_gpu);
-            }
-            unselectCore(0);
-            return -1;
-    }
-
-    return 0;
-}
-#endif
 
 void
 QuantileNormImpl::radixSort2() {
@@ -646,6 +584,7 @@ QuantileNormImpl::radixSort2() {
 
 int
 QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
+    cudautils::GPULock lock(num_gpus_);
     int idx_gpu = -1;
     try {
         logger_->info("[{}] radixSort2FromData: start ({})", basename_, idx_radixsort);
@@ -686,49 +625,39 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         logger_->debug("[{}] radixSort2FromData: after loadin data {}", basename_, getStatMem());
 
         int ret;
-        auto interval_sec = std::chrono::seconds(1);
-//        logger_->info("[{}] radixSort2FromData: ({}) selectGPU", basename_, idx_radixsort);
-        while (1) {
-            idx_gpu = selectGPU();
-            if (idx_gpu >= 0) {
-                logger_->info("[{}] radixSort2FromData: ({}) idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
-
-                try {
-                    cudautils::radixsort<unsigned int, float>(*index, *data);
-                } catch (std::exception& ex) {
-                    logger_->debug("[{}] radixSort2FromData: {}", basename_, ex.what());
-                    cudaError err = cudaGetLastError();
-                    if (err != cudaSuccess) {
-                        logger_->error("[{}] {}", basename_, cudaGetErrorString(err));
-                    }
-                    unselectGPU(idx_gpu);
-                    std::this_thread::sleep_for(interval_sec);
-                    continue;
-                } catch (...) {
-                    logger_->debug("[{}] radixSort2FromData: unknown error", basename_);
-                    cudaError err = cudaGetLastError();
-                    if (err != cudaSuccess) {
-                        logger_->error("[{}] {}", basename_, cudaGetErrorString(err));
-                    }
-                    unselectGPU(idx_gpu);
-                    std::this_thread::sleep_for(interval_sec);
-                    continue;
-                }
-
-                unselectGPU(idx_gpu);
-                break;
-            } else {
-//                ret = selectCoreNoblock(3);
-//                if (ret == 0) {
-//                    logger_->info("[{}] radixSort2FromData: ({}) core", basename_, idx_radixsort);
-//                    cudautils::radixsort_host(*index, *data);
-//                    unselectCore(3);
-//                    break;
-//                } else {
-                    std::this_thread::sleep_for(interval_sec);
-//                }
-            }
+        logger_->info("[{}] radixSort2FromData: ({}) selectGPU", basename_, idx_radixsort);
+        idx_gpu = lock.trylock();
+        if (idx_gpu >= 0) {
+            logger_->info("[{}] radixSort2FromData: ({}) lock idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
+        } else {
+            logger_->error("[{}] radixSort2FromData: ({}) failed to lock gpus", basename_, idx_radixsort);
+            return -1;
         }
+
+        try {
+            cudautils::radixsort<unsigned int, float>(*index, *data);
+        } catch (std::exception& ex) {
+            logger_->debug("[{}] radixSort2FromData: {}", basename_, ex.what());
+            cudaError err = cudaGetLastError();
+            if (err != cudaSuccess) {
+                logger_->error("[{}] {}", basename_, cudaGetErrorString(err));
+            }
+            lock.unlock();
+            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+            return -1;
+        } catch (...) {
+            logger_->debug("[{}] radixSort2FromData: unknown error", basename_);
+            cudaError err = cudaGetLastError();
+            if (err != cudaSuccess) {
+                logger_->error("[{}] {}", basename_, cudaGetErrorString(err));
+            }
+            lock.unlock();
+            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+            return -1;
+        }
+
+        lock.unlock();
+        logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
 
         std::string out_idx_file = "idx_" + out_file;
         if (use_tmp_files_) {
@@ -745,13 +674,15 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
     } catch (std::exception& ex) {
         logger_->error("[{}] end - {}", basename_, ex.what());
         if (idx_gpu != -1) {
-            unselectGPU(idx_gpu);
+            lock.unlock();
+            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
         }
         return -1;
     } catch (...) {
         logger_->error("[{}] end - unknown error..", basename_);
         if (idx_gpu != -1) {
-            unselectGPU(idx_gpu);
+            lock.unlock();
+            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
         }
         return -1;
     }
@@ -842,116 +773,116 @@ QuantileNormImpl::loadDataFromBuffer(const std::string& in_filepath, const size_
     return partial_data;
 }
 
-int
-QuantileNormImpl::selectGPU() {
-    int idx_gpu = -1;
-    for (size_t i = 0; i < num_gpus_; i++) {
-        std::string sem_name = "/" + user_name_ + ".g" + std::to_string(i);
-//        logger_->trace("[{}] sem_name = {}", basename_, sem_name);
-        sem_t *sem;
-        sem = sem_open(sem_name.c_str(), O_RDWR);
-        int ret = errno;
-        if (sem == SEM_FAILED) {
-            logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
-            continue;
-        }
+//int
+//QuantileNormImpl::selectGPU() {
+//    int idx_gpu = -1;
+//    for (size_t i = 0; i < num_gpus_; i++) {
+//        std::string sem_name = "/" + user_name_ + ".g" + std::to_string(i);
+////        logger_->trace("[{}] sem_name = {}", basename_, sem_name);
+//        sem_t *sem;
+//        sem = sem_open(sem_name.c_str(), O_RDWR);
+//        int ret = errno;
+//        if (sem == SEM_FAILED) {
+//            logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
+//            continue;
+//        }
+//
+//        ret = sem_trywait(sem);
+//        if (ret == 0) {
+//            logger_->trace("[{}] selectGPU {}", basename_, sem_name);
+//            idx_gpu = i;
+//            cudaSetDevice(idx_gpu);
+//            break;
+//        }
+//    }
+//
+//    return idx_gpu;
+//}
 
-        ret = sem_trywait(sem);
-        if (ret == 0) {
-            logger_->trace("[{}] selectGPU {}", basename_, sem_name);
-            idx_gpu = i;
-            cudaSetDevice(idx_gpu);
-            break;
-        }
-    }
+//void
+//QuantileNormImpl::unselectGPU(const int idx_gpu) {
+//    std::string sem_name = "/" + user_name_ + ".g" + std::to_string(idx_gpu);
+//    sem_t *sem;
+//    sem = sem_open(sem_name.c_str(), O_RDWR);
+//    int ret = errno;
+//    if (sem == SEM_FAILED) {
+//        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
+//        return;
+//    }
+//
+//    cudaDeviceReset();
+//
+//    logger_->trace("[{}] unselectGPU {}", basename_, sem_name);
+//    ret = sem_post(sem);
+//    if (ret != 0) {
+//        logger_->error("[{}] cannot post semaphore of {}", basename_, sem_name);
+//        return;
+//    }
+//}
 
-    return idx_gpu;
-}
-
-void
-QuantileNormImpl::unselectGPU(const int idx_gpu) {
-    std::string sem_name = "/" + user_name_ + ".g" + std::to_string(idx_gpu);
-    sem_t *sem;
-    sem = sem_open(sem_name.c_str(), O_RDWR);
-    int ret = errno;
-    if (sem == SEM_FAILED) {
-        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
-        return;
-    }
-
-    cudaDeviceReset();
-
-    logger_->trace("[{}] unselectGPU {}", basename_, sem_name);
-    ret = sem_post(sem);
-    if (ret != 0) {
-        logger_->error("[{}] cannot post semaphore of {}", basename_, sem_name);
-        return;
-    }
-}
-
-void
-QuantileNormImpl::selectCore(const int idx_core_group) {
-    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
-//    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
-    sem_t *sem;
-    sem = sem_open(sem_name.c_str(), O_RDWR);
-    int ret = errno;
-    if (sem == SEM_FAILED) {
-        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
-        return;
-    }
-
-    auto interval_sec = std::chrono::seconds(1);
-    int count = 1;
-    while (1) {
-        ret = sem_trywait(sem);
-        if (ret == 0) {
-            break;
-        }
-        std::this_thread::sleep_for(interval_sec);
-        count++;
-    }
-    logger_->trace("[{}] selectCore: {} ({})", basename_, sem_name, count);
-}
-
-int
-QuantileNormImpl::selectCoreNoblock(const int idx_core_group) {
-    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
-//    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
-    sem_t *sem;
-    sem = sem_open(sem_name.c_str(), O_RDWR);
-    int ret = errno;
-    if (sem == SEM_FAILED) {
-        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
-        return -1;
-    }
-
-    ret = sem_trywait(sem);
-    if (ret == 0) {
-        logger_->trace("[{}] selectCoreNoblock: {}", basename_, sem_name);
-    }
-
-    return ret;
-}
-
-void
-QuantileNormImpl::unselectCore(const int idx_core_group) {
-    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
-//    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
-    sem_t *sem;
-    sem = sem_open(sem_name.c_str(), O_RDWR);
-    int ret = errno;
-    if (sem == SEM_FAILED) {
-        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
-        return;
-    }
-
-    ret = sem_post(sem);
-    if (ret == -1) {
-        logger_->error("[{}] unselect failed; {}", basename_, sem_name);
-    }
-    logger_->trace("[{}] unselectCore: {}", basename_, sem_name);
-}
+//void
+//QuantileNormImpl::selectCore(const int idx_core_group) {
+//    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
+////    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
+//    sem_t *sem;
+//    sem = sem_open(sem_name.c_str(), O_RDWR);
+//    int ret = errno;
+//    if (sem == SEM_FAILED) {
+//        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
+//        return;
+//    }
+//
+//    auto interval_sec = std::chrono::seconds(1);
+//    int count = 1;
+//    while (1) {
+//        ret = sem_trywait(sem);
+//        if (ret == 0) {
+//            break;
+//        }
+//        std::this_thread::sleep_for(interval_sec);
+//        count++;
+//    }
+//    logger_->trace("[{}] selectCore: {} ({})", basename_, sem_name, count);
+//}
+//
+//int
+//QuantileNormImpl::selectCoreNoblock(const int idx_core_group) {
+//    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
+////    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
+//    sem_t *sem;
+//    sem = sem_open(sem_name.c_str(), O_RDWR);
+//    int ret = errno;
+//    if (sem == SEM_FAILED) {
+//        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
+//        return -1;
+//    }
+//
+//    ret = sem_trywait(sem);
+//    if (ret == 0) {
+//        logger_->trace("[{}] selectCoreNoblock: {}", basename_, sem_name);
+//    }
+//
+//    return ret;
+//}
+//
+//void
+//QuantileNormImpl::unselectCore(const int idx_core_group) {
+//    std::string sem_name = "/" + user_name_ + ".qn_c" + std::to_string(idx_core_group);
+////    logger_->trace("[{}] sem_name = {}", basename_, sem_name);
+//    sem_t *sem;
+//    sem = sem_open(sem_name.c_str(), O_RDWR);
+//    int ret = errno;
+//    if (sem == SEM_FAILED) {
+//        logger_->error("[{}] cannot open semaphore of {}", basename_, sem_name);
+//        return;
+//    }
+//
+//    ret = sem_post(sem);
+//    if (ret == -1) {
+//        logger_->error("[{}] unselect failed; {}", basename_, sem_name);
+//    }
+//    logger_->trace("[{}] unselectCore: {}", basename_, sem_name);
+//}
 
 void
 QuantileNormImpl::mergeSort1() {

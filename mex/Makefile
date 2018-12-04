@@ -8,7 +8,7 @@ OBJS := $(SOURCES:.cpp=.o)
 all: $(TARGET)
 
 .cpp.mexa64: $(SOURCES)
-	mex $< -I./include
+	mex $< -outdir bin -output $@ -I./include
 
 clean:
 	-rm $(TARGET)

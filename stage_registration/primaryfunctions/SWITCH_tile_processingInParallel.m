@@ -15,7 +15,6 @@
 function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
     
     loadParameters;
-    sem_name = sprintf('/%s.gc',getenv('USER'));
     options = {};
     options.Power2Flag = false;
     options.CastSingle = true;
@@ -33,20 +32,8 @@ function keys = SWITCH_tile_processingInParallel(img,skipDescriptor,cuda)
         res_vect = Harris3D(img, blur_size, options, cuda);
         %Blurring is done outside the 3D Sift code
         h  = fspecial3('gaussian',blur_size); 
-        %if cuda
-            %while true
-                %ret = semaphore(sem_name,'trywait');
-                %if ret == 0
-                    %break;
-                %else
-                    %pause(1);
-                %end
-            %end
-            %convn_cuda(...
-            %ret = semaphore(sem_name,'post');
-        %else
-            img_blur = convnfft(img,h,'same',[],options);
-        %end
+        img_blur = convnfft(img,h,'same',[],options);
+
         if ~isempty(res_vect) 
             if cuda
                 keys_cell{i} = calculate_3DSIFT_cuda(img_blur, res_vect,skipDescriptor);

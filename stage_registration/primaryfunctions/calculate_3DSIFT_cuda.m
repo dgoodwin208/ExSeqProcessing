@@ -15,9 +15,6 @@
 
 function keys = calculate_3DSIFT_cuda(img, keypts,skipDescriptor)
 
-sem_name = sprintf('/%s.gc',getenv('USER'));
-semaphore(sem_name,'open',1); % it is no effective if the semaphore is already open
-
 %By default, we calculate the descriptor
 if nargin<3
     skipDescriptor=false;
@@ -45,22 +42,11 @@ for i=1:N
     map(keypts(i, 1), keypts(i, 2), keypts(i, 3)) = int8(0); % select the keypoint element
 end
 
-while true
-    ret = semaphore(sem_name,'trywait');
-    if ret == 0
-        break;
-    else
-        pause(1);
-    end
-end
-
 fprintf('Start SIFT3D cuda calculation\n', N);
 tic;
 keys = sift_cuda(img, map, sift_params);
 stime = toc;
 fprintf('Finished SIFT3D cuda processing in %.1f s\n', stime);
-
-ret = semaphore(sem_name,'post');
 
 keys = num2cell(keys);
 

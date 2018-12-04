@@ -9,9 +9,6 @@ function success_code = normalization_cuda()
         return
     end
 
-    num_sem_gpus = ones(1, gpuDeviceCount());
-    quantilenorm_cuda_init(num_sem_gpus);
-
     arg_list = {};
     postfix_list = {};
     run_num_list = 1:params.NUM_ROUNDS;
@@ -25,8 +22,6 @@ function success_code = normalization_cuda()
     [success_code, output] = batch_process('normalization', @normalizeImage_cuda, run_num_list, arg_list, ...
         postfix_list, params.NORM_MAX_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
 
-    quantilenorm_cuda_final(length(num_sem_gpus));
-
     if ~params.DO_DOWNSAMPLE
         return
     end
@@ -36,11 +31,8 @@ function success_code = normalization_cuda()
         arg_list_downsample{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,[params.FILE_BASENAME,'-downsample'],params.CHAN_STRS, run_num};
     end
 
-    quantilenorm_cuda_init(num_sem_gpus);
-
     [success_code, output] = batch_process('normalization-downsample', @normalizeImage_cuda, run_num_list, arg_list_downsample, ...
         postfix_list, params.NORM_MAX_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
 
-    quantilenorm_cuda_final(length(num_sem_gpus));
 end
 

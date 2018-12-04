@@ -17,6 +17,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "gpulock.h"
 #include "gpudevice.h"
 #include "nearestinterp_bridge.h"
 
@@ -93,6 +94,8 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},dx={},dy={},dw={},# of streams={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_streams);
 
+        cudautils::GPULock lock(num_gpus);
+        lock.trylockall();
         try {
             cudautils::nearestinterp_bridge(
                     logger, x_size, y_size, z_size, x_sub_size, y_sub_size, dx, dy, dw, num_gpus, num_streams,
@@ -101,6 +104,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         } catch (...) {
             logger->error("internal unknown error occurred");
         }
+        lock.unlockall();
 
         logger->info("{:=>50}", " nearestinterp_cuda end");
 

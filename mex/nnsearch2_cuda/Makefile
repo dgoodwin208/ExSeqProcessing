@@ -22,7 +22,7 @@ all: $(TARGET)
 
 nnsearch2_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
 	mex -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart
-	@cp -a $@ ../
+	@cp -a $@ ../bin/
 
 .cpp.o: $(SRCS)
 	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
