@@ -1,7 +1,9 @@
 #!/bin/bash
 
 function trap_exit_handle() {
-    rm ${lock_pid_file}
+    if [ -n "${lock_pid_file}" ]; then
+        rm ${lock_pid_file}
+    fi
 
     print_stage_status
     if [ -n "${PID_PERF_PROFILE}" ]; then
@@ -80,7 +82,7 @@ function usage() {
     echo "  -p              puncta extraction directory"
     echo "  -t              base calling directory"
     echo "  -i              reporting directory"
-    echo "  -T              temp directory (default: not use temp dir)"
+    echo "  -T              temp directory (empty '' does not use temp dir)"
     echo "  -L              log directory"
     echo "  -G              use GPU and CUDA (default: no)"
     echo "  -F              file format of intermediate images (tiff or hdf5)"
@@ -168,7 +170,6 @@ do
     elif [ $field = "log_path" ]; then
         LOG_DIR=$value
     elif [ $field = "tmp_path" ]; then
-        USE_TMP_FILES=true
         TEMP_DIR=$value
     elif [ $field = "total_rounds" ]; then
         ROUND_NUM=$value
@@ -192,6 +193,13 @@ echo "ACCELERATION: $ACCELERATION"
 
 
 
+DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/1_deconvolution
+COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/2_color-correction
+NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
+REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
+PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
+BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
+
 CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_CHANNEL_ARRAY=($(echo ${REGISTRATION_CHANNELS//\'/} | tr ',' ' '))
 REGISTRATION_SAMPLE=${FILE_BASENAME}_
@@ -214,7 +222,7 @@ do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
             if ! check_number ${ROUND_NUM}; then
-                echo "# of rounds is not number; ${ROUND_NUM}"
+                echo "[ERROR] # of rounds is not number; ${ROUND_NUM}"
                 exit
             fi
             ;;
@@ -223,7 +231,7 @@ do
             ;;
         B)  REFERENCE_ROUND=$OPTARG
                 if ! check_number ${REFERENCE_ROUND}; then
-                    echo "reference round is not number; ${REFERENCE_ROUND}"
+                    echo "[ERROR] reference round is not number; ${REFERENCE_ROUND}"
                     exit
                 fi
             ;;
@@ -240,7 +248,6 @@ do
         t)  BASE_CALLING_DIR=$OPTARG
             ;;
         T)  TEMP_DIR=$OPTARG
-            USE_TMP_FILES=true
             ;;
         i)  REPORTING_DIR=$OPTARG
             ;;
@@ -254,7 +261,7 @@ do
             ;;
         F)  FORMAT=$OPTARG
             if [ $(lowercase "${FORMAT}") != "tiff" ] && [ $(lowercase "${FORMAT}") != "hdf5" ]; then
-                echo "Not support: ${FORMAT}"
+                echo "[ERROR] Not support: ${FORMAT}"
                 exit
             fi
             ;;
@@ -262,60 +269,60 @@ do
             if [ -n "${NJOBS_CC}" ]; then
                 if check_number ${NJOBS_CC}; then
                     if [ ${NJOBS_CC} -eq 0 ]; then
-                        echo "# of jobs for color-correction is zero"
+                        echo "[ERROR] # of jobs for color-correction is zero"
                         exit
                     fi
                     COLOR_CORRECTION_MAX_RUN_JOBS=${NJOBS_CC}
                 else
-                    echo "${NJOBS_CC} is not number"
+                    echo "[ERROR] ${NJOBS_CC} is not number"
                     exit
                 fi
             fi
             if [ -n "${NJOBS_NORM}" ]; then
                 if check_number ${NJOBS_NORM}; then
                     if [ ${NJOBS_NORM} -eq 0 ]; then
-                        echo "# of jobs for normalization is zero"
+                        echo "[ERROR] # of jobs for normalization is zero"
                         exit
                     fi
                     NORMALIZATION_MAX_RUN_JOBS=${NJOBS_NORM}
                 else
-                    echo "${NJOBS_NORM} is not number"
+                    echo "[ERROR] ${NJOBS_NORM} is not number"
                     exit
                 fi
             fi
             if [ -n "${NJOBS_CALCD}" ]; then
                 if check_number ${NJOBS_CALCD}; then
                     if [ ${NJOBS_CALCD} -eq 0 ]; then
-                        echo "# of jobs for calc-descriptors is zero"
+                        echo "[ERROR] # of jobs for calc-descriptors is zero"
                         exit
                     fi
                     CALC_DESC_MAX_RUN_JOBS=${NJOBS_CALCD}
                 else
-                    echo "${NJOBS_CALCD} is not number"
+                    echo "[ERROR] ${NJOBS_CALCD} is not number"
                     exit
                 fi
             fi
             if [ -n "${NJOBS_REGC}" ]; then
                 if check_number ${NJOBS_REGC}; then
                     if [ ${NJOBS_REGC} -eq 0 ]; then
-                        echo "# of jobs for reg-with-correspondences is zero"
+                        echo "[ERROR] # of jobs for reg-with-correspondences is zero"
                         exit
                     fi
                     REG_CORR_MAX_RUN_JOBS=${NJOBS_REGC}
                 else
-                    echo "${NJOBS_REGC} is not number"
+                    echo "[ERROR] ${NJOBS_REGC} is not number"
                     exit
                 fi
             fi
             if [ -n "${NJOBS_AFFINE}" ]; then
                 if check_number ${NJOBS_AFFINE}; then
                     if [ ${NJOBS_AFFINE} -eq 0 ]; then
-                        echo "# of jobs for affine-transform-in-reg is zero"
+                        echo "[ERROR] # of jobs for affine-transform-in-reg is zero"
                         exit
                     fi
                     AFFINE_MAX_RUN_JOBS=${NJOBS_AFFINE}
                 else
-                    echo "${NJOBS_AFFINE} is not number"
+                    echo "[ERROR] ${NJOBS_AFFINE} is not number"
                     exit
                 fi
             fi
@@ -335,10 +342,17 @@ done
 shift $((OPTIND - 1))
 
 
+if [ -n "${TEMP_DIR}" ]; then
+    USE_TMP_FILES=true
+else
+    USE_TMP_FILES=false
+fi
+
+
 ###### check files
 
 if [ ! -f ./loadParameters.m.template ]; then
-    echo "No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
+    echo "[ERROR] No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
     exit
 fi
 if [ ! -f ./loadParameters.m ]; then
@@ -348,7 +362,7 @@ fi
 
 
 ###### check temporary files
-if [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; then
+if [ -n "${TEMP_DIR}" ] && [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; then
     echo "Temporary dir. is not empty."
 
     if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
@@ -368,14 +382,6 @@ fi
 
 
 ###### setup directories
-
-
-DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/1_deconvolution
-COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/2_color-correction
-NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
-REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
-PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
-BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
 
 if [ ! -d "${DECONVOLUTION_DIR}" ]; then
     echo "No deconvolution dir."
@@ -413,7 +419,7 @@ if [ ! -d "${BASE_CALLING_DIR}" ]; then
     mkdir "${BASE_CALLING_DIR}"
 fi
 
-if [ ! -d "${TEMP_DIR}" ]; then
+if [ -n "${TEMP_DIR}" ] && [ ! -d "${TEMP_DIR}" ]; then
     echo "No temp dir."
     echo "mkdir ${TEMP_DIR}"
     mkdir "${TEMP_DIR}"
@@ -442,6 +448,11 @@ BASE_CALLING_DIR=$(cd "${BASE_CALLING_DIR}" && pwd)
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
+if [ -z "$(find ${INPUT_FILE_PATH} -name *.tif)" ]; then
+    echo "[ERROR] No input tif files"
+    exit
+fi
+
 for filename in ${INPUT_FILE_PATH}/*.tif; do
     basename=$(basename $filename)
     if [ ! -f "${DECONVOLUTION_DIR}/$basename" ]; then
@@ -460,7 +471,7 @@ STAGES=("setup-cluster" "color-correction" "normalization" "registration" "punct
 
 # check stages to be skipped and executed
 if [ ! "${ARG_EXEC_STAGES}" = "" -a ! "${ARG_SKIP_STAGES}" = "" ]; then
-    echo "cannot use both -e and -s"
+    echo "[ERROR] cannot use both -e and -s"
     exit
 fi
 
@@ -611,7 +622,7 @@ for p in $(find /tmp/.exseqproc/ -name run.*.lock)
 do
     lock_pid=$(cat $p)
     if [ -z "$(find /proc -maxdepth 1 -name ${lock_pid})" ]; then
-        echo "$p"
+        echo "rm $p"
         rm -f $p
     else
         num_running_procs=$(expr ${num_running_procs} + 1)
@@ -623,7 +634,7 @@ if [ "${num_running_procs}" -eq 0 ]; then
     echo "remove unused lockfiles"
     for l in $(find /tmp/.exseqproc/ -name *.lock)
     do
-        echo "$l"
+        echo "rm $l"
         rm -f $l
     done
 fi

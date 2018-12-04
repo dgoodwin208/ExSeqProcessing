@@ -9,17 +9,13 @@ fi
 . tests/test-helper.sh
 
 SHUNIT2_SRC_DIR=~/works/shunit2
-INPUT_IMAGE_DIR=/mp/nas1/share/ExSEQ/AutoSeq2/test-data/xy01/1_deconvolution-links
-DECONVOLUTION_DIR=1_deconvolution
+INPUT_IMAGE_DIR=/mp/nas1/share/ExSEQ/AutoSeq2/test-data/xy01/1_deconvolution
+BASENAME="exseqauto-xy01"
 TEMP_DIR=./tmp-test
 TEMP_DIR_TMP=${TEMP_DIR}-tmp
 
 # =================================================================================================
 oneTimeSetUp() {
-    if [ ! -d test1_deconv ]; then
-        cp -a $INPUT_IMAGE_DIR test1_deconv
-    fi
-
     if [ ! -d test-results ]; then
         mkdir test-results
     fi
@@ -31,7 +27,7 @@ oneTimeSetUp() {
     Result_dir=test-results/test-runPipeline-$(date +%Y%m%d_%H%M%S)
     mkdir $Result_dir
 
-    for d in [2-6]_*
+    for d in $(find [1-6]_* -maxdepth 1 -type d)
     do
         [ -e "$d" ] || continue
         rm -r "$d"
@@ -39,6 +35,17 @@ oneTimeSetUp() {
     if [ -d logs ]; then
         rm -r logs
     fi
+
+    sed -i.bak \
+        -e "s#\(input_path\)=.*#\1=${INPUT_IMAGE_DIR}#" \
+        -e "s#\(basename\)=.*#\1=${BASENAME}#" \
+        -e "s#\(format\)=.*#\1=tif#" \
+        -e "s#\(log_path\)=.*#\1=logs#" \
+        -e "s#\(tmp_path\)=.*#\1=#" \
+        -e "s#\(total_rounds\)=.*#\1=20#" \
+        -e "s#\(reference_round\)=.*#\1=4#" \
+        -e "s#\(acceleration\)=.*#\1=cpu#" \
+        configuration.cfg
 
     sed -i.bak -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" loadParameters.m.template
     mkdir -p "$TEMP_DIR"
@@ -49,14 +56,7 @@ oneTimeSetUp() {
 }
 
 oneTimeTearDown() {
-    if [ -d $DECONVOLUTION_DIR ]; then
-        rm -r $DECONVOLUTION_DIR
-    fi
-    if [ -d test1_deconv ]; then
-        rm -r test1_deconv
-    fi
-
-    for d in [2-6]_* test[2-6]_* test_report
+    for d in [1-6]_* test[1-6]_* test_report
     do
         [ -e "$d" ] || continue
         rm -r "$d"
@@ -75,17 +75,13 @@ oneTimeTearDown() {
 # -------------------------------------------------------------------------------------------------
 
 setUp() {
-    if [ ! -d $DECONVOLUTION_DIR ]; then
-        cp -a $INPUT_IMAGE_DIR $DECONVOLUTION_DIR
-    fi
-
     if [ -f loadParameters.m ]; then
         rm loadParameters.m
     fi
 }
 
 tearDown() {
-    for d in [2-6]_*
+    for d in [1-6]_*
     do
         [ -e "$d" ] || continue
         rm -r "$d"
@@ -131,8 +127,6 @@ get_values_and_keys() {
     Key[4]=$(get_key_by_value "$Log" "registration")
     Key[5]=$(get_key_by_value "$Log" "puncta-extraction")
     Key[6]=$(get_key_by_value "$Log" "base-calling")
-    Key[7]=$(get_key_by_value "$Log" "calc-descriptors")
-    Key[8]=$(get_key_by_value "$Log" "register-with-correspondences")
 }
 
 assert_all_default_values() {
@@ -154,10 +148,10 @@ assert_all_default_values() {
         assertEquals 20 ${Value[1]}
     fi
     if [ ! "${skips[2]}" = "skip" ]; then
-        assertEquals "exseqauto-xy01" "${Value[2]}"
+        assertEquals "${BASENAME}" "${Value[2]}"
     fi
     if [ ! "${skips[3]}" = "skip" ]; then
-        assertEquals 5 ${Value[3]}
+        assertEquals 4 ${Value[3]}
     fi
     if [ ! "${skips[5]}" = "skip" ]; then
         assertEquals "false" "${Value[5]}"
@@ -426,9 +420,6 @@ testArgument008_set_normalization_dir() {
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
 
-    local param=$(sed -ne 's#regparams.INPUTDIR = \(.*\);#\1#p' loadParameters.m)
-    assertEquals "'${Value[${value_id}]}'" "$param"
-
     local param=$(sed -ne 's#params.normalizedImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 
@@ -453,9 +444,6 @@ testArgument009_set_registration_dir() {
     # others are default values
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
-
-    local param=$(sed -ne 's#regparams.OUTPUTDIR = \(.*\);#\1#p' loadParameters.m)
-    assertEquals "'${Value[${value_id}]}'" "$param"
 
     local param=$(sed -ne 's#params.registeredImagesDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
@@ -513,7 +501,7 @@ testArgument011_set_set_base_calling_dir() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument013_set_reporting_dir() {
+testArgument012_set_reporting_dir() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -539,7 +527,7 @@ testArgument013_set_reporting_dir() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument014_set_temp_dir() {
+testArgument013_set_temp_dir() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -568,7 +556,7 @@ testArgument014_set_temp_dir() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument015_set_log_dir() {
+testArgument014_set_log_dir() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -591,7 +579,7 @@ testArgument015_set_log_dir() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument016_set_gpu_cuda_usage() {
+testArgument015_set_gpu_cuda_usage() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -613,6 +601,31 @@ testArgument016_set_gpu_cuda_usage() {
     mv loadParameters.m logs $Log_dir/
 }
 
+testArgument016_set_tiff_usage() {
+    local curfunc=${FUNCNAME[0]}
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
+
+    set -m
+    ./runPipeline.sh -y -e ' ' -F tiff > $Log 2>&1
+    set +m
+
+    get_values_and_keys
+
+    value_id=6
+    assertEquals "tif" "${Value[${value_id}]}"
+
+    # others are default values
+    assert_all_default_values skip ${value_id}
+    assert_all_stages_skip
+
+    local param=$(sed -ne 's#params.IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
+}
+
 testArgument017_set_hdf5_usage() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
@@ -620,7 +633,7 @@ testArgument017_set_hdf5_usage() {
     local Log=$Log_dir/output.log
 
     set -m
-    ./runPipeline.sh -y -e ' ' -H > $Log 2>&1
+    ./runPipeline.sh -y -e ' ' -F hdf5 > $Log 2>&1
     set +m
 
     get_values_and_keys
@@ -789,12 +802,10 @@ testArgument103_skip_stage_registration() {
     get_values_and_keys
 
     assertEquals "skip" "${Key[4]}"
-    assertEquals "skip" "${Key[7]}"
-    assertEquals "skip" "${Key[8]}"
 
     # others are default values
     assert_all_default_values
-    assert_all_stages_run skip 4 7 8
+    assert_all_stages_run skip 4
 }
 
 testArgument104_skip_stage_puncta_extraction() {
@@ -835,45 +846,7 @@ testArgument105_skip_stage_base_calling() {
     assert_all_stages_run skip 6
 }
 
-testArgument106_skip_substage_calc_descriptors() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -s 'calc-descriptors' > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    assertEquals "skip" "${Key[7]}"
-
-    # others are default values
-    assert_all_default_values
-    assert_all_stages_run skip 7
-}
-
-testArgument107_skip_substage_register_with_correspondences() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -s 'register-with-correspondences' > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    assertEquals "skip" "${Key[8]}"
-
-    # others are default values
-    assert_all_default_values
-    assert_all_stages_run skip 8
-}
-
-testArgument108_skip_all_stages() {
+testArgument106_skip_all_stages() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -891,52 +864,9 @@ testArgument108_skip_all_stages() {
     assertEquals "skip" "${Key[4]}"
     assertEquals "skip" "${Key[5]}"
     assertEquals "skip" "${Key[6]}"
-    assertEquals "skip" "${Key[7]}"
-    assertEquals "skip" "${Key[8]}"
 
     # others are default values
     assert_all_default_values
-}
-
-testArgument109_skip_stage_normalization_and_substage_calc_descriptors() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -s 'normalization,calc-descriptors' > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    assertEquals "skip" "${Key[3]}"
-    assertEquals "skip" "${Key[7]}"
-
-    # others are default values
-    assert_all_default_values
-    assert_all_stages_run skip 3 7
-}
-
-testArgument110_skip_stage_registration_and_substage_calc_descriptors() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -s 'registration,calc-descriptors' > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    assertEquals "skip" "${Key[4]}"
-    assertEquals "skip" "${Key[7]}"
-    assertEquals "skip" "${Key[8]}"
-
-    # others are default values
-    assert_all_default_values
-    assert_all_stages_run skip 4 7 8
 }
 
 
@@ -1006,7 +936,7 @@ testArgument114_exec_stage_registration() {
 
     # others are default values
     assert_all_default_values
-    assert_all_stages_skip skip 4 7 8
+    assert_all_stages_skip skip 4
 }
 
 testArgument115_exec_stage_puncta_extraction() {
@@ -1043,41 +973,7 @@ testArgument116_exec_stage_base_calling() {
     assert_all_stages_skip skip 6
 }
 
-testArgument117_exec_substage_calc_descriptors() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -e 'calc-descriptors' > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    # others are default values
-    assert_all_default_values
-    assert_all_stages_skip skip 4 7
-}
-
-testArgument118_exec_substage_register_with_correspondences() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    echo 'n' | ./runPipeline.sh -e 'register-with-correspondences' > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    # others are default values
-    assert_all_default_values
-    assert_all_stages_skip skip 4 8
-}
-
-testArgument119_exec_stage_normalization_and_registration() {
+testArgument117_exec_stage_normalization_and_registration() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -1091,7 +987,7 @@ testArgument119_exec_stage_normalization_and_registration() {
 
     # others are default values
     assert_all_default_values
-    assert_all_stages_skip skip 3 4 7 8
+    assert_all_stages_skip skip 3 4
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -1109,25 +1005,7 @@ testArgument200_Error_set_roundnum() {
     assertEquals 1 $message
 }
 
-testArgument201_Error_no_deconvolution_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    rm -r $DECONVOLUTION_DIR
-
-    set -m
-    echo 'n' | ./runPipeline.sh > $Log 2>&1
-    set +m
-
-    message=$(grep "No deconvolution dir" "$Log" | wc -l)
-    assertEquals 1 $message
-
-    cp -a $INPUT_IMAGE_DIR $DECONVOLUTION_DIR
-}
-
-testArgument203_Error_no_load_params_m_template() {
+testArgument201_Error_no_load_params_m_template() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -1145,7 +1023,7 @@ testArgument203_Error_no_load_params_m_template() {
     mv loadParameters.m.template{-orig,}
 }
 
-testArgument204_Error_unacceptable_both_e_and_s_args() {
+testArgument202_Error_unacceptable_both_e_and_s_args() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -1156,6 +1034,67 @@ testArgument204_Error_unacceptable_both_e_and_s_args() {
     set +m
 
     message=$(grep "cannot use both -e and -s" "$Log" | wc -l)
+    assertEquals 1 $message
+}
+
+testArgument203_Error_wrong_image_ext() {
+    local curfunc=${FUNCNAME[0]}
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
+
+    set -m
+    echo 'n' | ./runPipeline.sh -F jpeg > $Log 2>&1
+    set +m
+
+    message=$(grep "Not support: jpeg" "$Log" | wc -l)
+    assertEquals 1 $message
+}
+
+testArgument204_Error_no_input_tiffs() {
+    local curfunc=${FUNCNAME[0]}
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
+
+    sed -i.test.bak -e "s#\(input_path\)=.*#\1=no_input_tiffs#" configuration.cfg
+
+    set -m
+    echo 'n' | ./runPipeline.sh -d no_input_tiffs > $Log 2>&1
+    set +m
+
+    message=$(grep "No input tif files" "$Log" | wc -l)
+    assertEquals 1 $message
+
+    cp -a configuration.cfg{.test.bak,}
+}
+
+# -------------------------------------------------------------------------------------------------
+testPrecheck300_cleanup_unused_lockfiles() {
+    local curfunc=${FUNCNAME[0]}
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
+
+    echo "zzz" > "/tmp/.exseqproc/run.zzz.lock"
+    touch "/tmp/.exseqproc/all_gpus.lock"
+    touch "/tmp/.exseqproc/gpu0.lock"
+    touch "/tmp/.exseqproc/gpu1.lock"
+
+    set -m
+    echo 'n' | ./runPipeline.sh -y -e ' ' > $Log 2>&1
+    set +m
+
+    message=$(grep "rm /tmp/.exseqproc/run.zzz.lock" "$Log" | wc -l)
+    assertEquals 1 $message
+
+    message=$(grep "rm /tmp/.exseqproc/all_gpus.lock" "$Log" | wc -l)
+    assertEquals 1 $message
+
+    message=$(grep "rm /tmp/.exseqproc/gpu0.lock" "$Log" | wc -l)
+    assertEquals 1 $message
+
+    message=$(grep "rm /tmp/.exseqproc/gpu1.lock" "$Log" | wc -l)
     assertEquals 1 $message
 }
 
