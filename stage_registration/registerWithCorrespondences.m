@@ -22,9 +22,7 @@ else
     filename_root = sprintf('%s',params.FILE_BASENAME);
 end
 
-% regparams.MOVING_RUN = moving_run;
-
-fprintf('RegWithCorr ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
+fprintf('RegWithCorr ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
 output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
@@ -32,7 +30,7 @@ if exist(output_affine_filename,'file')
 end
 %Load a full-res image 
 filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+    filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
 imgFixed_total = load3DImage_uint16(filename);
 %Loading the keys, possibly from the downsampled data
 output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%s-downsample_round%03d.mat',params.FILE_BASENAME,moving_run));

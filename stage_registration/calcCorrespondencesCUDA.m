@@ -24,7 +24,7 @@ else
     filename_root = sprintf('%s_',params.FILE_BASENAME);
 end
 
-fprintf('CalcCorrespondencesInCUDA ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
+fprintf('CalcCorrespondencesInCUDA ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
 
 
 maxNumCompThreads(params.REG_CORR_MAX_THREADS);
@@ -147,7 +147,7 @@ if ~exist(output_keys_filename,'file')
 
 
             filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift_r%uc%u.mat',...
-                filename_root,regparams.FIXED_RUN,y_idx,x_idx));
+                filename_root,params.REFERENCE_ROUND_WARP,y_idx,x_idx));
             if (~exist(filename))
                 fprintf('ShapeContext of fixed image is not calculated.\n');
                 exit

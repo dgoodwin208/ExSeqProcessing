@@ -7,9 +7,6 @@ function setup(testCase)
         mkdir('logs');
     end
 
-    num_gpus = gpuDeviceCount();
-    quantilenorm_cuda_init(ones(1,num_gpus),[num_gpus+2,2]);
-
     testCase.TestData.tempDir = '/mp/nvme0/tmp/testworks';
     if ~exist(testCase.TestData.tempDir)
         mkdir(testCase.TestData.tempDir)
@@ -29,8 +26,6 @@ function setup(testCase)
 end
 
 function teardown(testCase)
-    quantilenorm_final(1);
-
     rmdir(testCase.TestData.tempDir,'s');
 end
 
@@ -50,7 +45,6 @@ function testQuantilenorm(testCase)
 
     norm_org = quantilenorm([t1(:) t2(:) t3(:) t4(:)]);
 
-%    [norm1_fname,norm2_fname,norm3_fname,norm4_fname,image_height,image_width] = quantilenorm_cuda( ...
     r = quantilenorm_cuda( ...
         testCase.TestData.tempDir,'test_result', { ...
         fullfile(testCase.TestData.tempDir,'test_1.tif'), ...

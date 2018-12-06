@@ -10,11 +10,7 @@ function stage_registration()
 
     [ret,messages] = check_files_in_calculateDescriptors();
     if ~ret
-        if params.USE_GPU_CUDA
-            calculateDescriptorsCUDAInParallel();
-        else
-            calculateDescriptorsInParallel();
-        end
+        calculateDescriptorsInParallel();
 
         [ret,messages] = check_files_in_calculateDescriptors();
         if ~ret

@@ -1,4 +1,4 @@
-function calc3DTPSWarping(moving_run,do_downsample)
+function TPS3DWarping(moving_run,do_downsample)
 
 loadParameters;
 
@@ -8,9 +8,7 @@ else
     filename_root = sprintf('%s',params.FILE_BASENAME);
 end
 
-%params.MOVING_RUN = moving_run;
-
-fprintf('3DTPSWarp RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
+fprintf('TPS3DWarp RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
 
 maxNumCompThreads(params.TPS3DWARP_MAX_THREADS);
 
@@ -21,7 +19,7 @@ if ~exist(affinekeys_filename)
 end
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+    filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 if isequal(params.IMAGE_EXT,'tif')
     tif_info = imfinfo(filename);
@@ -53,6 +51,39 @@ if ~exist(output_TPS_filename,'file')
     h5write(output_TPS_filename,'/in1D_total',in1D_total);
     h5write(output_TPS_filename,'/out1D_total',out1D_total);
     toc;
+else
+    %load in1D_total and out1D_total
+    disp('load TPS file as hdf5')
+    tic;
+    in1D_total = h5read(output_TPS_filename,'/in1D_total');
+    out1D_total = h5read(output_TPS_filename,'/out1D_total');
+    toc;
+    %Experiments 7 and 8 may have been saved with zeros in the 1D vectors
+    %so this removes it
+    [ValidIdxs,I] = find(in1D_total>0);
+    in1D_total = in1D_total(ValidIdxs);
+    out1D_total = out1D_total(ValidIdxs);
+end
+
+
+%Warp all three channels of the experiment once the index mapping has been
+%created
+for c = 1:length(regparams.CHANNELS)
+    %Load the data to be warped
+    disp('load 3D file to be warped')
+    tic;
+    data_channel = regparams.CHANNELS{c};
+    filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    imgToWarp = load3DImage_uint16(filename);
+    toc;
+
+    t_tps3dapply = tic;
+    [ outputImage_interp ] = TPS3DApplyCUDA(in1D_total,out1D_total,imgToWarp,img_total_size,data_channel);
+    fprintf('transform image with 3DTPS in %s channel. ',data_channel);
+    toc(t_tps3dapply);
+
+    outputfile = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_registered.%s',filename_root,moving_run,data_channel,params.IMAGE_EXT));
+    save3DImage_uint16(outputImage_interp,outputfile);
 end
 
 

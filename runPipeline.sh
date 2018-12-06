@@ -134,9 +134,6 @@ AFFINE_MAX_THREADS=$(sed -ne "s#params.AFFINE_MAX_THREADS *= *\([0-9]*\);#\1#p" 
 TPS3DWARP_MAX_RUN_JOBS=$(sed -ne "s#params.TPS3DWARP_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 TPS3DWARP_MAX_POOL_SIZE=$(sed -ne "s#params.TPS3DWARP_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-APPLY3DTPS_MAX_RUN_JOBS=$(sed -ne "s#params.APPLY3DTPS_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-APPLY3DTPS_MAX_POOL_SIZE=$(sed -ne "s#params.APPLY3DTPS_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-APPLY3DTPS_MAX_THREADS=$(sed -ne "s#params.APPLY3DTPS_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 REGISTRATION_CHANNELS=$(sed -ne "s#regparams.CHANNELS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 
 
@@ -537,8 +534,7 @@ printf "  registration           :\n"
 printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
 printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
 printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
-printf "    calc-3DTPS-warp      :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
-printf "    apply-3DTPS          :  %2d,%2d,%2d\n" ${APPLY3DTPS_MAX_RUN_JOBS} ${APPLY3DTPS_MAX_POOL_SIZE} ${APPLY3DTPS_MAX_THREADS}
+printf "    TPS3D-warp           :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
 #printf "  puncta-extraction      :  %2d,%2d,%2d\n" ${PUNCTA_MAX_RUN_JOBS} ${PUNCTA_MAX_POOL_SIZE} ${PUNCTA_MAX_THREADS}
 echo
 echo "#########################################################################"

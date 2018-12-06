@@ -10,7 +10,7 @@ end
 
 %params.MOVING_RUN = moving_run;
 
-fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
+fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
 output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
@@ -20,7 +20,7 @@ end
 maxNumCompThreads(params.AFFINE_MAX_THREADS);
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+    filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 if isequal(params.IMAGE_EXT,'tif')
     tif_info = imfinfo(filename);

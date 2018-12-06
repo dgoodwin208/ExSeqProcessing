@@ -3,7 +3,7 @@ function success_code = registerWithCorrespondencesInParallel()
     loadParameters;
 
     run_num_list = 1:params.NUM_ROUNDS;
-    run_num_list(regparams.FIXED_RUN) = [];
+    run_num_list(params.REFERENCE_ROUND_WARP) = [];
 
     arg_list_1 = {};
     arg_list_2 = {};

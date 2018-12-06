@@ -1066,7 +1066,8 @@ testArgument204_Error_no_input_tiffs() {
     message=$(grep "No input tif files" "$Log" | wc -l)
     assertEquals 1 $message
 
-    cp -a configuration.cfg{.test.bak,}
+    mv configuration.cfg{.test.bak,}
+    rmdir no_input_tiffs
 }
 
 # -------------------------------------------------------------------------------------------------

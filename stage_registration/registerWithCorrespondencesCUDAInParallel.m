@@ -2,10 +2,10 @@ function success_code = registerWithCorrespondencesCUDAInParallel()
 
     loadParameters;
 
-    calcCorrespondencesForFixed(regparams.FIXED_RUN);
+    calcCorrespondencesForFixed(params.REFERENCE_ROUND_WARP);
 
     run_num_list = 1:params.NUM_ROUNDS;
-    run_num_list(regparams.FIXED_RUN) = [];
+    run_num_list(params.REFERENCE_ROUND_WARP) = [];
 
     arg_list = {};
     postfix_list = {};
@@ -59,8 +59,8 @@ function success_code = registerWithCorrespondencesCUDAInParallel()
         return;
     end
 
-    disp('===== calc-3DTPS-warping');
-    [success_code, output] = batch_process('reg2-calc3DTPSWarp', @calc3DTPSWarping, run_num_list_downsample, arg_list_downsample, ...
+    disp('===== TPS3D-warping');
+    [success_code, output] = batch_process('reg2-TPS3DWarp', @TPS3DWarping, run_num_list_downsample, arg_list_downsample, ...
         postfix_list_downsample, params.TPS3DWARP_MAX_POOL_SIZE, max_jobs_downsample, params.TPS3DWARP_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
     if ~success_code
         disp('batch job has failed.')
@@ -68,18 +68,6 @@ function success_code = registerWithCorrespondencesCUDAInParallel()
         disp('params.TPS3DWARP_MAX_RUN_JOBS');
         disp('params.TPS3DWARP_MAX_POOL_SIZE');
         disp('params.TPS3DWARP_MAX_THREADS');
-        return;
-    end
-
-    disp('===== apply-3DTPS-warping');
-    [success_code, output] = batch_process('reg2-apply3DTPSWarp', @apply3DTPSWarping, run_num_list_downsample, arg_list_downsample, ...
-        postfix_list_downsample, params.APPLY3DTPS_MAX_POOL_SIZE, max_jobs_downsample, params.APPLY3DTPS_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
-    if ~success_code
-        disp('batch job has failed.')
-        disp('when out-of-memory has occurred, please check parameters below in loadParameters.m.');
-        disp('params.APPLY3DTPS_MAX_RUN_JOBS');
-        disp('params.APPLY3DTPS_MAX_POOL_SIZE');
-        disp('params.APPLY3DTPS_MAX_THREADS');
         return;
     end
 

@@ -22,11 +22,11 @@ else
     filename_root = sprintf('%s_',params.FILE_BASENAME);
 end
 
-fprintf('CalcCorrespondences ON MOVING: %i, FIXED: %i\n', moving_run, regparams.FIXED_RUN);
+fprintf('CalcCorrespondences ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
 
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
-    filename_root,regparams.FIXED_RUN,regparams.CHANNELS{1},params.IMAGE_EXT ));
+    filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
 imgFixed_total = load3DImage_uint16(filename);
 
@@ -71,7 +71,7 @@ end
 keys_fixed_total = {}; keys_ctr=1;
 for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTERCHANNELS_SC])
     descriptor_output_dir_fixed = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
-        regparams.FIXED_RUN,register_channel{1}));
+        params.REFERENCE_ROUND_WARP,register_channel{1}));
     
     files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
     

@@ -79,8 +79,6 @@ toc
 %     %Normalize the data
 tic; 
 fprintf('quantilenorm_simple starting\n');
-%num_sem_gpus = ones(1, gpuDeviceCount());
-%quantilenorm_cuda_init(num_sem_gpus);
 
 %data_cols_norm = quantilenorm_simple(data_cols);
 use_tmp_files = params.USE_TMP_FILES;
@@ -91,8 +89,6 @@ ret = ...
         fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)), ...
         fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.%s'     ,FILEROOT_NAME,roundnum,params.IMAGE_EXT)), ...
         fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)) }, use_tmp_files);
-
-%quantilenorm_cuda_final(length(num_sem_gpus));
 
 if use_tmp_files
     chan1_norm_fname = ret{1};
