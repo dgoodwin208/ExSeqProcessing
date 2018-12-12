@@ -9,7 +9,7 @@ params.COLS_DESC = 3;
 params.OVERLAP = .1;
 
 filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_registered.tif',...
-    params.FILE_BASENAME,1,params.CHAN_STRS{1}));
+    params.FILE_BASENAME,1,params.SHIFT_CHAN_STRS{1}));
 img = load3DTif_uint16(filename);
 
 %chop the image up into grid

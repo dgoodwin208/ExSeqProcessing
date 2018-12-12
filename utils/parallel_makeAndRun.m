@@ -8,7 +8,7 @@ params.COLS_DESC = 3;
 params.OVERLAP = .1;
 
 filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_registered.tif',...
-    params.FILE_BASENAME,1,params.CHAN_STRS{1}));
+    params.FILE_BASENAME,1,params.SHIFT_CHAN_STRS{1}));
 img = load3DTif_uint16(filename);
 
 %chop the image up into grid
@@ -19,7 +19,7 @@ for rnd_idx = 1:params.NUM_ROUNDS
     for c_idx = 1:params.NUM_CHANNELS
         
         filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_registered.tif',...
-            params.FILE_BASENAME,rnd_idx,params.CHAN_STRS{c_idx}));
+            params.FILE_BASENAME,rnd_idx,params.SHIFT_CHAN_STRS{c_idx}));
         
         img = load3DTif_uint16(filename);
         fprintf('Loaded file %s\n',filename);
@@ -56,7 +56,7 @@ for rnd_idx = 1:params.NUM_ROUNDS
                 img_crop = img(ymin_overlap:ymax_overlap,xmin_overlap:xmax_overlap,:);
                 
                 outputfile_name = fullfile(outputdir,sprintf('%s_round%03d_%s_registered.tif',...
-                    params.FILE_BASENAME,rnd_idx,params.CHAN_STRS{c_idx}));
+                    params.FILE_BASENAME,rnd_idx,params.SHIFT_CHAN_STRS{c_idx}));
                 save3DTif_uint16(img_crop,outputfile_name);
                 fprintf('Saved file %s \n',outputfile_name);
             end

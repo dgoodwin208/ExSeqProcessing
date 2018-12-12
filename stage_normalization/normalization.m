@@ -4,7 +4,7 @@ function success_code = normalization()
 
     loadParameters;
 
-    if length(params.CHAN_STRS) ~= 4
+    if length(params.SHIFT_CHAN_STRS) ~= 4
         disp('# of channels is not 4.')
         return
     end
@@ -13,7 +13,7 @@ function success_code = normalization()
     postfix_list = {};
     run_num_list = 1:params.NUM_ROUNDS;
     for run_num = run_num_list
-        arg_list{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.CHAN_STRS, run_num};
+        arg_list{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.SHIFT_CHAN_STRS, run_num};
         postfix_list{end+1} = num2str(run_num);
     end
 
@@ -28,7 +28,7 @@ function success_code = normalization()
 
     arg_list_downsample = {};
     for run_num = run_num_list
-        arg_list_downsample{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,[params.FILE_BASENAME,'-downsample'],params.CHAN_STRS, run_num};
+        arg_list_downsample{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,[params.FILE_BASENAME,'-downsample'],params.SHIFT_CHAN_STRS, run_num};
     end
 
     [success_code, output] = batch_process('normalization-downsample', @normalizeImage, run_num_list, arg_list_downsample, ...

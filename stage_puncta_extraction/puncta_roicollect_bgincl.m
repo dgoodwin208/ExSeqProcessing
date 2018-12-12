@@ -27,7 +27,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     pixels_per_rnd_bgmedian = cell(num_insitu_transcripts,params.NUM_CHANNELS);
 
     for c_idx = params.COLOR_VEC
-        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
+        filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.SHIFT_CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
         img =  load3DImage_uint16(filename_in);
         %Leftover from an experiment of turning each image into a DFF calculation
         %img_blur = imgaussfilt3(single(img),[30 30 30*(params.XRES/params.ZRES)]); 

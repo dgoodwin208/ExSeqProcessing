@@ -25,8 +25,8 @@ end;
  end
 % 
 
-normalization(params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.CHAN_STRS,rounds,false);
-normalization(params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.CHAN_STRS,rounds,true);
+normalization(params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.SHIFT_CHAN_STRS,rounds,false);
+normalization(params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.SHIFT_CHAN_STRS,rounds,true);
 
 %------ Registration ------%
 fprintf('REGISTRATION:\n');

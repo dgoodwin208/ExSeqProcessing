@@ -11,8 +11,8 @@ function [ret,messages] = check_files_in_color_correction()
     ret = true;
     messages = {};
     for r_i = 1:params.NUM_ROUNDS
-        for c_i = 2:length(params.CHAN_STRS)
-            filename = fullfile(params.colorCorrectionImagesDir,sprintf('%s_round%.03i_%s.%s',FILEROOT_NAME,r_i,params.CHAN_STRS{c_i},params.IMAGE_EXT));
+        for c_i = 2:length(params.SHIFT_CHAN_STRS)
+            filename = fullfile(params.colorCorrectionImagesDir,sprintf('%s_round%.03i_%s.%s',FILEROOT_NAME,r_i,params.SHIFT_CHAN_STRS{c_i},params.IMAGE_EXT));
             if ~exist(filename,'file')
                 ret = false;
                 messages{end+1} = sprintf('[ERROR] not created: %s',filename);

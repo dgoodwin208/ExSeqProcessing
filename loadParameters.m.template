@@ -32,7 +32,8 @@ params.COLOR_OFFSETS3D = [20,20,20];
 params.PUNCTA_SIZE_THRESHOLD = 30;
 params.PUNCTA_SIZE_MAX = 2000;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
-params.CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
+params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
+params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)

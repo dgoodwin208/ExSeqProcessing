@@ -84,7 +84,7 @@ function usage() {
     echo "  -i              reporting directory"
     echo "  -T              temp directory (empty '' does not use temp dir)"
     echo "  -L              log directory"
-    echo "  -G              use GPU and CUDA (default: no)"
+    echo "  -A              acceleration (CPU or GPU_CUDA)"
     echo "  -F              file format of intermediate images (tiff or hdf5)"
     echo "  -J              set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
     echo "  -P              mode to get performance profile"
@@ -134,7 +134,6 @@ AFFINE_MAX_THREADS=$(sed -ne "s#params.AFFINE_MAX_THREADS *= *\([0-9]*\);#\1#p" 
 TPS3DWARP_MAX_RUN_JOBS=$(sed -ne "s#params.TPS3DWARP_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 TPS3DWARP_MAX_POOL_SIZE=$(sed -ne "s#params.TPS3DWARP_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-REGISTRATION_CHANNELS=$(sed -ne "s#regparams.CHANNELS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 
 
 
@@ -158,8 +157,10 @@ do
         INPUT_FILE_PATH=$value
     elif [ $field = "basename" ]; then
         FILE_BASENAME=$value
-    elif [ $field = "channels" ]; then
-        CHANNELS=$value
+#    elif [ $field = "channels" ]; then
+#        CHANNELS=$value
+#    elif [ $field = "shift_channels" ]; then
+#        SHIFT_CHANNELS=$value
     elif [ $field = "output_path" ]; then
         OUTPUT_FILE_PATH=$value
     elif [ $field = "format" ]; then
@@ -176,6 +177,13 @@ do
         ACCELERATION=$value
     fi
 done < configuration.cfg
+
+if [ -z "$OUTPUT_FILE_PATH" ]; then
+    OUTPUT_FILE_PATH="."
+fi
+if [ -z "$LOG_DIR" ]; then
+    LOG_DIR="logs"
+fi
 
 
 echo "INPUT_FILE_PATH: $INPUT_FILE_PATH"
@@ -197,16 +205,6 @@ REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
 PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
 BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
 
-CHANNEL_ARRAY=($(echo ${CHANNELS//\'/} | tr ',' ' '))
-REGISTRATION_CHANNEL_ARRAY=($(echo ${REGISTRATION_CHANNELS//\'/} | tr ',' ' '))
-REGISTRATION_SAMPLE=${FILE_BASENAME}_
-
-if [ $ACCELERATION = 'gpu' ]; then
-    USE_GPU_CUDA=true
-else
-    USE_GPU_CUDA=false
-fi
-
 
 PERF_PROFILE=false
 
@@ -214,7 +212,7 @@ NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
 ###### getopts
 
-while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:GF:J:Pyh OPT
+while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:A:F:J:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -224,7 +222,6 @@ do
             fi
             ;;
         b)  FILE_BASENAME=$OPTARG
-            REGISTRATION_SAMPLE=${FILE_BASENAME}_
             ;;
         B)  REFERENCE_ROUND=$OPTARG
                 if ! check_number ${REFERENCE_ROUND}; then
@@ -254,11 +251,15 @@ do
             ;;
         s)  ARG_SKIP_STAGES=$OPTARG
             ;;
-        G)  USE_GPU_CUDA=true
+        A)  ACCELERATION=$OPTARG
+            if [ $(lowercase "${ACCELERATION}") != "cpu" ] && [ $(lowercase "${ACCELERATION}") != "gpu_cuda" ]; then
+                echo "[ERROR] Not support acceleration: ${ACCELERATION}"
+                exit
+            fi
             ;;
         F)  FORMAT=$OPTARG
             if [ $(lowercase "${FORMAT}") != "tiff" ] && [ $(lowercase "${FORMAT}") != "hdf5" ]; then
-                echo "[ERROR] Not support: ${FORMAT}"
+                echo "[ERROR] Not support image format: ${FORMAT}"
                 exit
             fi
             ;;
@@ -345,6 +346,12 @@ else
     USE_TMP_FILES=false
 fi
 
+if [ $ACCELERATION = 'gpu_cuda' ]; then
+    USE_GPU_CUDA=true
+else
+    USE_GPU_CUDA=false
+fi
+
 
 ###### check files
 
@@ -359,11 +366,11 @@ fi
 
 
 ###### check temporary files
-if [ -n "${TEMP_DIR}" ] && [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; then
+if [ -n "${TEMP_DIR}" ] && [ -n "$(find ${TEMP_DIR} \( -name \*.bin -o -name \*.h5 -o -name \*.tif \))" ]; then
     echo "Temporary dir. is not empty."
 
     if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
-        echo "Delete [${TEMP_DIR}/*]? (y/n)"
+        echo "Delete [${TEMP_DIR}/*.{bin,h5,tif}]? (y/n)"
         read -sn1 ANSW
     else
         ANSW='y'
@@ -371,7 +378,7 @@ if [ -n "${TEMP_DIR}" ] && [ -n "$(find ${TEMP_DIR} -type d -not -empty)" ]; the
 
     if [ $ANSW = 'y' -o $ANSW = 'Y' ]; then
         echo -n "Deleting.. "
-        find ${TEMP_DIR} -type f -exec rm '{}' \;
+        find ${TEMP_DIR} -type f \( -name *.bin -o -name *.h5 -o -name *.tif \) -exec rm {} +
         echo "done."
         echo
     fi
@@ -495,7 +502,8 @@ echo "  Running on host        :  "`hostname`
 echo "  # of rounds            :  ${ROUND_NUM}"
 echo "  file basename          :  ${FILE_BASENAME}"
 echo "  reference round        :  ${REFERENCE_ROUND}"
-echo "  channels               :  ${CHANNELS}"
+#echo "  channels               :  ${CHANNELS}"
+#echo "  shift channels         :  ${SHIFT_CHANNELS}"
 echo "  use GPU_CUDA           :  ${USE_GPU_CUDA}"
 echo "  intermediate image ext :  ${IMAGE_EXT}"
 echo
