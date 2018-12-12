@@ -18,9 +18,9 @@ params.ZRES = .4;
 
 
 %Experimental parameters
-params.REFERENCE_ROUND_WARP = 4;
-params.REFERENCE_ROUND_PUNCTA = 4;
-params.NUM_ROUNDS = 4;
+params.REFERENCE_ROUND_WARP = 5;
+params.REFERENCE_ROUND_PUNCTA = 5;
+params.NUM_ROUNDS = 20;
 params.NUM_CHANNELS = 4;
 
 %Used for color correction
@@ -49,10 +49,11 @@ params.DOWNSAMPLE_RATE = 2.;
 params.USE_GPU_CUDA = false;
 
 %intermediate image format
-params.IMAGE_EXT = 'tif';
+params.IMAGE_EXT = 'h5';
 
 %Use intermediate tmp files in color-correction and normalization
 params.USE_TMP_FILES = true;
+params.tempDir = '/mp/nvmeof0/tmp';
 
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
@@ -69,9 +70,6 @@ regparams.REGISTERCHANNELS_SC = {'summedNorm'};%'ch00','ch01SHIFT','ch02SHIFT','
 %In the Murray et al 2015 this was {'Lectin', 'DAPI', 'Data}
 %Which channels do we warp?
 regparams.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'}; 
-
-%regparams.INPUTDIR = '/home/kajita/works/ExSeqProcessing-merge/3_normalization';
-%regparams.OUTPUTDIR = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
 
 regparams.OVERLAP = .1; %used to be 10%
 
@@ -100,9 +98,6 @@ regparams.EMPTY_TILE_THRESHOLD = .95;
 % (5-20 pixels at 2um/pix res) observed and assumption of minor scale 
 % disparities (ie <20%)
 params.SCALE_PYRAMID = [5];
-
-%temp dir in normalization
-params.tempDir = './tmp-test';
 
 %batch_processing parameters
 params.WAIT_SEC = 10;
