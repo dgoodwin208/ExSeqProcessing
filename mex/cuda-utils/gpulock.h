@@ -22,8 +22,8 @@ class GPULock {
 
 public:
     GPULock(const int num_gpus);
-    int trylock(const int timeout_sec = 0);
-    int trylockall(const int timeout_sec = 0);
+    int trylock(const int timeout_sec = -1);
+    int trylockall(const int timeout_sec = -1);
     int unlock();
     int unlockall();
 };

@@ -513,6 +513,7 @@ QuantileNormImpl::radixSort1FromData() {
     int idx_gpu = lock.trylock();
     if (idx_gpu >= 0) {
         logger_->info("[{}] radixSort1FromData: lock idx_gpu = {}", basename_, idx_gpu);
+        cudaSetDevice(idx_gpu);
     } else {
         logger_->error("[{}] radixSort1FromData: failed to lock gpus", basename_);
         return -1;
@@ -615,11 +616,11 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
             index = loadDataFromBuffer<unsigned int>(in_idx_filepath, num_data_start, data_size);
         }
         if (data == nullptr) {
-            logger_->debug("[{}] radixSort2FromData: ({}) failed to load data file", basename_, idx_radixsort);
+            logger_->error("[{}] radixSort2FromData: ({}) failed to load data file", basename_, idx_radixsort);
             return -1;
         }
         if (index == nullptr) {
-            logger_->debug("[{}] radixSort2FromData: ({}) failed to load index file", basename_, idx_radixsort);
+            logger_->error("[{}] radixSort2FromData: ({}) failed to load index file", basename_, idx_radixsort);
             return -1;
         }
         logger_->debug("[{}] radixSort2FromData: after loadin data {}", basename_, getStatMem());
@@ -629,6 +630,7 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         idx_gpu = lock.trylock();
         if (idx_gpu >= 0) {
             logger_->info("[{}] radixSort2FromData: ({}) lock idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
+            cudaSetDevice(idx_gpu);
         } else {
             logger_->error("[{}] radixSort2FromData: ({}) failed to lock gpus", basename_, idx_radixsort);
             return -1;
@@ -637,27 +639,27 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         try {
             cudautils::radixsort<unsigned int, float>(*index, *data);
         } catch (std::exception& ex) {
-            logger_->debug("[{}] radixSort2FromData: {}", basename_, ex.what());
+            logger_->error("[{}] radixSort2FromData: ({}) {}", basename_, idx_radixsort, ex.what());
             cudaError err = cudaGetLastError();
             if (err != cudaSuccess) {
-                logger_->error("[{}] {}", basename_, cudaGetErrorString(err));
+                logger_->error("[{}] radixSort2FromData: ({}) {}", basename_, idx_radixsort, cudaGetErrorString(err));
             }
             lock.unlock();
-            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+            logger_->error("[{}] radixSort2FromData: ({}) unlock idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
             return -1;
         } catch (...) {
-            logger_->debug("[{}] radixSort2FromData: unknown error", basename_);
+            logger_->error("[{}] radixSort2FromData: ({}) radixSort2FromData: unknown error", basename_, idx_radixsort);
             cudaError err = cudaGetLastError();
             if (err != cudaSuccess) {
-                logger_->error("[{}] {}", basename_, cudaGetErrorString(err));
+                logger_->error("[{}] radixSort2FromData: ({}) {}", basename_, idx_radixsort, cudaGetErrorString(err));
             }
             lock.unlock();
-            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+            logger_->info("[{}] radixSort2FromData: ({}) unlock idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
             return -1;
         }
 
         lock.unlock();
-        logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+        logger_->info("[{}] radixSort2FromData: ({}) unlock idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
 
         std::string out_idx_file = "idx_" + out_file;
         if (use_tmp_files_) {
@@ -672,17 +674,17 @@ QuantileNormImpl::radixSort2FromData(const size_t idx_radixsort) {
         logger_->info("[{}] radixSort2FromData: end   ({})", basename_, idx_radixsort);
         return ret;
     } catch (std::exception& ex) {
-        logger_->error("[{}] end - {}", basename_, ex.what());
+        logger_->error("[{}] radixSort2FromData: ({})  end - {}", basename_, idx_radixsort, ex.what());
         if (idx_gpu != -1) {
             lock.unlock();
-            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+            logger_->error("[{}] radixSort2FromData: unlock idx_gpu = {}", basename_, idx_gpu);
         }
         return -1;
     } catch (...) {
-        logger_->error("[{}] end - unknown error..", basename_);
+        logger_->error("[{}] radixSort2FromData: ({}) end - unknown error..", basename_, idx_radixsort);
         if (idx_gpu != -1) {
             lock.unlock();
-            logger_->info("[{}] unlock idx_gpu = {}", basename_, idx_gpu);
+            logger_->error("[{}] radixSort2FromData: ({}) unlock idx_gpu = {}", basename_, idx_radixsort, idx_gpu);
         }
         return -1;
     }

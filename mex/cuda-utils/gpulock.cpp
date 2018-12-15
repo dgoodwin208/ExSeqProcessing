@@ -66,7 +66,7 @@ int GPULock::trylock(const int timeout_sec) {
         std::this_thread::sleep_for(interval_msec);
         sum_msec += interval_msec;
 
-        if (timeout_sec >=0 && sum_msec >= max_sec) {
+        if (timeout_sec >= 0 && sum_msec >= max_sec) {
             logger_->warn("timeout of all-gpus lock.. ({} sec)", timeout_sec);
             umask(old_umask);
             return -1;
@@ -89,7 +89,7 @@ int GPULock::trylock(const int timeout_sec) {
         std::this_thread::sleep_for(interval_msec);
         sum_msec += interval_msec;
 
-        if (timeout_sec >=0 && sum_msec >= max_sec) {
+        if (timeout_sec >= 0 && sum_msec >= max_sec) {
             logger_->warn("timeout of one gpu lock.. ({} sec)", timeout_sec);
             all_filelock_->unlock();
             umask(old_umask);
@@ -122,7 +122,7 @@ int GPULock::trylockall(const int timeout_sec) {
         std::this_thread::sleep_for(interval_msec);
         sum_msec += interval_msec;
 
-        if (timeout_sec >=0 && sum_msec >= max_sec) {
+        if (timeout_sec >= 0 && sum_msec >= max_sec) {
             logger_->warn("timeout of all-gpus lock.. ({} sec)", timeout_sec);
             umask(old_umask);
             return -1;
@@ -145,7 +145,7 @@ int GPULock::trylockall(const int timeout_sec) {
         std::this_thread::sleep_for(interval_msec);
         sum_msec += interval_msec;
 
-        if (timeout_sec >=0 && sum_msec >= max_sec) {
+        if (timeout_sec >= 0 && sum_msec >= max_sec) {
             logger_->warn("timeout of all each-gpu lock.. ({} sec)", timeout_sec);
             for (size_t i = 0; i < num_gpus_; i++) {
                 filelocks_[i]->unlock();
