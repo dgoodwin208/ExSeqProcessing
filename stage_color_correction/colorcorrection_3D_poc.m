@@ -25,7 +25,7 @@ if exist(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.%s',FILEROOT_NAME,r
 end
 
 try
-    chan1 = load3DTif_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
+    chan1 = load3DImage_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_ch00.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 catch
     fprintf('ERROR LOADING FILE: Is this a missing round?\n');
     return
@@ -44,15 +44,20 @@ toc
 chan1_beads = chan1(:,:,params.BEAD_ZSTART :end);
 chan2_beads = chan2(:,:,params.BEAD_ZSTART :end);
 chan4_beads = chan4(:,:,params.BEAD_ZSTART :end);
+clear chan1
 
 tic; disp('POC 4');
 chan4_offsets = phaseOnlyCorrelation(chan1_beads,chan4_beads,params.COLOR_OFFSETS3D);
 toc
+clear chan4_beads
+
 size(params.COLOR_OFFSETS3D)
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum,4,chan4_offsets(1),chan4_offsets(2),chan4_offsets(3));
 tic; disp('translate 4');
 chan4_shift = imtranslate3D(chan4,real(round(chan4_offsets)));
 toc
+clear chan4
+
 tic; disp('save file 4');
 save3DImage_uint16(chan4_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
@@ -61,23 +66,19 @@ chan4_shift_beads = chan4_shift(:,:,params.BEAD_ZSTART :end);
 tic; disp('POC 2');
 chan2_offsets = phaseOnlyCorrelation(chan1_beads+chan4_shift_beads,chan2_beads,params.COLOR_OFFSETS3D);
 toc
+clear chan1_beads chan2_beads chan4_shift chan4_shift_beads
 
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum,2,chan2_offsets(1),chan2_offsets(2),chan2_offsets(3));
 tic; disp('translate 2');
 chan2_shift = imtranslate3D(chan2,round(chan2_offsets));
 toc
+
 tic; disp('save file 2');
 save3DImage_uint16(chan2_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch01SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
+clear chan2 chan2_shift
 
-%data_cols = zeros(length(reshape(chan1,[],1)),4);
-%data_cols(:,1) = reshape(chan1,[],1);
-%data_cols(:,2) = reshape(chan2_shift,[],1);
-%data_cols(:,3) = reshape(chan3,[],1);
-%data_cols(:,4) = reshape(chan4_shift,[],1);
-
-%     %Normalize the data
-tic; 
+tic;
 fprintf('quantilenorm_simple starting\n');
 
 %data_cols_norm = quantilenorm_simple(data_cols);
@@ -119,37 +120,34 @@ else
     chan2_norm = reshape(mat_norm(:,2),image_size);
     chan3_norm = reshape(mat_norm(:,3),image_size);
     chan4_norm = reshape(mat_norm(:,4),image_size);
+    clear mat_norm
 end
 fprintf('quantilenorm end\n');
 toc
 
-% reshape the normed results back into 3d images
-%chan1_norm = reshape(data_cols_norm(:,1),size(chan1));
-%chan2_norm = reshape(data_cols_norm(:,2),size(chan2));
-%chan3_norm = reshape(data_cols_norm(:,3),size(chan3));
-%chan4_norm = reshape(data_cols_norm(:,4),size(chan4));
-
 fixed_chans_norm = (chan1_norm + chan2_norm + chan4_norm)/3;
 
-%Clear up memory
-%clear data_cols data_cols_norm
-clear data_cols_norm
+clear chan1_norm chan2_norm chan4_norm
 
-fixed_chans_norm_beads = fixed_chans_norm(:,:,params.BEAD_ZSTART:end);
-chan3_norm_beads = chan3_norm(:,:,params.BEAD_ZSTART:end);
+%fixed_chans_norm_beads = fixed_chans_norm(:,:,params.BEAD_ZSTART:end);
+%chan3_norm_beads = chan3_norm(:,:,params.BEAD_ZSTART:end);
 
 tic; disp('POC 3');
 chan3_offsets = phaseOnlyCorrelation(fixed_chans_norm,chan3_norm,params.COLOR_OFFSETS3D);
 %chan3_offsets = phaseOnlyCorrelation(fixed_chans_norm_beads,chan3_norm_beads,offsets3D);
 toc
+clear chan3_norm fixed_chans_norm
 fprintf('Round %i: Offsets for chan%i: %i %i %i\n',roundnum, 3,chan3_offsets(1),chan3_offsets(2),chan3_offsets(3));
 
 tic; disp('translate 3');
 chan3_shift = imtranslate3D(chan3,round(chan3_offsets));
 toc
+clear chan3
+
 tic; disp('save file 3');
 save3DImage_uint16(chan3_shift,fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch02SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)));
 toc
+clear chan3_shift
 
 save(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_colorcalcs.mat',FILEROOT_NAME,roundnum)),...
     'chan2_offsets',...

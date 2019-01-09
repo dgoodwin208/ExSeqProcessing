@@ -10,6 +10,8 @@ function stage_puncta_extraction()
     end
 
     punctafeinder;
+    clearvars
+
     puncta_roicollect_bgincl;
 
     [ret,messages] = check_files_in_puncta_extraction();

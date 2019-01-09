@@ -50,10 +50,13 @@ function normalizeImage_cuda(src_folder_name,dst_folder_name,fileroot_name,chann
         mat_norm = ret{1};
         image_size = ret{2};
         summed_norm = sum(mat_norm,2);
+        clear mat_norm
         summed_norm_image = reshape(summed_norm,image_size);
+        clear summed_norm
     end
 
     save3DImage_uint16(summed_norm_image,outputfile);
+    clear summed_norm_image
 
     if use_tmp_files
         tic;

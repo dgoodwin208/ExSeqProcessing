@@ -1,4 +1,4 @@
-%loadParameters;
+loadParameters;
 
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 load(filename_centroids,'puncta_centroids','puncta_voxels')
@@ -14,7 +14,8 @@ BGREGION_SEARCHXY = 30;
 BGREGION_SEARCHZ = 5;
 %the puncta indices are here in linear form for a specific round
 
-parpool(3); %arbitrary but this parallel loop is memory intensive
+fprintf('PUNCTA_MAX_POOL_SIZE=%d\n', params.PUNCTA_MAX_POOL_SIZE);
+parpool(params.PUNCTA_MAX_POOL_SIZE); %arbitrary but this parallel loop is memory intensive
 filename_punctaMask = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
 img_mask = load3DImage_uint16(filename_punctaMask)>0;
     

@@ -145,8 +145,8 @@ for ctr=1:length(r)
         for index=1:length(idx)
             if idx(index)==center_idx
                 result(i,j,k) = 1;
-                res_vect(:,cnt) = [i j k];
                 cnt = cnt+1;
+                res_vect(:,cnt) = [i j k];
             end
         end
 

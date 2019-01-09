@@ -41,19 +41,25 @@ for rnd_indx = 1:params.NUM_ROUNDS
     
     chan2 = load3DImage_uint16(fullfile(params.deconvolutionImagesDir,sprintf('%s_round%.03i_ch01.%s',params.FILE_BASENAME,rnd_indx,params.IMAGE_EXT)));
     chan2_shift = imtranslate3D(chan2,round(chan2_offsets*params.DOWNSAMPLE_RATE));
+    clear chan2
     chan2_outname = fullfile(params.colorCorrectionImagesDir,...
         sprintf('%s_round%.03i_ch01SHIFT.%s',params.FILE_BASENAME,rnd_indx,params.IMAGE_EXT));
     save3DImage_uint16(chan2_shift,chan2_outname);
+    clear chan2_shift
     
     chan3 = load3DImage_uint16(fullfile(params.deconvolutionImagesDir,sprintf('%s_round%.03i_ch02.%s',params.FILE_BASENAME,rnd_indx,params.IMAGE_EXT)));
     chan3_shift = imtranslate3D(chan3,round(chan3_offsets*params.DOWNSAMPLE_RATE));
+    clear chan3
     chan3_outname = fullfile(params.colorCorrectionImagesDir,...
         sprintf('%s_round%.03i_ch02SHIFT.%s',params.FILE_BASENAME,rnd_indx,params.IMAGE_EXT));
     save3DImage_uint16(chan3_shift,chan3_outname);
+    clear chan3_shift
     
     chan4 = load3DImage_uint16(fullfile(params.deconvolutionImagesDir,sprintf('%s_round%.03i_ch03.%s',params.FILE_BASENAME,rnd_indx,params.IMAGE_EXT)));
     chan4_shift = imtranslate3D(chan4,real(round(chan4_offsets*params.DOWNSAMPLE_RATE)));
+    clear chan4
     save3DImage_uint16(chan4_shift,chan4_outname);
+    clear chan4_shift
     
     
 end

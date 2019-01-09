@@ -134,6 +134,7 @@ AFFINE_MAX_THREADS=$(sed -ne "s#params.AFFINE_MAX_THREADS *= *\([0-9]*\);#\1#p" 
 TPS3DWARP_MAX_RUN_JOBS=$(sed -ne "s#params.TPS3DWARP_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 TPS3DWARP_MAX_POOL_SIZE=$(sed -ne "s#params.TPS3DWARP_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
+PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 
 
 
@@ -543,7 +544,7 @@ printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${C
 printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
 printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
 printf "    TPS3D-warp           :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
-#printf "  puncta-extraction      :  %2d,%2d,%2d\n" ${PUNCTA_MAX_RUN_JOBS} ${PUNCTA_MAX_POOL_SIZE} ${PUNCTA_MAX_THREADS}
+printf "  puncta-extraction      :  --,%2d,--\n" ${PUNCTA_MAX_POOL_SIZE}
 echo
 echo "#########################################################################"
 echo
@@ -614,6 +615,8 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.CALC_DESC_MAX_RUN_JOBS\) *= *.*;#\1 = ${CALC_DESC_MAX_RUN_JOBS};#" \
     -e "s#\(params.REG_CORR_MAX_RUN_JOBS\) *= *.*;#\1 = ${REG_CORR_MAX_RUN_JOBS};#" \
     -e "s#\(params.AFFINE_MAX_RUN_JOBS\) *= *.*;#\1 = ${AFFINE_MAX_RUN_JOBS};#" \
+    -e "s#\(params.TPS3DWARP_MAX_RUN_JOBS\) *= *.*;#\1 = ${TPS3DWARP_MAX_RUN_JOBS};#" \
+    -e "s#\(params.PUNCTA_MAX_POOL_SIZE\) *= *.*;#\1 = ${PUNCTA_MAX_POOL_SIZE};#" \
     -i.back \
     ./loadParameters.m
 
