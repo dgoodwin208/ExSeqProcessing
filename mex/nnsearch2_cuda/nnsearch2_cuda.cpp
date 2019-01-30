@@ -20,6 +20,7 @@
 
 #include "spdlog/spdlog.h"
 #include "nnsearch2.h"
+#include "gpulock.h"
 #include "gpudevice.h"
 #include "cuda_task_executor.h"
 
@@ -97,6 +98,8 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 
         //TODO check the max of GPU memory usage!
 
+        cudautils::GPULock lock(num_gpus);
+        lock.trylockall();
         try {
             std::shared_ptr<cudautils::NearestNeighborSearch> nns =
                 std::make_shared<cudautils::NearestNeighborSearch>(m, n, k, dm, dn, num_gpus, num_streams);
@@ -111,6 +114,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
         } catch (...) {
             mexErrMsgIdAndTxt("MATLAB:nnsearch2_impl:unknownError", "internal unknown error occurred");
         }
+        lock.unlockall();
 
         logger->info("{:=>50}", " nnsearch2_cuda end");
 

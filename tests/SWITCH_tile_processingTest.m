@@ -23,8 +23,6 @@ function setup(testCase)
 end
 
 function teardown(testCase)
-    quantilenorm_final(1);
-
     rmdir(testCase.TestData.tempDir,'s');
 end
 

@@ -148,12 +148,12 @@ protected:
     template <typename T>
     std::shared_ptr<std::vector<T>> loadDataFromBuffer(const std::string& in_filepath, const size_t num_data_start, const size_t data_size);
 
-    int selectGPU();
-    void unselectGPU(const int idx_gpu);
-
-    void selectCore(const int idx_core_group);
-    int selectCoreNoblock(const int idx_core_group);
-    void unselectCore(const int idx_core_group);
+//    int selectGPU();
+//    void unselectGPU(const int idx_gpu);
+//
+//    void selectCore(const int idx_core_group);
+//    int selectCoreNoblock(const int idx_core_group);
+//    void unselectCore(const int idx_core_group);
 
     void mergeSort1();
     void mergeSort2();

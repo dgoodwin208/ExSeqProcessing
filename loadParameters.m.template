@@ -7,8 +7,9 @@ params.colorCorrectionImagesDir = '/home/kajita/works/ExSeqProcessing-merge/2_co
 params.normalizedImagesDir = '/home/dgoodwin/ExSeqProcessing/3_normalization';
 params.registeredImagesDir = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
 params.punctaSubvolumeDir = '/home/kajita/works/ExSeqProcessing-merge/5_puncta-extraction';
-params.transcriptResultsDir = '/home/kajita/works/ExSeqProcessing-merge/6_transcripts';
+params.basecallingResultsDir = '/home/kajita/works/ExSeqProcessing-merge/6_base-calling';
 params.reportingDir = '/home/kajita/works/ExSeqProcessing-merge/logs/imgs';
+params.logDir = 'logs';
 
 %Microscope parameters
 params.XRES = .17;
@@ -17,9 +18,9 @@ params.ZRES = .4;
 
 
 %Experimental parameters
-params.REFERENCE_ROUND_WARP = 4;
-params.REFERENCE_ROUND_PUNCTA = 4;
-params.NUM_ROUNDS = 4;
+params.REFERENCE_ROUND_WARP = 5;
+params.REFERENCE_ROUND_PUNCTA = 5;
+params.NUM_ROUNDS = 20;
 params.NUM_CHANNELS = 4;
 
 %Used for color correction
@@ -31,7 +32,8 @@ params.COLOR_OFFSETS3D = [20,20,20];
 params.PUNCTA_SIZE_THRESHOLD = 30;
 params.PUNCTA_SIZE_MAX = 2000;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
-params.CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
+params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
+params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
@@ -43,15 +45,18 @@ params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's
 params.DO_DOWNSAMPLE = true;
 params.DOWNSAMPLE_RATE = 2.;
 
+%use GPU CUDA or CPU
+params.USE_GPU_CUDA = false;
+
 %intermediate image format
-params.IMAGE_EXT = 'tif';
+params.IMAGE_EXT = 'h5';
 
 %Use intermediate tmp files in color-correction and normalization
 params.USE_TMP_FILES = true;
+params.tempDir = '/mp/nvmeof0/tmp';
 
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
-regparams.FIXED_RUN = 4;
 
 %When calculating RANSAC, do we consider all possible affine warps (true)
 %Or just translation+scale (false)
@@ -65,9 +70,6 @@ regparams.REGISTERCHANNELS_SC = {'summedNorm'};%'ch00','ch01SHIFT','ch02SHIFT','
 %In the Murray et al 2015 this was {'Lectin', 'DAPI', 'Data}
 %Which channels do we warp?
 regparams.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'}; 
-
-regparams.INPUTDIR = '/home/kajita/works/ExSeqProcessing-merge/3_normalization';
-regparams.OUTPUTDIR = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
 
 regparams.OVERLAP = .1; %used to be 10%
 
@@ -97,9 +99,6 @@ regparams.EMPTY_TILE_THRESHOLD = .95;
 % disparities (ie <20%)
 params.SCALE_PYRAMID = [5];
 
-%temp dir in normalization
-params.tempDir = 'tmp';
-
 %batch_processing parameters
 params.WAIT_SEC = 10;
 
@@ -127,12 +126,7 @@ params.TPS3DWARP_MAX_RUN_JOBS = 4;
 params.TPS3DWARP_MAX_POOL_SIZE = 10;
 params.TPS3DWARP_MAX_THREADS = 10;
 
-params.APPLY3DTPS_MAX_RUN_JOBS = 2;
-params.APPLY3DTPS_MAX_POOL_SIZE = 10;
-params.APPLY3DTPS_MAX_THREADS = 10;
-
-params.PUNCTA_MAX_RUN_JOBS = 1;
-params.PUNCTA_MAX_POOL_SIZE = 4;
+params.PUNCTA_MAX_POOL_SIZE = 1;
 
 %cluster environment
 params.NUM_LOGICAL_CORES = 40;

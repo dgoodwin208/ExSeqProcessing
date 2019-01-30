@@ -23,7 +23,7 @@ all: $(TARGET)
 
 nearestinterp_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a
 	mex -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread
-	@cp -a $@ ../
+	@cp -a $@ ../bin/
 
 %.o: %.cpp $(SRCS)
 	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)

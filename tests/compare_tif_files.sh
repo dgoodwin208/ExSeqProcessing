@@ -19,6 +19,8 @@ for((i=0; i<${#F1[*]}; i++)); do
 
     if [ "$ret" != "" ]; then
         echo "different!"
+        echo "F1: ${F1[$i]}"
+        echo "F2: ${F2[$i]}"
         exit 1
     fi
 done
