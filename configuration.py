@@ -1,6 +1,3 @@
-from tkinter import *
-from tkinter import ttk
-from tkinter import filedialog
 import subprocess
 import re
 
@@ -37,6 +34,9 @@ config_map = read_matlab_parameters()
 print(config_map)
 
 try:
+	from tkinter import *
+	from tkinter import ttk
+	from tkinter import filedialog
 	root = Tk()
 
 	basename = StringVar(root, value=config_map.get("params.FILE_BASENAME"))

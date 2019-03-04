@@ -12,9 +12,12 @@ function success_code = colorcorrection_3D_cuda()
         postfix_list{end+1} = num2str(run_num);
     end
 
-    max_jobs = length(run_num_list);
+    max_run_jobs = concurrency_size_in_colorcorrection_3D_cuda();
+    max_pool_size = 0;
+
+    num_jobs = length(run_num_list);
 
     [success_code, output] = batch_process('color-correction', @colorcorrection_3D_poc, run_num_list, arg_list, ...
-        postfix_list, params.COLOR_CORRECTION_MAX_POOL_SIZE, max_jobs, params.COLOR_CORRECTION_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+        postfix_list, max_pool_size, num_jobs, max_run_jobs, params.WAIT_SEC, params.logDir);
 end
 

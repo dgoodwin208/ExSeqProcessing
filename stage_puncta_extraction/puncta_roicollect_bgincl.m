@@ -68,6 +68,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     puncta_set_cell_bgmean{exp_idx} = pixels_per_rnd_bgmean;
     puncta_set_cell_bgmedian{exp_idx} = pixels_per_rnd_bgmedian;
 end
+img_mask = [];
 
 disp('reducing processed puncta')
 puncta_set_median = zeros(params.NUM_ROUNDS,params.NUM_CHANNELS,num_insitu_transcripts);

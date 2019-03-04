@@ -34,11 +34,12 @@ end
 min_total = min(total_summed_norm(:));
 total_summed_norm_scaled = total_summed_norm - min_total;
 total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
+total_summed_norm = [];
 save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
 
 %Note the original size of the data before upscaling to isotropic voxels
 data = total_summed_norm_scaled;
-
+total_summed_norm_scaled = [];
 img_origsize = data;
 
 %This requires knowledge of the Z and XY resolutions
@@ -66,7 +67,7 @@ end
 
 %Now use the punctafeinder's dog filtering approach
 stack_in = data_interpolated;
-stack_orig = stack_in;
+%stack_orig = stack_in;
 stack_in = dog_filter(stack_in);
 
 %Thresholding is still the most sensitive part of this pipeline, so results
@@ -76,21 +77,26 @@ fgnd_mask = stack_in>thresh(1);
 
 %Ignore the background via thresholding and calculate watershed
 stack_in(~fgnd_mask) = 0; % thresholded using dog background
+fgnd_mask = [];
 neg_masked_image = -int32(stack_in);
 neg_masked_image(~stack_in) = inf;
 
 tic
 fprintf('Watershed running...');
 L = uint32(watershed(neg_masked_image));
+neg_masked_image = [];
 L(~stack_in) = 0;
+stack_in = [];
 fprintf('DONE\n');
 toc
 
 %Now we downsample the output of the watershed, L, back into the original
 %space
 data = double(L); %interpolation needs double or single, L is integer
+L = [];
 data_interp = interp1(query_pts_interp,squeeze(data(1,1,:)),indices_orig);
 data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
+data_interp = [];
 
 for y = 1:size(data,1)
     for x = 1:size(data,2)
@@ -103,13 +109,16 @@ for y = 1:size(data,1)
         fprintf('\t%i/%i rows processed\n',y,size(data,1));
     end
 end
+data = [];
 L_origsize = uint32(data_interpolated);
+data_interpolated = [];
 
 %Extract the puncta from the watershed output (no longer interpolated)
 %params.PUNCTA_SIZE_THRESHOLD = 30; 
 %params.PUNCTA_SIZE_MAX = 2000; 
 
 candidate_puncta= regionprops(L_origsize,img_origsize, 'WeightedCentroid', 'PixelIdxList');
+L_origsize = [];
 indices_to_remove = [];
 for i= 1:length(candidate_puncta)
     if size(candidate_puncta(i).PixelIdxList,1)< params.PUNCTA_SIZE_THRESHOLD ...
@@ -124,6 +133,7 @@ good_indices(indices_to_remove) = [];
 filtered_puncta = candidate_puncta(good_indices);
 
 output_img = zeros(size(img_origsize));
+img_origsize = [];
 
 for i= 1:length(filtered_puncta)
     %Set the pixel value to somethign non-zero
@@ -132,7 +142,7 @@ end
 
 filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
 save3DImage_uint16(output_img,filename_out);
-        
+output_img = [];
 
 %Creating the list of voxels and centroids per round is entirely
 %unnecessary, but keeping it in for now for easy of processing

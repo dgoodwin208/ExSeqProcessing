@@ -24,8 +24,9 @@ for rnd_indx = 1:params.NUM_ROUNDS
     end
 end
 
+max_pool_size = concurrency_size_in_downsample_all();
 
-parpool(params.DOWN_SAMPLING_MAX_POOL_SIZE);
+parpool(max_pool_size);
 
 parfor rnd_indx = 1:params.NUM_ROUNDS
     for c = 1:params.NUM_CHANNELS

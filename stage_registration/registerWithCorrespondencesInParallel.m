@@ -16,41 +16,40 @@ function success_code = registerWithCorrespondencesInParallel()
         postfix_list{end+1} = num2str(run_num);
     end
 
-    max_jobs = length(run_num_list);
+    num_jobs = length(run_num_list);
+
+    [calc_corr_max_run_jobs,reg_corr_max_run_jobs,reg_corr_max_pool_size] = concurrency_size_in_registerWithCorrespondencesInParallel();
+    calc_corr_max_pool_size = 0;
 
     disp('===== calc-correspondences');
     [success_code, output] = batch_process('reg2-calcCorr', @calcCorrespondences, run_num_list, arg_list_1, ...
-        postfix_list, params.REG_CORR_MAX_POOL_SIZE, max_jobs, params.REG_CORR_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+        postfix_list, calc_corr_max_pool_size, num_jobs, calc_corr_max_run_jobs, params.WAIT_SEC, params.logDir);
     if ~success_code
         disp('batch job has failed.')
         disp('when out-of-memory has occurred, please check parameters below in loadParameters.m.');
-        disp('params.REG_CORR_MAX_RUN_JOBS');
-        disp('params.REG_CORR_MAX_POOL_SIZE');
-        disp('params.REG_CORR_MAX_THREADS');
+        disp('params.CALC_CORR_MAX_RUN_JOBS');
         return;
     end
 
     disp('===== register-with-correspondences');
     [success_code, output] = batch_process('reg2-regWCorr', @registerWithCorrespondences, run_num_list, arg_list_2, ...
-        postfix_list, params.REG_CORR_MAX_POOL_SIZE, max_jobs, params.REG_CORR_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+        postfix_list, reg_corr_max_pool_size, num_jobs, reg_corr_max_run_jobs, params.WAIT_SEC, params.logDir);
     if ~success_code
         disp('batch job has failed.')
         disp('when out-of-memory has occurred, please check parameters below in loadParameters.m.');
         disp('params.REG_CORR_MAX_RUN_JOBS');
         disp('params.REG_CORR_MAX_POOL_SIZE');
-        disp('params.REG_CORR_MAX_THREADS');
         return;
     end
 
     disp('===== register-with-downsampled-correspondences');
     [success_code, output] = batch_process('reg2-regWDownSampleCorr', @registerWithCorrespondences, run_num_list, arg_list_3, ...
-        postfix_list, params.REG_CORR_MAX_POOL_SIZE, max_jobs, params.REG_CORR_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+        postfix_list, reg_corr_max_pool_size, num_jobs, reg_corr_max_run_jobs, params.WAIT_SEC, params.logDir);
     if ~success_code
         disp('batch job has failed.')
         disp('when out-of-memory has occurred, please check parameters below in loadParameters.m.');
         disp('params.REG_CORR_MAX_RUN_JOBS');
         disp('params.REG_CORR_MAX_POOL_SIZE');
-        disp('params.REG_CORR_MAX_THREADS');
         return;
     end
 

@@ -27,7 +27,9 @@ end
 fprintf('CalcCorrespondencesInCUDA ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
 
 
-maxNumCompThreads(params.REG_CORR_MAX_THREADS);
+if isfield(params,'CALC_CORR_MAX_THREADS')
+    maxNumCompThreads(params.CALC_CORR_MAX_THREADS);
+end
 
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...

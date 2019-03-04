@@ -102,6 +102,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     end
     
     
+    num_keys = 0;
     tile_counter = 0; %create a manual counter to be used in the data partitioning
     
     for x_idx=1:regparams.COLS_DESC
@@ -211,6 +212,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
             final_indices(indices_to_remove)=0;
             keys = keys(logical(final_indices));
             fprintf('Removed %i/%i keypoints from the excess overlapping region\n',length(indices_to_remove),length(keys));
+            num_keys = num_keys + length(keys);
                         
             save(outputfilename,'keys','ymin','xmin','ymax','xmax', 'params','run_num',...
                 'ymin_overlap','ymax_overlap', 'xmin_overlap','xmax_overlap');
@@ -220,6 +222,10 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
             
         end
     end
+
+    nkeys_filename = fullfile(params.registeredImagesDir,sprintf('nkeys_%sround%03d_%s.mat',...
+        filename_root,run_num,regChan));
+    save(nkeys_filename,'num_keys');
 end
 
 catch ME

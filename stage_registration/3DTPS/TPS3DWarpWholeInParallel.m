@@ -9,6 +9,8 @@
 
 function [ in1D_total, out1D_total ] = TPS3DWarpWholeInParallel(keyM,keyF, inDim, outDim)
 
+loadParameters;
+
 %How many slices to make of tileM when calculating the warp? (this is a
 %heuristic based on figuring out fastest speed. Doing it without the breaks
 %takes indefinitely long)
@@ -37,6 +39,10 @@ tic;
 % The fundamental calculation code is his, but his code was restructured to fit the SWITCH context
 % Specifically, the chunking we had to do to handle how big the SWITCH datasets are
 %======================================================
+%if isfield(params,'TPS3DWARP_MAX_THREADS')
+%    fprintf('set threads\n');
+%    maxNumCompThreads(params.TPS3DWARP_MAX_THREADS);
+%end
 npnts = size(keyM,1);
 K = zeros(npnts, npnts);
 for rr = 1:npnts
@@ -53,15 +59,15 @@ K = sqrt(K); %
 P = [ones(npnts,1), keyM]; %nX4 for 3D
 % Calculate L matrix
 L = [ [K, P];[P', zeros(4,4)] ]; %zeros(4,4) for 3D
+K = [];
+P = [];
 param = pinv(L) * [keyF; zeros(4,3)]; %zeros(4,3) for 3D
+L = [];
 %======================================================
 % done
 %======================================================
 toc;
 %
-
-out1D_total = zeros(prod(outDim),1); out1d_ptr = 1;
-in1D_total = zeros(prod(inDim),1); in1d_ptr = 1;
 
 grid_idx = zeros(total_iterations, 3);
 i = 1;
@@ -83,7 +89,14 @@ in1D = cell(1, total_iterations);
 disp('start parfor loop in TPS3DWarpWhole')
 tic;
 
+if isfield(params,'TPS3DWARP_MAX_THREADS')
+    worker_max_threads = params.TPS3DWARP_MAX_THREADS;
+else
+    worker_max_threads = 'automatic';
+end
 parfor idx = 1:total_iterations
+    maxNumCompThreads(worker_max_threads);
+
     y = grid_idx(idx, 1);
     x = grid_idx(idx, 2);
     z = grid_idx(idx, 3);
@@ -104,11 +117,15 @@ parfor idx = 1:total_iterations
     pntsNum=size(inputgrid,1); 
     K = zeros(pntsNum, npnts);
 
-    K = pdist2(inputgrid, keyM, 'euclidean'); %|R| for 3D
+    %K = pdist2(inputgrid, keyM, 'euclidean'); %|R| for 3D
+    K = sqrt(bsxfun(@plus,sum(inputgrid.^2,2),sum(keyM.^2,2)') - 2*(inputgrid*keyM')); %|R| for 3D
 
     P = [ones(pntsNum,1), inputgrid(:,1), inputgrid(:,2), inputgrid(:,3)]; % quaternion of inputgrid
     L = [K, P];
+    K = [];
+    P = [];
     outputgrid = L * param;
+    L = [];
 
     outputgrid(:,1)=round(outputgrid(:,1)*10^3)*10^-3;
     outputgrid(:,2)=round(outputgrid(:,2)*10^3)*10^-3;
@@ -155,6 +172,9 @@ end
 
 disp('finished parfor loop in TPS3DWarpWhole')
 toc;
+
+out1D_total = zeros(prod(outDim),1); out1d_ptr = 1;
+in1D_total = zeros(prod(inDim),1); in1d_ptr = 1;
 
 % gather each result from workers
 for idx = 1:total_iterations

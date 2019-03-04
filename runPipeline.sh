@@ -1,15 +1,17 @@
 #!/bin/bash
 
 function trap_exit_handle() {
+    echo "(exit_handle)"
     if [ -n "${lock_pid_file}" ]; then
         rm ${lock_pid_file}
     fi
 
     print_stage_status
     if [ -n "${PID_PERF_PROFILE}" ]; then
+        echo "(kill perf-profile)"
         kill -- -${PID_PERF_PROFILE}
     fi
-    kill 0
+#    kill 0
 }
 
 trap trap_exit_handle EXIT
@@ -205,6 +207,7 @@ NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
 REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
 PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
 BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
+LOCK_DIR=/tmp/.exseqproc
 
 
 PERF_PROFILE=false
@@ -442,6 +445,13 @@ if [ ! -d "${LOG_DIR}" ]; then
     mkdir "${LOG_DIR}"
 fi
 
+if [ ! -d "${LOCK_DIR}" ]; then
+    echo "No lock dir."
+    echo "mkdir ${LOCK_DIR}"
+    mkdir "${LOCK_DIR}"
+    chmod 777 "${LOCK_DIR}"
+fi
+
 # exchange paths to absolute paths
 DECONVOLUTION_DIR=$(cd "${DECONVOLUTION_DIR}" && pwd)
 COLOR_CORRECTION_DIR=$(cd "${COLOR_CORRECTION_DIR}" && pwd)
@@ -531,21 +541,21 @@ echo "  Temporal storage       :  "$(if [ "${USE_TMP_FILES}" = "true" ]; then ec
 echo
 echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
-echo
-echo "========================================================================="
-echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
-echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
-
-printf "  down-sampling          :  --,%2d,--\n" ${DOWN_SAMPLING_MAX_POOL_SIZE}
-printf "  color-correction       :  %2d,%2d,%2d\n" ${COLOR_CORRECTION_MAX_RUN_JOBS} ${COLOR_CORRECTION_MAX_POOL_SIZE} ${COLOR_CORRECTION_MAX_THREADS}
-printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
-printf "  registration           :\n"
-printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
-printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
-printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
-printf "    TPS3D-warp           :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
-printf "  puncta-extraction      :  --,%2d,--\n" ${PUNCTA_MAX_POOL_SIZE}
-echo
+#echo
+#echo "========================================================================="
+#echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
+#echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
+#
+#printf "  down-sampling          :  --,%2d,--\n" ${DOWN_SAMPLING_MAX_POOL_SIZE}
+#printf "  color-correction       :  %2d,%2d,%2d\n" ${COLOR_CORRECTION_MAX_RUN_JOBS} ${COLOR_CORRECTION_MAX_POOL_SIZE} ${COLOR_CORRECTION_MAX_THREADS}
+#printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
+#printf "  registration           :\n"
+#printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
+#printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
+#printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
+#printf "    TPS3D-warp           :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
+#printf "  puncta-extraction      :  --,%2d,--\n" ${PUNCTA_MAX_POOL_SIZE}
+#echo
 echo "#########################################################################"
 echo
 
@@ -572,7 +582,7 @@ echo
 
 if [ "${PERF_PROFILE}" = "true" ]; then
     set -m
-    ./tests/perf-profile/get-stats.sh &
+    ./tests/perf-profile/get-stats.sh $$ &
     set +m
     PID_PERF_PROFILE=$!
     sleep 1
@@ -609,23 +619,25 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.USE_TMP_FILES\) *= *.*;#\1 = ${USE_TMP_FILES};#" \
     -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
-    -e "s#\(params.DOWN_SAMPLING_MAX_POOL_SIZE\) *= *.*;#\1 = ${DOWN_SAMPLING_MAX_POOL_SIZE};#" \
-    -e "s#\(params.COLOR_CORRECTION_MAX_RUN_JOBS\) *= *.*;#\1 = ${COLOR_CORRECTION_MAX_RUN_JOBS};#" \
-    -e "s#\(params.NORM_MAX_RUN_JOBS\) *= *.*;#\1 = ${NORMALIZATION_MAX_RUN_JOBS};#" \
-    -e "s#\(params.CALC_DESC_MAX_RUN_JOBS\) *= *.*;#\1 = ${CALC_DESC_MAX_RUN_JOBS};#" \
-    -e "s#\(params.REG_CORR_MAX_RUN_JOBS\) *= *.*;#\1 = ${REG_CORR_MAX_RUN_JOBS};#" \
-    -e "s#\(params.AFFINE_MAX_RUN_JOBS\) *= *.*;#\1 = ${AFFINE_MAX_RUN_JOBS};#" \
-    -e "s#\(params.TPS3DWARP_MAX_RUN_JOBS\) *= *.*;#\1 = ${TPS3DWARP_MAX_RUN_JOBS};#" \
-    -e "s#\(params.PUNCTA_MAX_POOL_SIZE\) *= *.*;#\1 = ${PUNCTA_MAX_POOL_SIZE};#" \
     -i.back \
     ./loadParameters.m
+#    -e "s#\(params.DOWN_SAMPLING_MAX_POOL_SIZE\) *= *.*;#\1 = ${DOWN_SAMPLING_MAX_POOL_SIZE};#" \
+#    -e "s#\(params.COLOR_CORRECTION_MAX_RUN_JOBS\) *= *.*;#\1 = ${COLOR_CORRECTION_MAX_RUN_JOBS};#" \
+#    -e "s#\(params.NORM_MAX_RUN_JOBS\) *= *.*;#\1 = ${NORMALIZATION_MAX_RUN_JOBS};#" \
+#    -e "s#\(params.CALC_DESC_MAX_RUN_JOBS\) *= *.*;#\1 = ${CALC_DESC_MAX_RUN_JOBS};#" \
+#    -e "s#\(params.REG_CORR_MAX_RUN_JOBS\) *= *.*;#\1 = ${REG_CORR_MAX_RUN_JOBS};#" \
+#    -e "s#\(params.AFFINE_MAX_RUN_JOBS\) *= *.*;#\1 = ${AFFINE_MAX_RUN_JOBS};#" \
+#    -e "s#\(params.TPS3DWARP_MAX_RUN_JOBS\) *= *.*;#\1 = ${TPS3DWARP_MAX_RUN_JOBS};#" \
+#    -e "s#\(params.PUNCTA_MAX_POOL_SIZE\) *= *.*;#\1 = ${PUNCTA_MAX_POOL_SIZE};#" \
+#    -i.back \
+#    ./loadParameters.m
 
 ###### clean up flocks
 
 echo "===== clean up lockfiles"
 echo "remove a lockfile of no running proc"
 num_running_procs=0
-for p in $(find /tmp/.exseqproc/ -name run.*.lock)
+for p in $(find ${LOCK_DIR}/ -name run.*.lock)
 do
     lock_pid=$(cat $p)
     if [ -z "$(find /proc -maxdepth 1 -name ${lock_pid})" ]; then
@@ -639,7 +651,7 @@ done
 if [ "${num_running_procs}" -eq 0 ]; then
     echo
     echo "remove unused lockfiles"
-    for l in $(find /tmp/.exseqproc/ -name *.lock)
+    for l in $(find ${LOCK_DIR}/ -name *.lock)
     do
         echo "rm $l"
         rm -f $l
@@ -647,7 +659,7 @@ if [ "${num_running_procs}" -eq 0 ]; then
 fi
 echo
 
-lock_pid_file="/tmp/.exseqproc/run.$$.lock"
+lock_pid_file="${LOCK_DIR}/run.$$.lock"
 echo "$$" > ${lock_pid_file}
 
 echo "===== set a lockfile"

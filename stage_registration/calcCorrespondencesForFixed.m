@@ -114,14 +114,14 @@ for x_idx=1:regparams.COLS_TFORM
 
         clear tile_img_fixed_nopadding;
 
-        tile_img_fixed = imgFixed_total(ymin_fixed_overlap:ymax_fixed_overlap, xmin_fixed_overlap:xmax_fixed_overlap,:);
+        %tile_img_fixed = imgFixed_total(ymin_fixed_overlap:ymax_fixed_overlap, xmin_fixed_overlap:xmax_fixed_overlap,:);
 
         %if checkIfTileEmpty(tile_img_fixed,regparams.EMPTY_TILE_THRESHOLD)
         %    disp('Sees the fixed tile to be empty');
         %    continue
         %end
 
-        clear tile_img_fixed;
+        %clear tile_img_fixed;
 
         %FindRelevant keys not only finds the total keypoints, but converts
         %those keypoints to the scope of the specific tile, not the global

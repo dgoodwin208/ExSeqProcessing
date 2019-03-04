@@ -2,7 +2,10 @@ function colorcorrection_3D_poc(roundnum)
 
 loadParameters;
 
-maxNumCompThreads(params.COLOR_CORRECTION_MAX_THREADS);
+
+if isfield(params,'COLOR_CORRECTION_MAX_THREADS')
+    maxNumCompThreads(params.COLOR_CORRECTION_MAX_THREADS);
+end
 
 if params.DO_DOWNSAMPLE
     FILEROOT_NAME = sprintf('%s-downsample',params.FILE_BASENAME);

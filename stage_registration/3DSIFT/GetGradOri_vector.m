@@ -29,9 +29,9 @@ if (precomp_grads.count(r,c,s) > 0)
     precomp_grads.count(r,c,s) = precomp_grads.count(r,c,s) + 1; %increment counter
     % retrieve the data
     mag = precomp_grads.mag(r,c,s);
-    vect = precomp_grads.vect(r,c,s, 1, 3);
-    yy = precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1);
-    ix = precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1);
+    vect = squeeze(precomp_grads.vect(r,c,s, 1, 1:3));
+    yy = squeeze(precomp_grads.yy(r,c,s,1:sift_params.Tessel_thresh, 1));
+    ix = squeeze(precomp_grads.ix(r,c,s,1:sift_params.Tessel_thresh, 1));
     return
 end
 

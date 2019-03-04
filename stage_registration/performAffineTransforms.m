@@ -4,20 +4,24 @@ loadParameters;
 
 if do_downsample
     filename_root = sprintf('%s-downsample',params.FILE_BASENAME);
+    image_type = 'DOWNSAMPLE';
 else
     filename_root = sprintf('%s',params.FILE_BASENAME);
+    image_type = 'ORIGIMAL';
 end
 
 %params.MOVING_RUN = moving_run;
 
-fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
+fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i, IMAGE TYPE: %s\n', moving_run, params.REFERENCE_ROUND_WARP,image_type);
 output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
 end
 
-maxNumCompThreads(params.AFFINE_MAX_THREADS);
+if isfield(params,'AFFINE_MAX_THREADS')
+    maxNumCompThreads(params.AFFINE_MAX_THREADS);
+end
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
@@ -104,7 +108,13 @@ ch_list = regparams.CHANNELS;
 inputdir = params.normalizedImagesDir;
 outputdir = params.registeredImagesDir;
 image_ext = params.IMAGE_EXT;
+if isfield(params,'AFFINE_MAX_THREADS')
+    worker_max_threads = params.AFFINE_MAX_THREADS;
+else
+    worker_max_threads = 'automatic';
+end
 parfor c = 1:length(ch_list)
+    maxNumCompThreads(worker_max_threads);
     %Load the data to be warped
     tic;
     data_channel = ch_list{c};

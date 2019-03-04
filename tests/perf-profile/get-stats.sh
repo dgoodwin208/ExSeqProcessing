@@ -2,6 +2,12 @@
 
 trap 'kill 0' EXIT
 
+if [ $# -ge 1 ]; then
+    WAIT_PID=$1
+else
+    WAIT_PID=
+fi
+
 INTERVAL=5
 COUNT=12
 
@@ -49,5 +55,8 @@ fi
 
 echo "now recording..."
 
-wait
-
+if [ -n "${WAIT_PID}" ]; then
+    tail --pid=${WAIT_PID} -f /dev/null
+else
+    wait
+fi

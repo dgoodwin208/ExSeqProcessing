@@ -18,9 +18,10 @@ function success_code = normalization()
     end
 
     max_jobs = length(run_num_list);
+    max_pool_size = 0;
 
     [success_code, output] = batch_process('normalization', @normalizeImage, run_num_list, arg_list, ...
-        postfix_list, params.NORM_MAX_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+        postfix_list, max_pool_size, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
 
     if ~params.DO_DOWNSAMPLE
         return
@@ -32,6 +33,6 @@ function success_code = normalization()
     end
 
     [success_code, output] = batch_process('normalization-downsample', @normalizeImage, run_num_list, arg_list_downsample, ...
-        postfix_list, params.NORM_MAX_POOL_SIZE, max_jobs, params.NORM_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
+        postfix_list, max_pool_size, max_jobs, params.NORM_DOWNSAMPLE_MAX_RUN_JOBS, params.WAIT_SEC, params.logDir);
 end
 

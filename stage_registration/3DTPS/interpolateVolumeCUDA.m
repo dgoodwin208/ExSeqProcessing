@@ -46,7 +46,6 @@ end
 mask2d_small_mask = [];
 
 outputImage = inputImage;
-inputImage = [];
 
 %Empirically, interp_radius of 1 creates some artifacts (mainly visible
 %around areas of high contrast). interp_radius of 2 is slower (within one order of magnitude) 
