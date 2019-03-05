@@ -8,7 +8,7 @@ function [keypoint reRun precomp_grads] = Create_Descriptor(pix, xyScale, tScale
 % x, y, and z - the location of the center of the keypoint where a descriptor is requested
 %
 % Outputs:
-% keypoint - the descriptor, varies in size depending on values in LoadParams.m
+% keypoint - the descriptor, varies in size depending on values of sift_params in loadParameters.m
 % reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
 % descriptive enough for a good keypoint
 %

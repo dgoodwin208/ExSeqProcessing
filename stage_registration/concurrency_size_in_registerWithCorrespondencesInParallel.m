@@ -26,7 +26,6 @@ function varargout = concurrency_size_in_registerWithCorrespondencesInParallel()
 
     if ~isfield(params,'CALC_CORR_MAX_RUN_JOBS')
         size_dbl = 8;
-        LoadParams;
         num_elms_ivec = sift_params.IndexSize^3 * sift_params.nFaces;
         size_ivec_int8 = num_elms_ivec * 1;
         size_ivec_dbl = num_elms_ivec * size_dbl;

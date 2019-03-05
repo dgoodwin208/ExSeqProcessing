@@ -15,7 +15,7 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
-LoadParams;
+loadParameters;
 sift_params.pix_size = size(img);
 keys = cell(size(keypts,1),1);
 i = 0;
