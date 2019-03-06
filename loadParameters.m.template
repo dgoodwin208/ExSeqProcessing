@@ -71,22 +71,9 @@ regparams.REGISTERCHANNELS_SC = {'summedNorm'};%'ch00','ch01SHIFT','ch02SHIFT','
 %Which channels do we warp?
 regparams.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'}; 
 
-regparams.OVERLAP = .1; %used to be 10%
-
 %Set a threshold for maximum displacement distance?
 %(not appropriate for all datasets. Distance in pixels, -1 for ignore this)
 regparams.DISTANCEQUANTILECUTOFF = .95;
-
-%how many subsections to calculate the descriptors?
-regparams.ROWS_DESC = 1;
-regparams.COLS_DESC = 1;
-%over how many subsections to calculate the piecewise affine transforms?
-regparams.ROWS_TFORM = 1;
-regparams.COLS_TFORM = 1;
-
-%if more than this percentage of pixels doesn't change in a tile
-%consider it an empty tile and skip it
-regparams.EMPTY_TILE_THRESHOLD = .95;
 
 % SCALE_PYRAMID: Create a set of blurs to create a "scale pyramid", or in 
 % non-computervision speak:
