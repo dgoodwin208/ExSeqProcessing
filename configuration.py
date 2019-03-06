@@ -1,7 +1,24 @@
 import subprocess
 import re
+import sys
 
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
+if sys.version_info.major != 2 and sys.version_info.major != 3:
+    raise NotImplementedError("not suppport Python version: %d" % sys.version_info.major);
+
+
+def input_param(message):
+    if sys.version_info.major == 2:
+        ret = raw_input(message)
+    elif sys.version_info.major == 3:
+        ret = input(message)
+
+    return ret;
 
 
 def browse_button(tag):
@@ -131,15 +148,15 @@ except:
 
 	path=subprocess.check_output('read -e -p "Enter path for input files: " var ; echo $var',shell=True).rstrip()
 	folder_path["input"] = path.decode('utf-8')
-	ret = input("Enter the basename (default: %s): " % basename)
+	ret = input_param("Enter the basename (default: %s): " % basename)
 	if ret != "":
 		basename = ret
-	ret = input("Enter the channels (default: %s): " % channels)
+	ret = input_param("Enter the channels (default: %s): " % channels)
 	if ret != "":
 		channels = ret
 	path=subprocess.check_output('read -e -p "Enter path for output files: " var ; echo $var',shell=True).rstrip()
 	folder_path["output"] = path.decode('utf-8')
-	ret = input("Enter 1 for tiff, Enter 2 for hdf5 (default: %s): " % fmt)
+	ret = input_param("Enter 1 for tiff, Enter 2 for hdf5 (default: %s): " % fmt)
 	if ret != "":
 		fmt_id = int(ret)
 		if(fmt_id == 1):
@@ -156,13 +173,13 @@ except:
 		folder_path["log"] = path
 	else:
 		folder_path["log"] = log
-	ret = input("Enter the total number of rounds (default: %d): " % total_rounds)
+	ret = input_param("Enter the total number of rounds (default: %d): " % total_rounds)
 	if ret != "":
 		total_rounds = int(ret)
-	ret = input("Enter the reference round number (default: %d): " % ref_round)
+	ret = input_param("Enter the reference round number (default: %d): " % ref_round)
 	if ret != "":
 		ref_round = int(ret)
-	ret = input("Enter 1 for GPU-CUDA acceleration, Enter 2 for CPU acceleration (default: %s): " % accel)
+	ret = input_param("Enter 1 for GPU-CUDA acceleration, Enter 2 for CPU acceleration (default: %s): " % accel)
 	if ret != "":
 		accel_id = int(ret)
 		if(accel_id == 1):
