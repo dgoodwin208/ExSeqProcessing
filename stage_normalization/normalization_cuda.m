@@ -13,7 +13,7 @@ function success_code = normalization_cuda()
     postfix_list = {};
     run_num_list = 1:params.NUM_ROUNDS;
     for run_num = run_num_list
-        arg_list{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,params.FILE_BASENAME,params.SHIFT_CHAN_STRS, run_num};
+        arg_list{end+1} = {run_num,false};
         postfix_list{end+1} = num2str(run_num);
     end
 
@@ -31,7 +31,7 @@ function success_code = normalization_cuda()
 
     arg_list_downsample = {};
     for run_num = run_num_list
-        arg_list_downsample{end+1} = {params.colorCorrectionImagesDir,params.normalizedImagesDir,[params.FILE_BASENAME,'-downsample'],params.SHIFT_CHAN_STRS, run_num};
+        arg_list_downsample{end+1} = {run_num,true};
     end
 
     [success_code, output] = batch_process('normalization-downsample', @normalizeImage_cuda, run_num_list, arg_list_downsample, ...

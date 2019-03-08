@@ -187,6 +187,9 @@ fi
 if [ -z "$LOG_DIR" ]; then
     LOG_DIR="logs"
 fi
+if [ -z "$TEMP_DIR" ]; then
+    TEMP_DIR="tmp"
+fi
 
 
 echo "INPUT_FILE_PATH: $INPUT_FILE_PATH"
@@ -343,12 +346,6 @@ done
 
 shift $((OPTIND - 1))
 
-
-if [ -n "${TEMP_DIR}" ]; then
-    USE_TMP_FILES=true
-else
-    USE_TMP_FILES=false
-fi
 
 if [ $ACCELERATION = 'gpu_cuda' ]; then
     USE_GPU_CUDA=true
@@ -537,7 +534,7 @@ echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
 echo "  base calling           :  ${BASE_CALLING_DIR}"
 echo
-echo "  Temporal storage       :  "$(if [ "${USE_TMP_FILES}" = "true" ]; then echo ${TEMP_DIR}; else echo "(on-memory)";fi)
+echo "  Temporal storage       :  ${TEMP_DIR}"
 echo
 echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
@@ -616,7 +613,6 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -e "s#\(params.USE_GPU_CUDA\) *= *.*;#\1 = ${USE_GPU_CUDA};#" \
-    -e "s#\(params.USE_TMP_FILES\) *= *.*;#\1 = ${USE_TMP_FILES};#" \
     -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
     -i.back \

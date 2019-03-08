@@ -48,7 +48,9 @@ global folder_path
 folder_path = {"input":"", "output":"", "temp":"", "log":""}
 
 config_map = read_matlab_parameters()
-print(config_map)
+if "params.tempDir" not in config_map:
+    config_map["params.tempDir"] = "tmp";
+#print(config_map)
 
 try:
 	from tkinter import *

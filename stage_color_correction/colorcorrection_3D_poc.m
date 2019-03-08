@@ -85,7 +85,7 @@ tic;
 fprintf('quantilenorm_simple starting\n');
 
 %data_cols_norm = quantilenorm_simple(data_cols);
-use_tmp_files = params.USE_TMP_FILES;
+use_tmp_files = true;
 basename = sprintf('%s_round%03d',FILEROOT_NAME,roundnum);
 ret = ...
     quantilenorm_cuda(params.tempDir,basename, { ...
@@ -94,37 +94,26 @@ ret = ...
         fullfile(DIRECTORY,sprintf('%s_round%.03i_ch02.%s'     ,FILEROOT_NAME,roundnum,params.IMAGE_EXT)), ...
         fullfile(OUTPUTDIR,sprintf('%s_round%.03i_ch03SHIFT.%s',FILEROOT_NAME,roundnum,params.IMAGE_EXT)) }, use_tmp_files);
 
-if use_tmp_files
-    chan1_norm_fname = ret{1};
-    chan2_norm_fname = ret{2};
-    chan3_norm_fname = ret{3};
-    chan4_norm_fname = ret{4};
-    image_size = ret{5};
-    image_height = image_size(1);
-    image_width  = image_size(2);
-%    num_slices   = image_size(3);
+chan1_norm_fname = ret{1};
+chan2_norm_fname = ret{2};
+chan3_norm_fname = ret{3};
+chan4_norm_fname = ret{4};
+image_size = ret{5};
+image_height = image_size(1);
+image_width  = image_size(2);
+%num_slices   = image_size(3);
 
-    chan1_norm = load_binary_image(params.tempDir,chan1_norm_fname,image_height,image_width);
-    chan2_norm = load_binary_image(params.tempDir,chan2_norm_fname,image_height,image_width);
-    chan3_norm = load_binary_image(params.tempDir,chan3_norm_fname,image_height,image_width);
-    chan4_norm = load_binary_image(params.tempDir,chan4_norm_fname,image_height,image_width);
+chan1_norm = load_binary_image(params.tempDir,chan1_norm_fname,image_height,image_width);
+chan2_norm = load_binary_image(params.tempDir,chan2_norm_fname,image_height,image_width);
+chan3_norm = load_binary_image(params.tempDir,chan3_norm_fname,image_height,image_width);
+chan4_norm = load_binary_image(params.tempDir,chan4_norm_fname,image_height,image_width);
 
-    tic;
-    delete(fullfile(params.tempDir,chan1_norm_fname), ...
-           fullfile(params.tempDir,chan2_norm_fname), ...
-           fullfile(params.tempDir,chan3_norm_fname), ...
-           fullfile(params.tempDir,chan4_norm_fname));
-    disp('delete the rest temp files'); toc;
-else
-    mat_norm = ret{1};
-    image_size = ret{2};
-
-    chan1_norm = reshape(mat_norm(:,1),image_size);
-    chan2_norm = reshape(mat_norm(:,2),image_size);
-    chan3_norm = reshape(mat_norm(:,3),image_size);
-    chan4_norm = reshape(mat_norm(:,4),image_size);
-    clear mat_norm
-end
+tic;
+delete(fullfile(params.tempDir,chan1_norm_fname), ...
+       fullfile(params.tempDir,chan2_norm_fname), ...
+       fullfile(params.tempDir,chan3_norm_fname), ...
+       fullfile(params.tempDir,chan4_norm_fname));
+disp('delete the rest temp files'); toc;
 fprintf('quantilenorm end\n');
 toc
 
@@ -159,15 +148,3 @@ save(fullfile(OUTPUTDIR,sprintf('%s_round%.03i_colorcalcs.mat',FILEROOT_NAME,rou
 
 end
 
-function image = load_binary_image(loaddir,image_fname,image_height,image_width)
-    fid = fopen(fullfile(loaddir,image_fname),'r');
-    count = 1;
-    while ~feof(fid)
-        sub_image = fread(fid,[image_height,image_width],'float');
-        if ~isempty(sub_image)
-            image(:,:,count) = double(sub_image);
-            count = count + 1;
-        end
-    end
-    fclose(fid);
-end
