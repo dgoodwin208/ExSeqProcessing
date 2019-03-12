@@ -21,8 +21,7 @@ end
 filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
     filename_root,fixed_run,regparams.CHANNELS{1},params.IMAGE_EXT ));
 
-imgFixed_total = load3DImage_uint16(filename);
-img_total_size = size(imgFixed_total);
+img_total_size = image_dimensions(filename);
 ymin = 1;
 ymax = img_total_size(1);
 xmin = 1;

@@ -28,6 +28,11 @@ if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
 end
+
+if isfield(params,'REG_CORR_MAX_THREADS')
+    maxNumCompThreads(params.REG_CORR_MAX_THREADS);
+end
+
 %Load a full-res image 
 filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));

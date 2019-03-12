@@ -33,10 +33,10 @@ function varargout = concurrency_size_in_registerWithCorrespondencesInParallel()
         % 6 (double) + 1 (uint8, ivec)
         size_elem_struct = 176;
         size_struct_keys = 6*(size_dbl+size_elem_struct) + size_ivec_int8+size_elem_struct;
-        % 2 image size (downsmpl,double) + 4 # keypoints[3] (double) + 8 # keypoints (double) +
-        % 4 # keypoints * ivecs (double) + 5 # keypoints x size(struct keys) + # keypoints^2 (double)
-        expected_mem_usage = 2*downsample_imgsize_dbl + (4*3*size_dbl+8*size_dbl+4*size_ivec_dbl+5*size_struct_keys)*avr_num_keys/1024/1024 + ...
-            avr_num_keys^2*size_dbl/1024/1024 + params.MATLAB_PROC_CONTEXT;
+        % 4 # keypoints[3] (double) + 4 # keypoints (double) +
+        % 4 # keypoints * ivecs (double) + 3 # keypoints x size(struct keys) + 1.9 # keypoints^2 (double)
+        expected_mem_usage = (4*3*size_dbl+4*size_dbl+4*size_ivec_dbl+3*size_struct_keys)*avr_num_keys/1024/1024 + ...
+            1.9*avr_num_keys^2*size_dbl/1024/1024 + params.MATLAB_PROC_CONTEXT;
         calc_corr_max_run_jobs = min(num_rounds,uint32(availablemem / expected_mem_usage));
 
         fprintf('## CALC_CORR: expected memory usage / job = %7.1f MiB\n',expected_mem_usage);
@@ -63,11 +63,17 @@ function varargout = concurrency_size_in_registerWithCorrespondencesInParallel()
     end
     if ~isfield(params,'REG_CORR_MAX_RUN_JOBS')
         % main proc + worker memory usage:
-        % 13 image size (orig,double) + 1 image size (orig,int8) + 6 # keypoints[3] (double)
+        % 3 image siz (orig,double) + 1 image size (orig,uint16) + 5 # keypoints[3] (double) + 1 # keypoints[4] (double)
+        % 13 image size (orig,double) + 1 image size (orig,int8) + 5 # keypoints[3] (double) + 1 # keypoints[4] (double)
         size_dbl = 8;
         imgsize_int8 = imgsize_dbl / 8;
-        expected_mem_usage = 13*imgsize_dbl + 1*imgsize_int8 + 6*3*size_dbl*avr_num_keys/1024/1024 + ...
-            params.MATLAB_PROC_CONTEXT*(reg_corr_max_pool_size+1);
+        if strcmp(regparams.REGISTRATION_TYPE,'affine')
+            expected_mem_usage = 3*imgsize_dbl + (5*3+1*4)*size_dbl*avr_num_keys/1024/1024 + ...
+                params.MATLAB_PROC_CONTEXT*(reg_corr_max_pool_size+1);
+        else
+            expected_mem_usage = 13*imgsize_dbl + 1*imgsize_int8 + (5*3+1*4)*size_dbl*avr_num_keys/1024/1024 + ...
+                params.MATLAB_PROC_CONTEXT*(reg_corr_max_pool_size+1);
+        end
         reg_corr_max_run_jobs = min(num_rounds,uint32(availablemem / expected_mem_usage));
 
         fprintf('## REG_CORR: expected memory usage / job = %7.1f MiB\n',expected_mem_usage);

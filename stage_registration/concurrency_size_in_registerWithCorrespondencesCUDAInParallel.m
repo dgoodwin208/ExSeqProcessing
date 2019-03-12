@@ -33,10 +33,9 @@ function varargout = concurrency_size_in_registerWithCorrespondencesCUDAInParall
         % 6 (double) + 1 (uint8, ivec)
         size_elem_struct = 176;
         size_struct_keys = 6*(size_dbl+size_elem_struct) + size_ivec_int8+size_elem_struct;
-        % 2 image size (downsmpl,double) + 2 # keypoints x struct keys + 9 # keypoints[3] (double) + 
-        % 1 # keypoints (double) + 4 # keypoints x ivecs (uint8) + 4 # keypoints x ivecs (double) +
-        % 1 # keypoints x 1000 (double)
-        expected_mem_usage = 2*downsample_imgsize_dbl + (2*size_struct_keys+9*3*size_dbl+1*size_dbl+4*size_ivec_int8+4*size_ivec_dbl+1000*size_dbl)*avr_num_keys/1024/1024 + params.MATLAB_PROC_CONTEXT;
+        % 2 # keypoints x struct keys + 6 # keypoints[3] (double) +
+        % 3 # keypoints x ivecs (uint8) + 4 # keypoints x ivecs (double) + 1 # keypoints x 1000 (double)
+        expected_mem_usage = (2*size_struct_keys+6*3*size_dbl+3*size_ivec_int8+4*size_ivec_dbl+1000*size_dbl)*avr_num_keys/1024/1024 + params.MATLAB_PROC_CONTEXT;
         calc_corr_max_run_jobs = min(num_rounds,uint32(availablemem / expected_mem_usage));
 
         fprintf('## CALC_CORR: expected memory usage / job = %7.1f MiB\n',expected_mem_usage);
@@ -62,8 +61,9 @@ function varargout = concurrency_size_in_registerWithCorrespondencesCUDAInParall
         affine_max_pool_size = params.AFFINE_MAX_POOL_SIZE;
     end
     if ~isfield(params,'AFFINE_MAX_RUN_JOBS')
-        % 2 image size (orig,double) x # channels
-        expected_mem_usage = params.MATLAB_PROC_CONTEXT + (2*imgsize_dbl+params.MATLAB_PROC_CONTEXT)*affine_max_pool_size;
+        % (2 image size (orig,double) + 1 image size (orig,uint16)) x # channels
+        imgsize_uint16 = imgsize_dbl / 4;
+        expected_mem_usage = params.MATLAB_PROC_CONTEXT + (2*imgsize_dbl+imgsize_uint16+params.MATLAB_PROC_CONTEXT)*affine_max_pool_size;
         affine_max_run_jobs = min(2*num_rounds,uint32(availablemem / expected_mem_usage));
         if affine_max_run_jobs < 1
             affine_max_pool_size = 1;

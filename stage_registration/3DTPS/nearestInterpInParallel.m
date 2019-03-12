@@ -13,6 +13,12 @@ function out = nearestInterpInParallel(imgw, map, maxhw )
 % Author: Fitzgerald J Archibald
 % Date: 23-Apr-09
 
+if isfield(params,'TPS3DWARP_MAX_THREADS')
+    worker_max_threads = params.TPS3DWARP_MAX_THREADS;
+else
+    worker_max_threads = 'automatic';
+end
+
 outH  = size(imgw,1);
 outW  = size(imgw,2);
 outD  = size(imgw,3);
@@ -70,6 +76,8 @@ if isempty(yi_arr) == false
     disp(['stepsize=' num2str(stepsize) ', yi_range=' num2str(yi_range)])
 
     parfor i = 1:stepsize
+        maxNumCompThreads(worker_max_threads);
+
         ix_start = (i-1)*yi_range+1;
         ix_end   = i*yi_range;
         if i == stepsize

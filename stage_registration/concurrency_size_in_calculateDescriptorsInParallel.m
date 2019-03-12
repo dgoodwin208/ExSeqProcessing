@@ -8,9 +8,9 @@ function max_run_jobs = concurrency_size_in_calculateDescriptorsInParallel()
         max_availablemem = availablememory();
         availablemem = max_availablemem * params.USABLE_MEM_RATE;
         if params.USE_GPU_CUDA
-            expected_mem_usage = 11 * downsample_imgsize_dbl + params.MATLAB_PROC_CONTEXT;
+            expected_mem_usage = 10 * downsample_imgsize_dbl + params.MATLAB_PROC_CONTEXT;
         else
-            expected_mem_usage = 25 * downsample_imgsize_dbl + params.MATLAB_PROC_CONTEXT;
+            expected_mem_usage = 12 * downsample_imgsize_dbl + params.MATLAB_PROC_CONTEXT;
         end
         max_run_jobs = min(params.NUM_ROUNDS,uint32(availablemem / expected_mem_usage));
 

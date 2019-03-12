@@ -22,29 +22,22 @@ else
     filename_root = sprintf('%s_',params.FILE_BASENAME);
 end
 
+if isfield(params,'CALC_CORR_MAX_THREADS')
+    maxNumCompThreads(params.CALC_CORR_MAX_THREADS);
+end
+
 fprintf('CalcCorrespondences ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
-
-
-filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
-    filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
-
-imgFixed_total = load3DImage_uint16(filename);
 
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
     filename_root,moving_run,regparams.CHANNELS{1},params.IMAGE_EXT));
 
-try
-    imgMoving_total = load3DImage_uint16(filename);
-catch
-    fprintf('ERROR: Cannot load file. TODO: add skippable rounds\n');
-    return;
-end
 
+img_total_size = image_dimensions(filename);
 ymin = 1;
-ymax = size(imgMoving_total,1);
+ymax = img_total_size(1);
 xmin = 1;
-xmax = size(imgMoving_total,2);
+xmax = img_total_size(2);
 
 
 %------------------------------Load Descriptors -------------------------%

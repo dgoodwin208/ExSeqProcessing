@@ -106,8 +106,6 @@ function check_number() {
     return 0
 }
 
-export TZ=America/New_York
-
 
 REPORTING_DIR=logs/imgs
 
@@ -116,27 +114,6 @@ if [ -f ./loadParameters.m ]; then
 else
     PARAMETERS_FILE=./loadParameters.m.template
 fi
-
-DOWN_SAMPLING_MAX_POOL_SIZE=$(sed -ne "s#params.DOWN_SAMPLING_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_MAX_RUN_JOBS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_MAX_POOL_SIZE=$(sed -ne "s#params.COLOR_CORRECTION_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_MAX_THREADS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_MAX_RUN_JOBS=$(sed -ne "s#params.NORM_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_MAX_POOL_SIZE=$(sed -ne "s#params.NORM_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_MAX_THREADS=0
-CALC_DESC_MAX_RUN_JOBS=$(sed -ne "s#params.CALC_DESC_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-CALC_DESC_MAX_POOL_SIZE=$(sed -ne "s#params.CALC_DESC_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-CALC_DESC_MAX_THREADS=0
-REG_CORR_MAX_RUN_JOBS=$(sed -ne "s#params.REG_CORR_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-REG_CORR_MAX_POOL_SIZE=$(sed -ne "s#params.REG_CORR_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-REG_CORR_MAX_THREADS=$(sed -ne "s#params.REG_CORR_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-AFFINE_MAX_RUN_JOBS=$(sed -ne "s#params.AFFINE_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-AFFINE_MAX_POOL_SIZE=$(sed -ne "s#params.AFFINE_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-AFFINE_MAX_THREADS=$(sed -ne "s#params.AFFINE_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-TPS3DWARP_MAX_RUN_JOBS=$(sed -ne "s#params.TPS3DWARP_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-TPS3DWARP_MAX_POOL_SIZE=$(sed -ne "s#params.TPS3DWARP_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
 
 
 
@@ -879,6 +856,12 @@ if [ "${PERF_PROFILE}" = "true" ]; then
     sleep 1
     tests/perf-profile/summarize-stat-logs.sh logs
 fi
+
+echo "========================================================================="
+echo "Concurrency size summary"
+echo
+grep -e '## .*JOBS' -e '## .*POOL' -e '## .*THREADS' ${LOG_DIR}/matlab*.log | sed -e 's/## /  params./' -e 's/.*-\([a-z]*\)\.log/\1/'
+echo
 
 print_stage_status
 

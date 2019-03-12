@@ -25,6 +25,10 @@ function calculateDescriptors(run_num)
 
 loadParameters;
 
+if isfield(params,'CALC_DESC_MAX_THREADS')
+    maxNumCompThreads(params.CALC_DESC_MAX_THREADS);
+end
+
 if params.DO_DOWNSAMPLE
     filename_root = sprintf('%s-downsample_',params.FILE_BASENAME);
 else
