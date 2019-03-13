@@ -16,7 +16,9 @@ if [ ! -d $LOGDIR ]; then
   mkdir $LOGDIR
 fi
 
-lsblk > $LOGDIR/lsblk.txt
+if [ -z "$(type lsblk 2>&1 | grep 'not found')" ]; then
+    lsblk > $LOGDIR/lsblk.txt
+fi
 
 TOPLOG=$LOGDIR/top-$(date '+%Y%m%d').log
 VMLOG=$LOGDIR/vmstat-$(date '+%Y%m%d').log
@@ -31,14 +33,20 @@ top -bc -d $INTERVAL >> $TOPLOG &
 
 vmstat -wt -n $INTERVAL > $VMLOG &
 
-iostat -xdt $INTERVAL > $IOLOG &
+if [ -z "$(type iostat 2>&1 | grep 'not found')" ]; then
+    iostat -xdt $INTERVAL > $IOLOG &
+fi
 
-while :; do
-    echo "datetime: $(date '+%Y/%m/%d %H:%M:%S')"
-    nfsiostat -adps $INTERVAL $COUNT
-done > $NFSIOLOG &
+if [ -z "$(type nfsiostat 2>&1 | grep 'not found')" ]; then
+    while :; do
+        echo "datetime: $(date '+%Y/%m/%d %H:%M:%S')"
+        nfsiostat -adps $INTERVAL $COUNT
+    done > $NFSIOLOG &
+fi
 
-nvidia-smi --query-gpu=timestamp,name,index,pstate,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed --format=csv,nounits -l 1 -f $GPULOG &
+if [ -z "$(type nvidia-smi 2>&1 | grep 'not found')" ]; then
+    nvidia-smi --query-gpu=timestamp,name,index,pstate,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed --format=csv,nounits -l 1 -f $GPULOG &
+fi
 
 TOPCOLS=0
 while [ $TOPCOLS -eq 0 ]; do

@@ -77,18 +77,12 @@ function usage() {
     echo "  -N              # of rounds"
     echo "  -b              file basename"
     echo "  -B              reference round"
-    echo "  -d              deconvolution image directory"
-    echo "  -C              color correction image directory"
-    echo "  -n              normalization image directory"
-    echo "  -r              registration image directory"
-    echo "  -p              puncta extraction directory"
-    echo "  -t              base calling directory"
     echo "  -i              reporting directory"
     echo "  -T              temp directory (empty '' does not use temp dir)"
     echo "  -L              log directory"
     echo "  -A              acceleration (CPU or GPU_CUDA)"
     echo "  -F              file format of intermediate images (tiff or hdf5)"
-    echo "  -J              set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
+    echo "  -J              change additional parameters; A=1,B=2,C=\'c\'"
     echo "  -P              mode to get performance profile"
     echo "  -e              execution stages;  exclusively use for skip stages"
     echo "  -s              skip stages;  setup-cluster,color-correction,normalization,registration,puncta-extraction,base-calling"
@@ -234,12 +228,6 @@ if [ "$FORMAT" = "hdf5" ]; then
 elif [ "$FORMAT" = "tiff" ]; then
     IMAGE_EXT=tif
 fi
-
-echo "additional params setting"
-for((i=0; i<${#PARAM_KEYS[*]}; i++))
-do
-    echo ${PARAM_KEYS[i]} = ${PARAM_VALS[i]}
-done
 
 
 ###### check temporary files
@@ -411,8 +399,24 @@ echo "  Temporal storage       :  ${TEMP_DIR}"
 echo
 echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
-echo "#########################################################################"
 echo
+echo "Additional parameter changes"
+for((i=0; i<${#PARAM_KEYS[*]}; i++))
+do
+    param=$(sed -ne "s#.*${PARAM_KEYS[i]} *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+    if [ -n "${param}" ]; then
+        echo -n "${PARAM_KEYS[i]} : ${param} --> ${PARAM_VALS[i]}"
+        if [ "${param}" = "${PARAM_VALS[i]}" ]; then
+            echo " [UNCHANGE]"
+        else
+            echo
+        fi
+    else
+        unset PARAM_KEYS[i]
+    fi
+done
+echo
+echo "#########################################################################"
 
 if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
     echo "OK? (y/n)"
@@ -436,6 +440,9 @@ echo
 
 
 if [ "${PERF_PROFILE}" = "true" ]; then
+    if [ -n "$(type jupyter 2>&1 | grep 'not found')" ]; then
+        echo "WARNING: command 'jupyter' is not installed. a notebook of performance profile will be not created."
+    fi
     set -m
     ./tests/perf-profile/get-stats.sh $$ &
     set +m
@@ -472,6 +479,13 @@ sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
     -i.back \
     ./loadParameters.m
+
+for((i=0; i<${#PARAM_KEYS[*]}; i++))
+do
+    if [ -n "${PARAM_KEYS[i]}" ]; then
+        sed -e "s#\(${PARAM_KEYS[i]}\) *= *.*;#\1 = ${PARAM_VALS[i]};#" -i ./loadParameters.m
+    fi
+done
 
 ###### clean up flocks
 

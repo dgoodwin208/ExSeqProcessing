@@ -275,8 +275,9 @@ channels = ','.join([ "'"+x+"'" for x in channels.split(',') ])
 
 
 config_lines[config_linenum["params.INPUT_FILE_PATH"]] = "params.INPUT_FILE_PATH = '%s';" % folder_path["input"]
-config_lines[config_linenum["params.logDir"]] = "params.logDir = '%s';" % folder_path["log"]
 config_lines[config_linenum["params.tempDir"]] = "params.tempDir = '%s';" % folder_path["temp"]
+config_lines[config_linenum["params.logDir"]] = "params.logDir = '%s';" % folder_path["log"]
+config_lines[config_linenum["params.reportingDir"]] = "params.reportingDir = '%s/imgs';" % folder_path["log"]
 config_lines[config_linenum["params.deconvolutionImagesDir"]] = "params.deconvolutionImagesDir = '%s/1_deconvolution';" % folder_path["output"]
 config_lines[config_linenum["params.colorCorrectionImagesDir"]] = "params.colorCorrectionImagesDir = '%s/2_color-correction';" % folder_path["output"]
 config_lines[config_linenum["params.normalizedImagesDir"]] = "params.normalizedImagesDir = '%s/3_normalization';" % folder_path["output"]
