@@ -78,7 +78,7 @@ function usage() {
     echo "  -b              file basename"
     echo "  -B              reference round"
     echo "  -i              reporting directory"
-    echo "  -T              temp directory (empty '' does not use temp dir)"
+    echo "  -T              temp directory"
     echo "  -L              log directory"
     echo "  -A              acceleration (CPU or GPU_CUDA)"
     echo "  -F              file format of intermediate images (tiff or hdf5)"
@@ -86,7 +86,7 @@ function usage() {
     echo "  -P              mode to get performance profile"
     echo "  -e              execution stages;  exclusively use for skip stages"
     echo "  -s              skip stages;  setup-cluster,color-correction,normalization,registration,puncta-extraction,base-calling"
-    echo "  -y              continue interactive questions"
+    echo "  -y              continue interactive questions as 'yes'"
     echo "  -h              print help"
     exit
 }

@@ -23,7 +23,6 @@
 //#define DEBUG_NUMERICAL
 //#define DEBUG_OUTPUT_MATRIX
 //#define DEBUG_DIST_CHECK
-//#define DEBUG_NO_THREADING
 
 
 namespace cudautils {
