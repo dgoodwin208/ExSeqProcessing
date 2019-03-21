@@ -803,6 +803,129 @@ TEST_F(SiftTest, SiftSimple5Test) {
     free(fv_centers);
 }
 
+TEST_F(SiftTest, SiftSimple7Test) {
+
+    int hw_num_gpus = cudautils::get_gpu_num();
+    if (hw_num_gpus < 3) {
+        printf("*** WARNING: This test case requires more than 3 gpus.\n");
+        return;
+    }
+
+    const unsigned int x_size = 1024;
+    const unsigned int y_size = 1024;
+    const unsigned int z_size = 126;
+    const unsigned int keypoint_num = 100;
+    unsigned int num_gpus = 1;
+    unsigned int num_streams = 1;
+    long image_size = x_size * y_size * z_size;
+    const unsigned int x_sub_size = x_size;
+    const unsigned int dx = x_sub_size;
+    unsigned int y_sub_size = y_size / num_gpus;
+    unsigned int dy = y_sub_size;
+    cudautils::SiftParams sift_params;
+    double* fv_centers = sift_defaults(&sift_params, x_size,
+            y_size, z_size, keypoint_num);
+
+    const unsigned int orihist_radius = static_cast<unsigned int>(sift_params.xyScale * 3.0);
+    const unsigned int xyiradius = static_cast<unsigned int>(1.414 * sift_params.xyScale * sift_params.MagFactor * (sift_params.IndexSize + 1) / 2.0);
+    unsigned int dw = (num_gpus == 1 ? 0 : std::max(orihist_radius, xyiradius) + 1);
+
+    cudautils::Sub2Ind sub2ind(x_size, y_size, z_size);
+
+    // create img
+    logger_->info("start to generate image");
+    thrust::host_vector<double> image(image_size);
+    thrust::generate(image.begin(), image.end(), rand);
+    logger_->info("end of image generation");
+
+    // create map
+    logger_->info("start to generate map");
+    thrust::host_vector<int8_t> map(image_size);
+    thrust::fill_n(map.begin(), image_size, 1.0);
+    logger_->info("end of map generation");
+
+    // select this point for processing
+    logger_->info("start to generate keypoints");
+    thrust::minstd_rand rng;
+    thrust::uniform_int_distribution<int> dist_x(0,x_size-1);
+    thrust::uniform_int_distribution<int> dist_y(0,y_size-1);
+    thrust::uniform_int_distribution<int> dist_z(0,z_size-1);
+    for (int i = 0; i < keypoint_num; i++) {
+        int key_x = dist_x(rng);
+        int key_y = dist_y(rng);
+        int key_z = dist_z(rng);
+        map[sub2ind(key_x,key_y,key_z)] = 0.0;
+    }
+    logger_->info("end of keypoints generation");
+
+    // pattern 1
+    std::shared_ptr<cudautils::Sift> ni1 =
+        std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
+                x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
+                num_streams, sift_params, fv_centers);
+
+    cudautils::CudaTaskExecutor executor1(num_gpus, num_streams, ni1);
+
+    ni1->setImage(thrust::raw_pointer_cast(image.data()));
+    ni1->setMap(thrust::raw_pointer_cast(map.data()));
+
+    executor1.run();
+
+    cudautils::Keypoint_store keystore1;
+    ni1->getKeystore(&keystore1);
+
+
+    // pattern 2
+    num_gpus = 3;
+    num_streams = 20;
+    y_sub_size = (y_size + num_gpus - 1) / num_gpus;
+    dy = 256;
+    dw = (num_gpus == 1 ? 0 : std::max(orihist_radius, xyiradius) + 1);
+
+    std::shared_ptr<cudautils::Sift> ni2 =
+        std::make_shared<cudautils::Sift>(x_size, y_size, z_size,
+                x_sub_size, y_sub_size, dx, dy, dw, num_gpus,
+                num_streams, sift_params, fv_centers);
+
+    cudautils::CudaTaskExecutor executor2(num_gpus, num_streams, ni2);
+
+    ni2->setImage(thrust::raw_pointer_cast(image.data()));
+    ni2->setMap(thrust::raw_pointer_cast(map.data()));
+
+    executor2.run();
+
+    cudautils::Keypoint_store keystore2;
+    ni2->getKeystore(&keystore2);
+
+    ASSERT_EQ(keystore1.len, keystore2.len);
+    for (int i=0; i < keystore1.len; i++) {
+//        logger_->info("key[{}]", i);
+        cudautils::Keypoint key1 = keystore1.buf[i];
+        cudautils::Keypoint key2;
+        bool is_found = false;
+        for (int k=0; k < keystore2.len; k++) {
+            key2 = keystore2.buf[k];
+            if (key1.x == key2.x && key1.y == key2.y && key1.z == key2.z) {
+                is_found = true;
+                break;
+            }
+        }
+        if (! is_found) {
+            FAIL();
+        }
+
+        ASSERT_EQ(key1.xyScale, key2.xyScale);
+        ASSERT_EQ(key1.tScale, key2.tScale);
+
+        for (int j=0; j < sift_params.descriptor_len; j++) {
+//            logger_->info("key[{}] ivec[{}]  {}, {}", i, j, key1.ivec[j], key2.ivec[j]);
+            ASSERT_EQ((int) key1.ivec[j], (int) key2.ivec[j]);
+        }
+    }
+
+    free(fv_centers);
+}
+
 TEST_F(SiftTest, SiftSimple6Test) {
 
     const unsigned int x_size = 2000;

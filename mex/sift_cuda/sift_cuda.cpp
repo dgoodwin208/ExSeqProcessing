@@ -261,7 +261,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
 
         // size to assign each GPU
         unsigned int x_sub_size = x_size;
-        unsigned int y_sub_size = (unsigned int) y_size / num_gpus;
+        unsigned int y_sub_size = (unsigned int) (y_size + num_gpus - 1) / num_gpus;
 
         // stride must be <= GPU data size
         if (x_substream_stride > x_sub_size) {
