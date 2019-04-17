@@ -24,7 +24,8 @@ for rnd_indx = 1:params.NUM_ROUNDS
     end
 end
 
-max_pool_size = concurrency_size_in_downsample_all();
+conditions = conditions_for_concurrency();
+max_pool_size = concurrency_size_in_downsample_all(conditions);
 
 parpool(max_pool_size);
 

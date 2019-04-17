@@ -21,6 +21,9 @@ y_grid = splitArrayIndices(inDim,1, TARGET_CHUNK_SIZE);
 x_grid = splitArrayIndices(inDim,2, TARGET_CHUNK_SIZE);
 z_grid = splitArrayIndices(inDim,3, ZRES);
 
+y_grid(end) = y_grid(end) + 1;
+x_grid(end) = x_grid(end) + 1;
+z_grid(end) = z_grid(end) + 1;
 
 
 %Preallocate the resulting output to avoid memory issues
@@ -102,7 +105,7 @@ parfor idx = 1:total_iterations
     z = grid_idx(idx, 3);
 
     %note the switch of X and Y designations here. 
-    [X, Y, Z] = meshgrid( y_grid(y):y_grid(y+1), x_grid(x):x_grid(x+1), z_grid(z):z_grid(z+1) );
+    [X, Y, Z] = meshgrid( y_grid(y):(y_grid(y+1)-1), x_grid(x):(x_grid(x+1)-1), z_grid(z):(z_grid(z+1)-1) );
     inputgrid = [X(:)'; Y(:)'; Z(:)']';
  
 
@@ -115,17 +118,12 @@ parfor idx = 1:total_iterations
     % Specifically, the chunking we had to do to handle how big the SWITCH datasets are
     %======================================================
     pntsNum=size(inputgrid,1); 
-    K = zeros(pntsNum, npnts);
 
-    %K = pdist2(inputgrid, keyM, 'euclidean'); %|R| for 3D
-    K = sqrt(bsxfun(@plus,sum(inputgrid.^2,2),sum(keyM.^2,2)') - 2*(inputgrid*keyM')); %|R| for 3D
-
+    K = pdist2(inputgrid, keyM, 'euclidean'); %|R| for 3D
     P = [ones(pntsNum,1), inputgrid(:,1), inputgrid(:,2), inputgrid(:,3)]; % quaternion of inputgrid
-    L = [K, P];
+    outputgrid = K * param(1:npnts,:) + P * param((end-3):end,:);
     K = [];
     P = [];
-    outputgrid = L * param;
-    L = [];
 
     outputgrid(:,1)=round(outputgrid(:,1)*10^3)*10^-3;
     outputgrid(:,2)=round(outputgrid(:,2)*10^3)*10^-3;

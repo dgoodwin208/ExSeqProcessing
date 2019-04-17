@@ -67,6 +67,8 @@ else
     [ValidIdxs,I] = find(in1D_total>0);
     in1D_total = in1D_total(ValidIdxs);
     out1D_total = out1D_total(ValidIdxs);
+    ValidIdxs = [];
+    I = [];
 end
 
 

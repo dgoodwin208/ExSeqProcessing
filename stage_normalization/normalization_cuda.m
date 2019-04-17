@@ -17,7 +17,8 @@ function success_code = normalization_cuda()
         postfix_list{end+1} = num2str(run_num);
     end
 
-    [max_run_jobs,max_run_jobs_downsampled] = concurrency_size_in_normalization_cuda();
+    conditions = conditions_for_concurrency();
+    [max_run_jobs,max_run_jobs_downsampled] = concurrency_size_in_normalization_cuda(conditions);
     max_pool_size = 0;
 
     num_jobs = length(run_num_list);

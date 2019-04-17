@@ -28,8 +28,8 @@ function success_code = registerWithCorrespondencesCUDAInParallel()
 
     num_jobs = length(run_num_list);
 
-    [calc_corr_max_run_jobs,affine_max_run_jobs,affine_max_pool_size,tps3dwarp_max_run_jobs,tps3dwarp_max_pool_size] = ...
-        concurrency_size_in_registerWithCorrespondencesCUDAInParallel();
+    conditions = conditions_for_concurrency();
+    [calc_corr_max_run_jobs,affine_max_run_jobs,affine_max_pool_size] = concurrency_size_in_registerWithCorrespondencesCUDAInParallel(conditions);
     calc_corr_max_pool_size = 0;
 
     disp('===== calc-correspondences-in-cuda');
@@ -61,6 +61,9 @@ function success_code = registerWithCorrespondencesCUDAInParallel()
         fprintf('Ending the registration after the affine\n');
         return;
     end
+
+    conditions = conditions_for_concurrency();
+    [tps3dwarp_max_run_jobs,tps3dwarp_max_pool_size] = concurrency_size_in_TPS3DWarping(conditions);
 
     disp('===== TPS3D-warping');
     [success_code, output] = batch_process('reg2-TPS3DWarp', @TPS3DWarping, run_num_list_orig_and_downsample, arg_list_orig_and_downsample, ...

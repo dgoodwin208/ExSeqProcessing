@@ -18,7 +18,8 @@ function success_code = registerWithCorrespondencesInParallel()
 
     num_jobs = length(run_num_list);
 
-    [calc_corr_max_run_jobs,reg_corr_max_run_jobs,reg_corr_max_pool_size] = concurrency_size_in_registerWithCorrespondencesInParallel();
+    conditions = conditions_for_concurrency();
+    [calc_corr_max_run_jobs,reg_corr_max_run_jobs,reg_corr_max_pool_size] = concurrency_size_in_registerWithCorrespondencesInParallel(conditions);
     calc_corr_max_pool_size = 0;
 
     disp('===== calc-correspondences');

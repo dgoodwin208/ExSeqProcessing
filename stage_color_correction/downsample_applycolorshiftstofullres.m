@@ -6,7 +6,9 @@ if ~params.DO_DOWNSAMPLE
     return;
 end
 
-max_pool_size = concurrency_size_in_downsample_apply();
+t_downsample_apply = tic;
+conditions = conditions_for_concurrency();
+max_pool_size = concurrency_size_in_downsample_apply(conditions);
 
 parpool(max_pool_size);
 
@@ -22,7 +24,7 @@ cd(params.colorCorrectionImagesDir);
 
 %params = params;
 %clear all;
-for rnd_indx = 1:params.NUM_ROUNDS
+parfor rnd_indx = 1:params.NUM_ROUNDS
     
     chan1_inname = fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{1},IMAGE_EXT));
     
@@ -72,6 +74,7 @@ for rnd_indx = 1:params.NUM_ROUNDS
     
     
 end
+toc(t_downsample_apply);
 
 cd('..');
 

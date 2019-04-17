@@ -12,7 +12,8 @@ function success_code = colorcorrection_3D_cuda()
         postfix_list{end+1} = num2str(run_num);
     end
 
-    max_run_jobs = concurrency_size_in_colorcorrection_3D_cuda();
+    conditions = conditions_for_concurrency();
+    max_run_jobs = concurrency_size_in_colorcorrection_3D_cuda(conditions);
     max_pool_size = 0;
 
     num_jobs = length(run_num_list);
