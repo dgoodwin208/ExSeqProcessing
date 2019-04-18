@@ -111,11 +111,21 @@ if [ ! -f ./loadParameters.m ]; then
     echo "No 'loadParameters.m' in ExSeqProcessing MATLAB. Copy from a template file"
     cp -a ./loadParameters.m{.template,}
     python configuration.py
+    if [ $? -ne 0 ]; then
+        echo
+        echo "Canceled."
+        exit
+    fi
 fi
 
 if [ $# -gt 0 ]; then
     if [ $1 = "--configure" ]; then
         python configuration.py
+        if [ $? -ne 0 ]; then
+            echo
+            echo "Canceled."
+            exit
+        fi
     fi
 fi
 

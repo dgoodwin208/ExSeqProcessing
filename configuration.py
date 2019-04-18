@@ -80,7 +80,11 @@ try:
     from tkinter import ttk
     from tkinter import filedialog
     root = Tk()
+    is_TK_ready = True
+except:
+    is_TK_ready = False
 
+if is_TK_ready:
     input_file_path = StringVar(root, config_map.get("params.INPUT_FILE_PATH"))
     output_path = StringVar(root, config_map.get("OUTPUT_PATH"))
     temp = StringVar(root, config_map.get("params.tempDir"))
@@ -199,7 +203,7 @@ try:
     ref_round = ref_round.get()
 
 
-except:
+else:
     print("No display connected, fill the below details to form configuration file: ")
 
     input_file_path = config_map.get("params.INPUT_FILE_PATH")
