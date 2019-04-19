@@ -73,7 +73,8 @@ function lowercase() {
 
 function usage() {
     echo "Usage: $0 [OPTIONS]"
-    echo "  --configure     Configure using GUI"
+    echo "  --configure     configure using GUI/CUI"
+    echo "  --auto-config   set parameters from input images"
     echo "  -N              # of rounds"
     echo "  -b              file basename"
     echo "  -B              reference round"
@@ -118,16 +119,19 @@ if [ ! -f ./loadParameters.m ]; then
     fi
 fi
 
-if [ $# -gt 0 ]; then
-    if [ $1 = "--configure" ]; then
+AUTO_CONFIG=false
+for arg in "$@"; do
+    if [ "$arg" = "--configure" ]; then
         python configuration.py
         if [ $? -ne 0 ]; then
             echo
             echo "Canceled."
             exit
         fi
+    elif [ "$arg" = "--auto-config" ]; then
+        AUTO_CONFIG=true
     fi
-fi
+done
 
 PARAMETERS_FILE=./loadParameters.m
 
@@ -146,8 +150,11 @@ LOCK_DIR=/tmp/.exseqproc
 FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
 ROUND_NUM=$(sed -ne "s#params.NUM_ROUNDS *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
 REFERENCE_ROUND=$(sed -ne "s#params.REFERENCE_ROUND_WARP *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+CHAN_STRS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 USE_GPU_CUDA=$(sed -ne "s#params.USE_GPU_CUDA *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
 IMAGE_EXT=$(sed -ne "s#params.IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+
+CHAN_ARRAY=($(echo ${CHAN_STRS//\'/} | tr ',' ' '))
 
 if [ -z "$LOG_DIR" ]; then
     LOG_DIR="logs"
@@ -160,12 +167,13 @@ PERF_PROFILE=false
 
 NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
+
 ###### getopts
 
 PARAM_KEYS=()
 PARAM_VALS=()
 
-while getopts N:b:B:T:i:L:e:s:-:A:F:J:Pyh OPT
+while getopts N:b:B:I:O:T:i:L:e:s:-:A:F:J:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -181,6 +189,22 @@ do
                     echo "[ERROR] reference round is not number; ${REFERENCE_ROUND}"
                     exit
                 fi
+            ;;
+        I)  INPUT_FILE_PATH=$OPTARG
+            ;;
+        O)  OUTPUT_FILE_PATH=$OPTARG
+            basedir=$(basename ${DECONVOLUTION_DIR})
+            DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${COLOR_CORRECTION_DIR})
+            COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${NORMALIZATION_DIR})
+            NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${REGISTRATION_DIR})
+            REGISTRATION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${PUNCTA_DIR})
+            PUNCTA_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${BASE_CALLING_DIR})
+            BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/${basedir}
             ;;
         T)  TEMP_DIR=$OPTARG
             ;;
@@ -223,6 +247,33 @@ do
         -)
     esac
 done
+
+
+###### auto configuration
+
+if [ "$AUTO_CONFIG" = "true" ]; then
+    echo "===== auto configuration from input images"
+    FILE_BASENAME=$(\ls -1 ${INPUT_FILE_PATH}/*_round001_${CHAN_ARRAY[0]}.tif | grep -v downsample | xargs basename -a | head -n 1 | sed -e 's/\([^_]*\)_round.*/\1/')
+    ROUND_NUM=$(\ls -1 ${INPUT_FILE_PATH}/${FILE_BASENAME}_round*_${CHAN_ARRAY[0]}.tif | sed -e 's/.*round\([0-9]*\).*/\1/' | wc -l)
+
+    ## check if all files exist
+    for ((i=1; i<=${ROUND_NUM}; i++)); do
+        for ((j=0; j<${#CHAN_ARRAY[*]}; j++)); do
+            f=$(printf "${INPUT_FILE_PATH}/${FILE_BASENAME}_round%03d_%s.tif" $i ${CHAN_ARRAY[j]})
+            if [ ! -f "$f" ]; then
+                echo "[ERROR] Not exist file: $f"
+                exit
+            fi
+        done
+    done
+
+    ## check reference round
+    if [ "$REFERENCE_ROUND" -gt "$ROUND_NUM" ]; then
+        echo "[ERROR] REFERENCE_ROUND (${REFERENCE_ROUND}) is not included in # of rounds (${ROUND_NUM})"
+        exit
+    fi
+fi
+
 
 shift $((OPTIND - 1))
 
@@ -381,7 +432,7 @@ echo "  Running on host        :  "`hostname`
 echo "  # of rounds            :  ${ROUND_NUM}"
 echo "  file basename          :  ${FILE_BASENAME}"
 echo "  reference round        :  ${REFERENCE_ROUND}"
-#echo "  channels               :  ${CHANNELS}"
+echo "  channels               :  ${CHAN_STRS}"
 #echo "  shift channels         :  ${SHIFT_CHANNELS}"
 echo "  use GPU_CUDA           :  ${USE_GPU_CUDA}"
 echo "  intermediate image ext :  ${IMAGE_EXT}"
@@ -398,6 +449,7 @@ do
 done
 echo
 echo "Directories"
+echo "  input images           :  ${INPUT_FILE_PATH}"
 echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
 echo "  color correction images:  ${COLOR_CORRECTION_DIR}"
 echo "  normalization images   :  ${NORMALIZATION_DIR}"
@@ -471,7 +523,8 @@ EOF
 
 ###### setup MATLAB scripts
 
-sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
+sed -e "s#\(params.INPUT_FILE_PATH\) *= *.*;#\1 = '${INPUT_FILE_PATH}';#" \
+    -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
     -e "s#\(params.colorCorrectionImagesDir\) *= *.*;#\1 = '${COLOR_CORRECTION_DIR}';#" \
     -e "s#\(params.normalizedImagesDir\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
@@ -493,7 +546,7 @@ sed -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';
 for((i=0; i<${#PARAM_KEYS[*]}; i++))
 do
     if [ -n "${PARAM_KEYS[i]}" ]; then
-        sed -e "s#\(${PARAM_KEYS[i]}\) *= *.*;#\1 = ${PARAM_VALS[i]};#" -i ./loadParameters.m
+        sed -e "s#\(${PARAM_KEYS[i]}\) *= *[^;]*;#\1 = ${PARAM_VALS[i]};#" -i ./loadParameters.m
     fi
 done
 

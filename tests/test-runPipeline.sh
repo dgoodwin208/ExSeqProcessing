@@ -8,7 +8,7 @@ fi
 
 . tests/test-helper.sh
 
-SHUNIT2_SRC_DIR=~/works/shunit2
+SHUNIT2_SRC_DIR=/mp/nas1/share/lib/shunit2
 INPUT_IMAGE_DIR=/mp/nas1/share/ExSEQ/AutoSeq2/test-data/xy01/1_deconvolution
 BASENAME="exseqauto-xy01"
 #CHANNELS="'ch00','ch01','ch02','ch03'"
@@ -37,22 +37,47 @@ oneTimeSetUp() {
     if [ -d logs ]; then
         rm -r logs
     fi
+    if [ -d test1_input ]; then
+        rm -r test1_input
+    fi
+    if [ -d no_input_tiffs ]; then
+        rm -r no_input_tiffs
+    fi
 
-    sed -i.bak \
-        -e "s#\(input_path\)=.*#\1=${INPUT_IMAGE_DIR}#" \
-        -e "s#\(basename\)=.*#\1=${BASENAME}#" \
-        -e "s#\(output_path\)=.*#\1=.#" \
-        -e "s#\(format\)=.*#\1=tif#" \
-        -e "s#\(log_path\)=.*#\1=logs#" \
-        -e "s#\(tmp_path\)=.*#\1=#" \
-        -e "s#\(total_rounds\)=.*#\1=20#" \
-        -e "s#\(reference_round\)=.*#\1=4#" \
-        -e "s#\(acceleration\)=.*#\1=cpu#" \
-        configuration.cfg
+#    sed -i.bak \
+#        -e "s#\(input_path\)=.*#\1=${INPUT_IMAGE_DIR}#" \
+#        -e "s#\(basename\)=.*#\1=${BASENAME}#" \
+#        -e "s#\(output_path\)=.*#\1=.#" \
+#        -e "s#\(format\)=.*#\1=tif#" \
+#        -e "s#\(log_path\)=.*#\1=logs#" \
+#        -e "s#\(tmp_path\)=.*#\1=#" \
+#        -e "s#\(total_rounds\)=.*#\1=20#" \
+#        -e "s#\(reference_round\)=.*#\1=4#" \
+#        -e "s#\(acceleration\)=.*#\1=cpu#" \
+#        configuration.cfg
 #        -e "s#\(channels\)=.*#\1=${CHANNELS}#" \
 #        -e "s#\(shift_channels\)=.*#\1=${SHIFT_CHANNELS}#" \
+    OUTPUT_FILE_PATH=$(pwd)
+    DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/1_deconvolution
+    COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/2_color-correction
+    NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
+    REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
+    PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
+    BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
+    REPORTING_DIR=${OUTPUT_FILE_PATH}/logs/imgs
+    LOG_DIR=${OUTPUT_FILE_PATH}/logs
 
-    sed -i.bak -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" loadParameters.m.template
+    sed -i.bak \
+        -e "s#\(params.INPUT_FILE_PATH\) *= *.*#\1 = '${INPUT_IMAGE_DIR}';#" \
+        -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
+        -e "s#\(params.colorCorrectionImagesDir\) *= *.*;#\1 = '${COLOR_CORRECTION_DIR}';#" \
+        -e "s#\(params.normalizedImagesDir\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
+        -e "s#\(params.registeredImagesDir\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
+        -e "s#\(params.punctaSubvolumeDir\) *= *.*;#\1 = '${PUNCTA_DIR}';#" \
+        -e "s#\(params.basecallingResultsDir\) *= *.*;#\1 = '${BASE_CALLING_DIR}';#" \
+        -e "s#\(params.reportingDir\) *= *.*;#\1 = '${REPORTING_DIR}';#" \
+        -e "s#\(params.logDir\) *= *.*;#\1 = '${LOG_DIR}';#" \
+        -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" loadParameters.m.template
     mkdir -p "$TEMP_DIR"
     mkdir -p "$TEMP_DIR_TMP"
 
@@ -61,7 +86,7 @@ oneTimeSetUp() {
 }
 
 oneTimeTearDown() {
-    for d in $(find . -maxdepth 1 -type d \( -name [1-6]_\* -o -name test[1-6]_\* -o -namte test_report \))
+    for d in $(find . -maxdepth 1 -type d \( -name [1-6]_\* -o -name test[1-6]_\* -o -name test_report \))
     do
         [ -e "$d" ] || continue
         rm -r "$d"
@@ -83,6 +108,7 @@ setUp() {
     if [ -f loadParameters.m ]; then
         rm loadParameters.m
     fi
+    cp loadParameters.m.template loadParameters.m
 }
 
 tearDown() {
@@ -108,6 +134,7 @@ get_values_and_keys() {
 #    Value[ 4]=$(get_value_by_key "$Log" "channels")
     Value[ 5]=$(get_value_by_key "$Log" "use GPU_CUDA")
     Value[ 6]=$(get_value_by_key "$Log" "intermediate image ext")
+    Value[26]=$(get_value_by_key "$Log" "input images")
     Value[ 7]=$(get_value_by_key "$Log" "deconvolution images")
     Value[ 8]=$(get_value_by_key "$Log" "color correction images")
     Value[ 9]=$(get_value_by_key "$Log" "normalization images")
@@ -119,11 +146,11 @@ get_values_and_keys() {
     Value[17]=$(get_value_by_key "$Log" "Log")
     Value[18]=$(get_value_by_key "$Log" "# of logical cores")
 #    Value[19]=$(get_value_by_key "$Log" "down-sampling") # not change
-    Value[20]=$(get_value_by_key "$Log" "color-correction")
-    Value[21]=$(get_value_by_key "$Log" "normalization")
-    Value[22]=$(get_value_by_key "$Log" "calc-descriptors")
-    Value[23]=$(get_value_by_key "$Log" "reg-with-corres.") # not change
-    Value[24]=$(get_value_by_key "$Log" "affine-transforms") # not change
+#    Value[20]=$(get_value_by_key "$Log" "color-correction")
+#    Value[21]=$(get_value_by_key "$Log" "normalization")
+#    Value[22]=$(get_value_by_key "$Log" "calc-descriptors")
+#    Value[23]=$(get_value_by_key "$Log" "reg-with-corres.") # not change
+#    Value[24]=$(get_value_by_key "$Log" "affine-transforms") # not change
 #    Value[25]=$(get_value_by_key "$Log" "puncta-extraction")
 
     Key[1]=$(get_key_by_value "$Log" "setup-cluster")
@@ -156,13 +183,16 @@ assert_all_default_values() {
         assertEquals "${BASENAME}" "${Value[2]}"
     fi
     if [ ! "${skips[3]}" = "skip" ]; then
-        assertEquals 4 ${Value[3]}
+        assertEquals 5 ${Value[3]}
     fi
     if [ ! "${skips[5]}" = "skip" ]; then
         assertEquals "false" "${Value[5]}"
     fi
     if [ ! "${skips[6]}" = "skip" ]; then
-        assertEquals "tif" "${Value[6]}"
+        assertEquals "h5" "${Value[6]}"
+    fi
+    if [ ! "${skips[26]}" = "skip" ]; then
+        assertEquals "${INPUT_IMAGE_DIR}" "${Value[26]}"
     fi
     if [ ! "${skips[7]}" = "skip" ]; then
         assertEquals "$PWD/1_deconvolution" "${Value[7]}"
@@ -183,7 +213,7 @@ assert_all_default_values() {
         assertEquals "$PWD/6_base-calling" "${Value[12]}"
     fi
     if [ ! "${skips[15]}" = "skip" ]; then
-        assertEquals "(on-memory)" "${Value[15]}"
+        assertEquals "${TEMP_DIR}" "${Value[15]}"
     fi
     if [ ! "${skips[16]}" = "skip" ]; then
         reporting_dir=$(cd ./logs/imgs && pwd)
@@ -257,40 +287,6 @@ testArgument001_check_all_stages_skip() {
 
     mv loadParameters.m logs $Log_dir/
 }
-
-# testArgument002_check_configuration_to_loadParameters() {
-#     local curfunc=${FUNCNAME[0]}
-#     local Log_dir=$Result_dir/$curfunc
-#     mkdir $Log_dir
-#     local Log=$Log_dir/output.log
-# 
-#     mkdir test_input_path
-#     touch test_input_path/test.tif
-# 
-#     sed -i.test.bak \
-#         -e "s#\(input_path\)=.*#\1=test_\1#" \
-#         -e "s#\(basename\)=.*#\1=test_\1#" \
-#         -e "s#\(output_path\)=.*#\1=test_\1#" \
-#         -e "s#\(format\)=.*#\1=test_\1#" \
-#         -e "s#\(log_path\)=.*#\1=test_\1#" \
-#         -e "s#\(tmp_path\)=.*#\1=test_\1#" \
-#         -e "s#\(total_rounds\)=.*#\1=test_\1#" \
-#         -e "s#\(reference_round\)=.*#\1=test_\1#" \
-#         -e "s#\(acceleration\)=.*#\1=test_\1#" \
-#         configuration.cfg
-# 
-#     set -m
-#     ./runPipeline.sh -y -e ' ' > $Log 2>&1
-#     set +m
-# 
-#     local param=$(sed -ne 's#params.deconvolutionImagesDir *= *'\(.*\)';#\1#p' ./loadParameters.m)
-#     assertEquals "test" "$param"
-# 
-# 
-#     mv loadParameters.m logs $Log_dir/
-# 
-#     \rm -r test_input_path
-# }
 
 testArgument002_default_values() {
     local curfunc=${FUNCNAME[0]}
@@ -387,157 +383,95 @@ testArgument005_set_reference_round() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument006_set_deconvolution_dir() {
+testArgument006_set_input_file_path() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
+    local input_dir=test1_input
+    mkdir $input_dir
+    touch $input_dir/${BASENAME}_round001_ch00.tif
+    touch $input_dir/${BASENAME}_round001_ch01.tif
+    touch $input_dir/${BASENAME}_round001_ch02.tif
+    touch $input_dir/${BASENAME}_round001_ch03.tif
 
     set -m
-    ./runPipeline.sh -y -e ' ' -d test1_deconv > $Log 2>&1
+    ./runPipeline.sh -y -e ' ' -I ${input_dir} > $Log 2>&1
+    set +m
+
+    get_values_and_keys
+
+    value_id=26
+    assertEquals "${input_dir}" "${Value[${value_id}]}"
+
+    # others are default values
+    assert_all_default_values skip ${value_id}
+    assert_all_stages_skip
+
+    local param=$(sed -ne 's#params.INPUT_FILE_PATH = \(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs $Log_dir/
+
+    rm -rf test1_input
+}
+
+testArgument007_set_output_path() {
+    local curfunc=${FUNCNAME[0]}
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
+    local output_dir=test1_output
+    mkdir ${output_dir}
+
+    set -m
+    ./runPipeline.sh -y -e ' ' -O ${output_dir} > $Log 2>&1
     set +m
 
     get_values_and_keys
 
     value_id=7
-    assertEquals "$PWD/test1_deconv" "${Value[${value_id}]}"
+    assertEquals "$PWD/${output_dir}/1_deconvolution" "${Value[${value_id}]}"
+    value_id=8
+    assertEquals "$PWD/${output_dir}/2_color-correction" "${Value[${value_id}]}"
+    value_id=9
+    assertEquals "$PWD/${output_dir}/3_normalization" "${Value[${value_id}]}"
+    value_id=10
+    assertEquals "$PWD/${output_dir}/4_registration" "${Value[${value_id}]}"
+    value_id=11
+    assertEquals "$PWD/${output_dir}/5_puncta-extraction" "${Value[${value_id}]}"
+    value_id=12
+    assertEquals "$PWD/${output_dir}/6_base-calling" "${Value[${value_id}]}"
 
     # others are default values
-    assert_all_default_values skip ${value_id}
+    assert_all_default_values skip 7 8 9 10 11 12
     assert_all_stages_skip
 
     local param=$(sed -ne 's#params.deconvolutionImagesDir = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=7
     assertEquals "'${Value[${value_id}]}'" "$param"
-
-    mv loadParameters.m logs $Log_dir/
-}
-
-testArgument007_set_color_correction_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -C test2_colorcor > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=8
-    assertEquals "$PWD/test2_colorcor" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
     local param=$(sed -ne 's#params.colorCorrectionImagesDir = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=8
     assertEquals "'${Value[${value_id}]}'" "$param"
-
-    mv loadParameters.m logs $Log_dir/
-}
-
-testArgument008_set_normalization_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -n test3_norm > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=9
-    assertEquals "$PWD/test3_norm" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
     local param=$(sed -ne 's#params.normalizedImagesDir = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=9
     assertEquals "'${Value[${value_id}]}'" "$param"
-
-    mv loadParameters.m logs $Log_dir/
-}
-
-testArgument009_set_registration_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -r test4_reg > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=10
-    assertEquals "$PWD/test4_reg" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
     local param=$(sed -ne 's#params.registeredImagesDir = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=10
     assertEquals "'${Value[${value_id}]}'" "$param"
-
-    mv loadParameters.m logs $Log_dir/
-}
-
-testArgument010_set_puncta_extraction_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -p test5_puncta > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=11
-    assertEquals "$PWD/test5_puncta" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
     local param=$(sed -ne 's#params.punctaSubvolumeDir = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=11
     assertEquals "'${Value[${value_id}]}'" "$param"
-
-    mv loadParameters.m logs $Log_dir/
-}
-
-testArgument011_set_set_base_calling_dir() {
-    local curfunc=${FUNCNAME[0]}
-    local Log_dir=$Result_dir/$curfunc
-    mkdir $Log_dir
-    local Log=$Log_dir/output.log
-
-    set -m
-    ./runPipeline.sh -y -e ' ' -t test6_basecalling > $Log 2>&1
-    set +m
-
-    get_values_and_keys
-
-    value_id=12
-    assertEquals "$PWD/test6_basecalling" "${Value[${value_id}]}"
-
-    # others are default values
-    assert_all_default_values skip ${value_id}
-    assert_all_stages_skip
-
     local param=$(sed -ne 's#params.basecallingResultsDir = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=12
     assertEquals "'${Value[${value_id}]}'" "$param"
 
     mv loadParameters.m logs $Log_dir/
+
+    rm -r ${output_dir}
 }
 
-testArgument012_set_reporting_dir() {
+testArgument008_set_reporting_dir() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -563,7 +497,7 @@ testArgument012_set_reporting_dir() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument013_set_temp_dir() {
+testArgument009_set_temp_dir() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -586,13 +520,10 @@ testArgument013_set_temp_dir() {
     local param=$(sed -ne 's#params.tempDir = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 
-    local param=$(sed -ne 's#params.USE_TMP_FILES = \(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "true" "$param"
-
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument014_set_log_dir() {
+testArgument010_set_log_dir() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -615,13 +546,13 @@ testArgument014_set_log_dir() {
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument015_set_cpu_usage() {
+testArgument011_set_cpu_usage() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
 
-    sed -i.test.bak -e "s#\(acceleration\)=.*#\1=gpu_cuda#" configuration.cfg
+    sed -i.test.bak -e "s#\(params.USE_GPU_CUDA\) *= *.*;#\1 = 'cpu';#" loadParameters.m
 
     set -m
     ./runPipeline.sh -y -e ' ' -A cpu > $Log 2>&1
@@ -636,18 +567,14 @@ testArgument015_set_cpu_usage() {
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
 
-    mv configuration.cfg loadParameters.m logs $Log_dir/
-
-    mv configuration.cfg{.test.bak,}
+    mv loadParameters.m{,.test.bak} logs $Log_dir/
 }
 
-testArgument016_set_gpu_cuda_usage() {
+testArgument012_set_gpu_cuda_usage() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
-
-    sed -i.test.bak -e "s#\(acceleration\)=.*#\1=cpu#" configuration.cfg
 
     set -m
     ./runPipeline.sh -y -e ' ' -A gpu_cuda > $Log 2>&1
@@ -662,18 +589,14 @@ testArgument016_set_gpu_cuda_usage() {
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
 
-    mv configuration.cfg loadParameters.m logs $Log_dir/
-
-    mv configuration.cfg{.test.bak,}
+    mv loadParameters.m logs $Log_dir/
 }
 
-testArgument017_set_tiff_usage() {
+testArgument013_set_tiff_usage() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
-
-    sed -i.test.bak -e "s#\(format\)=.*#\1=hdf5#" configuration.cfg
 
     set -m
     ./runPipeline.sh -y -e ' ' -F tiff > $Log 2>&1
@@ -691,18 +614,16 @@ testArgument017_set_tiff_usage() {
     local param=$(sed -ne 's#params.IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 
-    mv configuration.cfg loadParameters.m logs $Log_dir/
-
-    mv configuration.cfg{.test.bak,}
+    mv loadParameters.m logs $Log_dir/
 }
 
-testArgument018_set_hdf5_usage() {
+testArgument014_set_hdf5_usage() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
 
-    sed -i.test.bak -e "s#\(format\)=.*#\1=tiff#" configuration.cfg
+    sed -i.test.bak -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = 'tiff';#" loadParameters.m
 
     set -m
     ./runPipeline.sh -y -e ' ' -F hdf5 > $Log 2>&1
@@ -720,67 +641,35 @@ testArgument018_set_hdf5_usage() {
     local param=$(sed -ne 's#params.IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 
-    mv configuration.cfg loadParameters.m logs $Log_dir/
-
-    mv configuration.cfg{.test.bak,}
+    mv loadParameters.m{,.test.bak} logs $Log_dir/
 }
 
-testArgument018_set_concurrency() {
+testArgument015_set_arbitrary_params() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
 
     set -m
-    ./runPipeline.sh -y -e ' ' -J 100,101,102,103,104,105 > $Log 2>&1
+    ./runPipeline.sh -y -e ' ' -J params.WAIT_SEC=20,regparams.REGISTRATION_TYPE=\'registered\' > $Log 2>&1
     set +m
 
     get_values_and_keys
 
-#    local value=$(echo ${Value[19]} | sed -e 's/--, *\(.*\),--/\1/')
-#    assertEquals "100" "${value}"
-
-    local value=$(echo ${Value[20]} | sed -e 's/\([0-9]*\),.*/\1/')
-    assertEquals "100" "${value}"
-
-    local value=$(echo ${Value[21]} | sed -e 's/\([0-9]*\),.*/\1/')
-    assertEquals "101" "${value}"
-
-    local value=$(echo ${Value[22]} | sed -e 's/\([0-9]*\),.*/\1/')
-    assertEquals "102" "${value}"
-
-    local value=$(echo ${Value[23]} | sed -e 's/\([0-9]*\),.*/\1/')
-    assertEquals "103" "${value}"
-
-    local value=$(echo ${Value[24]} | sed -e 's/\([0-9]*\),.*/\1/')
-    assertEquals "104" "${value}"
-
     # others are default values
-    assert_all_default_values skip 20 21 22 23 24
+    assert_all_default_values
     assert_all_stages_skip
 
-#    local param=$(sed -ne 's#params.DOWN_SAMPLING_MAX_POOL_SIZE *= *\(.*\);#\1#p' ./loadParameters.m)
-#    assertEquals "100" "$param"
+    local param=$(sed -ne 's#params.WAIT_SEC *= *\(.*\);#\1#p' ./loadParameters.m)
+    assertEquals "20" "$param"
 
-    local param=$(sed -ne 's#params.COLOR_CORRECTION_MAX_RUN_JOBS *= *\(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "100" "$param"
-
-    local param=$(sed -ne 's#params.NORM_MAX_RUN_JOBS *= *\(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "101" "$param"
-
-    local param=$(sed -ne 's#params.CALC_DESC_MAX_RUN_JOBS *= *\(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "102" "$param"
-
-    local param=$(sed -ne 's#params.REG_CORR_MAX_RUN_JOBS *= *\(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "103" "$param"
-
-    local param=$(sed -ne 's#params.AFFINE_MAX_RUN_JOBS *= *\(.*\);#\1#p' ./loadParameters.m)
-    assertEquals "104" "$param"
+    local param=$(sed -ne 's#regparams.REGISTRATION_TYPE *= *\([^;]*\);.*#\1#p' ./loadParameters.m)
+    assertEquals "'registered'" "$param"
 
     mv loadParameters.m logs $Log_dir/
 }
 
-testArgument019_set_performance_profile() {
+testArgument016_set_performance_profile() {
     local curfunc=${FUNCNAME[0]}
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
@@ -803,6 +692,47 @@ testArgument019_set_performance_profile() {
     assertTrue 'no perf-measurement.ipynb' "[ -f logs/perf-measurement.ipynb ]"
 
     mv loadParameters.m logs $Log_dir/
+}
+
+testArgument017_set_auto_config() {
+    local curfunc=${FUNCNAME[0]}
+    local Log_dir=$Result_dir/$curfunc
+    mkdir $Log_dir
+    local Log=$Log_dir/output.log
+    local input_dir=test1_input
+    mkdir ${input_dir}
+    touch ${input_dir}/${BASENAME}test_round001_ch00.tif
+    touch ${input_dir}/${BASENAME}test_round001_ch01.tif
+    touch ${input_dir}/${BASENAME}test_round001_ch02.tif
+    touch ${input_dir}/${BASENAME}test_round001_ch03.tif
+    touch ${input_dir}/${BASENAME}test_round002_ch00.tif
+    touch ${input_dir}/${BASENAME}test_round002_ch01.tif
+    touch ${input_dir}/${BASENAME}test_round002_ch02.tif
+    touch ${input_dir}/${BASENAME}test_round002_ch03.tif
+
+    set -m
+    ./runPipeline.sh -y -e ' ' -B 1 -I ${input_dir} --auto-config > $Log 2>&1
+    set +m
+
+    get_values_and_keys
+
+    value_id=1
+    assertEquals 2 "${Value[${value_id}]}"
+    value_id=2
+    assertEquals "${BASENAME}test" "${Value[${value_id}]}"
+
+    # others are default values
+    assert_all_default_values skip 1 2 3 26
+    assert_all_stages_skip
+
+    local param=$(sed -ne 's#params.NUM_ROUNDS = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=1
+    assertEquals "${Value[${value_id}]}" "$param"
+    local param=$(sed -ne 's#params.FILE_BASENAME = \(.*\);#\1#p' ./loadParameters.m)
+    value_id=2
+    assertEquals "'${Value[${value_id}]}'" "$param"
+
+    mv loadParameters.m logs ${input_dir} $Log_dir/
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -1144,17 +1074,18 @@ testArgument205_Error_no_input_tiffs() {
     local Log_dir=$Result_dir/$curfunc
     mkdir $Log_dir
     local Log=$Log_dir/output.log
+    mkdir no_input_tiffs
 
-    sed -i.test.bak -e "s#\(input_path\)=.*#\1=no_input_tiffs#" configuration.cfg
+    sed -i.test.bak -e "s#\(params.INPUT_FILE_PATH\) *= *.*;#\1 = 'no_input_tiffs';#" loadParameters.m
 
     set -m
-    echo 'n' | ./runPipeline.sh -d no_input_tiffs > $Log 2>&1
+    echo 'n' | ./runPipeline.sh -I no_input_tiffs > $Log 2>&1
     set +m
 
     message=$(grep "No input tif files" "$Log" | wc -l)
     assertEquals 1 $message
 
-    mv configuration.cfg{.test.bak,}
+    mv loadParameters.m{,.test.bak} $Log_dir
     rmdir no_input_tiffs
 }
 
