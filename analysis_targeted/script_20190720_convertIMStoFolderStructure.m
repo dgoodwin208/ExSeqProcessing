@@ -27,6 +27,8 @@ outputRootFolder = '/mp/nas0/ExSeq/Experiments_July2019/CA1-20190714';
 
 round_referenceTileStructure = 1;
 
+imgExt = 'tif'; %tif or h5
+
 experiment_name = 'exseqca1rep1';
 %% Create the spatial map of the tiling snake pattern we want to use 
 
@@ -41,8 +43,9 @@ for n = 1:numTiles
 end
 
 %% Loop over all rounds and copy the files into the proper folder structure
-
-for rnd = 1:length(imsfolders_perRound)
+bad_tiles = cell(length(imsfolders_perRound),1);
+parpool(5);
+parfor rnd = 1:length(imsfolders_perRound)
     
     %A map of all the tile indices laid out in a 2D grid 
     tileMap_indices = [];
@@ -56,6 +59,8 @@ for rnd = 1:length(imsfolders_perRound)
         tileMap_indices(row+1,col+1) = n-1;
     end
 
+    %Initialize the counter for bad tiles 
+    bad_tiles{rnd} = [];
     %Loop over the reference tile structure, extract the IMS file using the
     %ImarisReader class, taken from https://github.com/PeterBeemiller/ImarisReader
     %and create the ExSeqProcessing folder structure for that FoV
@@ -67,7 +72,7 @@ for rnd = 1:length(imsfolders_perRound)
             fov_inputnum = tileMap_indices(row,col);
         
             %Are the folders set up for the ExSeqProcessing?
-            fov_rootfolder = fullfile(outputRootFolder,sprintf('%.3i',fov_outputnum));
+            fov_rootfolder = fullfile(outputRootFolder,sprintf('F%.3i',fov_outputnum));
             if ~exist(fov_rootfolder,'dir')
                 mkdir(fov_rootfolder);
                 mkdir(fullfile(fov_rootfolder,'0_raw'));
@@ -86,21 +91,31 @@ for rnd = 1:length(imsfolders_perRound)
             fileInfo = dir(fullfile(inputfolder,sprintf('*_F%.3i.ims',fov_inputnum)));
             
             %Load the Imaris Object using the Imaris Reader
-            imarisObj = ImarisReader(fullfile(inputfolder,fileInfo.name));
+            try
+            	imarisObj = ImarisReader(fullfile(inputfolder,fileInfo.name));
+            catch
+		fprintf('ERROR Something wrong with file %s\n',fullfile(inputfolder,fileInfo.name));
+		bad_tiles{rnd}(end+1) = fov_inputnum;
+		continue
+	    end
             % Loop over all the channels in the datafile
             numChannels = length(imarisObj.DataSet.ChannelInfo);
             
-            fprintf('Converting %i channels for file %s\n',numChannels,...
+            fprintf('\tConverting %i channels for file %s\n',numChannels,...
                 fullfile(inputfolder,fileInfo.name));
             for c_idx = 0:numChannels-1 %ImarisReader is 0-indexed 
                 %GetDataVolume loads channel and time index, time index is
                 %always zero for ExSeq data, so we just loop over the
                 %channel
-                vol = imarisObj.DataSet.GetDataVolume(c_idx,0);
                 outputfilename = fullfile(fov_rootfolder,'0_raw',...
-                    sprintf('%s-f%.3i_round%.3i_ch%.2i.h5',...
-                    experiment_name,fov_outputnum,rnd,c_idx) );
-                save3DImage_uint16(vol,outputfilename);
+                    sprintf('%s-F%.3i_round%.3i_ch%.2i.%s',...
+                    experiment_name,fov_outputnum,rnd,c_idx,imgExt) );
+                if ~exist(outputfilename,'file')
+                    vol = imarisObj.DataSet.GetDataVolume(c_idx,0);
+		    save3DImage_uint16(vol,outputfilename);
+		else
+		    fprintf('\tSkipping file %s that already exists\n',outputfilename); 
+		end
             end
         end
     end

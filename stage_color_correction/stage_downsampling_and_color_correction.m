@@ -18,14 +18,20 @@ function stage_downsampling_and_color_correction()
 
     [ret,messages] = check_files_in_color_correction();
     if ~ret
-        if params.USE_GPU_CUDA
-            colorcorrection_3D_cuda();
-        else
-            for i = 1:params.NUM_ROUNDS
-                colorcorrection_3D(i);
-            end
-        end
-        [ret,messages] = check_files_in_color_correction();
+        
+	%TODO: integrate this properly once it's worked on a few fields of view
+	for i=1:params.NUM_ROUNDS
+	    colorcorrection_3DWholeImage(i);
+	end 
+	%if params.USE_GPU_CUDA
+        %    colorcorrection_3D_cuda();
+        %else
+        %    for i = 1:params.NUM_ROUNDS
+        %        colorcorrection_3D(i);
+        %    end
+        %end
+        
+	[ret,messages] = check_files_in_color_correction();
         if ~ret
             for i = 1:length(messages)
                 disp(messages{i})

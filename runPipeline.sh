@@ -140,12 +140,12 @@ PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1
 
 if [ $# -gt 0 ]; then
     if [ $1 = "--configure" ]; then
-        python configuration.py
+        python3 configuration.py
     fi
 fi
 
 if [ ! -f ./configuration.cfg ]; then
-    python configuration.py
+    python3 configuration.py
 fi
 
 
@@ -453,10 +453,11 @@ BASE_CALLING_DIR=$(cd "${BASE_CALLING_DIR}" && pwd)
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
 
-if [ -z "$(find ${INPUT_FILE_PATH} -name *.tif)" ]; then
-    echo "[ERROR] No input tif files"
-    exit
-fi
+# TODO: Update this for hdf5 files too. Commented out for quickly getting to test the rest of the system on the new data. -DG 07/20/2019
+#if [ -z "$(find ${INPUT_FILE_PATH} -name *.tif)" ]; then
+#    echo "[ERROR] No input tif files"
+#    exit
+#fi
 
 for filename in ${INPUT_FILE_PATH}/*.tif; do
     basename=$(basename $filename)

@@ -11,7 +11,7 @@ for rnd_indx = 1:params.NUM_ROUNDS
     for c = 1:params.NUM_CHANNELS
 
         filename_full = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c}));
+            sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
 
         if ~exist(filename_full,'file')
             precheck = false;
@@ -31,7 +31,7 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
     for c = 1:params.NUM_CHANNELS
 
         filename_full = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c}));
+            sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
         filename_downsampled = fullfile(params.deconvolutionImagesDir,...
             sprintf('%s-downsample_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
         filename_full_hdf5 = replace(filename_full,'tif','h5');

@@ -31,6 +31,12 @@ for rnd_indx = 1:params.NUM_ROUNDS
         continue;
     end    
     load(filename_colorShifts);    
+    %Note: this block of code has been added since we the color correction calculation was switched
+    %from bead-specific code (which required a lengthy quantilenorm) to a faster for loop, so we 
+    %unpack the output of the for loop here. If this works it can be cleaned up later. DG 2019-07-20
+    chan2_offsets = chan_offsets(2,:); 
+    chan3_offsets = chan_offsets(3,:);
+    chan4_offsets = chan_offsets(4,:);
     
     %Create the symlink of chan1 to the new directory
     chan1_outname = fullfile(params.colorCorrectionImagesDir,...
