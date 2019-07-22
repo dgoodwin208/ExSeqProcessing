@@ -20,3 +20,4 @@ loadParameters.m.back
 .nfs*
 *.fa
 *.bin
+.DS_Store
