@@ -5,6 +5,7 @@ function ret = make_links_in_color_correction_dir()
     loadParameters;
 
     src_dir = relpath(params.colorCorrectionImagesDir,params.deconvolutionImagesDir);
+    old_dir = pwd;
     cd(params.colorCorrectionImagesDir);
 
     FILEROOT_NAME = sprintf('%s-downsample',params.FILE_BASENAME);
@@ -25,6 +26,6 @@ function ret = make_links_in_color_correction_dir()
     end
     
 
-    cd('..');
+    cd(old_dir);
 end
 

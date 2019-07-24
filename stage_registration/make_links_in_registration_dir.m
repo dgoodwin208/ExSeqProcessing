@@ -5,6 +5,7 @@ function ret = make_links_in_registration()
     loadParameters;
 
     src_dir = relpath(params.registeredImagesDir,params.normalizedImagesDir);
+    old_dir = pwd;
     cd(params.registeredImagesDir);
 
     for c_i = 1:length(regparams.CHANNELS)
@@ -31,6 +32,6 @@ function ret = make_links_in_registration()
         end
     end
 
-    cd('..');
+    cd(old_dir);
 end
 

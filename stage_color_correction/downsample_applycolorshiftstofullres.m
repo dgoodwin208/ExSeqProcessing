@@ -20,6 +20,7 @@ IMAGE_EXT = params.IMAGE_EXT;
 DOWNSAMPLE_RATE = params.DOWNSAMPLE_RATE;
 
 src_dir = relpath(params.colorCorrectionImagesDir,params.deconvolutionImagesDir);
+old_dir = pwd;
 cd(params.colorCorrectionImagesDir);
 
 %params = params;
@@ -76,5 +77,5 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
 end
 toc(t_downsample_apply);
 
-cd('..');
+cd(old_dir);
 
