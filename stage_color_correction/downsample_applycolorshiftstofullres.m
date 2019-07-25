@@ -7,6 +7,7 @@ if ~params.DO_DOWNSAMPLE
 end
 
 t_downsample_apply = tic;
+delete(gcp('nocreate'))
 conditions = conditions_for_concurrency();
 max_pool_size = concurrency_size_in_downsample_apply(conditions);
 
@@ -46,6 +47,12 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
         continue;
     end    
     S = load(filename_colorShifts);    
+    %Note: this block of code has been added since we the color correction calculation was switched
+    %from bead-specific code (which required a lengthy quantilenorm) to a faster for loop, so we 
+    %unpack the output of the for loop here. If this works it can be cleaned up later. DG 2019-07-20
+    chan2_offsets = S.chan_offsets(2,:); 
+    chan3_offsets = S.chan_offsets(3,:);
+    chan4_offsets = S.chan_offsets(4,:);
     
     %Create the symlink of chan1 to the new directory
     chan1_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{1},IMAGE_EXT);
@@ -54,21 +61,21 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
     fprintf('Created symlink %s \n',chan1_outname);
     
     chan2 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{2},IMAGE_EXT)));
-    chan2_shift = imtranslate3D(chan2,round(S.chan2_offsets*DOWNSAMPLE_RATE));
+    chan2_shift = imtranslate3D(chan2,round(chan2_offsets*DOWNSAMPLE_RATE));
     chan2 = [];
     chan2_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{2},IMAGE_EXT);
     save3DImage_uint16(chan2_shift,chan2_outname);
     chan2_shift = [];
     
     chan3 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{3},IMAGE_EXT)));
-    chan3_shift = imtranslate3D(chan3,round(S.chan3_offsets*DOWNSAMPLE_RATE));
+    chan3_shift = imtranslate3D(chan3,round(chan3_offsets*DOWNSAMPLE_RATE));
     chan3 = [];
     chan3_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{3},IMAGE_EXT);
     save3DImage_uint16(chan3_shift,chan3_outname);
     chan3_shift = [];
     
     chan4 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{4},IMAGE_EXT)));
-    chan4_shift = imtranslate3D(chan4,real(round(S.chan4_offsets*DOWNSAMPLE_RATE)));
+    chan4_shift = imtranslate3D(chan4,real(round(chan4_offsets*DOWNSAMPLE_RATE)));
     chan4 = [];
     save3DImage_uint16(chan4_shift,chan4_outname);
     chan4_shift = [];

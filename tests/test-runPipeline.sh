@@ -133,7 +133,8 @@ get_values_and_keys() {
     Value[ 3]=$(get_value_by_key "$Log" "reference round")
 #    Value[ 4]=$(get_value_by_key "$Log" "channels")
     Value[ 5]=$(get_value_by_key "$Log" "use GPU_CUDA")
-    Value[ 6]=$(get_value_by_key "$Log" "intermediate image ext")
+#    Value[ 6]=$(get_value_by_key "$Log" "intermediate image ext")
+    Value[ 6]=$(get_value_by_key "$Log" "input image ext")
     Value[26]=$(get_value_by_key "$Log" "input images")
     Value[ 7]=$(get_value_by_key "$Log" "deconvolution images")
     Value[ 8]=$(get_value_by_key "$Log" "color correction images")
@@ -189,7 +190,8 @@ assert_all_default_values() {
         assertEquals "false" "${Value[5]}"
     fi
     if [ ! "${skips[6]}" = "skip" ]; then
-        assertEquals "h5" "${Value[6]}"
+#        assertEquals "h5" "${Value[6]}"
+        assertEquals "tif" "${Value[6]}"
     fi
     if [ ! "${skips[26]}" = "skip" ]; then
         assertEquals "${INPUT_IMAGE_DIR}" "${Value[26]}"
@@ -611,7 +613,7 @@ testArgument013_set_tiff_usage() {
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
 
-    local param=$(sed -ne 's#params.IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
+    local param=$(sed -ne 's#params.INPUT_IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 
     mv loadParameters.m logs $Log_dir/
@@ -623,7 +625,7 @@ testArgument014_set_hdf5_usage() {
     mkdir $Log_dir
     local Log=$Log_dir/output.log
 
-    sed -i.test.bak -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = 'tiff';#" loadParameters.m
+    sed -i.test.bak -e "s#\(params.INPUT_IMAGE_EXT\) *= *.*;#\1 = 'tiff';#" loadParameters.m
 
     set -m
     ./runPipeline.sh -y -e ' ' -F hdf5 > $Log 2>&1
@@ -638,7 +640,7 @@ testArgument014_set_hdf5_usage() {
     assert_all_default_values skip ${value_id}
     assert_all_stages_skip
 
-    local param=$(sed -ne 's#params.IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
+    local param=$(sed -ne 's#params.INPUT_IMAGE_EXT = \(.*\);#\1#p' ./loadParameters.m)
     assertEquals "'${Value[${value_id}]}'" "$param"
 
     mv loadParameters.m{,.test.bak} logs $Log_dir/

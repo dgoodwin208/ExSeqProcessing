@@ -3,14 +3,14 @@ params.INPUT_FILE_PATH = '/mp/nas1/share/ExSEQ/AutoSeq2/test-data/xy01/1_deconvo
 params.FILE_BASENAME = 'exseqauto-xy01';
 
 % Data loading a storage parameteres
-params.deconvolutionImagesDir = '/home/kajita/works/ExSeqProcessing-merge/1_deconvolution';
-params.colorCorrectionImagesDir = '/home/kajita/works/ExSeqProcessing-merge/2_color-correction';
-params.normalizedImagesDir = '/home/dgoodwin/ExSeqProcessing/3_normalization';
-params.registeredImagesDir = '/home/kajita/works/ExSeqProcessing-merge/4_registration';
-params.punctaSubvolumeDir = '/home/kajita/works/ExSeqProcessing-merge/5_puncta-extraction';
-params.basecallingResultsDir = '/home/kajita/works/ExSeqProcessing-merge/6_base-calling';
-params.reportingDir = '/home/kajita/works/ExSeqProcessing-merge/logs/imgs';
-params.logDir = 'logs';
+params.deconvolutionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/1_deconvolution';
+params.colorCorrectionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/2_color-correction';
+params.normalizedImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/3_normalization';
+params.registeredImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/4_registration';
+params.punctaSubvolumeDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/5_puncta-extraction';
+params.basecallingResultsDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/6_base-calling';
+params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/logs/imgs';
+params.logDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/logs';
 
 %Microscope parameters
 params.XRES = .17;
@@ -46,14 +46,20 @@ params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's
 params.DO_DOWNSAMPLE = true;
 params.DOWNSAMPLE_RATE = 2.;
 
+%For puncta extraction:
+params.MAXNUM_MISSINGROUND=1;
+
 %use GPU CUDA or CPU
 params.USE_GPU_CUDA = false;
 
 %intermediate image format
 params.IMAGE_EXT = 'h5';
 
+%input image format
+params.INPUT_IMAGE_EXT = 'tif';
+
 %Use intermediate tmp files in color-correction and normalization
-params.tempDir = '/mp/nvmeof0/tmp';
+params.tempDir = './tmp-test';
 
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'

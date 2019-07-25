@@ -75,6 +75,8 @@ function usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "  --configure     configure using GUI/CUI"
     echo "  --auto-config   set parameters from input images"
+    echo "  -I              input data directory"
+    echo "  -O              output data directory"
     echo "  -N              # of rounds"
     echo "  -b              file basename"
     echo "  -B              reference round"
@@ -152,7 +154,8 @@ ROUND_NUM=$(sed -ne "s#params.NUM_ROUNDS *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
 REFERENCE_ROUND=$(sed -ne "s#params.REFERENCE_ROUND_WARP *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
 CHAN_STRS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
 USE_GPU_CUDA=$(sed -ne "s#params.USE_GPU_CUDA *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
-IMAGE_EXT=$(sed -ne "s#params.IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+#IMAGE_EXT=$(sed -ne "s#params.IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+INPUT_IMAGE_EXT=$(sed -ne "s#params.INPUT_IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
 
 CHAN_ARRAY=($(echo ${CHAN_STRS//\'/} | tr ',' ' '))
 
@@ -285,9 +288,9 @@ elif [ "$ACCELERATION" = "cpu" ]; then
 fi
 
 if [ "$FORMAT" = "hdf5" ]; then
-    IMAGE_EXT=h5
+    INPUT_IMAGE_EXT=h5
 elif [ "$FORMAT" = "tiff" ]; then
-    IMAGE_EXT=tif
+    INPUT_IMAGE_EXT=tif
 fi
 
 
@@ -388,12 +391,12 @@ TEMP_DIR=$(cd "${TEMP_DIR}" && pwd)
 
 
 # prepare symbolic links for input files
-if [ -z "$(find ${INPUT_FILE_PATH} -name *.tif)" ]; then
-    echo "[ERROR] No input tif files"
+if [ -z "$(find ${INPUT_FILE_PATH} -name \*.${INPUT_IMAGE_EXT})" ]; then
+    echo "[ERROR] No input ${INPUT_IMAGE_EXT} files"
     exit
 fi
 
-for filename in ${INPUT_FILE_PATH}/*.tif; do
+for filename in ${INPUT_FILE_PATH}/*.${INPUT_IMAGE_EXT}; do
     basename=$(basename $filename)
     if [ ! -f "${DECONVOLUTION_DIR}/$basename" ]; then
         ln -s $filename ${DECONVOLUTION_DIR}/
@@ -435,7 +438,8 @@ echo "  reference round        :  ${REFERENCE_ROUND}"
 echo "  channels               :  ${CHAN_STRS}"
 #echo "  shift channels         :  ${SHIFT_CHANNELS}"
 echo "  use GPU_CUDA           :  ${USE_GPU_CUDA}"
-echo "  intermediate image ext :  ${IMAGE_EXT}"
+echo "  input image ext        :  ${INPUT_IMAGE_EXT}"
+#echo "  intermediate image ext :  ${IMAGE_EXT}"
 echo
 echo "Stages"
 for((i=0; i<${#STAGES[*]}; i++))
@@ -538,7 +542,7 @@ sed -e "s#\(params.INPUT_FILE_PATH\) *= *.*;#\1 = '${INPUT_FILE_PATH}';#" \
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -e "s#\(params.USE_GPU_CUDA\) *= *.*;#\1 = ${USE_GPU_CUDA};#" \
-    -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
+    -e "s#\(params.INPUT_IMAGE_EXT\) *= *.*;#\1 = '${INPUT_IMAGE_EXT}';#" \
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
     -i.back \
     ./loadParameters.m

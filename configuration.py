@@ -91,7 +91,8 @@ if is_TK_ready:
     log = StringVar(root, config_map.get("params.logDir"))
     basename = StringVar(root, value=config_map.get("params.FILE_BASENAME"))
     channels = StringVar(root, value=config_map.get("params.CHAN_STRS"))
-    fmt = StringVar(root, value=("tiff" if config_map.get("params.IMAGE_EXT") == "tif" else "hdf5"))
+#    fmt = StringVar(root, value=("tiff" if config_map.get("params.IMAGE_EXT") == "tif" else "hdf5"))
+    fmt = StringVar(root, value=("tiff" if config_map.get("params.INPUT_IMAGE_EXT") == "tif" else "hdf5"))
     accel = StringVar(root, value=("gpu_cuda" if config_map.get("params.USE_GPU_CUDA") == "true" else "cpu"))
     total_rounds = IntVar(root, value=int(config_map.get("params.NUM_ROUNDS")))
     ref_round = IntVar(root, value=int(config_map.get("params.REFERENCE_ROUND_WARP")))
@@ -210,7 +211,8 @@ else:
     output_path = config_map.get("OUTPUT_PATH")
     basename = config_map.get("params.FILE_BASENAME")
     channels = config_map.get("params.CHAN_STRS")
-    fmt = ("tiff" if config_map.get("params.IMAGE_EXT") == "tif" else "hdf5")
+#    fmt = ("tiff" if config_map.get("params.IMAGE_EXT") == "tif" else "hdf5")
+    fmt = ("tiff" if config_map.get("params.INPUT_IMAGE_EXT") == "tif" else "hdf5")
     temp = config_map.get("params.tempDir")
     log = config_map.get("params.logDir")
     total_rounds = int(config_map.get("params.NUM_ROUNDS"))
@@ -290,7 +292,8 @@ config_lines[config_linenum["params.punctaSubvolumeDir"]] = "params.punctaSubvol
 config_lines[config_linenum["params.basecallingResultsDir"]] = "params.basecallingResultsDir = '%s/6_base-calling';" % folder_path["output"]
 config_lines[config_linenum["params.FILE_BASENAME"]] = "params.FILE_BASENAME = '%s';" % basename
 config_lines[config_linenum["params.CHAN_STRS"]] = "params.CHAN_STRS = {%s};" % channels
-config_lines[config_linenum["params.IMAGE_EXT"]] = "params.IMAGE_EXT = '%s';" % ("tif" if fmt == "tiff" else "h5")
+#config_lines[config_linenum["params.IMAGE_EXT"]] = "params.IMAGE_EXT = '%s';" % ("tif" if fmt == "tiff" else "h5")
+config_lines[config_linenum["params.INPUT_IMAGE_EXT"]] = "params.INPUT_IMAGE_EXT = '%s';" % ("tif" if fmt == "tiff" else "h5")
 config_lines[config_linenum["params.USE_GPU_CUDA"]] = "params.USE_GPU_CUDA = %s;" % ("true" if accel == "gpu_cuda" else "false")
 config_lines[config_linenum["params.NUM_ROUNDS"]] = "params.NUM_ROUNDS = %d;" % total_rounds
 config_lines[config_linenum["params.REFERENCE_ROUND_WARP"]] = "params.REFERENCE_ROUND_WARP = %d;" % ref_round
