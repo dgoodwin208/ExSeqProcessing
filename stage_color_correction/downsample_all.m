@@ -34,12 +34,19 @@ if ~isequal(params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
     fprintf('Converting input images: %s to %s\n',params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
 
     parfor rnd_indx = 1:params.NUM_ROUNDS
-        for c = 1:params.NUM_CHANNELS
+        num_channels = params.NUM_CHANNELS;
+        chan_strs = params.CHAN_STRS;
+        if rnd_indx == params.MORPHOLOGY_ROUND
+            num_channels = num_channels + 1;
+            chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
+        end
+
+        for c = 1:num_channels
 
             input_filename_full = fullfile(params.deconvolutionImagesDir,...
-                sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.INPUT_IMAGE_EXT));
+                sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.INPUT_IMAGE_EXT));
             filename_full = fullfile(params.deconvolutionImagesDir,...
-                sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
+                sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.IMAGE_EXT));
 
             img = load3DImage_uint16(input_filename_full);
             if ~exist(filename_full,'file')
@@ -51,12 +58,19 @@ if ~isequal(params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
 end
 
 parfor rnd_indx = 1:params.NUM_ROUNDS
-    for c = 1:params.NUM_CHANNELS
+    num_channels = params.NUM_CHANNELS;
+    chan_strs = params.CHAN_STRS;
+    if rnd_indx == params.MORPHOLOGY_ROUND
+        num_channels = num_channels + 1;
+        chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
+    end
+
+    for c = 1:num_channels
 
         filename_full = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
+            sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.IMAGE_EXT));
         filename_downsampled = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s-downsample_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
+            sprintf('%s-downsample_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.IMAGE_EXT));
 
         if exist(filename_downsampled,'file')
             fprintf('Skipping file %s that already exists\n',filename_downsampled);

@@ -79,6 +79,18 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
     chan4 = [];
     save3DImage_uint16(chan4_shift,chan4_outname);
     chan4_shift = [];
+
+
+    if rnd_indx == params.MORPHOLOGY_ROUND
+        chan5_offsets = S.chan_offsets(5,:);
+
+        chan5 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT)));
+        chan5_shift = imtranslate3D(chan5,real(round(chan5_offsets*DOWNSAMPLE_RATE)));
+        chan5 = [];
+        chan5_outname = sprintf('./%s_round%.03i_%sSHIFT.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT);
+        save3DImage_uint16(chan5_shift,chan5_outname);
+        chan5_shift = [];
+    end
     
     
 end

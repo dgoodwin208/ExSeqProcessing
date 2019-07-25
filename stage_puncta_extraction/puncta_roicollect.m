@@ -16,8 +16,11 @@ fprintf('Sees that the parpool has already been created')
 delete(gcp('nocreate'));
 parpool(3);
 end
+
+run_num_list = 1:params.NUM_ROUNDS;
+run_num_list(params.MORPHOLOGY_ROUND) = [];
  
-parfor exp_idx = 1:params.NUM_ROUNDS 
+parfor exp_idx = run_num_list
     disp(['round=',num2str(exp_idx)])
     pixels_per_rnd = []; pixels_per_rnd_bg = []; %Try to clear memory
     %clear pixels_per_rnd pixels_per_rnd_bg; 
@@ -59,7 +62,7 @@ puncta_set_max = zeros(params.NUM_ROUNDS,params.NUM_CHANNELS,num_insitu_transcri
 puncta_set_mean = zeros(params.NUM_ROUNDS,params.NUM_CHANNELS,num_insitu_transcripts);
 % reduction of parfor
 for puncta_idx = 1:num_insitu_transcripts
-    for exp_idx = 1:params.NUM_ROUNDS
+    for exp_idx = run_num_list
         for c_idx = params.COLOR_VEC
             % Each puncta_set_cell per exp is
             % pixels_per_rnd = cell(num_insitu_transcripts,params.NUM_CHANNELS);
@@ -75,6 +78,10 @@ for puncta_idx = 1:num_insitu_transcripts
         end
     end
 end
+
+puncta_set_median(params.MORPHOLOGY_ROUND,:,:) = [];
+puncta_set_max(params.MORPHOLOGY_ROUND,:,:) = [];
+puncta_set_mean(params.MORPHOLOGY_ROUND,:,:) = [];
 
 
 % Using median values to ignore bad points
@@ -102,10 +109,13 @@ signal_complete = num_roundsmissing_per_puncta<=params.MAXNUM_MISSINGROUND;
 fprintf('Number of complete puncta: %i \n',sum(signal_complete));
 
 %Apply the signal complete filter before saving the raw data
-for exp_idx = 1:params.NUM_ROUNDS
+for exp_idx = run_num_list
     puncta_set_cell{exp_idx} = puncta_set_cell{exp_idx}(signal_complete,:);
     puncta_indices_cell{exp_idx} = puncta_indices_cell{exp_idx}(signal_complete);
 end
+
+puncta_set_cell(params.MORPHOLOGY_ROUND) = [];
+puncta_indices_cell(params.MORPHOLOGY_ROUND) = [];
 
 outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
 save(outputfile,'puncta_set_cell','puncta_indices_cell','-v7.3');

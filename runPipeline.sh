@@ -638,6 +638,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-downsampling-and-color-correction.log | xargs grep -A 40 "^Error"
+
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
@@ -672,7 +674,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
-    grep -A 40 "^Error" ${LOG_DIR}/matlab-normalization-*.log
+#    grep -A 40 "^Error" ${LOG_DIR}/matlab-normalization-*.log
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-normalization-\*.log | xargs grep -A 40 "^Error"
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
@@ -707,7 +710,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
-    grep -A 40 "^Error" ${LOG_DIR}/matlab-reg[12]-*.log
+#    grep -A 40 "^Error" ${LOG_DIR}/matlab-reg[12]-*.log
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-reg[12]\*.log | xargs grep -A 40 "^Error"
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
@@ -743,6 +747,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-puncta-extraction.log | xargs grep -A 40 "^Error"
+
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
@@ -776,6 +782,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         loadParameters; basecalling_simple; \
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
+
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-base-calling-making.log | xargs grep -A 40 "^Error"
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then

@@ -1,5 +1,6 @@
 
 ROUNDS = 1:params.NUM_ROUNDS;
+ROUNDS(params.MORPHOLOGY_ROUND) = [];
 for roundnum = ROUNDS
     
 

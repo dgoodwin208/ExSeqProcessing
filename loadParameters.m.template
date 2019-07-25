@@ -24,6 +24,9 @@ params.REFERENCE_ROUND_PUNCTA = 5;
 params.NUM_ROUNDS = 20;
 params.NUM_CHANNELS = 4;
 
+params.MORPHOLOGY_ROUND = 5;
+params.MORPHOLOGY_CHAN_STR = 'ch05';
+
 %Used for color correction
 %Assuming beads are at the top of the stack, when do they start?
 params.BEAD_ZSTART = 50; %goes to :end

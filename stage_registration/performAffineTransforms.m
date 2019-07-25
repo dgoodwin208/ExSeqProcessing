@@ -105,9 +105,13 @@ h5write(output_affinekeys_filename,'/keyF_total',keyF_total);
 toc;
 
 ch_list = regparams.CHANNELS;
-inputdir = params.normalizedImagesDir;
+input_chandir = params.colorCorrectionImagesDir;
+input_normdir = params.normalizedImagesDir;
 outputdir = params.registeredImagesDir;
 image_ext = params.IMAGE_EXT;
+if moving_run == params.MORPHOLOGY_ROUND
+    ch_list{end+1} = [params.MORPHOLOGY_CHAN_STR,'SHIFT'];
+end
 if isfield(params,'AFFINE_MAX_THREADS')
     worker_max_threads = params.AFFINE_MAX_THREADS;
 else
@@ -119,6 +123,11 @@ parfor c = 1:length(ch_list)
     tic;
     data_channel = ch_list{c};
     fprintf('load 3D file for affine transform on %s channel\n',data_channel);
+    if contains(data_channel,'ch')
+        inputdir = input_chandir;
+    else
+        inputdir = input_normdir;
+    end
     filename = fullfile(inputdir,sprintf('%s_round%03d_%s.%s',filename_root,moving_run,data_channel,image_ext));
     imgToWarp = load3DImage_uint16(filename);
     toc;
