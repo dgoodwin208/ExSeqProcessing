@@ -2,7 +2,6 @@ function stage_base_calling()
 
     loadParameters;
 
-    %TODO: Finish implementing this, currently just a shell copied from puncta_extraction
     [ret,messages] = check_files_in_base_calling();
     if ret
         fprintf('already processed puncta extraction\n');
@@ -10,6 +9,8 @@ function stage_base_calling()
         return
     end
 
+    %TODO: include base calling confidence etc. into this function
+    %    currently this minimal
     process_punctavoxels_to_transcripts;
 
     [ret,messages] = check_files_in_base_calling();
