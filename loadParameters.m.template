@@ -59,7 +59,7 @@ params.IMAGE_EXT = 'h5';
 params.INPUT_IMAGE_EXT = 'tif';
 
 %Use intermediate tmp files in color-correction and normalization
-params.tempDir = './tmp-test';
+params.tempDir = '/mp/nvmeof0/tmp';
 
 % Define parameters for registration, titled regparams for clarity
 regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'

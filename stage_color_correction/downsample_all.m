@@ -41,7 +41,7 @@ if ~isequal(params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
             filename_full = fullfile(params.deconvolutionImagesDir,...
                 sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
 
-            img = load3DTif_uint16(input_filename_full);
+            img = load3DImage_uint16(input_filename_full);
             if ~exist(filename_full,'file')
                 fprintf('Saving %s\n',filename_full);
                 save3DImage_uint16(img,filename_full);
@@ -63,7 +63,7 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
             continue;
         end
 
-        img = load3DTif_uint16(filename_full);
+        img = load3DImage_uint16(filename_full);
 
         %Doing 'linear' downsample because the default of cubic was creating
         %values as low as -76
