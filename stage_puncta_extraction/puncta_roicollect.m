@@ -9,13 +9,11 @@ num_insitu_transcripts = size(puncta_voxels,1);
 puncta_set_cell = cell(params.NUM_ROUNDS,1);
 puncta_indices_cell = cell(params.NUM_ROUNDS,1);
 %the puncta indices are here in linear form for a specific round
-try
-parpool(3); %arbitrary but this parallel loop is memory intensive
-catch
-fprintf('Sees that the parpool has already been created')
 delete(gcp('nocreate'));
-parpool(3);
-end
+conditions = conditions_for_concurrency();
+max_pool_size = concurrency_size_in_puncta_roicollect(conditions);
+fprintf('PUNCTA_MAX_POOL_SIZE=%d\n', max_pool_size);
+parpool(max_pool_size); %arbitrary but this parallel loop is memory intensive
 
 run_num_list = 1:params.NUM_ROUNDS;
 run_num_list(params.MORPHOLOGY_ROUND) = [];

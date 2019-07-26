@@ -54,16 +54,45 @@ query_pts_interp = 1:1/Z_upsample_factor:size(data,3); %Query points for interpo
 data_interp = interp1(indices_orig,squeeze(data(1,1,:)),query_pts_interp);
 data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
 
-%Interpolate using pieceswise cubic interpolation, 
-%pchip and cubic actually are the same, according to MATLAB doc in 2016b
-for y = 1:size(data,1)
-    for x = 1:size(data,2)
-        data_interpolated(y,x,:) = interp1(indices_orig,squeeze(data(y,x,:)),query_pts_interp,'pchip');
+pool_size = 10;
+delete(gcp('nocreate'))
+parpool(pool_size);
+
+data_size1 = size(data,1);
+data_size2 = size(data,2);
+dy = uint32(data_size1 / pool_size);
+
+len_data_interp = length(data_interp);
+
+y_starts = zeros(pool_size,1);
+y_ends = zeros(pool_size,1);
+for i = 1:pool_size
+    y_starts(i) = 1 + dy*(i-1);
+    y_ends(i) = dy*i;
+end
+if y_ends(end) > data_size1
+    y_ends(end) = data_size1;
+end
+y_elms = (y_ends-y_starts)+1;
+
+data_interpolated_cell = cell(pool_size);
+data_cell = mat2cell(data,y_elms);
+data = [];
+
+%%Interpolate using pieceswise cubic interpolation, 
+%%pchip and cubic actually are the same, according to MATLAB doc in 2016b
+parfor i = 1:pool_size
+    data_interpolated_cell{i} = zeros(y_elms(i),data_size2,len_data_interp);
+    for y = 1:y_elms(i)
+        for x = 1:data_size2
+            data_interpolated_cell{i}(y,x,:) = interp1(indices_orig,squeeze(data_cell{i}(y,x,:)),query_pts_interp,'pchip');
+        end
     end
-    
-    if mod(y,200)==0
-        fprintf('\t%i/%i rows interpolated\n',y,size(data,1));
-    end
+end
+data_cell = {};
+
+for i = 1:pool_size
+    data_interpolated(y_starts(i):y_ends(i),:,:) = data_interpolated_cell{i};
 end
 
 %Now use the punctafeinder's dog filtering approach
@@ -97,20 +126,30 @@ data = double(L); %interpolation needs double or single, L is integer
 L = [];
 data_interp = interp1(query_pts_interp,squeeze(data(1,1,:)),indices_orig);
 data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
+len_data_interp = length(data_interp);
+
 data_interp = [];
 
-for y = 1:size(data,1)
-    for x = 1:size(data,2)
-        %'Nearest' = nearest neighbor, means there should be no new values
-        %being created
-        data_interpolated(y,x,:) = interp1(query_pts_interp,squeeze(data(y,x,:)),indices_orig,'nearest');
-    end
-    
-    if mod(y,200)==0
-        fprintf('\t%i/%i rows processed\n',y,size(data,1));
+data_interpolated_cell = cell(pool_size);
+data_cell = mat2cell(data,y_elms);
+data = [];
+
+parfor i = 1:pool_size
+    data_interpolated_cell{i} = zeros(y_elms(i),data_size2,len_data_interp);
+    for y = 1:y_elms(i)
+        for x = 1:data_size2
+            %'Nearest' = nearest neighbor, means there should be no new values
+            %being created
+            data_interpolated_cell{i}(y,x,:) = interp1(query_pts_interp,squeeze(data_cell{i}(y,x,:)),indices_orig,'nearest');
+        end
     end
 end
-data = [];
+data_cell = {};
+
+for i = 1:pool_size
+    data_interpolated(y_starts(i):y_ends(i),:,:) = data_interpolated_cell{i};
+end
+
 L_origsize = uint32(data_interpolated);
 data_interpolated = [];
 
