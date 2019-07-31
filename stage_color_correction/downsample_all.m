@@ -36,7 +36,7 @@ if ~isequal(params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
     parfor rnd_indx = 1:params.NUM_ROUNDS
         num_channels = params.NUM_CHANNELS;
         chan_strs = params.CHAN_STRS;
-        if rnd_indx == params.MORPHOLOGY_ROUND
+        if isfield(params, 'MORPHOLOGY_ROUND') && (rnd_indx == params.MORPHOLOGY_ROUND)
             num_channels = num_channels + 1;
             chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
         end
@@ -60,7 +60,7 @@ end
 parfor rnd_indx = 1:params.NUM_ROUNDS
     num_channels = params.NUM_CHANNELS;
     chan_strs = params.CHAN_STRS;
-    if rnd_indx == params.MORPHOLOGY_ROUND
+    if isfield(params, 'MORPHOLOGY_ROUND') && (rnd_indx == params.MORPHOLOGY_ROUND)
         num_channels = num_channels + 1;
         chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
     end

@@ -109,7 +109,7 @@ input_chandir = params.colorCorrectionImagesDir;
 input_normdir = params.normalizedImagesDir;
 outputdir = params.registeredImagesDir;
 image_ext = params.IMAGE_EXT;
-if moving_run == params.MORPHOLOGY_ROUND
+if isfield(params, 'MORPHOLOGY_ROUND') && (moving_run == params.MORPHOLOGY_ROUND)
     ch_list{end+1} = [params.MORPHOLOGY_CHAN_STR,'SHIFT'];
 end
 if isfield(params,'AFFINE_MAX_THREADS')

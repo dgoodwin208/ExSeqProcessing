@@ -1,6 +1,8 @@
 
 ROUNDS = 1:params.NUM_ROUNDS;
-ROUNDS(params.MORPHOLOGY_ROUND) = [];
+if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM_ROUNDS)
+    ROUNDS(params.MORPHOLOGY_ROUND) = [];
+end
 for roundnum = ROUNDS
     
 

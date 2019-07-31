@@ -81,7 +81,7 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
     chan4_shift = [];
 
 
-    if rnd_indx == params.MORPHOLOGY_ROUND
+    if isfield(params, 'MORPHOLOGY_ROUND') && (rnd_indx == params.MORPHOLOGY_ROUND)
         chan5_offsets = S.chan_offsets(5,:);
 
         chan5 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT)));

@@ -16,7 +16,9 @@ fprintf('PUNCTA_MAX_POOL_SIZE=%d\n', max_pool_size);
 parpool(max_pool_size); %arbitrary but this parallel loop is memory intensive
 
 run_num_list = 1:params.NUM_ROUNDS;
-run_num_list(params.MORPHOLOGY_ROUND) = [];
+if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM_ROUNDS)
+    run_num_list(params.MORPHOLOGY_ROUND) = [];
+end
  
 parfor exp_idx = run_num_list
     disp(['round=',num2str(exp_idx)])
@@ -77,9 +79,11 @@ for puncta_idx = 1:num_insitu_transcripts
     end
 end
 
-puncta_set_median(params.MORPHOLOGY_ROUND,:,:) = [];
-puncta_set_max(params.MORPHOLOGY_ROUND,:,:) = [];
-puncta_set_mean(params.MORPHOLOGY_ROUND,:,:) = [];
+if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM_ROUNDS)
+    puncta_set_median(params.MORPHOLOGY_ROUND,:,:) = [];
+    puncta_set_max(params.MORPHOLOGY_ROUND,:,:) = [];
+    puncta_set_mean(params.MORPHOLOGY_ROUND,:,:) = [];
+end
 
 
 % Using median values to ignore bad points
@@ -112,8 +116,10 @@ for exp_idx = run_num_list
     puncta_indices_cell{exp_idx} = puncta_indices_cell{exp_idx}(signal_complete);
 end
 
-puncta_set_cell(params.MORPHOLOGY_ROUND) = [];
-puncta_indices_cell(params.MORPHOLOGY_ROUND) = [];
+if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM_ROUNDS)
+    puncta_set_cell(params.MORPHOLOGY_ROUND) = [];
+    puncta_indices_cell(params.MORPHOLOGY_ROUND) = [];
+end
 
 outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
 save(outputfile,'puncta_set_cell','puncta_indices_cell','-v7.3');

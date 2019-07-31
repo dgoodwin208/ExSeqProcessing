@@ -23,7 +23,7 @@ fprintf('Starting processing of round %i\n',roundnum);
 
 num_channels = params.NUM_CHANNELS;
 chan_strs = params.CHAN_STRS;
-if roundnum == params.MORPHOLOGY_ROUND
+if isfield(params, 'MORPHOLOGY_ROUND') && (roundnum == params.MORPHOLOGY_ROUND)
     num_channels = num_channels + 1;
     chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
 end
