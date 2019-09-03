@@ -4,7 +4,7 @@ if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM
     ROUNDS(params.MORPHOLOGY_ROUND) = [];
 end
 for roundnum = ROUNDS
-    
+
 
     summed_norm = load3DImage_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
 
@@ -20,7 +20,7 @@ for roundnum = ROUNDS
 %        continue;
 %    end
     %remove any zeros by just putting the mean of the data in:
-    %summed_norm(summed_norm==0) = mean(summed_norm(summed_norm>0)); 
+    %summed_norm(summed_norm==0) = mean(summed_norm(summed_norm>0));
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
     else
@@ -81,7 +81,7 @@ data_interpolated_cell = cell(pool_size);
 data_cell = mat2cell(data,y_elms);
 data = [];
 
-%%Interpolate using pieceswise cubic interpolation, 
+%%Interpolate using pieceswise cubic interpolation,
 %%pchip and cubic actually are the same, according to MATLAB doc in 2016b
 parfor i = 1:pool_size
     data_interpolated_cell{i} = zeros(y_elms(i),data_size2,len_data_interp);
@@ -104,7 +104,7 @@ stack_in = dog_filter(stack_in);
 
 %Thresholding is still the most sensitive part of this pipeline, so results
 %must be analyzed with this two lines of code in mind
-thresh = multithresh(stack_in,1);
+thresh = multithresh(stack_in(stack_in>0),1);
 fgnd_mask = stack_in>thresh(1);
 
 %Ignore the background via thresholding and calculate watershed
@@ -156,8 +156,8 @@ L_origsize = uint32(data_interpolated);
 data_interpolated = [];
 
 %Extract the puncta from the watershed output (no longer interpolated)
-%params.PUNCTA_SIZE_THRESHOLD = 30; 
-%params.PUNCTA_SIZE_MAX = 2000; 
+%params.PUNCTA_SIZE_THRESHOLD = 30;
+%params.PUNCTA_SIZE_MAX = 2000;
 
 candidate_puncta= regionprops(L_origsize,img_origsize, 'WeightedCentroid', 'PixelIdxList');
 L_origsize = [];
@@ -190,7 +190,7 @@ output_img = [];
 %unnecessary, but keeping it in for now for easy of processing
 %for rnd_idx=1:params.NUM_ROUNDS
     num_puncta_per_round = length(filtered_puncta);
-    
+
     %initialize the vectors for the particular round
     voxels_per_round = cell(num_puncta_per_round,1);
     centroids_per_round = zeros(num_puncta_per_round,3);
@@ -200,11 +200,10 @@ output_img = [];
         voxels_per_round{ctr} = filtered_puncta(ctr).PixelIdxList;
         centroids_per_round(ctr,:) = filtered_puncta(ctr).WeightedCentroid;
     end
-    
+
     puncta_centroids = centroids_per_round;
     puncta_voxels = voxels_per_round;
 %end
 
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
 save(filename_centroids, 'puncta_centroids','puncta_voxels', '-v7.3');
-

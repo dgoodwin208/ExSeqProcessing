@@ -779,7 +779,7 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
         ${ERR_HDL_PRECODE} \
-        loadParameters; basecalling_simple; \
+        loadParameters; stage_base_calling; \
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
@@ -825,4 +825,3 @@ print_stage_status
 echo "========================================================================="
 echo "Pipeline finished"; date
 echo
-

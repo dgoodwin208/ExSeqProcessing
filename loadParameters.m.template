@@ -40,10 +40,14 @@ params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
 params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
 %Base calling parameters
+%base calling parameters
+% So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat'
+params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
+
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
 
-params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise 
+params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;
@@ -78,27 +82,27 @@ regparams.REGISTERCHANNELS_SC = {'summedNorm'};%'ch00','ch01SHIFT','ch02SHIFT','
 
 %In the Murray et al 2015 this was {'Lectin', 'DAPI', 'Data}
 %Which channels do we warp?
-regparams.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'}; 
+regparams.CHANNELS = {'summedNorm','ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
 %Set a threshold for maximum displacement distance?
 %(not appropriate for all datasets. Distance in pixels, -1 for ignore this)
 regparams.DISTANCEQUANTILECUTOFF = .95;
 
-% SCALE_PYRAMID: Create a set of blurs to create a "scale pyramid", or in 
+% SCALE_PYRAMID: Create a set of blurs to create a "scale pyramid", or in
 % non-computervision speak:
-% Blurring by a progressive set of gaussians to adjust for puncta flucutations    
-% Using the documentation in fspecial3.m, the standard deviations of 
-% the gaussian is defined as SIZE/2/2.354 so that FWHM equals half filter 
-% size (http://en.wikipedia.org/wiki/FWHM).The blur_size values are chosen 
-% with assumptions of the width of the Lectin vessels 
-% (5-20 pixels at 2um/pix res) observed and assumption of minor scale 
+% Blurring by a progressive set of gaussians to adjust for puncta flucutations
+% Using the documentation in fspecial3.m, the standard deviations of
+% the gaussian is defined as SIZE/2/2.354 so that FWHM equals half filter
+% size (http://en.wikipedia.org/wiki/FWHM).The blur_size values are chosen
+% with assumptions of the width of the Lectin vessels
+% (5-20 pixels at 2um/pix res) observed and assumption of minor scale
 % disparities (ie <20%)
 params.SCALE_PYRAMID = [5];
 
 % parameters for 3DSIFT
 sift_params.TwoPeak_Flag = true;  % Allow 3DSIFT to throw out points, Default: true
 sift_params.TwoPeak_Thresh = .9;  % Allow 3DSIFT to throw out points, Default: true
-sift_params.IndexSize = 2;  % Min: 1  Default: 2 
+sift_params.IndexSize = 2;  % Min: 1  Default: 2
 sift_params.xyScale = 1;
 sift_params.tScale = 1;
 
@@ -119,7 +123,7 @@ sift_params.MaxIndexVal = 0.2;
 sift_params.IgnoreGradSign = 0;
 sift_params.IndexSigma = 5.0;
 sift_params.SigmaScaled = sift_params.IndexSigma * 0.5 * sift_params.IndexSize;
-sift_params.MagFactor = 3; 
+sift_params.MagFactor = 3;
 
 sift_params.UseHistogramOri = 1;
 sift_params.OriHistThresh = 0.8;
@@ -169,4 +173,3 @@ params.PUNCTA_MAX_POOL_SIZE = 1;
 
 %cluster environment
 params.NUM_LOGICAL_CORES = 40;
-

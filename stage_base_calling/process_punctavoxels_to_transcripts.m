@@ -23,15 +23,15 @@ puncta_indices_cell_filtered = puncta_indices_cell;
 puncta_set_cell_filtered = puncta_set_cell;
 
 %Can we utilize the fact that we know Red (chan1) can be high without
-%Magenta (chan 2) being high, but Red goes high whenever magenta goes high? 
-%-1 means no correction, .3 means switch from 1->2 if 2 within 30% of 1's 
+%Magenta (chan 2) being high, but Red goes high whenever magenta goes high?
+%-1 means no correction, .3 means switch from 1->2 if 2 within 30% of 1's
 %brightness. (This is used in the normalization_qnorm.m script)
 ILLUMINACORRECTIONFACTOR = -1;
 
 
 %Keep track of funnel numbers:
-% [original number of puncta, 
-% number removed missing bases, 
+% [original number of puncta,
+% number removed missing bases,
 % number aligned,
 % shuffled_aligned]
 funnel_numbers = zeros(4,1);
@@ -39,7 +39,9 @@ funnel_names = {'Segmented amplicons','Present in every round',...
     'Aligned to Barcodes','Column shuffled hits'};
 
 %% Load the 6-mer barcodes, which we then need to shrink to just 4-mer
-load('groundtruth_dictionary_splintr20180621.mat')
+groundtruth_dict = params.GROUND_TRUTH_DICT;
+fprintf('Using dicitonary %s \n', groundtruth_dict)
+load(groundtruth_dict);
 
 [unique_codes,ia,ic] = unique(groundtruth_codes(:,1:4),'rows');
 
@@ -76,9 +78,12 @@ groundtruth_codes = barcode_to_microscope_mapping(unique_codes);
 gtlabels = gtlabels_4mers;
 
 % gtlabels{25} = [];
-% The Rgs5 barcode was just one color, so we change it's barcode to be
-% something impossible to actually align to.
-groundtruth_codes(25,:) = [-1 -1 -1 -1];
+% First we find all barcodes that are a single color and change them to
+% something that would never be aligned to. This was a problem with RGS5
+% with the June 2018 dataset
+single_base_barcode_indices = find(all(groundtruth_codes==groundtruth_codes(:,1),2));
+groundtruth_codes(single_base_barcode_indices,:) = repmat([-1 -1 -1 -1],...
+                    length(single_base_barcode_indices),1);
 
 %% Unwrap all the puncta into gigantic vectors for quantile norming
 
@@ -93,7 +98,7 @@ funnel_numbers(1) = N;
 %To do the standard color normalization
 normalization_qnorm1;
 %To do round x color normalization, we call this norm2
-% normalization_qnorm2; %This proved to be not as good, 
+% normalization_qnorm2; %This proved to be not as good,
 
 
 %N is redefined to be the number of filtered puncta
@@ -101,7 +106,7 @@ funnel_numbers(2) = N;
 
 
 %% Basecalling - simply comparing the normalized intensities
-% 
+%
 readlength = size(groundtruth_codes,2);
 
 transcript_objects = {};
@@ -114,35 +119,35 @@ for t = 1:size(insitu_transcripts_filtered,1)
     img_transcript = insitu_transcripts_filtered(t,:);
     %Column-shuffling randomization
     %         img_transcript = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),4),[1 2 3 4]))';
-    
+
     perfect_match = find(sum(groundtruth_codes == img_transcript,2)==readlength);
-    
+
     % There can only be a unique match in this case
     if length(perfect_match)==1
         transcript = struct;
         transcript.img_transcript=img_transcript;
-        
+
         voxels = puncta_voxels_filtered{t};
         centroid = puncta_centroids_filtered(t,:);
-        
+
         transcript.pos = centroid;
         transcript.voxels = voxels;
-        
+
         transcript.name = gtlabels{perfect_match};
 
         transcript_objects{match_ctr} = transcript;
-        
+
         % Create an aligned version of the insitu_transcript
         insitu_transcripts_aligned(match_ctr,:) = img_transcript;
         match_ctr = match_ctr+1;
-    
+
     else
         not_aligned(t) = 1;
     end
-    
+
     %Shuffle transcripts to get a false pos rate. Column wise shuffling:
     img_transcript_shuffled = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),4),[1 2 3 4]))';
-    
+
     perfect_match = find(sum(groundtruth_codes == img_transcript_shuffled,2)==readlength);
     if length(perfect_match)==1
         shuffled_hits = shuffled_hits+1;
@@ -160,8 +165,8 @@ title(sprintf('%i alignments',match_ctr-1));
 
 fprintf('Of %i transcripts, %i matches\n',size(insitu_transcripts_filtered,1),length(transcript_objects));
 
-% Note the 
-funnel_numbers(3) = length(transcript_objects); 
+% Note the
+funnel_numbers(3) = length(transcript_objects);
 funnel_numbers(4) = shuffled_hits;
 
-save(fullfile(params.basecallingResultsDir,sprintf('%s_results.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_results.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers', 'groundtruth_dict');
