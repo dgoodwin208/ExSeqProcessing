@@ -11,7 +11,7 @@ function stage_base_calling()
 
     %TODO: include base calling confidence etc. into this function
     %    currently this minimal
-    process_punctavoxels_to_transcripts;
+    processing_targetedExSeq_fromPunctaSOLiD;
 
     [ret,messages] = check_files_in_base_calling();
     if ret
@@ -22,4 +22,3 @@ function stage_base_calling()
         end
     end
 end
-

@@ -114,8 +114,11 @@ end
 fprintf('Completed normalization!\n');
 
 %A puncta is incomplete if it's never missing a round 
-puncta_complete = find(~any(puncta_present==false,2));
-
+if params.ISILLUMINA
+    puncta_complete = find(~any(puncta_present==false,2));
+else
+    puncta_complete = 1:N; %keep everything, don't filter
+end
 fprintf('Number of puncta before filtering missing bases: %i\n',N);
 fprintf('Number of puncta before filtering missing bases: %i\n',length(puncta_complete));
 
