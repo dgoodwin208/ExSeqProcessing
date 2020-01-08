@@ -23,9 +23,9 @@ filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
 
 img_total_size = image_dimensions(filename);
 ymin = 1;
-ymax = img_total_size(1);
+ymax = img_total_size(2);
 xmin = 1;
-xmax = img_total_size(2);
+xmax = img_total_size(1);
 
 
 %------------------------------Load Descriptors -------------------------%
