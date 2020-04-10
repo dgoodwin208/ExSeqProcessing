@@ -1,17 +1,22 @@
-params.INPUT_FILE_PATH = '/mp/nas0/ExSeq/Experiments_July2019/CA1-20190714/F077/0_raw';
 
-params.FILE_BASENAME = 'exseqca1rep1-F077';
 
-% Data loading a storage parameteres
-params.deconvolutionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/1_deconvolution';
-params.colorCorrectionImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/2_color-correction';
-params.normalizedImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/3_normalization';
-params.registeredImagesDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/4_registration';
-params.punctaSubvolumeDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/5_puncta-extraction';
-params.basecallingResultsDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/6_base-calling';
-params.reportingDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/logs/imgs';
-params.logDir = '/mp/nas1/fixstars/kajita/ExSeqProcessing-merge/logs';
 
+
+
+
+%s is the base name of the file and will have information like the round number and channel number appended to it
+params.FILE_BASENAME = 'exseqvc1rep1-F037';
+
+% Data loading and storage parameters; where the given folders are on disk
+params.INPUT_FILE_PATH = '/mp/nas2/robert/F037/0_raw';
+params.deconvolutionImagesDir = '/mp/nas2/robert/F037/1_deconvolution';
+params.colorCorrectionImagesDir = '/mp/nas2/robert/F037/2_color-correction';
+params.normalizedImagesDir = '/mp/nas2/robert/F037/3_normalization';
+params.registeredImagesDir = '/mp/nas2/robert/F037/4_registration';
+params.punctaSubvolumeDir = '/mp/nas2/robert/F037/5_puncta-extraction';
+params.basecallingResultsDir = '/mp/nas2/robert/F037/6_base-calling';
+params.reportingDir = '/mp/nas2/robert/F037/logs/imgs';
+params.logDir = '/mp/nas2/robert/F037/logs';
 %Microscope parameters
 params.XRES = .17;
 params.YRES = .17;
@@ -19,13 +24,13 @@ params.ZRES = .4;
 
 
 %Experimental parameters
-params.REFERENCE_ROUND_WARP = 1;
-params.REFERENCE_ROUND_PUNCTA = 1;
+params.REFERENCE_ROUND_WARP = 5;
+params.REFERENCE_ROUND_PUNCTA = 5;
 params.NUM_ROUNDS = 5;
 params.NUM_CHANNELS = 4;
 
-params.MORPHOLOGY_ROUND = 5;
-params.MORPHOLOGY_CHAN_STR = 'ch05';
+%params.MORPHOLOGY_ROUND = 5;
+%params.MORPHOLOGY_CHAN_STR = 'ch04';
 
 %Used for color correction
 %Assuming beads are at the top of the stack, when do they start?
@@ -36,15 +41,10 @@ params.COLOR_OFFSETS3D = [20,20,20];
 params.PUNCTA_SIZE_THRESHOLD = 30;
 params.PUNCTA_SIZE_MAX = 2000;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
-params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
+params.CHAN_STRS = {'ch00','ch01','ch02','ch03', 'ch04'};
 params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
-% So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat', 'groundtruth_dictionary_HTAPP20191008.mat'
-params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_CZI20190817.mat';
-
-params.ISILLUMINA = false;
-params.PUNCTARADIUS_BGESTIMATE = 5;
-
+%Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
 
@@ -58,19 +58,19 @@ params.DOWNSAMPLE_RATE = 2.;
 params.MAXNUM_MISSINGROUND=1;
 
 %use GPU CUDA or CPU
-params.USE_GPU_CUDA = false;
+params.USE_GPU_CUDA = true;
 
 %intermediate image format
 params.IMAGE_EXT = 'h5';
 
 %input image format
-params.INPUT_IMAGE_EXT = 'tif';
+params.INPUT_IMAGE_EXT = 'h5';
 
 %Use intermediate tmp files in color-correction and normalization
 params.tempDir = '/mp/nvmeof0/tmp';
 
 % Define parameters for registration, titled regparams for clarity
-regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
+regparams.REGISTRATION_TYPE = 'registered';%'registered'; %or 'affine'
 
 %When calculating RANSAC, do we consider all possible affine warps (true)
 %Or just translation+scale (false)
@@ -138,6 +138,12 @@ sift_params.stream_num = 20;
 sift_params.x_substream_stride = 256;
 sift_params.y_substream_stride = 256;
 
+%base calling parameters
+% So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat', 'groundtruth_dictionary_HTAPP20191008.mat'
+params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
+
+params.ISILLUMINA = false;
+params.PUNCTARADIUS_BGESTIMATE = 5;
 
 %batch_processing parameters
 params.WAIT_SEC = 10;
