@@ -58,7 +58,7 @@ params.DOWNSAMPLE_RATE = 2.;
 params.MAXNUM_MISSINGROUND=1;
 
 %use GPU CUDA or CPU
-params.USE_GPU_CUDA = true;
+params.USE_GPU_CUDA = false;
 
 %intermediate image format
 params.IMAGE_EXT = 'h5';
