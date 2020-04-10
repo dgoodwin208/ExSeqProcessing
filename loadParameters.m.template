@@ -39,10 +39,11 @@ params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
 params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
-%Base calling parameters
-%base calling parameters
-% So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat'
-params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
+% So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat', 'groundtruth_dictionary_HTAPP20191008.mat'
+params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_CZI20190817.mat';
+
+params.ISILLUMINA = false;
+params.PUNCTARADIUS_BGESTIMATE = 5;
 
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
