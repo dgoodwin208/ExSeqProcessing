@@ -12,7 +12,7 @@ function stage_base_calling()
     %TODO: include base calling confidence etc. into this function
     %    currently this minimal
     if params.ISILLUMINA
-        process_punctavoxels_to_transcripts_illumina.m
+        process_punctavoxels_to_transcripts_illumina
     else
         processing_targetedExSeq_fromPunctaSOLiD;
     end
