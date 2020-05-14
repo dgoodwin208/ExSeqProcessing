@@ -199,7 +199,11 @@ double get_grad_ori_vector(double* image, long long idx, unsigned int
         vect[0] = xgrad;
         vect[1] = ygrad;
         vect[2] = zgrad;
-    } 
+    } else {
+        vect[0] = 1.0;
+        vect[1] = 0.0;
+        vect[2] = 0.0;
+    }
 
     //Find the nearest tesselation face indices
     // N = sift_params.nFaces 
@@ -218,6 +222,7 @@ double get_grad_ori_vector(double* image, long long idx, unsigned int
     printf("fv[%d] %.4f %.4f %.4f\n", ix[0], device_centers[3 * ix[0]], device_centers[3 * ix[0] + 1], device_centers[3 * ix[0] + 2]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[1], device_centers[3 * ix[1]], device_centers[3 * ix[1] + 1], device_centers[3 * ix[1] + 2]);
     printf("fv[%d] %.4f %.4f %.4f\n", ix[2], device_centers[3 * ix[2]], device_centers[3 * ix[2] + 1], device_centers[3 * ix[2] + 2]);
+    printf("fv[%d] %.4f %.4f %.4f\n", ix[3], device_centers[3 * ix[3]], device_centers[3 * ix[3] + 1], device_centers[3 * ix[3] + 2]);
 #endif
 
     return mag;
@@ -248,7 +253,7 @@ void add_sample(double* index, double* image, double distsq, long long
     double sigma = sift_params.SigmaScaled;
     double weight = exp(-(distsq / (2.0 * sigma * sigma)));
 
-    double vect[3] = {1.0, 0.0, 0.0};
+    double vect[3] = {0.0, 0.0, 0.0};
 
     // gradient and orientation vectors calculated from 3D halo/neighboring
     // pixels
@@ -341,7 +346,7 @@ double* build_ori_hists(int x, int y, int z, long long idx, unsigned int
         uint16_t* ix, double* yy, double* ori_hist) {
 
     double mag;
-    double vect[3] = {1.0, 0.0, 0.0};
+    double vect[3] = {0.0, 0.0, 0.0};
 
     int r, c, t;
     long long update_idx;
@@ -354,9 +359,11 @@ double* build_ori_hists(int x, int y, int z, long long idx, unsigned int
                 t = z + k;
 
                 // only add if within image range
-                if (!(r < 0  ||  r >= sift_params.image_size0 ||
-                        c < 0  ||  c >= sift_params.image_size1
-                        || t < 0 || t >= sift_params.image_size2)) {
+                // NOTE from original source
+                // Do not use last row or column, which are not valid.
+                if (!(r < 0 || r >= sift_params.image_size0 - 2 ||
+                      c < 0 || c >= sift_params.image_size1 - 2 ||
+                      t < 0 || t >= sift_params.image_size2 - 2)) {
                     // image is assumed as column order
                     // make sure it isn't cast to unsigned
                     update_idx = (long long) idx + i + (int) x_stride * j +
@@ -406,7 +413,7 @@ cudautils::Keypoint make_keypoint_sample(cudautils::Keypoint key, double*
 #ifdef DEBUG_NUMERICAL
     for (int i=0; i < sift_params.descriptor_len; i++) {
         if (index[i] != 0) 
-            printf("index[%d]=%.4f, ",i, index[i]);
+            printf("index[%d]=%.4f\n",i, index[i]);
     }
     printf("\n");
 #endif

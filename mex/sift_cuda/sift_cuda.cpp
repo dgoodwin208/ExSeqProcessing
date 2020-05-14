@@ -261,7 +261,7 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
 
         // size to assign each GPU
         unsigned int x_sub_size = x_size;
-        unsigned int y_sub_size = (unsigned int) y_size / num_gpus;
+        unsigned int y_sub_size = (unsigned int) (y_size + num_gpus - 1) / num_gpus;
 
         // stride must be <= GPU data size
         if (x_substream_stride > x_sub_size) {
@@ -276,8 +276,27 @@ mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[]) {
             mexWarnMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_substream_stride can not excede the image ydimension size / # of GPUs\n\tSwitched y_substream_stride");
         }
 
-        // padding not needed for SIFT
-        const unsigned int dw = 0; //default: 0, pad width each side, each dim
+        // padding for SIFT
+        const unsigned int orihist_radius = static_cast<unsigned int>(sift_params.xyScale * 3.0);
+        const unsigned int xyiradius = static_cast<unsigned int>(1.414 * sift_params.xyScale * sift_params.MagFactor * (sift_params.IndexSize + 1) / 2.0);
+        unsigned int dw = (num_gpus == 1 ? 0 : std::max(orihist_radius, xyiradius) + 1);
+        if (dw > y_substream_stride) {
+            if (dw > y_size) {
+                num_gpus = 1;
+                stream_num = 1;
+                dw = 0;
+                y_sub_size = y_size;
+                y_substream_stride = y_sub_size;
+                logger->info("dw is larger than y_size. Set num_gpus = 1 and stream_num = 1");
+                mexWarnMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "dw can not excede y_size\n\tSwitched to num_gpus=1 and stream_num=1");
+            } else {
+                if (stream_num > 1) {
+                    mexErrMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_substream_stride is too small in multi-GPUs.\n\tPlease set smaller stream_num in sift_params");
+                }
+                mexErrMsgIdAndTxt("MATLAB:sift_cuda:invalidValue", "y_size is too small in this GPU configuration.\n\tPlease use larger size of input image in sift_params");
+            }
+        }
+
 
         logger->info("x_size={},y_size={},z_size={},x_sub_size={},y_sub_size={},x_substream_stride={},y_substream_stride={}, dw={}, # of streams={}",
                 x_size, y_size, z_size, x_sub_size, y_sub_size,

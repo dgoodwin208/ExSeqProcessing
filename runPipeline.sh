@@ -1,15 +1,17 @@
 #!/bin/bash
 
 function trap_exit_handle() {
+    echo "(exit_handle)"
     if [ -n "${lock_pid_file}" ]; then
         rm ${lock_pid_file}
     fi
 
     print_stage_status
     if [ -n "${PID_PERF_PROFILE}" ]; then
+        echo "(kill perf-profile)"
         kill -- -${PID_PERF_PROFILE}
     fi
-    kill 0
+#    kill 0
 }
 
 trap trap_exit_handle EXIT
@@ -71,26 +73,23 @@ function lowercase() {
 
 function usage() {
     echo "Usage: $0 [OPTIONS]"
-    echo "  --configure     Configure using GUI"
+    echo "  --configure     configure using GUI/CUI"
+    echo "  --auto-config   set parameters from input images"
+    echo "  -I              input data directory"
+    echo "  -O              output data directory"
     echo "  -N              # of rounds"
     echo "  -b              file basename"
     echo "  -B              reference round"
-    echo "  -d              deconvolution image directory"
-    echo "  -C              color correction image directory"
-    echo "  -n              normalization image directory"
-    echo "  -r              registration image directory"
-    echo "  -p              puncta extraction directory"
-    echo "  -t              base calling directory"
     echo "  -i              reporting directory"
-    echo "  -T              temp directory (empty '' does not use temp dir)"
+    echo "  -T              temp directory"
     echo "  -L              log directory"
     echo "  -A              acceleration (CPU or GPU_CUDA)"
     echo "  -F              file format of intermediate images (tiff or hdf5)"
-    echo "  -J              set # of concurrent jobs for color-correction, normalization, calc-desc, reg-with-corr, affine-transform-in-reg, puncta-extraction;  5,10,10,4,4,10"
+    echo "  -J              change additional parameters; A=1,B=2,C=\'c\'"
     echo "  -P              mode to get performance profile"
     echo "  -e              execution stages;  exclusively use for skip stages"
     echo "  -s              skip stages;  setup-cluster,color-correction,normalization,registration,puncta-extraction,base-calling"
-    echo "  -y              continue interactive questions"
+    echo "  -y              continue interactive questions as 'yes'"
     echo "  -h              print help"
     exit
 }
@@ -104,116 +103,80 @@ function check_number() {
     return 0
 }
 
-export TZ=America/New_York
 
+###### initialization
 
-REPORTING_DIR=logs/imgs
-
-if [ -f ./loadParameters.m ]; then
-    PARAMETERS_FILE=./loadParameters.m
-else
-    PARAMETERS_FILE=./loadParameters.m.template
+if [ ! -f ./loadParameters.m.template ]; then
+    echo "[ERROR] No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
+    exit
 fi
-
-DOWN_SAMPLING_MAX_POOL_SIZE=$(sed -ne "s#params.DOWN_SAMPLING_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_MAX_RUN_JOBS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_MAX_POOL_SIZE=$(sed -ne "s#params.COLOR_CORRECTION_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_MAX_THREADS=$(sed -ne "s#params.COLOR_CORRECTION_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_MAX_RUN_JOBS=$(sed -ne "s#params.NORM_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_MAX_POOL_SIZE=$(sed -ne "s#params.NORM_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_MAX_THREADS=0
-CALC_DESC_MAX_RUN_JOBS=$(sed -ne "s#params.CALC_DESC_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-CALC_DESC_MAX_POOL_SIZE=$(sed -ne "s#params.CALC_DESC_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-CALC_DESC_MAX_THREADS=0
-REG_CORR_MAX_RUN_JOBS=$(sed -ne "s#params.REG_CORR_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-REG_CORR_MAX_POOL_SIZE=$(sed -ne "s#params.REG_CORR_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-REG_CORR_MAX_THREADS=$(sed -ne "s#params.REG_CORR_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-AFFINE_MAX_RUN_JOBS=$(sed -ne "s#params.AFFINE_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-AFFINE_MAX_POOL_SIZE=$(sed -ne "s#params.AFFINE_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-AFFINE_MAX_THREADS=$(sed -ne "s#params.AFFINE_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-TPS3DWARP_MAX_RUN_JOBS=$(sed -ne "s#params.TPS3DWARP_MAX_RUN_JOBS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-TPS3DWARP_MAX_POOL_SIZE=$(sed -ne "s#params.TPS3DWARP_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-TPS3DWARP_MAX_THREADS=$(sed -ne "s#params.TPS3DWARP_MAX_THREADS *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-PUNCTA_MAX_POOL_SIZE=$(sed -ne "s#params.PUNCTA_MAX_POOL_SIZE *= *\([0-9]*\);#\1#p" ${PARAMETERS_FILE})
-
-
-
-if [ $# -gt 0 ]; then
-    if [ $1 = "--configure" ]; then
-        python configuration.py
-    fi
-fi
-
-if [ ! -f ./configuration.cfg ]; then
+if [ ! -f ./loadParameters.m ]; then
+    echo "No 'loadParameters.m' in ExSeqProcessing MATLAB. Copy from a template file"
+    cp -a ./loadParameters.m{.template,}
     python configuration.py
-fi
-
-
-while IFS= read -r line
-do
-        # display $line or do somthing with $line
-    field=$(echo $line | awk -F  "=" '{print $1}')
-    value=$(echo $line | awk -F  "=" '{print $2}')
-    if [ $field = "input_path" ]; then
-        INPUT_FILE_PATH=$value
-    elif [ $field = "basename" ]; then
-        FILE_BASENAME=$value
-#    elif [ $field = "channels" ]; then
-#        CHANNELS=$value
-#    elif [ $field = "shift_channels" ]; then
-#        SHIFT_CHANNELS=$value
-    elif [ $field = "output_path" ]; then
-        OUTPUT_FILE_PATH=$value
-    elif [ $field = "format" ]; then
-        FORMAT=$value
-    elif [ $field = "log_path" ]; then
-        LOG_DIR=$value
-    elif [ $field = "tmp_path" ]; then
-        TEMP_DIR=$value
-    elif [ $field = "total_rounds" ]; then
-        ROUND_NUM=$value
-    elif [ $field = "reference_round" ]; then
-        REFERENCE_ROUND=$value
-    elif [ $field = "acceleration" ]; then
-        ACCELERATION=$value
+    if [ $? -ne 0 ]; then
+        echo
+        echo "Canceled."
+        exit
     fi
-done < configuration.cfg
-
-if [ -z "$OUTPUT_FILE_PATH" ]; then
-    OUTPUT_FILE_PATH="."
 fi
+
+AUTO_CONFIG=false
+for arg in "$@"; do
+    if [ "$arg" = "--configure" ]; then
+        python configuration.py
+        if [ $? -ne 0 ]; then
+            echo
+            echo "Canceled."
+            exit
+        fi
+    elif [ "$arg" = "--auto-config" ]; then
+        AUTO_CONFIG=true
+    fi
+done
+
+PARAMETERS_FILE=./loadParameters.m
+
+INPUT_FILE_PATH=$(sed -ne "s#params.INPUT_FILE_PATH *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+DECONVOLUTION_DIR=$(sed -ne "s#params.deconvolutionImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+COLOR_CORRECTION_DIR=$(sed -ne "s#params.colorCorrectionImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+NORMALIZATION_DIR=$(sed -ne "s#params.normalizedImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+REGISTRATION_DIR=$(sed -ne "s#params.registeredImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+PUNCTA_DIR=$(sed -ne "s#params.punctaSubvolumeDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+BASE_CALLING_DIR=$(sed -ne "s#params.basecallingResultsDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+REPORTING_DIR=$(sed -ne "s#params.reportingDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+LOG_DIR=$(sed -ne "s#params.logDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+LOCK_DIR=/tmp/.exseqproc
+
+FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+ROUND_NUM=$(sed -ne "s#params.NUM_ROUNDS *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+REFERENCE_ROUND=$(sed -ne "s#params.REFERENCE_ROUND_WARP *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+CHAN_STRS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
+USE_GPU_CUDA=$(sed -ne "s#params.USE_GPU_CUDA *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+#IMAGE_EXT=$(sed -ne "s#params.IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+INPUT_IMAGE_EXT=$(sed -ne "s#params.INPUT_IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+
+CHAN_ARRAY=($(echo ${CHAN_STRS//\'/} | tr ',' ' '))
+
 if [ -z "$LOG_DIR" ]; then
     LOG_DIR="logs"
 fi
-
-
-echo "INPUT_FILE_PATH: $INPUT_FILE_PATH"
-echo "FILE_BASENAME: $FILE_BASENAME"
-echo "OUTPUT_FILE_PATH: $OUTPUT_FILE_PATH"
-echo "FORMAT: $FORMAT"
-echo "LOG_DIR: $LOG_DIR"
-echo "TEMP_DIR: $TEMP_DIR"
-echo "ROUND_NUM: $ROUND_NUM"
-echo "REFERENCE_ROUND: $REFERENCE_ROUND"
-echo "ACCELERATION: $ACCELERATION"
-
-
-
-DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/1_deconvolution
-COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/2_color-correction
-NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/3_normalization
-REGISTRATION_DIR=${OUTPUT_FILE_PATH}/4_registration
-PUNCTA_DIR=${OUTPUT_FILE_PATH}/5_puncta-extraction
-BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/6_base-calling
-
+if [ -z "$TEMP_DIR" ]; then
+    TEMP_DIR="tmp"
+fi
 
 PERF_PROFILE=false
 
 NUM_LOGICAL_CORES=$(lscpu | grep ^CPU\(s\) | sed -e "s/[^0-9]*\([0-9]*\)/\1/")
 
+
 ###### getopts
 
-while getopts N:b:B:d:C:n:r:p:t:T:i:L:e:s:-:A:F:J:Pyh OPT
+PARAM_KEYS=()
+PARAM_VALS=()
+
+while getopts N:b:B:I:O:T:i:L:e:s:-:A:F:J:Pyh OPT
 do
     case $OPT in
         N)  ROUND_NUM=$OPTARG
@@ -230,17 +193,21 @@ do
                     exit
                 fi
             ;;
-        d)  DECONVOLUTION_DIR=$OPTARG
+        I)  INPUT_FILE_PATH=$OPTARG
             ;;
-        C)  COLOR_CORRECTION_DIR=$OPTARG
-            ;;
-        n)  NORMALIZATION_DIR=$OPTARG
-            ;;
-        r)  REGISTRATION_DIR=$OPTARG
-            ;;
-        p)  PUNCTA_DIR=$OPTARG
-            ;;
-        t)  BASE_CALLING_DIR=$OPTARG
+        O)  OUTPUT_FILE_PATH=$OPTARG
+            basedir=$(basename ${DECONVOLUTION_DIR})
+            DECONVOLUTION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${COLOR_CORRECTION_DIR})
+            COLOR_CORRECTION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${NORMALIZATION_DIR})
+            NORMALIZATION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${REGISTRATION_DIR})
+            REGISTRATION_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${PUNCTA_DIR})
+            PUNCTA_DIR=${OUTPUT_FILE_PATH}/${basedir}
+            basedir=$(basename ${BASE_CALLING_DIR})
+            BASE_CALLING_DIR=${OUTPUT_FILE_PATH}/${basedir}
             ;;
         T)  TEMP_DIR=$OPTARG
             ;;
@@ -264,67 +231,13 @@ do
                 exit
             fi
             ;;
-        J)  IFS=, read NJOBS_CC NJOBS_NORM NJOBS_CALCD NJOBS_REGC NJOBS_AFFINE TMP <<<$OPTARG
-            if [ -n "${NJOBS_CC}" ]; then
-                if check_number ${NJOBS_CC}; then
-                    if [ ${NJOBS_CC} -eq 0 ]; then
-                        echo "[ERROR] # of jobs for color-correction is zero"
-                        exit
-                    fi
-                    COLOR_CORRECTION_MAX_RUN_JOBS=${NJOBS_CC}
-                else
-                    echo "[ERROR] ${NJOBS_CC} is not number"
-                    exit
-                fi
-            fi
-            if [ -n "${NJOBS_NORM}" ]; then
-                if check_number ${NJOBS_NORM}; then
-                    if [ ${NJOBS_NORM} -eq 0 ]; then
-                        echo "[ERROR] # of jobs for normalization is zero"
-                        exit
-                    fi
-                    NORMALIZATION_MAX_RUN_JOBS=${NJOBS_NORM}
-                else
-                    echo "[ERROR] ${NJOBS_NORM} is not number"
-                    exit
-                fi
-            fi
-            if [ -n "${NJOBS_CALCD}" ]; then
-                if check_number ${NJOBS_CALCD}; then
-                    if [ ${NJOBS_CALCD} -eq 0 ]; then
-                        echo "[ERROR] # of jobs for calc-descriptors is zero"
-                        exit
-                    fi
-                    CALC_DESC_MAX_RUN_JOBS=${NJOBS_CALCD}
-                else
-                    echo "[ERROR] ${NJOBS_CALCD} is not number"
-                    exit
-                fi
-            fi
-            if [ -n "${NJOBS_REGC}" ]; then
-                if check_number ${NJOBS_REGC}; then
-                    if [ ${NJOBS_REGC} -eq 0 ]; then
-                        echo "[ERROR] # of jobs for reg-with-correspondences is zero"
-                        exit
-                    fi
-                    REG_CORR_MAX_RUN_JOBS=${NJOBS_REGC}
-                else
-                    echo "[ERROR] ${NJOBS_REGC} is not number"
-                    exit
-                fi
-            fi
-            if [ -n "${NJOBS_AFFINE}" ]; then
-                if check_number ${NJOBS_AFFINE}; then
-                    if [ ${NJOBS_AFFINE} -eq 0 ]; then
-                        echo "[ERROR] # of jobs for affine-transform-in-reg is zero"
-                        exit
-                    fi
-                    AFFINE_MAX_RUN_JOBS=${NJOBS_AFFINE}
-                else
-                    echo "[ERROR] ${NJOBS_AFFINE} is not number"
-                    exit
-                fi
-            fi
+        J)  IFS=, read -a param_keyvals <<<$OPTARG
+            for((i=0; i<${#param_keyvals[*]}; i++))
+            do
+                IFS='=' read -a keyval <<<${param_keyvals[i]}
+                PARAM_KEYS+=( ${keyval[0]} )
+                PARAM_VALS+=( ${keyval[1]} )
+            done
             ;;
         P)  PERF_PROFILE=true
             ;;
@@ -338,31 +251,46 @@ do
     esac
 done
 
+
+###### auto configuration
+
+if [ "$AUTO_CONFIG" = "true" ]; then
+    echo "===== auto configuration from input images"
+    FILE_BASENAME=$(\ls -1 ${INPUT_FILE_PATH}/*_round001_${CHAN_ARRAY[0]}.tif | grep -v downsample | xargs basename -a | head -n 1 | sed -e 's/\([^_]*\)_round.*/\1/')
+    ROUND_NUM=$(\ls -1 ${INPUT_FILE_PATH}/${FILE_BASENAME}_round*_${CHAN_ARRAY[0]}.tif | sed -e 's/.*round\([0-9]*\).*/\1/' | wc -l)
+
+    ## check if all files exist
+    for ((i=1; i<=${ROUND_NUM}; i++)); do
+        for ((j=0; j<${#CHAN_ARRAY[*]}; j++)); do
+            f=$(printf "${INPUT_FILE_PATH}/${FILE_BASENAME}_round%03d_%s.tif" $i ${CHAN_ARRAY[j]})
+            if [ ! -f "$f" ]; then
+                echo "[ERROR] Not exist file: $f"
+                exit
+            fi
+        done
+    done
+
+    ## check reference round
+    if [ "$REFERENCE_ROUND" -gt "$ROUND_NUM" ]; then
+        echo "[ERROR] REFERENCE_ROUND (${REFERENCE_ROUND}) is not included in # of rounds (${ROUND_NUM})"
+        exit
+    fi
+fi
+
+
 shift $((OPTIND - 1))
 
 
-if [ -n "${TEMP_DIR}" ]; then
-    USE_TMP_FILES=true
-else
-    USE_TMP_FILES=false
-fi
-
-if [ $ACCELERATION = 'gpu_cuda' ]; then
+if [ "$ACCELERATION" = "gpu_cuda" ]; then
     USE_GPU_CUDA=true
-else
+elif [ "$ACCELERATION" = "cpu" ]; then
     USE_GPU_CUDA=false
 fi
 
-
-###### check files
-
-if [ ! -f ./loadParameters.m.template ]; then
-    echo "[ERROR] No 'loadParameters.m.template' in ExSeqProcessing MATLAB"
-    exit
-fi
-if [ ! -f ./loadParameters.m ]; then
-    echo "No 'loadParameters.m' in ExSeqProcessing MATLAB. Copy from a template file"
-    cp -a ./loadParameters.m{.template,}
+if [ "$FORMAT" = "hdf5" ]; then
+    INPUT_IMAGE_EXT=h5
+elif [ "$FORMAT" = "tiff" ]; then
+    INPUT_IMAGE_EXT=tif
 fi
 
 
@@ -442,6 +370,13 @@ if [ ! -d "${LOG_DIR}" ]; then
     mkdir "${LOG_DIR}"
 fi
 
+if [ ! -d "${LOCK_DIR}" ]; then
+    echo "No lock dir."
+    echo "mkdir ${LOCK_DIR}"
+    mkdir "${LOCK_DIR}"
+    chmod 777 "${LOCK_DIR}"
+fi
+
 # exchange paths to absolute paths
 DECONVOLUTION_DIR=$(cd "${DECONVOLUTION_DIR}" && pwd)
 COLOR_CORRECTION_DIR=$(cd "${COLOR_CORRECTION_DIR}" && pwd)
@@ -452,25 +387,22 @@ BASE_CALLING_DIR=$(cd "${BASE_CALLING_DIR}" && pwd)
 
 REPORTING_DIR=$(cd "${REPORTING_DIR}" && pwd)
 LOG_DIR=$(cd "${LOG_DIR}" && pwd)
+TEMP_DIR=$(cd "${TEMP_DIR}" && pwd)
 
-if [ -z "$(find ${INPUT_FILE_PATH} -name *.tif)" ]; then
-    echo "[ERROR] No input tif files"
+
+# prepare symbolic links for input files
+if [ -z "$(find ${INPUT_FILE_PATH} -name \*.${INPUT_IMAGE_EXT})" ]; then
+    echo "[ERROR] No input ${INPUT_IMAGE_EXT} files"
     exit
 fi
 
-for filename in ${INPUT_FILE_PATH}/*.tif; do
+for filename in ${INPUT_FILE_PATH}/*.${INPUT_IMAGE_EXT}; do
     basename=$(basename $filename)
     if [ ! -f "${DECONVOLUTION_DIR}/$basename" ]; then
         ln -s $filename ${DECONVOLUTION_DIR}/
     fi
 done
 
-
-if [ "$FORMAT" = "hdf5" ]; then
-    IMAGE_EXT=h5
-else
-    IMAGE_EXT=tif
-fi
 
 STAGES=("setup-cluster" "color-correction" "normalization" "registration" "puncta-extraction" "base-calling")
 
@@ -503,10 +435,11 @@ echo "  Running on host        :  "`hostname`
 echo "  # of rounds            :  ${ROUND_NUM}"
 echo "  file basename          :  ${FILE_BASENAME}"
 echo "  reference round        :  ${REFERENCE_ROUND}"
-#echo "  channels               :  ${CHANNELS}"
+echo "  channels               :  ${CHAN_STRS}"
 #echo "  shift channels         :  ${SHIFT_CHANNELS}"
 echo "  use GPU_CUDA           :  ${USE_GPU_CUDA}"
-echo "  intermediate image ext :  ${IMAGE_EXT}"
+echo "  input image ext        :  ${INPUT_IMAGE_EXT}"
+#echo "  intermediate image ext :  ${IMAGE_EXT}"
 echo
 echo "Stages"
 for((i=0; i<${#STAGES[*]}; i++))
@@ -520,6 +453,7 @@ do
 done
 echo
 echo "Directories"
+echo "  input images           :  ${INPUT_FILE_PATH}"
 echo "  deconvolution images   :  ${DECONVOLUTION_DIR}"
 echo "  color correction images:  ${COLOR_CORRECTION_DIR}"
 echo "  normalization images   :  ${NORMALIZATION_DIR}"
@@ -527,27 +461,28 @@ echo "  registration images    :  ${REGISTRATION_DIR}"
 echo "  puncta                 :  ${PUNCTA_DIR}"
 echo "  base calling           :  ${BASE_CALLING_DIR}"
 echo
-echo "  Temporal storage       :  "$(if [ "${USE_TMP_FILES}" = "true" ]; then echo ${TEMP_DIR}; else echo "(on-memory)";fi)
+echo "  Temporal storage       :  ${TEMP_DIR}"
 echo
 echo "  Reporting              :  ${REPORTING_DIR}"
 echo "  Log                    :  ${LOG_DIR}"
 echo
-echo "========================================================================="
-echo "Concurrency: # of parallel jobs, workers/job, threads/worker"
-echo "  # of logical cores     :  ${NUM_LOGICAL_CORES}"
-
-printf "  down-sampling          :  --,%2d,--\n" ${DOWN_SAMPLING_MAX_POOL_SIZE}
-printf "  color-correction       :  %2d,%2d,%2d\n" ${COLOR_CORRECTION_MAX_RUN_JOBS} ${COLOR_CORRECTION_MAX_POOL_SIZE} ${COLOR_CORRECTION_MAX_THREADS}
-printf "  normalization          :  %2d,%2d,%2d\n" ${NORMALIZATION_MAX_RUN_JOBS} ${NORMALIZATION_MAX_POOL_SIZE} ${NORMALIZATION_MAX_THREADS}
-printf "  registration           :\n"
-printf "    calc-descriptors     :  %2d,%2d,%2d\n" ${CALC_DESC_MAX_RUN_JOBS} ${CALC_DESC_MAX_POOL_SIZE} ${CALC_DESC_MAX_THREADS}
-printf "    reg-with-corres.     :  %2d,%2d,%2d\n" ${REG_CORR_MAX_RUN_JOBS} ${REG_CORR_MAX_POOL_SIZE} ${REG_CORR_MAX_THREADS}
-printf "    affine-transforms    :  %2d,%2d,%2d\n" ${AFFINE_MAX_RUN_JOBS} ${AFFINE_MAX_POOL_SIZE} ${AFFINE_MAX_THREADS}
-printf "    TPS3D-warp           :  %2d,%2d,%2d\n" ${TPS3DWARP_MAX_RUN_JOBS} ${TPS3DWARP_MAX_POOL_SIZE} ${TPS3DWARP_MAX_THREADS}
-printf "  puncta-extraction      :  --,%2d,--\n" ${PUNCTA_MAX_POOL_SIZE}
+echo "Additional parameter changes"
+for((i=0; i<${#PARAM_KEYS[*]}; i++))
+do
+    param=$(sed -ne "s#.*${PARAM_KEYS[i]} *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+    if [ -n "${param}" ]; then
+        echo -n "${PARAM_KEYS[i]} : ${param} --> ${PARAM_VALS[i]}"
+        if [ "${param}" = "${PARAM_VALS[i]}" ]; then
+            echo " [UNCHANGE]"
+        else
+            echo
+        fi
+    else
+        unset PARAM_KEYS[i]
+    fi
+done
 echo
 echo "#########################################################################"
-echo
 
 if [ ! "${QUESTION_ANSW}" = 'yes' ]; then
     echo "OK? (y/n)"
@@ -571,8 +506,11 @@ echo
 
 
 if [ "${PERF_PROFILE}" = "true" ]; then
+    if [ -n "$(type jupyter 2>&1 | grep 'not found')" ]; then
+        echo "WARNING: command 'jupyter' is not installed. a notebook of performance profile will be not created."
+    fi
     set -m
-    ./tests/perf-profile/get-stats.sh &
+    ./tests/perf-profile/get-stats.sh $$ &
     set +m
     PID_PERF_PROFILE=$!
     sleep 1
@@ -589,9 +527,7 @@ EOF
 
 ###### setup MATLAB scripts
 
-sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
-    -e "s#\(regparams.OUTPUTDIR\) *= *.*;#\1 = '${REGISTRATION_DIR}';#" \
-    -e "s#\(regparams.FIXED_RUN\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
+sed -e "s#\(params.INPUT_FILE_PATH\) *= *.*;#\1 = '${INPUT_FILE_PATH}';#" \
     -e "s#\(params.deconvolutionImagesDir\) *= *.*;#\1 = '${DECONVOLUTION_DIR}';#" \
     -e "s#\(params.colorCorrectionImagesDir\) *= *.*;#\1 = '${COLOR_CORRECTION_DIR}';#" \
     -e "s#\(params.normalizedImagesDir\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
@@ -606,26 +542,24 @@ sed -e "s#\(regparams.INPUTDIR\) *= *.*;#\1 = '${NORMALIZATION_DIR}';#" \
     -e "s#\(params.REFERENCE_ROUND_PUNCTA\) *= *.*;#\1 = ${REFERENCE_ROUND};#" \
     -e "s#\(params.tempDir\) *= *.*;#\1 = '${TEMP_DIR}';#" \
     -e "s#\(params.USE_GPU_CUDA\) *= *.*;#\1 = ${USE_GPU_CUDA};#" \
-    -e "s#\(params.USE_TMP_FILES\) *= *.*;#\1 = ${USE_TMP_FILES};#" \
-    -e "s#\(params.IMAGE_EXT\) *= *.*;#\1 = '${IMAGE_EXT}';#" \
+    -e "s#\(params.INPUT_IMAGE_EXT\) *= *.*;#\1 = '${INPUT_IMAGE_EXT}';#" \
     -e "s#\(params.NUM_LOGICAL_CORES\) *= *.*;#\1 = ${NUM_LOGICAL_CORES};#" \
-    -e "s#\(params.DOWN_SAMPLING_MAX_POOL_SIZE\) *= *.*;#\1 = ${DOWN_SAMPLING_MAX_POOL_SIZE};#" \
-    -e "s#\(params.COLOR_CORRECTION_MAX_RUN_JOBS\) *= *.*;#\1 = ${COLOR_CORRECTION_MAX_RUN_JOBS};#" \
-    -e "s#\(params.NORM_MAX_RUN_JOBS\) *= *.*;#\1 = ${NORMALIZATION_MAX_RUN_JOBS};#" \
-    -e "s#\(params.CALC_DESC_MAX_RUN_JOBS\) *= *.*;#\1 = ${CALC_DESC_MAX_RUN_JOBS};#" \
-    -e "s#\(params.REG_CORR_MAX_RUN_JOBS\) *= *.*;#\1 = ${REG_CORR_MAX_RUN_JOBS};#" \
-    -e "s#\(params.AFFINE_MAX_RUN_JOBS\) *= *.*;#\1 = ${AFFINE_MAX_RUN_JOBS};#" \
-    -e "s#\(params.TPS3DWARP_MAX_RUN_JOBS\) *= *.*;#\1 = ${TPS3DWARP_MAX_RUN_JOBS};#" \
-    -e "s#\(params.PUNCTA_MAX_POOL_SIZE\) *= *.*;#\1 = ${PUNCTA_MAX_POOL_SIZE};#" \
     -i.back \
     ./loadParameters.m
+
+for((i=0; i<${#PARAM_KEYS[*]}; i++))
+do
+    if [ -n "${PARAM_KEYS[i]}" ]; then
+        sed -e "s#\(${PARAM_KEYS[i]}\) *= *[^;]*;#\1 = ${PARAM_VALS[i]};#" -i ./loadParameters.m
+    fi
+done
 
 ###### clean up flocks
 
 echo "===== clean up lockfiles"
 echo "remove a lockfile of no running proc"
 num_running_procs=0
-for p in $(find /tmp/.exseqproc/ -name run.*.lock)
+for p in $(find ${LOCK_DIR}/ -name run.*.lock)
 do
     lock_pid=$(cat $p)
     if [ -z "$(find /proc -maxdepth 1 -name ${lock_pid})" ]; then
@@ -639,7 +573,7 @@ done
 if [ "${num_running_procs}" -eq 0 ]; then
     echo
     echo "remove unused lockfiles"
-    for l in $(find /tmp/.exseqproc/ -name *.lock)
+    for l in $(find ${LOCK_DIR}/ -name *.lock)
     do
         echo "rm $l"
         rm -f $l
@@ -647,7 +581,7 @@ if [ "${num_running_procs}" -eq 0 ]; then
 fi
 echo
 
-lock_pid_file="/tmp/.exseqproc/run.$$.lock"
+lock_pid_file="${LOCK_DIR}/run.$$.lock"
 echo "$$" > ${lock_pid_file}
 
 echo "===== set a lockfile"
@@ -704,6 +638,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-downsampling-and-color-correction.log | xargs grep -A 40 "^Error"
+
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
@@ -738,7 +674,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
-    grep -A 40 "^Error" ${LOG_DIR}/matlab-normalization-*.log
+#    grep -A 40 "^Error" ${LOG_DIR}/matlab-normalization-*.log
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-normalization-\*.log | xargs grep -A 40 "^Error"
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
@@ -773,7 +710,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
-    grep -A 40 "^Error" ${LOG_DIR}/matlab-reg[12]-*.log
+#    grep -A 40 "^Error" ${LOG_DIR}/matlab-reg[12]-*.log
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-reg[12]\*.log | xargs grep -A 40 "^Error"
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
@@ -809,6 +747,8 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
 
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-puncta-extraction.log | xargs grep -A 40 "^Error"
+
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
         STAGES_STATUS[$stage_idx]="ERROR"
@@ -839,9 +779,11 @@ if [ ! "${SKIP_STAGES[$stage_idx]}" = "skip" ]; then
     (
     matlab -nodisplay -nosplash -logfile ${stage_log} -r " \
         ${ERR_HDL_PRECODE} \
-        loadParameters; basecalling_simple; \
+        loadParameters; stage_base_calling; \
         ${ERR_HDL_POSTCODE}"
     ) & wait $!
+
+    find ${LOG_DIR} -cnewer ${lock_pid_file} -name matlab-base-calling-making.log | xargs grep -A 40 "^Error"
 
     # check result
     if [ -z "$(grep '\[DONE\]' ${stage_log})" ]; then
@@ -872,9 +814,14 @@ if [ "${PERF_PROFILE}" = "true" ]; then
     tests/perf-profile/summarize-stat-logs.sh logs
 fi
 
+echo "========================================================================="
+echo "Concurrency size summary"
+echo
+grep -e '## .*JOBS' -e '## .*POOL' -e '## .*THREADS' ${LOG_DIR}/matlab*.log | sed -e 's/## /  params./' -e 's/.*-\([a-z]*\)\.log/\1/'
+echo
+
 print_stage_status
 
 echo "========================================================================="
 echo "Pipeline finished"; date
 echo
-

@@ -20,6 +20,7 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
         fprintf('%s already exists, skipping\n',outputfile);
         return
     end
+    fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT))
     chan1 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{1},params.IMAGE_EXT)));
     chan2 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{2},params.IMAGE_EXT)));
     chan3 = load3DImage_uint16(fullfile(src_folder_name,sprintf('%s_round%.03i_%s.%s',fileroot_name,roundnum,channels{3},params.IMAGE_EXT)));

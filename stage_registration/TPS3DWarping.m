@@ -4,13 +4,17 @@ loadParameters;
 
 if do_downsample
     filename_root = sprintf('%s-downsample',params.FILE_BASENAME);
+    image_type = 'DOWNSAMPLE';
 else
     filename_root = sprintf('%s',params.FILE_BASENAME);
+    image_type = 'ORIGIMAL';
 end
 
-fprintf('TPS3DWarp RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
+fprintf('TPS3DWarp RUNNING ON MOVING: %i, FIXED: %i, IMAGE TYPE: %s\n', moving_run, params.REFERENCE_ROUND_WARP,image_type);
 
-maxNumCompThreads(params.TPS3DWARP_MAX_THREADS);
+if isfield(params,'TPS3DWARP_MAX_THREADS')
+    maxNumCompThreads(params.TPS3DWARP_MAX_THREADS);
+end
 
 affinekeys_filename = fullfile(params.registeredImagesDir,sprintf('affinekeys_%s_round%03d.h5',filename_root,moving_run));
 if ~exist(affinekeys_filename)
@@ -25,7 +29,7 @@ if isequal(params.IMAGE_EXT,'tif')
     tif_info = imfinfo(filename);
     img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
 elseif isequal(params.IMAGE_EXT,'h5')
-    hdf5_info = h5info(filename,'/image')
+    hdf5_info = h5info(filename,'/image');
     img_total_size = hdf5_info.Dataspace.Size;
 else
     fprintf('unsupported file format.\n');
@@ -63,6 +67,8 @@ else
     [ValidIdxs,I] = find(in1D_total>0);
     in1D_total = in1D_total(ValidIdxs);
     out1D_total = out1D_total(ValidIdxs);
+    ValidIdxs = [];
+    I = [];
 end
 
 

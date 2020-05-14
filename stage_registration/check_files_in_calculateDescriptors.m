@@ -15,36 +15,25 @@ function [ret,messages] = check_files_in_calculateDescriptors()
             descriptor_output_dir = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root,r_i,register_channel{1}));
             file_list = dir([descriptor_output_dir,'*.mat']);
 
-            if length(file_list) ~= regparams.COLS_DESC * regparams.ROWS_DESC
+            regChan = register_channel{1};
+            img_filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
+                filename_root,r_i,regChan,params.IMAGE_EXT));
+            if ~exist(img_filename,'file')
+                messages{end+1} = sprintf('[ERROR] not created: %s',img_filename);
+                continue
+            end
+            img = load3DImage_uint16(img_filename);
+
+            ymin = 1;
+            ymax = size(img,1);
+            xmin = 1;
+            xmax = size(img,2);
+
+            filename = fullfile(descriptor_output_dir, ...
+                [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+            if ~exist(filename,'file')
                 ret = false;
-
-                regChan = register_channel{1};
-                img_filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
-                    filename_root,r_i,regChan,params.IMAGE_EXT));
-                if ~exist(img_filename,'file')
-                    messages{end+1} = sprintf('[ERROR] not created: %s',img_filename);
-                    continue
-                end
-                img = load3DImage_uint16(img_filename);
-
-                tile_upperleft_y = floor(linspace(1,size(img,1),regparams.ROWS_DESC+1));
-                tile_upperleft_x = floor(linspace(1,size(img,2),regparams.COLS_DESC+1));
-
-                for x_idx=1:regparams.COLS_DESC
-                    for y_idx=1:regparams.ROWS_DESC
-                        % get region, indexing column-wise
-                        ymin = tile_upperleft_y(y_idx);
-                        ymax = tile_upperleft_y(y_idx+1);
-                        xmin = tile_upperleft_x(x_idx);
-                        xmax = tile_upperleft_x(x_idx+1);
-
-                        filename = fullfile(descriptor_output_dir, ...
-                            [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
-                        if ~exist(filename,'file')
-                            messages{end+1} = sprintf('[ERROR] not created: %s',filename);
-                        end
-                    end
-                end
+                messages{end+1} = sprintf('[ERROR] not created: %s',filename);
             end
         end
     end

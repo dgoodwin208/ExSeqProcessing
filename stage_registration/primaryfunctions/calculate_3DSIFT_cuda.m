@@ -22,7 +22,7 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
-LoadParams;
+loadParameters;
 image_size = size(img);
 sift_params.image_size0 = image_size(1);
 sift_params.image_size1 = image_size(2);

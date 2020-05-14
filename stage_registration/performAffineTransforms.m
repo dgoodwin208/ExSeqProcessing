@@ -4,20 +4,24 @@ loadParameters;
 
 if do_downsample
     filename_root = sprintf('%s-downsample',params.FILE_BASENAME);
+    image_type = 'DOWNSAMPLE';
 else
     filename_root = sprintf('%s',params.FILE_BASENAME);
+    image_type = 'ORIGIMAL';
 end
 
 %params.MOVING_RUN = moving_run;
 
-fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
+fprintf('PerfAffine RUNNING ON MOVING: %i, FIXED: %i, IMAGE TYPE: %s\n', moving_run, params.REFERENCE_ROUND_WARP,image_type);
 output_affine_filename = fullfile(params.registeredImagesDir,sprintf('%s_round%03d_%s_affine.%s',filename_root,moving_run,regparams.CHANNELS{end},params.IMAGE_EXT));
 if exist(output_affine_filename,'file')
     fprintf('Already sees the last output file, skipping!\n');
     return;
 end
 
-maxNumCompThreads(params.AFFINE_MAX_THREADS);
+if isfield(params,'AFFINE_MAX_THREADS')
+    maxNumCompThreads(params.AFFINE_MAX_THREADS);
+end
 
 filename = fullfile(params.normalizedImagesDir,sprintf('%s_round%03d_%s.%s',...
     filename_root,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{1},params.IMAGE_EXT ));
@@ -101,14 +105,29 @@ h5write(output_affinekeys_filename,'/keyF_total',keyF_total);
 toc;
 
 ch_list = regparams.CHANNELS;
-inputdir = params.normalizedImagesDir;
+input_chandir = params.colorCorrectionImagesDir;
+input_normdir = params.normalizedImagesDir;
 outputdir = params.registeredImagesDir;
 image_ext = params.IMAGE_EXT;
+if isfield(params, 'MORPHOLOGY_ROUND') && (moving_run == params.MORPHOLOGY_ROUND)
+    ch_list{end+1} = [params.MORPHOLOGY_CHAN_STR,'SHIFT'];
+end
+if isfield(params,'AFFINE_MAX_THREADS')
+    worker_max_threads = params.AFFINE_MAX_THREADS;
+else
+    worker_max_threads = 'automatic';
+end
 parfor c = 1:length(ch_list)
+    maxNumCompThreads(worker_max_threads);
     %Load the data to be warped
     tic;
     data_channel = ch_list{c};
     fprintf('load 3D file for affine transform on %s channel\n',data_channel);
+    if contains(data_channel,'ch')
+        inputdir = input_chandir;
+    else
+        inputdir = input_normdir;
+    end
     filename = fullfile(inputdir,sprintf('%s_round%03d_%s.%s',filename_root,moving_run,data_channel,image_ext));
     imgToWarp = load3DImage_uint16(filename);
     toc;

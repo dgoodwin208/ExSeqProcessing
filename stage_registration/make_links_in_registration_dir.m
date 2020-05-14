@@ -5,6 +5,7 @@ function ret = make_links_in_registration()
     loadParameters;
 
     src_dir = relpath(params.registeredImagesDir,params.normalizedImagesDir);
+    old_dir = pwd;
     cd(params.registeredImagesDir);
 
     for c_i = 1:length(regparams.CHANNELS)
@@ -24,13 +25,13 @@ function ret = make_links_in_registration()
             continue
         end
 
-        reg_tps_filename = sprintf('%s_round%03i_%s_registered.%s',params.FILE_BASENAME,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{c_i},params.IMAGE_EXT);
-        if ~exist(reg_registered_filename,'file')
-            fprintf('ln -s %s %s\n',normalized_filename,reg_registered_filename);
-            system(sprintf('ln -s %s %s',normalized_filename,reg_registered_filename));
+        reg_tps_filename = sprintf('./%s_round%03i_%s_registered.%s',params.FILE_BASENAME,params.REFERENCE_ROUND_WARP,regparams.CHANNELS{c_i},params.IMAGE_EXT);
+        if ~exist(reg_tps_filename,'file')
+            fprintf('ln -s %s %s\n',normalized_filename,reg_tps_filename);
+            system(sprintf('ln -s %s %s',normalized_filename,reg_tps_filename));
         end
     end
 
-    cd('..');
+    cd(old_dir);
 end
 

@@ -179,18 +179,18 @@ void print_matrix3d(
         T *val) {
 
     std::ostringstream sout;
-    sout << "        ";
+    sout << "        y:";
     for (size_t j = 0; j < dy; j++) {
         sout << std::setw(6) << y_start + j << ",";
     }
     logger->debug("{}", sout.str());
 
     for (size_t k = 0; k < dz; k++) {
-        logger->debug("[{}]", k);
+        logger->debug("[z:{}]", k);
         for (size_t i = 0; i < dx; i++) {
             sout.str("");
             sout.clear();
-            sout << std::setw(6) << i << "| ";
+            sout << "x:" << std::setw(6) << i << "| ";
             for (size_t j = 0; j < dy; j++) {
                 size_t idx = x_start + i + (y_start + j) * x_size + (z_start + k) * x_size * y_size;
                 sout << std::setw(6);
@@ -219,18 +219,18 @@ void print_matrix3d_dev(
     thrust::host_vector<T> h_val(d_val);
 
     std::ostringstream sout;
-    sout << "        ";
+    sout << "        y:";
     for (size_t j = 0; j < dy; j++) {
         sout << std::setw(6) << y_start + j << ",";
     }
     logger->debug("{}", sout.str());
 
     for (size_t k = 0; k < dz; k++) {
-        logger->debug("[{}]", k);
+        logger->debug("[z:{}]", k);
         for (size_t i = 0; i < dx; i++) {
             sout.str("");
             sout.clear();
-            sout << std::setw(6) << i << "| ";
+            sout << "x:" << std::setw(6) << i << "| ";
             for (size_t j = 0; j < dy; j++) {
                 size_t idx = x_start + i + (y_start + j) * x_size + (z_start + k) * x_size * y_size;
                 sout << std::setw(6);

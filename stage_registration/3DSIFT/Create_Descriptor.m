@@ -8,7 +8,7 @@ function [keypoint reRun precomp_grads] = Create_Descriptor(pix, xyScale, tScale
 % x, y, and z - the location of the center of the keypoint where a descriptor is requested
 %
 % Outputs:
-% keypoint - the descriptor, varies in size depending on values in LoadParams.m
+% keypoint - the descriptor, varies in size depending on values of sift_params in loadParameters.m
 % reRun - a flag (0 or 1) which is set if the data at (x,y,z) is not
 % descriptive enough for a good keypoint
 %
@@ -29,9 +29,6 @@ if (sift_params.TwoPeak_Flag)
     % Dom_Peak = ix(1);
     % Sec_Peak = ix(2);
         
-    %fprintf('mlab x%d y%d z%d ori_hist %.4f %.4f %.54f %.54f ori_hist_idx: %d %d %d %d eq:%d, diff:%.54f\n', ...
-        %x-1, y-1, z-1, yy(1), yy(2), yy(3), yy(4), ix(1) - 1, ix(2) - 1, ix(3) - 1, ix(4) - 1, yy(3) == yy(4), yy(3) - yy(4));
-
 
     if (dot(fv.centers(ix(1),:),fv.centers(ix(2),:)) > .9 && ...
         dot(fv.centers(ix(1),:),fv.centers(ix(3),:)) > .9)

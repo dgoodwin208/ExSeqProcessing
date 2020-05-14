@@ -14,8 +14,10 @@ BGREGION_SEARCHXY = 30;
 BGREGION_SEARCHZ = 5;
 %the puncta indices are here in linear form for a specific round
 
-fprintf('PUNCTA_MAX_POOL_SIZE=%d\n', params.PUNCTA_MAX_POOL_SIZE);
-parpool(params.PUNCTA_MAX_POOL_SIZE); %arbitrary but this parallel loop is memory intensive
+conditions = conditions_for_concurrency();
+max_pool_size = concurrency_size_in_puncta_roicollect_bgincl(conditions);
+fprintf('PUNCTA_MAX_POOL_SIZE=%d\n', max_pool_size);
+parpool(max_pool_size); %arbitrary but this parallel loop is memory intensive
 filename_punctaMask = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
 img_mask = load3DImage_uint16(filename_punctaMask)>0;
     
@@ -68,6 +70,7 @@ parfor exp_idx = 1:params.NUM_ROUNDS
     puncta_set_cell_bgmean{exp_idx} = pixels_per_rnd_bgmean;
     puncta_set_cell_bgmedian{exp_idx} = pixels_per_rnd_bgmedian;
 end
+img_mask = [];
 
 disp('reducing processed puncta')
 puncta_set_median = zeros(params.NUM_ROUNDS,params.NUM_CHANNELS,num_insitu_transcripts);

@@ -1,5 +1,5 @@
 function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg_list, ...
-    postfix_list, pool, max_jobs, max_running_jobs, wait_sec, log_dir)
+    postfix_list, pool, num_jobs, max_running_jobs, wait_sec, log_dir)
 
     success_code = true;
     outputs = {};
@@ -12,13 +12,13 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
     tic; 
     disp('===== create batch jobs =====') 
 
-    jobs = cell(1, max_jobs);
-    running_jobs = zeros(1, max_jobs);
+    jobs = cell(1, num_jobs);
+    running_jobs = zeros(1, num_jobs);
     job_idx = 1;
 
-    while job_idx <= max_jobs || sum(running_jobs) > 0
+    while job_idx <= num_jobs || sum(running_jobs) > 0
         % check that number of jobs currently running is valid
-        if (job_idx <= max_jobs) && (sum(running_jobs) < max_running_jobs)
+        if (job_idx <= num_jobs) && (sum(running_jobs) < max_running_jobs)
 
             % determine args
             args = arg_list{job_idx};

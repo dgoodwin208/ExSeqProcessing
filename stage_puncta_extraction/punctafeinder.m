@@ -5,19 +5,6 @@ for roundnum = ROUNDS
 
     summed_norm = load3DImage_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,roundnum,'summedNorm',regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
 
-    %NEW: 08/01/2018: high pass filter before segmentation
-    %fprintf('Creating GPU array\n');
-    %summed_norm_gpu = gpuArray(single(summed_norm));
-    %fprintf('Bluring\n');
-    %img_blur_gpu = imgaussfilt3(summed_norm_gpu,[30 30 30*(.17/.4)]);
-    %fprintf('Gathering\n');
-    %img_blur = gather(img_blur_gpu);
-    %catch
-%	fprintf('Failed to load round %i\n',roundnum)
-%        continue;
-%    end
-    %remove any zeros by just putting the mean of the data in:
-    %summed_norm(summed_norm==0) = mean(summed_norm(summed_norm>0)); 
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
     else
@@ -28,17 +15,25 @@ for roundnum = ROUNDS
 
 end
 
-%If geometric mean
-%total_summed_norm = total_summed_norm.^(1/params.NUM_ROUNDS);
-
 min_total = min(total_summed_norm(:));
 total_summed_norm_scaled = total_summed_norm - min_total;
 total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
+total_summed_norm = [];
 save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
 
 %Note the original size of the data before upscaling to isotropic voxels
 data = total_summed_norm_scaled;
 
+%Using feedback from Eftychios Pnevmatatiks from the Flatiron Institute, we add bg substraction
+fprintf('Starting new background subtraction...');
+%New background subtraction method: Added 20191009
+se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
+data_opened = imopen(data,se);
+data = max(data - data_opened,0);
+fprintf('Done!\n');
+%end bg subtraction
+
+total_summed_norm_scaled = [];
 img_origsize = data;
 
 %This requires knowledge of the Z and XY resolutions
@@ -56,7 +51,12 @@ data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
 %pchip and cubic actually are the same, according to MATLAB doc in 2016b
 for y = 1:size(data,1)
     for x = 1:size(data,2)
-        data_interpolated(y,x,:) = interp1(indices_orig,squeeze(data(y,x,:)),query_pts_interp,'pchip');
+        if all(squeeze(data(y,x,:))==0)
+            %For speed, if the whole z-column is 0, no need to interpolate!
+            data_interpolated(y,x,:)=0;
+        else
+            data_interpolated(y,x,:) = interp1(indices_orig,squeeze(data(y,x,:)),query_pts_interp,'pchip');
+        end
     end
     
     if mod(y,200)==0
@@ -66,33 +66,40 @@ end
 
 %Now use the punctafeinder's dog filtering approach
 stack_in = data_interpolated;
-stack_orig = stack_in;
+%stack_orig = stack_in;
 stack_in = dog_filter(stack_in);
 
 %Thresholding is still the most sensitive part of this pipeline, so results
 %must be analyzed with this two lines of code in mind
-thresh = multithresh(stack_in,1);
+thresh = multithresh(stack_in(stack_in>0),1);
 fgnd_mask = stack_in>thresh(1);
 
 %Ignore the background via thresholding and calculate watershed
 stack_in(~fgnd_mask) = 0; % thresholded using dog background
+fgnd_mask = [];
 neg_masked_image = -int32(stack_in);
 neg_masked_image(~stack_in) = inf;
 
 tic
 fprintf('Watershed running...');
 L = uint32(watershed(neg_masked_image));
+neg_masked_image = [];
 L(~stack_in) = 0;
+stack_in = [];
 fprintf('DONE\n');
 toc
 
 %Now we downsample the output of the watershed, L, back into the original
 %space
 data = double(L); %interpolation needs double or single, L is integer
+L = [];
 data_interp = interp1(query_pts_interp,squeeze(data(1,1,:)),indices_orig);
 data_interpolated = zeros(size(data,1),size(data,2),length(data_interp));
+data_interp = [];
 
 for y = 1:size(data,1)
+    %TODO: We could skip the vectors that are all zero from interpolation
+    %like we did above.
     for x = 1:size(data,2)
         %'Nearest' = nearest neighbor, means there should be no new values
         %being created
@@ -103,13 +110,13 @@ for y = 1:size(data,1)
         fprintf('\t%i/%i rows processed\n',y,size(data,1));
     end
 end
+data = [];
 L_origsize = uint32(data_interpolated);
+data_interpolated = [];
 
 %Extract the puncta from the watershed output (no longer interpolated)
-%params.PUNCTA_SIZE_THRESHOLD = 30; 
-%params.PUNCTA_SIZE_MAX = 2000; 
-
 candidate_puncta= regionprops(L_origsize,img_origsize, 'WeightedCentroid', 'PixelIdxList');
+L_origsize = [];
 indices_to_remove = [];
 for i= 1:length(candidate_puncta)
     if size(candidate_puncta(i).PixelIdxList,1)< params.PUNCTA_SIZE_THRESHOLD ...
@@ -124,6 +131,7 @@ good_indices(indices_to_remove) = [];
 filtered_puncta = candidate_puncta(good_indices);
 
 output_img = zeros(size(img_origsize));
+img_origsize = [];
 
 for i= 1:length(filtered_puncta)
     %Set the pixel value to somethign non-zero
@@ -132,7 +140,7 @@ end
 
 filename_out = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
 save3DImage_uint16(output_img,filename_out);
-        
+output_img = [];
 
 %Creating the list of voxels and centroids per round is entirely
 %unnecessary, but keeping it in for now for easy of processing

@@ -12,7 +12,7 @@ end
 fn = fullfile('3_normalization/exseqauto-xy01-downsample_round001_ch01SHIFT.tif');
 img = load3DTif_uint16(fn);
 
-LoadParams;
+loadParameters;
 % saved keypoints for 1024 1024 126 image
 load res_vect
 keys = res_vect;

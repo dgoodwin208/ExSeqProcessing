@@ -15,11 +15,9 @@ end
 %However, in the case when we only want the keypoint (ie for Shape Context)
 %we skip the calclation of the SIFT descriptor to save time
 
-LoadParams;
+loadParameters;
 sift_params.pix_size = size(img);
 keys = cell(size(keypts,1),1);
-i = 0;
-offset = 0;
 precomp_grads = {};
 precomp_grads.count = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3));
 precomp_grads.mag = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3));
@@ -28,42 +26,33 @@ precomp_grads.ix = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_
 precomp_grads.yy = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3), ...
     sift_params.Tessel_thresh, 1);
 precomp_grads.vect = zeros(sift_params.pix_size(1), sift_params.pix_size(2), sift_params.pix_size(3), 1, 3);
-while 1
 
-    reRun = 1;
-    i = i+1;
-    
-    while reRun == 1
-        
-        loc = keypts(i+offset,:);
-        %fprintf(1,'Calculating keypoint at location (%d, %d, %d)\n',loc);
-        
-        % Create a 3DSIFT descriptor at the given location
-        if ~skipDescriptor
-            [keys{i} reRun precomp_grads] = Create_Descriptor(img,1,1,loc(1),loc(2),loc(3),sift_params, precomp_grads);
-        else         
-            clear k; reRun=0;
-            k.x = loc(1); k.y = loc(2); k.z = loc(3);
-            keys{i} = k;
-        end
+key_idx = 1;
+skipped = 0;
+for i = 1:size(keypts,1)
 
-        if reRun == 1
-            offset = offset + 1;
+    loc = keypts(i,:);
+    %fprintf(1,'Calculating keypoint at location (%d, %d, %d)\n',loc);
+
+    % Create a 3DSIFT descriptor at the given location
+    if ~skipDescriptor
+        [kpt reRun precomp_grads] = Create_Descriptor(img,sift_params.xyScale,sift_params.tScale,loc(1),loc(2),loc(3),sift_params, precomp_grads);
+        if reRun == 0
+            keys{key_idx} = kpt;
+            key_idx = key_idx + 1;
+        else
+            skipped = skipped + 1;
         end
-        
-        %are we out of data?
-        if i+offset>=size(keypts,1)
-            break;
-        end
+    else
+        clear k
+        k.x = loc(1); k.y = loc(2); k.z = loc(3);
+        keys{key_idx} = k;
+        key_idx = key_idx + 1;
     end
-    
-    %are we out of data?
-    if i+offset>=size(keypts,1)
-            break;
-    end
+
 end
 %remove any pre-initialized descriptors that weren't used
-keys(i:end)=[];
+keys(key_idx:end)=[];
 
 % for diagnostics only, warning: runs extremely slowly
 %if ~skipDescriptor
@@ -82,6 +71,6 @@ keys(i:end)=[];
     %toc
 %end
 
-fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',offset);
+fprintf(1,'\nFinished.\n%d points thrown out do to poor descriptive ability.\n',skipped);
 
 end

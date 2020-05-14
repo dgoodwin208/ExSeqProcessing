@@ -14,6 +14,7 @@ mask2d = imclose(max(inputImage,[],3),se);
 mask_indices = find(mask2d>0);
 mask2d = [];
 [mask_y,mask_x] = ind2sub([size(inputImage,1),size(inputImage,2)], mask_indices);
+mask_indices = [];
 min_mask_x = min(mask_x);
 max_mask_x = max(mask_x);
 min_mask_y = min(mask_y);
@@ -46,7 +47,6 @@ end
 mask2d_small_mask = [];
 
 outputImage = inputImage;
-inputImage = [];
 
 %Empirically, interp_radius of 1 creates some artifacts (mainly visible
 %around areas of high contrast). interp_radius of 2 is slower (within one order of magnitude) 

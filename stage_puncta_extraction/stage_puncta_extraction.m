@@ -12,7 +12,8 @@ function stage_puncta_extraction()
     punctafeinder;
     clearvars
 
-    puncta_roicollect_bgincl;
+    %Produce a punctavoxels.mat file
+    puncta_roicollect;
 
     [ret,messages] = check_files_in_puncta_extraction();
     if ret

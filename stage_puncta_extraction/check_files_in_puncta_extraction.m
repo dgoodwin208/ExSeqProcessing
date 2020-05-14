@@ -19,7 +19,7 @@ function [ret,messages] = check_files_in_puncta_extraction()
         return
     end
 
-    outputfile = fullfile(params.basecallingResultsDir,sprintf('%s_puncta_pixels.mat',params.FILE_BASENAME));
+    outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
     if ~exist(outputfile,'file')
         ret = false;
         messages{end+1} = sprintf('[ERROR] not created: %s',outputfile);

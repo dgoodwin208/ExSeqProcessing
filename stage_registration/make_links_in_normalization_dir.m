@@ -5,6 +5,7 @@ function ret = make_links_in_normalization_dir()
     loadParameters;
 
     src_dir = relpath(params.normalizedImagesDir,params.colorCorrectionImagesDir);
+    old_dir = pwd;
     cd(params.normalizedImagesDir);
 
     for do_downsample = [true,false]
@@ -34,6 +35,6 @@ function ret = make_links_in_normalization_dir()
         end
     end
 
-    cd('..');
+    cd(old_dir);
 end
 

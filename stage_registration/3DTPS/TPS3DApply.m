@@ -16,9 +16,6 @@ try
 catch
     disp('WARNING: There is an indexing error in the TPS Application ');    
 end
-imgToWarp = [];
-in1D = [];
-out1D = [];
 
 %interpolate
 outputImage_interp = interpolateVolume(outputImage);

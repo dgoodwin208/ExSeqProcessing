@@ -11,7 +11,7 @@ for rnd_indx = 1:params.NUM_ROUNDS
     for c = 1:params.NUM_CHANNELS
 
         filename_full = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c}));
+            sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.INPUT_IMAGE_EXT));
 
         if ~exist(filename_full,'file')
             precheck = false;
@@ -24,43 +24,67 @@ for rnd_indx = 1:params.NUM_ROUNDS
     end
 end
 
+delete(gcp('nocreate'))
+conditions = conditions_for_concurrency();
+max_pool_size = concurrency_size_in_downsample_all(conditions);
 
-parpool(params.DOWN_SAMPLING_MAX_POOL_SIZE);
+parpool(max_pool_size);
 
-parfor rnd_indx = 1:params.NUM_ROUNDS
-    for c = 1:params.NUM_CHANNELS
+if ~isequal(params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
+    fprintf('Converting input images: %s to %s\n',params.INPUT_IMAGE_EXT,params.IMAGE_EXT)
 
-        filename_full = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s_round%.03i_%s.tif',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c}));
-        filename_downsampled = fullfile(params.deconvolutionImagesDir,...
-            sprintf('%s-downsample_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,params.CHAN_STRS{c},params.IMAGE_EXT));
-        filename_full_hdf5 = replace(filename_full,'tif','h5');
-
-        if exist(filename_downsampled,'file')
-            if isequal(params.IMAGE_EXT,'tif')
-                fprintf('Skipping file %s that already exists\n',filename_downsampled);
-                continue;
-            elseif isequal(params.IMAGE_EXT,'h5') && exist(filename_full_hdf5,'file')
-                fprintf('Skipping files %s and %s that already exist\n',filename_downsampled,filename_full_hdf5);
-                continue;
-            end
+    parfor rnd_indx = 1:params.NUM_ROUNDS
+        num_channels = params.NUM_CHANNELS;
+        chan_strs = params.CHAN_STRS;
+        if isfield(params, 'MORPHOLOGY_ROUND') && (rnd_indx == params.MORPHOLOGY_ROUND)
+            num_channels = num_channels + 1;
+            chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
         end
 
-        img = load3DTif_uint16(filename_full);
+        for c = 1:num_channels
+
+            input_filename_full = fullfile(params.deconvolutionImagesDir,...
+                sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.INPUT_IMAGE_EXT));
+            filename_full = fullfile(params.deconvolutionImagesDir,...
+                sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.IMAGE_EXT));
+
+            img = load3DImage_uint16(input_filename_full);
+            if ~exist(filename_full,'file')
+                fprintf('Saving %s\n',filename_full);
+                save3DImage_uint16(img,filename_full);
+            end
+        end
+    end
+end
+
+parfor rnd_indx = 1:params.NUM_ROUNDS
+    num_channels = params.NUM_CHANNELS;
+    chan_strs = params.CHAN_STRS;
+    if isfield(params, 'MORPHOLOGY_ROUND') && (rnd_indx == params.MORPHOLOGY_ROUND)
+        num_channels = num_channels + 1;
+        chan_strs{num_channels} = params.MORPHOLOGY_CHAN_STR;
+    end
+
+    for c = 1:num_channels
+
+        filename_full = fullfile(params.deconvolutionImagesDir,...
+            sprintf('%s_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.IMAGE_EXT));
+        filename_downsampled = fullfile(params.deconvolutionImagesDir,...
+            sprintf('%s-downsample_round%.03i_%s.%s',params.FILE_BASENAME,rnd_indx,chan_strs{c},params.IMAGE_EXT));
+
+        if exist(filename_downsampled,'file')
+            fprintf('Skipping file %s that already exists\n',filename_downsampled);
+            continue;
+        end
+
+        img = load3DImage_uint16(filename_full);
 
         %Doing 'linear' downsample because the default of cubic was creating
         %values as low as -76
         img_downsample = imresize3(img,1/params.DOWNSAMPLE_RATE,'linear');
 
-        if ~exist(filename_downsampled,'file')
-            fprintf('Saving %s \n',filename_downsampled);
-            save3DImage_uint16(img_downsample,filename_downsampled);
-        end
-
-        if isequal(params.IMAGE_EXT,'h5') && ~exist(filename_full_hdf5,'file')
-            fprintf('Saving %s as hdf5\n',filename_full);
-            save3DImage_uint16(img,filename_full_hdf5);
-        end
+        fprintf('Saving %s \n',filename_downsampled);
+        save3DImage_uint16(img_downsample,filename_downsampled);
 
     end
 end
