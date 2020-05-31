@@ -47,8 +47,9 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     descriptor_output_dir_moving = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         moving_run,register_channel{1}));
 
+    
     filename = fullfile(descriptor_output_dir_moving, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     for idx=1:length(data.keys)
@@ -68,7 +69,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
         params.REFERENCE_ROUND_WARP,register_channel{1}));
 
     filename = fullfile(descriptor_output_dir_fixed, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     for idx=1:length(data.keys)
