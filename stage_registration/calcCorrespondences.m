@@ -68,9 +68,13 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     descriptor_output_dir_fixed = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         params.REFERENCE_ROUND_WARP,register_channel{1}));
 
-    filename = fullfile(descriptor_output_dir_fixed, ...
-        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
-
+     
+    %Fixed old code: since we only save one file for the descriptors in a given round
+    %We can simply load that one file here. In an old version of the code, we would subsegment
+    %the descriptor calculation, which is why we had coordinates in the .mat file. -DG 20200601
+    files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
+    filename = fullfile(files(1).folder,files(1).name);
+    
     data = load(filename);
     for idx=1:length(data.keys)
         %copy all the keys into one large vector of cells
