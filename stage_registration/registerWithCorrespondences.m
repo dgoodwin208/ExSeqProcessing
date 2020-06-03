@@ -74,7 +74,7 @@ keyM_total_affine = [keyM_total_switch, ones(size(keyM_total_switch,1),1)]*affin
 keyM_total=keyM_total_affine(:,1:3);
 
 %Save the transform for use later
-output_transform_filename = fullfile(params.registeredImagesDir,sprintf('affineTForm_%s_round%03d.mat',params.FILE_BASENAME,moving_run));
+output_transform_filename = fullfile(params.registeredImagesDir,sprintf('affineTForm_%s_round%03d.mat',filename_root,moving_run));
 save(output_transform_filename,'affine_tform');
 
 %Remove any keypoints which are now outside the bounds of the image
