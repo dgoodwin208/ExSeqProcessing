@@ -8,8 +8,8 @@ function varargout = concurrency_size_in_registerWithCorrespondencesInParallel(c
         % TODO: consider a way to calculate avr # of keys when # of register_channels is over 1
         avr_num_keys = 0;
         for i = 1:num_rounds
-            nkeys_filename = fullfile(params.registeredImagesDir,sprintf('nkeys_%s-downsample_round%03d_summedNorm.mat',...
-            params.FILE_BASENAME,i));
+            nkeys_filename = fullfile(params.registeredImagesDir,sprintf('nkeys_%s-downsample_round%03d_%s.mat',...
+            params.FILE_BASENAME,i,regparams.CHANNELS{end}));
             load(nkeys_filename,'num_keys');
             avr_num_keys = avr_num_keys + num_keys;
         end
