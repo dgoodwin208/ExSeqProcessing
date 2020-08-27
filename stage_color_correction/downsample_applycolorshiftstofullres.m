@@ -24,16 +24,22 @@ src_dir = relpath(params.colorCorrectionImagesDir,params.deconvolutionImagesDir)
 old_dir = pwd;
 cd(params.colorCorrectionImagesDir);
 
-%params = params;
-%clear all;
 parfor rnd_indx = 1:params.NUM_ROUNDS
     
-    chan1_inname = fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{1},IMAGE_EXT));
+    %Check to see if there is a problem with missing data
     
+    chan1_inname = fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{1},IMAGE_EXT));
     if ~exist(chan1_inname,'file')
         fprintf('Skipping missing round %i \n',rnd_indx);
         continue
     end
+    
+    %Check to see if this round has already been processed
+    chan_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{end},IMAGE_EXT);
+    if exist(chan_outname,'file')
+        fprintf('Skipping round which has already been done %i \n',rnd_indx);
+        continue;
+    end 
     
     filename_colorShifts = sprintf('./%s-downsample_round%.03i_colorcalcs.mat',FILE_BASENAME,rnd_indx);
     if ~exist(filename_colorShifts,'file')
@@ -41,18 +47,10 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
         continue;
     end 
    
-    chan4_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{4},IMAGE_EXT);
-    if exist(chan4_outname,'file')
-        fprintf('Skipping round which has already been done %i \n',rnd_indx);
-        continue;
-    end    
-    S = load(filename_colorShifts);    
-    %Note: this block of code has been added since we the color correction calculation was switched
-    %from bead-specific code (which required a lengthy quantilenorm) to a faster for loop, so we 
-    %unpack the output of the for loop here. If this works it can be cleaned up later. DG 2019-07-20
-    chan2_offsets = S.chan_offsets(2,:); 
-    chan3_offsets = S.chan_offsets(3,:);
-    chan4_offsets = S.chan_offsets(4,:);
+
+    %Load the computed offsets
+    S = load(filename_colorShifts);
+    
     
     %Create the symlink of chan1 to the new directory
     chan1_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{1},IMAGE_EXT);
@@ -60,36 +58,32 @@ parfor rnd_indx = 1:params.NUM_ROUNDS
     system(command);
     fprintf('Created symlink %s \n',chan1_outname);
     
-    chan2 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{2},IMAGE_EXT)));
-    chan2_shift = imtranslate3D(chan2,round(chan2_offsets*DOWNSAMPLE_RATE));
-    chan2 = [];
-    chan2_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{2},IMAGE_EXT);
-    save3DImage_uint16(chan2_shift,chan2_outname);
-    chan2_shift = [];
-    
-    chan3 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{3},IMAGE_EXT)));
-    chan3_shift = imtranslate3D(chan3,round(chan3_offsets*DOWNSAMPLE_RATE));
-    chan3 = [];
-    chan3_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{3},IMAGE_EXT);
-    save3DImage_uint16(chan3_shift,chan3_outname);
-    chan3_shift = [];
-    
-    chan4 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{4},IMAGE_EXT)));
-    chan4_shift = imtranslate3D(chan4,real(round(chan4_offsets*DOWNSAMPLE_RATE)));
-    chan4 = [];
-    save3DImage_uint16(chan4_shift,chan4_outname);
-    chan4_shift = [];
-
-
+    %Note that this makes the strong assumption that the first ccolor
+    %channel is the reference and will not be modified. -DG 
+    for c_idx = 2:params.NUM_CHANNELS
+        chan_offsets = S.chan_offsets(c_idx,:);
+        
+        %Load the data and apply shift
+        chan = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,CHAN_STRS{c_idx},IMAGE_EXT)));
+        chan_shift = imtranslate3D(chan,round(chan_offsets*DOWNSAMPLE_RATE));
+        
+        chan_outname = sprintf('./%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,SHIFT_CHAN_STRS{c_idx},IMAGE_EXT);
+        save3DImage_uint16(chan_shift,chan_outname);
+        
+    end
+    chan = [];
+    chan_shift = [];
+    %If there is a morphology round, it typically is the same sequencing
+    %chemistry, plus an additional color channel for the morphology
     if isfield(params, 'MORPHOLOGY_ROUND') && (rnd_indx == params.MORPHOLOGY_ROUND)
-        chan5_offsets = S.chan_offsets(5,:);
+        chan_offsets = S.chan_offsets(params.NUM_CHANNELS+1,:);
 
-        chan5 = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT)));
-        chan5_shift = imtranslate3D(chan5,real(round(chan5_offsets*DOWNSAMPLE_RATE)));
-        chan5 = [];
-        chan5_outname = sprintf('./%s_round%.03i_%sSHIFT.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT);
-        save3DImage_uint16(chan5_shift,chan5_outname);
-        chan5_shift = [];
+        chan = load3DImage_uint16(fullfile(src_dir,sprintf('%s_round%.03i_%s.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT)));
+        chan_shift = imtranslate3D(chan,real(round(chan_offsets*DOWNSAMPLE_RATE)));
+        chan = [];
+        chan_outname = sprintf('./%s_round%.03i_%sSHIFT.%s',FILE_BASENAME,rnd_indx,params.MORPHOLOGY_CHAN_STR,IMAGE_EXT);
+        save3DImage_uint16(chan_shift,chan_outname);
+        chan_shift = [];
     end
     
     
