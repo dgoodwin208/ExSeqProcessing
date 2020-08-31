@@ -1,22 +1,16 @@
-
-
-
-
-
-
 %s is the base name of the file and will have information like the round number and channel number appended to it
 params.FILE_BASENAME = 'exseqvc1rep1-F037';
 
 % Data loading and storage parameters; where the given folders are on disk
-params.INPUT_FILE_PATH = '/mp/nas2/robert/F037/0_raw';
-params.deconvolutionImagesDir = '/mp/nas2/robert/F037/1_deconvolution';
-params.colorCorrectionImagesDir = '/mp/nas2/robert/F037/2_color-correction';
-params.normalizedImagesDir = '/mp/nas2/robert/F037/3_normalization';
-params.registeredImagesDir = '/mp/nas2/robert/F037/4_registration';
-params.punctaSubvolumeDir = '/mp/nas2/robert/F037/5_puncta-extraction';
-params.basecallingResultsDir = '/mp/nas2/robert/F037/6_base-calling';
-params.reportingDir = '/mp/nas2/robert/F037/logs/imgs';
-params.logDir = '/mp/nas2/robert/F037/logs';
+params.INPUT_FILE_PATH = '/mp/nas2/DG/testRepo/F037/0_raw';
+params.deconvolutionImagesDir = '/mp/nas2/DG/testRepo/F037/1_deconvolution';
+params.colorCorrectionImagesDir = '/mp/nas2/DG/testRepo/F037/2_color-correction';
+params.normalizedImagesDir = '/mp/nas2/DG/testRepo/F037/3_normalization';
+params.registeredImagesDir = '/mp/nas2/DG/testRepo/F037/4_registration';
+params.punctaSubvolumeDir = '/mp/nas2/DG/testRepo/F037/5_puncta-extraction';
+params.basecallingResultsDir = '/mp/nas2/DG/testRepo/F037/6_base-calling';
+params.reportingDir = '/mp/nas2/DG/testRepo/F037/logs/imgs';
+params.logDir = '/mp/nas2/DG/testRepo/F037/logs';
 %Microscope parameters
 params.XRES = .17;
 params.YRES = .17;
@@ -43,6 +37,9 @@ params.PUNCTA_SIZE_MAX = 2000;
 params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
 params.CHAN_STRS = {'ch00','ch01','ch02','ch03', 'ch04'};
 params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
+
+
+params.PUNCTA_CHANNEL_SEG = 'summedNorm'; 
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
@@ -142,7 +139,7 @@ sift_params.y_substream_stride = 256;
 % So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat', 'groundtruth_dictionary_HTAPP20191008.mat'
 params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
 
-params.ISILLUMINA = false;
+params.ISILLUMINA = true;
 params.PUNCTARADIUS_BGESTIMATE = 5;
 
 %batch_processing parameters

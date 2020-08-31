@@ -13,7 +13,8 @@ puncta_set_normalized = puncta_set_cell_filtered;
 %Create a clims object for each round
 %This will be later used for calculating the histogram settings for
 %visualizing the puncta gridplots
-clims_perround = zeros(4,2,readlength);
+%The 2 is that we will be noting two percentiles of brightness for determining puncta
+clims_perround = zeros(params.NUM_CHANNELS,2,readlength);
 
 %We'll also do some new insitu_transcript base calling while we're at it
 insitu_transcripts = zeros(N,readlength);
@@ -26,7 +27,7 @@ for rnd_idx = 1:readlength
     punctaindices_vecpos = zeros(N,1);
     pos_cur = 1;
     
-    data_cols = zeros(total_voxels,4);
+    data_cols = zeros(total_voxels,params.NUM_CHANNELS);
     for p_idx = 1:N
         voxels = puncta_set_cell_filtered{rnd_idx}{p_idx};
         n = length(voxels);
@@ -58,8 +59,8 @@ for rnd_idx = 1:readlength
         pos_cur = punctaindices_vecpos(p_idx)+1;
     end
     
-    color_cutoffs = zeros(4,1);
-    for c_idx = 1:4
+    color_cutoffs = zeros(params.NUM_CHANNELS,1);
+    for c_idx = 1:params.NUM_CHANNELS
         %We create histogram cutoffs from all the puncta in a particular
         %round. This is used for viewing later
         histval_bottom = prctile(data_cols_norm(:,c_idx),50);
@@ -95,7 +96,7 @@ for rnd_idx = 1:readlength
         %Red (chan1) can be bright without magenta (chan2), but
         %Magenta cannot be bright without red. So if chan2 is close to
         %chan1, call it 2.
-        
+        %IlluminaCorrectionFactor is set to -1 to make this logic never trigger by default
         if abs(chan2_signal-chan1_signal)/chan2_signal<ILLUMINACORRECTIONFACTOR && winning_base==1
             winning_base=2;
             illumina_corrections(rnd_idx) = illumina_corrections(rnd_idx)+1;
@@ -119,6 +120,7 @@ if params.ISILLUMINA
 else
     puncta_complete = 1:N; %keep everything, don't filter
 end
+
 fprintf('Number of puncta before filtering missing bases: %i\n',N);
 fprintf('Number of puncta before filtering missing bases: %i\n',length(puncta_complete));
 

@@ -9,7 +9,7 @@ function varargout = concurrency_size_in_registerWithCorrespondencesInParallel(c
         avr_num_keys = 0;
         for i = 1:num_rounds
             nkeys_filename = fullfile(params.registeredImagesDir,sprintf('nkeys_%s-downsample_round%03d_%s.mat',...
-            params.FILE_BASENAME,i,regparams.CHANNELS{end}));
+            params.FILE_BASENAME,i,regparams.REGISTERCHANNELS_SIFT{end}));
             load(nkeys_filename,'num_keys');
             avr_num_keys = avr_num_keys + num_keys;
         end
