@@ -4,10 +4,11 @@ function success_code = normalization()
 
     loadParameters;
 
-    if length(params.SHIFT_CHAN_STRS) ~= 4
-        disp('# of channels is not 4.')
-        return
-    end
+    % Removed the formal requirement for four channels. -DG 2020-09-09
+    %if length(params.SHIFT_CHAN_STRS) ~= 4
+    %    disp('# of channels is not 4.')
+    %    return
+    %end
 
     arg_list = {};
     postfix_list = {};

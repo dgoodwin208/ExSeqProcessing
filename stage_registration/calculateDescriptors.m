@@ -48,7 +48,7 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
 
 
     %Make sure the folders for the descriptor outputs exist:
-    descriptor_output_dir = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root,run_num,register_channel{1}));
+    descriptor_output_dir = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root,run_num,regChan));
     if exist(descriptor_output_dir,'dir')==0
         mkdir(descriptor_output_dir);
     end
@@ -70,6 +70,18 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     skipDescriptor = ~any(strcmp(regparams.REGISTERCHANNELS_SIFT,regChan));            
     if exist(outputfilename,'file')>0 %Make sure that the descriptors have been calculated!
         fprintf('Sees that the file %s already exists, skipping\n',outputfilename);
+        %We create a nkeys_ file to store the number of features calculcated. If that file
+        %does not exist now, create it
+
+
+        nkeys_filename = fullfile(params.registeredImagesDir,sprintf('nkeys_%sround%03d_%s.mat',...
+        filename_root,run_num,regChan));
+	if ~exist(nkeys_filename, 'file')
+	    %Load the descriptors file, get the number of features
+            load(outputfilename);
+            num_keys = length(keys);
+            save(nkeys_filename,'num_keys');
+        end
         return;
     else
         keys = SWITCH_tile_processingInParallel(img,skipDescriptor);

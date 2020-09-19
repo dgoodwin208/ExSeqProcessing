@@ -159,9 +159,9 @@ if ~exist(output_keys_filename,'file')
     %So we calculate the SIFT descriptor on the normed channel
     %(summedNorm), and we calculate the Shape Context descriptor
     %using keypoints from all other channels
-
-    DM_SC=ShapeContext(LM_SIFT,LM_SC);
-    DF_SC=ShapeContext(LF_SIFT,LF_SC);
+    % NOTE: ShapeContext has been deprecated for now, -DG 2020-09-09
+    %DM_SC=ShapeContext(LM_SIFT,LM_SC);
+    %DF_SC=ShapeContext(LF_SIFT,LF_SC);
 
     correspondences=correspondences_sift;
     %Check for duplicate matches- ie, keypoint A matching to both
@@ -177,7 +177,8 @@ if ~exist(output_keys_filename,'file')
     end
     fprintf('There are %i matches when combining the features evenly (removed %i double matches)\n', size(correspondences,2),num_double_matches);
 
-    if length(correspondences)<20
+    
+    if length(correspondences)<regparams.NCORRESPONDENCES_MIN
         disp(['We only see ' num2str(length(correspondences)) ' which is insufficient to calculate a reliable transform. Skipping']);
         error('Insufficient points after filtering. Try increasing the inlier parameters in calc_affine');
         return;

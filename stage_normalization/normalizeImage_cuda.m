@@ -1,5 +1,6 @@
 function normalizeImage_cuda(roundnum,do_downsample)
-
+    %TODO: The CUDA Version of normalization still needs to be improved. See normalizeImage.m 
+    % for reference. -DG 2020 09 09
     loadParameters;
 
     src_folder_name = params.colorCorrectionImagesDir;
