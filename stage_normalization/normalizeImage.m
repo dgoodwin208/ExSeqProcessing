@@ -35,7 +35,15 @@ function normalizeImage(src_folder_name,dst_folder_name,fileroot_name,channels,r
     end
 
     % Normalize the data
-    data_cols_norm = quantilenorm(data_cols);
+    % NEW: Added the flexiblity to skip the quantile normalization. Providing the channels
+    % are from a similar distribution, it can greatly increase speed and reliability to simply
+    % sum the non-normalized channels
+    if strcmp(params.NORMALIZE_METHOD,'quantile')
+        data_cols_norm = quantilenorm(data_cols);
+    else
+        data_cols_norm = data_cols;
+    end
+
     clearvars data_cols;
 
     % reshape the normed results back into 3d images
