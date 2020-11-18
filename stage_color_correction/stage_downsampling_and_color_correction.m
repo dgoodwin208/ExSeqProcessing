@@ -1,7 +1,10 @@
 function stage_downsampling_and_color_correction()
 
     loadParameters;
-
+    %Save the loadParameters into the output director in case we need to do
+    %later debugging
+    copyfile('loadParameters.m',fullfile(params.colorCorrectionImagesDir,...
+        sprintf('loadParameters.m.log-%s',date)))
     [ret,messages] = check_files_in_downsample_all();
     if ~ret
         run('downsample_all.m');

@@ -1,7 +1,10 @@
 function stage_registration()
 
     loadParameters;
-
+    %Save the loadParameters into the output director in case we need to do
+    %later debugging
+    copyfile('loadParameters.m',fullfile(params.registeredImagesDir,...
+        sprintf('loadParameters.m.log-%s',date)))
     % sub-stage 1: calculate descriptors
     ret = make_links_in_normalization_dir();
     if ~ret
