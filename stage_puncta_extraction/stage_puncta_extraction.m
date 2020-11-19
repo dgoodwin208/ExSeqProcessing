@@ -12,7 +12,11 @@ function stage_puncta_extraction()
         return
     end
 
-    punctafeinder;
+    %Because we need to reprocess some fields of view, try using this
+    puncta_img_mask_file = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
+    if ~exist(puncta_img_mask_file,'file')
+        punctafeinder;
+    end
     clearvars
 
     %Produce a punctavoxels.mat file
