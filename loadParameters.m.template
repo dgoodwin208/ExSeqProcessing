@@ -22,8 +22,13 @@ params.REFERENCE_ROUND_WARP = 5;
 params.REFERENCE_ROUND_PUNCTA = 5;
 params.NUM_ROUNDS = 5;
 
-%params.MORPHOLOGY_ROUND = 5;
-%params.MORPHOLOGY_CHAN_STR = 'ch04';
+% Does your experiment contain a round that contains a morphological signal
+% that you would like to be included for later analysis? If so, uncomment
+% this line. If your experiment does *not* have a morphological component,
+% leave this uncommented
+% params.MORPHOLOGY_ROUND = 1;
+% params.MORPHOLOGY_CHAN_STR = 'ch04';
+
 
 %Used for color correction
 %Assuming beads are at the top of the stack, when do they start?

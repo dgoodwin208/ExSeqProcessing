@@ -3,7 +3,7 @@ function stage_base_calling()
     loadParameters;
     %Save the loadParameters into the output director in case we need to do
     %later debugging
-    copyfile('loadParameters.m',fullfile(params.transcriptResultsDir,...
+    copyfile('loadParameters.m',fullfile(params.basecallingResultsDir,...
         sprintf('loadParameters.m.log-%s',date)))
     [ret,messages] = check_files_in_base_calling();
     if ret
