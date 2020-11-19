@@ -1,6 +1,6 @@
 loadParameters;
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
-load(filename_centroids,'puncta_centroids','puncta_voxels')
+load(filename_centroids,'puncta_centroids','puncta_voxels','crop_dims')
 %% Collect the subvolumes we started this with, but now only with the pixels from the puncta!
 
 num_insitu_transcripts = size(puncta_voxels,1);
@@ -31,7 +31,12 @@ parfor exp_idx = run_num_list
     for c_idx = params.COLOR_VEC
         filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.SHIFT_CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
         img =  load3DImage_uint16(filename_in);
-        
+        %IN BRANCH: Adding in the newly cropped feature
+        img = img(...
+            crop_dims(1,1):crop_dims(1,2),...
+            crop_dims(2,1):crop_dims(2,2),...
+            crop_dims(3,1):crop_dims(3,2));
+
         for puncta_idx = 1:num_insitu_transcripts
            
             indices_for_puncta = puncta_voxels{puncta_idx};
@@ -122,5 +127,5 @@ if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM
 end
 
 outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
-save(outputfile,'puncta_set_cell','puncta_indices_cell','-v7.3');
+save(outputfile,'puncta_set_cell','puncta_indices_cell','crop_dims','-v7.3');
 
