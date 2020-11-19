@@ -18,6 +18,10 @@ if endsWith(path,'.tif')
 
 elseif endsWith(path,'.h5')
 
+    %If there is alrady a file there, we delete it.
+    if exist(path,'file')
+        delete(path)
+    end
     try
         h5create(path,'/image',size(vol),'DataType','uint16');
     catch ME
