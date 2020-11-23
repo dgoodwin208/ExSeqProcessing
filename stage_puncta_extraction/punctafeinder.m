@@ -132,19 +132,25 @@ for y = 1:size(data,1)
     %TODO: We could skip the vectors that are all zero from interpolation
     %like we did above.
     for x = 1:size(data,2)
-        %'Nearest' = nearest neighbor, means there should be no new values
-        %being created
-        data_interpolated(y,x,:) = interp1(query_pts_interp,squeeze(data(y,x,:)),indices_orig,'nearest');
+
+        if all(squeeze(data(y,x,:))==0)
+	    %For speed, if the whole z-column is 0, no need to interpolate!
+            data_interpolated(y,x,:)=0;
+        else
+            %'Nearest' = nearest neighbor, means there should be no new values
+            %being created
+            data_interpolated(y,x,:) = interp1(query_pts_interp,squeeze(data(y,x,:)),indices_orig,'nearest');
+        end
     end
     
     if mod(y,200)==0
         fprintf('\t%i/%i rows processed\n',y,size(data,1));
     end
 end
-data = [];
 L_origsize = uint32(data_interpolated);
 data_interpolated = [];
-
+%clear data to make space
+data = [];
 %Extract the puncta from the watershed output (no longer interpolated)
 candidate_puncta= regionprops(L_origsize,img_origsize, 'WeightedCentroid', 'PixelIdxList');
 L_origsize = [];
@@ -159,6 +165,12 @@ end
 good_indices = 1:length(candidate_puncta);
 good_indices(indices_to_remove) = [];
 
+%A commmon failure of watershed is that the threshold is too low 
+%for now, we're going to hardcode 
+max_puncta = numel(img_origsize)/(params.PUNCTA_SIZE^3)
+if length(good_indices)>max_puncta
+    error(sprintf('Way too many puncta extracted: %i puncta with a threshold of %f\n',length(good_indices),thresh))
+end
 filtered_puncta = candidate_puncta(good_indices);
 
 output_img = zeros(size(img_origsize));
