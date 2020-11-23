@@ -14,7 +14,7 @@ for roundnum = ROUNDS
         zero_mask_tracker = zero_mask_tracker + (total_summed_norm==0);
     else
         total_summed_norm = total_summed_norm + summed_norm;
-        zero_mask_tracker = zero_mask_tracker + (total_summed_norm==0);
+        zero_mask_tracker = zero_mask_tracker + (summed_norm==0);
         %geometric meean exploration:
         %total_summed_norm = total_summed_norm.*summed_norm;
     end
@@ -29,7 +29,8 @@ total_summed_norm = [];
 save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
 
 % Convert the zero_mask into a cropping bounds
-mask = zero_mask_tracker<=param.MAXNUM_MISSINGROUND;
+mask = zero_mask_tracker<=params.MAXNUM_MISSINGROUND;
+%1 = there was less than params.MAXNUM_MISSINGROUND of 0s
 crop_dims = zeros(3,2); %num_dims x min/max
 for dim = 1:3
     %Get the dimensions to take the maximums of
@@ -43,12 +44,13 @@ for dim = 1:3
     crop_dims(dim,1) = find(max_mip ,1,'first');
     crop_dims(dim,2) = find(max_mip ,1,'last');
 end
-
+crop_dims 
 %Now crop the data that we will be applying the DOG to
 total_summed_norm_scaled = total_summed_norm_scaled(...
     crop_dims(1,1):crop_dims(1,2),...
     crop_dims(2,1):crop_dims(2,2),...
     crop_dims(3,1):crop_dims(3,2));
+
     
 save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_cropped.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
 
