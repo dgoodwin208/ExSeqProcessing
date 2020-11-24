@@ -129,5 +129,11 @@ if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM
 end
 
 outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
-save(outputfile,'puncta_set_cell','puncta_indices_cell','crop_dims','-v7.3');
+%IN BRANCH: In the interim 
+if ~didLoadCropDims 
+    crop_dims = false;
+else
+    save(outputfile,'puncta_set_cell','puncta_indices_cell','crop_dims','-v7.3');
+end
+
 
