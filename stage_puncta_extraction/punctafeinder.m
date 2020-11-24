@@ -169,7 +169,7 @@ good_indices(indices_to_remove) = [];
 
 %A commmon failure of watershed is that the threshold is too low 
 %for now, we're going to hardcode 
-max_puncta = numel(img_origsize)/(params.PUNCTA_SIZE^3)
+max_puncta = numel(img_origsize)/(params.PUNCTA_SIZE^3);
 if length(good_indices)>max_puncta
     error(sprintf('Way too many puncta extracted: %i puncta with a threshold of %f\n',length(good_indices),thresh))
 end
