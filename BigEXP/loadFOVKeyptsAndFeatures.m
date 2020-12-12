@@ -1,4 +1,4 @@
-function [keys] = loadFOVKeyptsAndFeatures(FOV,bigparams)
+function [keys] = loadFOVKeyptsAndFeatures(FOV,round,bigparams)
 % Load any Fov, make it global and return
 
 
@@ -6,7 +6,7 @@ foldername = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
     sprintf('F%.3i',FOV),...
     '4_registration',...
     sprintf('%s-F%.3i-downsample_round%.3i_%s',...
-    bigparams.EXPERIMENT_NAME,FOV,ROUND,bigparams.REG_CHANNEL) );
+    bigparams.EXPERIMENT_NAME,FOV,round,bigparams.REG_CHANNEL) );
 
 keys = {};
 if ~exist(foldername,'dir')
@@ -14,7 +14,7 @@ if ~exist(foldername,'dir')
 end
 %Get the file from inside the folder
 files = dir(fullfile(foldername,'*.mat'));
-if length(files)==0
+if isempty(files)
     fprintf('%s is empty\n',foldername);
     return
 end
