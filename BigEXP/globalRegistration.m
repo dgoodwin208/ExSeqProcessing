@@ -4,19 +4,6 @@ bigExpParams;
 %% For all fields of view and all rounds, load the keypoints, make global
 % Load the reference round
 
-numTiles = prod(bigparams.EXPERIMENT_TILESIZE);
-
-%Create the spatial map of the tiling snake pattern we want to use
-%A map of all the tile indices laid out in a 2D grid
-tileMap_indices_reference = [];
-for n = 1:numTiles
-    [row, col] = calculateRowColForSnakeTilePattern(n-1,bigparams.EXPERIMENT_TILESIZE(1));
-    tileMap_indices_reference(row+1,col+1) = n-1;
-end
-
-%Critically, we must adjust the map so we can create a grid of images all
-%inside the same coordinate frame as the dragonfly camera! 
-tileMap_indices_reference = fliplr(transpose(tileMap_indices_reference));
 
 % Load all the keys
 
@@ -35,7 +22,7 @@ for ROUND = 1:2 %:bigparams.NUMROUNDS
             end
                 
             
-            keys_all{fov_inputnum+1} = loadFOVKeyptsAndFeatures(fov_inputnum,bigparams)
+            keys_all{fov_inputnum+1} = loadFOVKeyptsAndFeatures(fov_inputnum,ROUND,bigparams)
             
 %             foldername = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
 %                 sprintf('F%.3i',fov_inputnum),...

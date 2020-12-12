@@ -24,6 +24,8 @@ filename = files(1).name;
 data = load(fullfile(foldername,filename));
 keys = data.keys;
 
+[row,col] = find(bigparams.TILE_MAP==FOV);
+
 %Copy those keys into a global holder of all
 %keypoints+descriptors
 fprintf('Adding %i entries from FOV %i\n',length(keys),FOV);
