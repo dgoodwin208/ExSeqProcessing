@@ -9,7 +9,7 @@
 % no variables. All outputs saved to params.registeredImagesDir
 %
 % Author: Daniel Goodwin dgoodwin208@gmail.com
-% Date: August 2015
+% Date: December 2020
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [keyM_total,keyF_total] = calcCorrespondences_global(keys_moving,keys_fixed)
@@ -26,19 +26,12 @@ if isfield(params,'CALC_CORR_MAX_THREADS')
     maxNumCompThreads(params.CALC_CORR_MAX_THREADS);
 end
 
-fprintf('CalcCorrespondences ON MOVING: %i, FIXED: %i\n', moving_run, params.REFERENCE_ROUND_WARP);
-
-
 
 %loop over all the subsections desired for the piecewise affine, finding
 %all relevant keypoints then calculating the transform from there
 keyM_total = [];
 keyF_total = [];
 
-%Because it takes up to hours to generate the global list of vetted
-%keys, after we generate them we now save them in the output_keys_filename
-%if it's aready been generated, we can skip directly to the TPS calculation
-output_keys_filename = fullfile(params.registeredImagesDir,sprintf('globalkeys_%sround%03d.mat',filename_root,moving_run));
 
 %If we need to run the robust model checking to identify correct
 %correspondences

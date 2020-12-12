@@ -7,7 +7,7 @@ bigExpParams;
 
 % Load all the keys
 
-for ROUND = 1:2 %:bigparams.NUMROUNDS
+for ROUND = 1:1 %:bigparams.NUMROUNDS
     
     keys_all = cell(numTiles,1);
     for row = 1:size(tileMap_indices_reference,1)
@@ -21,48 +21,9 @@ for ROUND = 1:2 %:bigparams.NUMROUNDS
                 continue
             end
                 
-            
-            keys_all{fov_inputnum+1} = loadFOVKeyptsAndFeatures(fov_inputnum,ROUND,bigparams)
-            
-%             foldername = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
-%                 sprintf('F%.3i',fov_inputnum),...
-%                 '4_registration',...
-%                 sprintf('%s-F%.3i-downsample_round%.3i_%s',...
-%                 bigparams.EXPERIMENT_NAME,fov_inputnum,ROUND,bigparams.REG_CHANNEL) );
-%             
-%             if exist(foldername,'dir')
-%                 %Get the file from inside the folder
-%                 files = dir(fullfile(foldername,'*.mat'));
-%                 if length(files)==0
-%                     fprintf('%s is empty\n',foldername);
-%                     continue
-%                 end
-%                 filename = files(1).name;
-%                 %Load the variable 'keys'
-%                 load(fullfile(foldername,filename))
-% 
-%                 %Copy those keys into a global holder of all
-%                 %keypoints+descriptors
-%                 fprintf('Adding %i entries from FOV %i\n',length(keys),fov_inputnum);
-%                 for k = 1:length(keys)
-%                     
-%                     %The position of the keypoints is in
-%                     %downsampled coordinatees
-%                     
-%                     keys{k}.x_global = bigparams.IMG_SIZE_XY(1)*(col-1) + keys{k}.x*bigparams.DOWNSAMPLE_RATE;
-%                     keys{k}.y_global = bigparams.IMG_SIZE_XY(2)*(row-1) + keys{k}.y*bigparams.DOWNSAMPLE_RATE;
-%                     keys{k}.z_global = keys{k}.z*bigparams.DOWNSAMPLE_RATE;
-%                     keys{k}.F = fov_inputnum;
-%                     
-%                     keys{k} = rmfield(keys{k},'xyScale');
-%                     keys{k} = rmfield(keys{k},'tScale');
-%                     keys{k} = rmfield(keys{k},'k');
-%                 end
-%                 keys_all{fov_inputnum+1} = keys;
-% 
-%             else
-%                 fprintf('%s does not exist\n',foldername);
-%             end
+            keys = loadFOVKeyptsAndFeatures(fov_inputnum,ROUND,bigparams);
+            fprintf('Adding %i entries from FOV %i\n',length(keys),fov_inputnum);
+            keys_all{fov_inputnum+1} = keys;
 
         end
     end
@@ -78,15 +39,40 @@ end % End round
 myDIR = '/Users/goody/Neuro/ExSeq/HTAPP_514';
 load(fullfile(myDIR, 'registration_allkeys_round001.mat'));
 keys_fixed = {};
-for idx=1:length(data.keys)
-        %copy all the keys into one large vector of cells
-        keys_fixed{keys_ctr} = keys{idx};
-        keys_fixed{keys_ctr}.x = keys{idx}.x;
-        keys_fixed{keys_ctr}.y = keys{idx}.y;
+keys_ctr = 1;
+%copy all the keys into one large vector of cells
+%For the fixed/reference, we only work with global, and overwrite the xyz
+%that will be used in the affine calculations
+for f=1:length(keys_all)
+    for idx = 1:length(keys_all{f})     
+        keys_fixed{keys_ctr} = keys_all{f}{idx};
+        keys_fixed{keys_ctr}.x = keys_fixed{keys_ctr}.x_global;
+        keys_fixed{keys_ctr}.y = keys_fixed{keys_ctr}.y_global;
+        keys_fixed{keys_ctr}.z = keys_fixed{keys_ctr}.z_global;
+        keys_fixed{keys_ctr} = rmfield(keys_fixed{keys_ctr},'x_global');
+        keys_fixed{keys_ctr} = rmfield(keys_fixed{keys_ctr},'y_global');
+        keys_fixed{keys_ctr} = rmfield(keys_fixed{keys_ctr},'z_global');
         keys_ctr = keys_ctr+ 1;
+    end
 end
 
 %% Load an "easy" field of view - 40 (60% volume overlap)
+
+keys = loadFOVKeyptsAndFeatures(40,3,bigparams);
+%As a quick development hack, just scale up the original xyz coords
+keys_moving = {};
+keys_ctr = 1;
+
+for idx = 1:length(keys)     
+    keys_moving{keys_ctr} = keys{idx};
+    keys_moving{keys_ctr}.x = keys_fixed{keys_ctr}.x*bigparams.DOWNSAMPLE_RATE;
+    keys_moving{keys_ctr}.y = keys_fixed{keys_ctr}.y*bigparams.DOWNSAMPLE_RATE;
+    keys_moving{keys_ctr}.z = keys_fixed{keys_ctr}.z*bigparams.DOWNSAMPLE_RATE;
+
+    keys_ctr = keys_ctr+ 1;
+end
+
+
 
 %% Load an "hard" field of view - 50 (24% volume overlap)
 %% Now load a moving round

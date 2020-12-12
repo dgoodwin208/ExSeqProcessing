@@ -29,7 +29,7 @@ end
 running_ctr
 
 %% Load all the points in space 
-figure;
-plot(pos(:,2),pos(:,1),'.','MarkerSize',15);
+% figure;
+plot(pos(:,2),pos(:,1),'r.','MarkerSize',15);
 % set(gca, 'YDir','reverse')
 

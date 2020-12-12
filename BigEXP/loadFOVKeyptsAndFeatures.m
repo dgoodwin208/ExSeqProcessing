@@ -15,7 +15,7 @@ end
 %Get the file from inside the folder
 files = dir(fullfile(foldername,'*.mat'));
 if isempty(files)
-    fprintf('%s is empty\n',foldername);
+%     fprintf('%s is empty\n',foldername);
     return
 end
 filename = files(1).name;
@@ -28,7 +28,7 @@ keys = data.keys;
 
 %Copy those keys into a global holder of all
 %keypoints+descriptors
-fprintf('Adding %i entries from FOV %i\n',length(keys),FOV);
+% fprintf('Adding %i entries from FOV %i\n',length(keys),FOV);
 for k = 1:length(keys)
     
     %The position of the keypoints is in
@@ -37,7 +37,7 @@ for k = 1:length(keys)
     keys{k}.x_global = bigparams.IMG_SIZE_XY(1)*(col-1) + keys{k}.x*bigparams.DOWNSAMPLE_RATE;
     keys{k}.y_global = bigparams.IMG_SIZE_XY(2)*(row-1) + keys{k}.y*bigparams.DOWNSAMPLE_RATE;
     keys{k}.z_global = keys{k}.z*bigparams.DOWNSAMPLE_RATE;
-    keys{k}.F = fov_inputnum;
+    keys{k}.F = FOV;
     
     keys{k} = rmfield(keys{k},'xyScale');
     keys{k} = rmfield(keys{k},'tScale');
