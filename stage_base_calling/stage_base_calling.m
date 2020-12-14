@@ -7,7 +7,7 @@ function stage_base_calling()
         sprintf('loadParameters.m.log-%s',date)))
     [ret,messages] = check_files_in_base_calling();
     if ret
-        fprintf('already processed puncta extraction\n');
+        fprintf('already processed the sequences\n');
         fprintf('[DONE]\n');
         return
     end

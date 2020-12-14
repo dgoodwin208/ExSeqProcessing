@@ -1,5 +1,8 @@
+% function [insitu_transcripts_filtered,puncta_voxels_filtered,puncta_centroids_filtered] = ...
+%     normalization_qnorm1(puncta_set_cell_filtered)
 
-
+N = size(puncta_set_cell_filtered{1},1);
+readlength = params.NUM_ROUNDS;
 puncta_present = ones(N,readlength);
 %Get the total number of voxels involved for the puncta
 %used to initialize data_cols
@@ -20,6 +23,7 @@ clims_perround = zeros(params.NUM_CHANNELS,2,readlength);
 insitu_transcripts = zeros(N,readlength);
 %Each image is normalized seperately
 illumina_corrections = zeros(readlength,1);
+
 for rnd_idx = 1:readlength
     
     %this vector keeps track of where we're placing each set of voxels per
@@ -114,7 +118,7 @@ for rnd_idx = 1:readlength
 end
 fprintf('Completed normalization!\n');
 
-%A puncta is incomplete if it's never missing a round 
+%A puncta is incomplete if it's never missing a round
 if params.ISILLUMINA
     puncta_complete = find(~any(puncta_present==false,2));
 else
@@ -122,7 +126,7 @@ else
 end
 
 fprintf('Number of puncta before filtering missing bases: %i\n',N);
-fprintf('Number of puncta before filtering missing bases: %i\n',length(puncta_complete));
+fprintf('Number of puncta after filtering missing bases: %i\n',length(puncta_complete));
 
 N = length(puncta_complete);
 puncta_set_normalized_filtered = puncta_set_normalized;
@@ -132,11 +136,9 @@ for rnd_idx = 1:readlength
 end
 
 insitu_transcripts_filtered = insitu_transcripts(puncta_complete,:);
-
 puncta_voxels_filtered  = puncta_indices_cell_filtered{1};
 puncta_centroids_filtered = zeros(N,3);
 for p = 1:N
     [x,y,z] = ind2sub(IMG_SIZE,puncta_voxels_filtered{p});
-    puncta_centroids_filtered(p,:) = mean([x,y,z],1);
-    
+    puncta_centroids_filtered(p,:) = mean([x,y,z],1); 
 end
