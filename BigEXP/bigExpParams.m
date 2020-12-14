@@ -1,9 +1,11 @@
 bigparams.EXPERIMENT_NAME = 'htapp514';
 bigparams.EXPERIMENT_FOLDERROOT = '/mp/nas2/DG/HTAPP_20200921/HTAPP_514/processing/';
+bigparams.REGISTRATION_WORKINGDIR = fullfile(bigparams.EXPERIMENT_FOLDERROOT,'bigReg');
 bigparams.EXPERIMENT_TILESIZE = [19,6];
 bigparams.NUMTILES = prod(bigparams.EXPERIMENT_TILESIZE);
 bigparams.NUMROUNDS = 7;
 bigparams.DOWNSAMPLE_RATE = 4;
+bigparams.REFERENCE_ROUND = 1; %TEMP: make sure this is the same as params.
 
 bigparams.FOVS_TO_IGNORE = [0, 1, 15:20,55:57,94:95,106:109];
 

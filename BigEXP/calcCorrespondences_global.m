@@ -1,5 +1,5 @@
-
-% Calculating Correspondences
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Need to update this header
 % This is the code that calculates the keypoints and descriptors at
 % varying scale levels
 %
@@ -111,6 +111,8 @@ toc;warning('on','all')
 
 keyM_total = keyM;
 keyF_total = keyF;
+
+
 
 
 
