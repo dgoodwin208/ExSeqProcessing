@@ -1,5 +1,5 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Need to update this header
+
+% Calculating Correspondences
 % This is the code that calculates the keypoints and descriptors at
 % varying scale levels
 %
@@ -48,25 +48,22 @@ end
 
 %Extract the keypoints-only for the shape context calculation
 %D is for descriptor, M is for moving
-DM_SIFT = []; %DM_SC is defined later
-LM_SIFT = []; ctr_sift = 1; ctr_sc = 1;
+DM_SIFT = zeros(length(keys_moving),length(keys_moving{1}.ivec)); %DM_SC is defined later
+LM_SIFT = zeros(length(keys_moving),3);
 
-for i = 1:length(keys_moving)
-    
-    DM_SIFT(ctr_sift,:) = keys_moving{i}.ivec;
-    LM_SIFT(ctr_sift,:) = [keys_moving{i}.y, keys_moving{i}.x, keys_moving{i}.z];
-    ctr_sift = ctr_sift+1;
+for i = 1:length(keys_moving)    
+    DM_SIFT(i,:) = keys_moving{i}.ivec;
+    LM_SIFT(i,:) = [keys_moving{i}.y, keys_moving{i}.x, keys_moving{i}.z];
 end
 
 %F for fixed
-DF_SIFT = [];
-LF_SIFT = []; ctr_sift = 1;
+DF_SIFT = zeros(length(keys_fixed),length(keys_fixed{1}.ivec)); %DM_SC is defined later
+LF_SIFT = zeros(length(keys_fixed),3);
 
 for i = 1:length(keys_fixed)
     
-    DF_SIFT(ctr_sift,:) = keys_fixed{i}.ivec;
-    LF_SIFT(ctr_sift,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
-    ctr_sift = ctr_sift+1;
+    DF_SIFT(i,:) = keys_fixed{i}.ivec;
+    LF_SIFT(i,:) = [keys_fixed{i}.y, keys_fixed{i}.x, keys_fixed{i}.z];
     
 end
 
@@ -74,7 +71,9 @@ DM_SIFT_norm= DM_SIFT ./ repmat(sum(DM_SIFT,2),1,size(DM_SIFT,2));
 DF_SIFT_norm= DF_SIFT ./ repmat(sum(DF_SIFT,2),1,size(DF_SIFT,2));
 
 %correspondences_sift = vl_ubcmatch(DM_SIFT_norm',DF_SIFT_norm');
+fprintf('starting matching...'); tic;
 correspondences_sift = match_3DSIFTdescriptors(DM_SIFT_norm,DF_SIFT_norm);
+fprintf('Done!'); toc
 
 correspondences=correspondences_sift;
 %Check for duplicate matches- ie, keypoint A matching to both
@@ -111,8 +110,6 @@ toc;warning('on','all')
 
 keyM_total = keyM;
 keyF_total = keyF;
-
-
 
 
 
