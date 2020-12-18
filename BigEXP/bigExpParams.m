@@ -17,6 +17,8 @@ bigparams.IMG_SIZE_XY = [2048, 2048];
 bigparams.IMG_RES_XY = .1625; % in um, Taken from the .ims properties read via FIJI
 bigparams.IMG_RES_Z = 0.3974;
 
+bigparams.CHANNELS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT','summedNorm'};
+bigparams.IMAGE_EXT = 'h5';
 
 
 %Create the spatial map of the tiling snake pattern we want to use

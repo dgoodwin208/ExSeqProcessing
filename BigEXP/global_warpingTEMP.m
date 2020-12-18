@@ -1,13 +1,15 @@
-function global_warpingTEMP(round_mov,pos_fixed,FOVS,FOVS_per_fixed_fov_total,bigparams)
+function global_warpingTEMP(round_mov,keys_fixed,pos_fixed,FOVS,FOVS_per_fixed_fov_total,bigparams)
 
-
-
+% In this function we know all the moving fovs that are implicated per
+% fixed fov. So in this case, we calculate what the warp would be if they
+% were directly overlaid. This means we can do the math on local, not
+% global parameters. 
 mycolors = {'g','m','b','c','k'};color_ctr = 1;
 figure('Visible','off')
 plot(pos_fixed(:,2),pos_fixed(:,1),'r.','MarkerSize',15);
 hold on;
 
-
+numTiles = prod(size(bigparams.TILE_MAP));
 for FOV_fixed = 0:numTiles-1
     fprintf('fixed FOV%.3i matches the following:\n',FOV_fixed);
     
