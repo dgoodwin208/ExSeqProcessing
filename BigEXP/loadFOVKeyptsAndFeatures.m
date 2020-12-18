@@ -1,6 +1,6 @@
 function [keys] = loadFOVKeyptsAndFeatures(FOV,round,bigparams)
 % Load any Fov, make it global and return
-
+% Note that all keypoints have to be warped back from the downsampled rate
 
 foldername = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
     sprintf('F%.3i',FOV),...
@@ -33,10 +33,13 @@ for k = 1:length(keys)
     
     %The position of the keypoints is in
     %downsampled coordinatees
+    keys{k}.x = keys{k}.x * bigparams.DOWNSAMPLE_RATE;
+    keys{k}.y = keys{k}.y * bigparams.DOWNSAMPLE_RATE;
+    keys{k}.z = keys{k}.z * bigparams.DOWNSAMPLE_RATE;
     
-    keys{k}.x_global = bigparams.IMG_SIZE_XY(1)*(col-1) + keys{k}.x*bigparams.DOWNSAMPLE_RATE;
-    keys{k}.y_global = bigparams.IMG_SIZE_XY(2)*(row-1) + keys{k}.y*bigparams.DOWNSAMPLE_RATE;
-    keys{k}.z_global = keys{k}.z*bigparams.DOWNSAMPLE_RATE;
+    keys{k}.x_global = bigparams.IMG_SIZE_XY(1)*(col-1) + keys{k}.x;
+    keys{k}.y_global = bigparams.IMG_SIZE_XY(2)*(row-1) + keys{k}.y;
+    keys{k}.z_global = keys{k}.z;
     keys{k}.F = FOV;
     
     keys{k} = rmfield(keys{k},'xyScale');

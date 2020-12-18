@@ -256,9 +256,7 @@ for FOV_fixed = 0:numTiles-1
     for round_mov = 2:7
         fovmatches = FOVS_per_fixed_fov_total{FOV_fixed+1,round_mov};
         
-        
         performAffineTransforms_global(fixed_fov, fovmatches, moving_round,do_downsample,bigparams);
-        
     end
 end
 
