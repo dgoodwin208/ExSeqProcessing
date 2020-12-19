@@ -252,12 +252,31 @@ end
 
 %% Now apply the warps that we've calculated
 
-for FOV_fixed = 0:numTiles-1
-    for round_mov = 2:7
-        fovmatches = FOVS_per_fixed_fov_total{FOV_fixed+1,round_mov};
-        
-        performAffineTransforms_global(fixed_fov, fovmatches, moving_round,do_downsample,bigparams);
+parfor FOV_fixed = 0:numTiles-1
+    for round_mov = 1:bigparams.NUMROUNDS
+        if round_mov == bigparams.REFERENCE_ROUND
+            continue
+        end
+    
+        fovmatches = FOVS_per_fixed_fov_total{FOV_fixed+1,round_mov};     
+        performAffineTransforms_global(FOV_fixed, fovmatches,round_mov,bigparams);
     end
 end
 
+%TODO! Run through and make the shallow links to the reference round if it
+%is different between params and bigparams
+            %make the shallow link to the reference round
+% started the code here
+%             for c = 1:length(bigparams.CHANNELS)
+%                  data_channel = bigparams.CHANNELS{c};
+%                  if contains(data_channel,'ch')
+%                     inputdir = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
+%                         sprintf('F%.3i',FOV_fixed),'2_color-correction');
+%                  else
+%                     inputdir = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
+%                         sprintf('F%.3i',FOV_fixed),'3_normalization');
+%                  end
+%                 
+%                  filename = fullfile(inputdir,sprintf('%s_round%03d_%s.%s',filename_root_moving,moving_round,data_channel,bigparams.IMAGE_EXT));
+%             end
 

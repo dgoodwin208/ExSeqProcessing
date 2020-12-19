@@ -24,6 +24,11 @@ input_normdir = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
 filename = fullfile(input_normdir,sprintf('%s_round%03d_%s.%s',...
     filename_root,bigparams.REFERENCE_ROUND,bigparams.CHANNELS{1},image_ext));
 
+if ~exist(filename,'file')
+    fprintf('Ending because file %s does not exist\n',filename);
+    return
+end
+
 if isequal(image_ext ,'tif')
     tif_info = imfinfo(filename);
     img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
@@ -61,12 +66,12 @@ for fov_mov = moving_fovmatches
         %Calculate the affine tform and get back the transformed keypoints
         [affine_tform,keyM_total_tformed]  = getGlobalAffineFromCorrespondences(keyM_total,keyF_total);
     catch
-        fprintf("failed to find sufficient correspondences between FOVS %i and %i, skip!\n",FOV_fixed,fov_mov)
+        fprintf("failed to find sufficient correspondences between FOVS %i and %i, skip!\n",fixed_fov,fov_mov)
         continue
     end
     affine_tform
     %if it's a flimsy tform post-ransac, better to leave it blank
-    if size(keyM_total_tformed,1)<3
+    if size(keyM_total_tformed,1)<10
         continue
     end
 %     if isfield(params,'AFFINE_MAX_THREADS')
