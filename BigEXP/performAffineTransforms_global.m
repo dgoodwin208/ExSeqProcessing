@@ -72,7 +72,8 @@ for fov_mov = moving_fovmatches
     affine_tform
     %if it's a flimsy tform post-ransac, better to leave it blank
     if size(keyM_total_tformed,1)<10
-        continue
+       fprintf('Warp not good enough, skipping!\n'); 
+       continue
     end
 %     if isfield(params,'AFFINE_MAX_THREADS')
 %         worker_max_threads = params.AFFINE_MAX_THREADS;
