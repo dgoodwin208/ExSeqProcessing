@@ -27,7 +27,6 @@ if __name__ == '__main__':
         config = yaml.safe_load(file)
     config.update(args)
 
-    print(config)
     #Generate the list of all fovs that must be processed
     total_fovs = np.arange(np.prod(config['montage_size']))
     fovs_skip = config['fovs_to_skip']
@@ -100,9 +99,9 @@ if __name__ == '__main__':
         # Run the pipeline waiting for return
         # and piping output through
         print("=========== Processing " + fov_name + " ===========")
-        print(commandStr)
-        # subprocess.run(                        \
-        #   commandStr, shell=True, check=True,  \
-        #   stderr=sys.stderr, stdout=sys.stdout \
-        # )
+        #print(commandStr)
+        subprocess.run(                        \
+          commandStr, shell=True, check=True,  \
+          stderr=sys.stderr, stdout=sys.stdout \
+        )
 
