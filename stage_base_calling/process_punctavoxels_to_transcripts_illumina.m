@@ -27,12 +27,13 @@ funnel_numbers = zeros(4,1);
 funnel_names = {'Segmented amplicons','Present in every round',...
     'Aligned to Barcodes','Column shuffled hits'};
 
-params.ISILLUMINA = false;
-%% Load the 6-mer barcodes, which we then need to shrink to just 4-mer
+%This is a silly line and only refers to a deprecated line in
+%normalization_q1. Remove 
+% params.ISILLUMINA = false;
+%% Load the barcodes
 groundtruth_dict = params.GROUND_TRUTH_DICT;
 fprintf('Using dictonary %s \n', groundtruth_dict)
 load(groundtruth_dict);
-
 
 %Get the number of filtered puncta
 N = length(puncta_indices_cell{1});
@@ -101,7 +102,9 @@ for t = 1:size(insitu_transcripts_filtered,1)
         transcript.voxels = voxels;
         
         transcript.name = gtlabels{score_idx(1)};
-
+        
+        transcript.intensity_norm = squeeze(puncta_intensities_norm(t,:,:));
+        
         transcript_objects{match_ctr} = transcript;
         
         % Create an aligned version of the insitu_transcript
@@ -137,4 +140,5 @@ fprintf('Of %i transcripts, %i matches\n',size(insitu_transcripts_filtered,1),le
 funnel_numbers(3) = length(transcript_objects); 
 funnel_numbers(4) = shuffled_hits;
 
-save(fullfile(params.basecallingResultsDir,sprintf('%s_results.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls.mat',params.FILE_BASENAME)),'insitu_transcripts_filtered','puncta_intensities_norm','puncta_intensities_raw','puncta_centroids_filtered','-v7.3');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers','-v7.3');

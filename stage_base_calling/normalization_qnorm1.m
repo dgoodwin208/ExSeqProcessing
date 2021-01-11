@@ -3,7 +3,7 @@
 
 N = size(puncta_set_cell_filtered{1},1);
 readlength = params.NUM_ROUNDS;
-puncta_present = ones(N,readlength);
+% puncta_present = ones(N,readlength);
 %Get the total number of voxels involved for the puncta
 %used to initialize data_cols
 total_voxels = 0;
@@ -24,6 +24,8 @@ insitu_transcripts = zeros(N,readlength);
 %Each image is normalized seperately
 illumina_corrections = zeros(readlength,1);
 
+puncta_intensities_raw = zeros(N,readlength,params.NUM_CHANNELS);
+puncta_intensities_norm = zeros(N,readlength,params.NUM_CHANNELS);
 for rnd_idx = 1:readlength
     
     %this vector keeps track of where we're placing each set of voxels per
@@ -48,8 +50,19 @@ for rnd_idx = 1:readlength
         
     end
     
-    
-    data_cols_norm = quantilenorm(data_cols);
+    %We have to mask out the zero values so they don't disrupt the
+    %normalization process
+    %Get the nonzero mask pixel indices
+    nonzero_mask = all(data_cols>0,2);
+    fprintf('Fraction of pixels that are nonzero: %f\n',sum(nonzero_mask)/length(nonzero_mask));
+    %Get the subset of data_cols that is nonzero
+    data_cols_nonzero = data_cols(nonzero_mask,:);
+    %Normalize just the nonzero portion
+    data_cols_norm_nonzero = quantilenorm(data_cols_nonzero);
+    %Initialize the data_cols_norm as the data_cols
+    data_cols_norm = data_cols;
+    %Replace all the nonzero entries with the normed values
+    data_cols_norm(nonzero_mask,:) = data_cols_norm_nonzero;
     
     %
     %Unpack the normalized colors back into the original shape
@@ -87,29 +100,53 @@ for rnd_idx = 1:readlength
         chan3_signal = prctile(puncta_set_normalized{rnd_idx}{p_idx,3},99);
         chan4_signal = prctile(puncta_set_normalized{rnd_idx}{p_idx,4},99);
         
-        chan1_present = chan1_signal>color_cutoffs(1);
-        chan2_present = chan2_signal>color_cutoffs(2);
-        chan3_present = chan3_signal>color_cutoffs(3);
-        chan4_present = chan4_signal>color_cutoffs(4);
+
+        chan1_present = chan1_signal>0;
+        chan2_present = chan2_signal>0;
+        chan3_present = chan3_signal>0;
+        chan4_present = chan4_signal>0;
+
+
+%         chan1_present = chan1_signal>color_cutoffs(1);
+%         chan2_present = chan2_signal>color_cutoffs(2);
+%         chan3_present = chan3_signal>color_cutoffs(3);
+%         chan4_present = chan4_signal>color_cutoffs(4);
         
-        [~,winning_base] = max([chan1_signal,chan2_signal,chan3_signal,chan4_signal]);
+        [signal_strength,winning_base] = max([chan1_signal,chan2_signal,chan3_signal,chan4_signal]);
         
         
+        puncta_intensities_norm(p_idx,rnd_idx,:) = [chan1_signal,chan2_signal,chan3_signal,chan4_signal];
+        
+        chan1_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,1},99);
+        chan2_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,2},99);
+        chan3_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,3},99);
+        chan4_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,4},99);
+        puncta_intensities_raw(p_idx,rnd_idx,:) = ...
+            [chan1_signal_raw,chan2_signal_raw,chan3_signal_raw,chan4_signal_raw];
         
         %Do a hardcoded illumina correction;
         %Red (chan1) can be bright without magenta (chan2), but
         %Magenta cannot be bright without red. So if chan2 is close to
         %chan1, call it 2.
         %IlluminaCorrectionFactor is set to -1 to make this logic never trigger by default
-        if abs(chan2_signal-chan1_signal)/chan2_signal<ILLUMINACORRECTIONFACTOR && winning_base==1
-            winning_base=2;
-            illumina_corrections(rnd_idx) = illumina_corrections(rnd_idx)+1;
+%         if abs(chan2_signal-chan1_signal)/chan2_signal<ILLUMINACORRECTIONFACTOR && winning_base==1
+%             winning_base=2;
+%             illumina_corrections(rnd_idx) = illumina_corrections(rnd_idx)+1;
+%         end
+        
+        %In the case that a signal is missing in any channel, we cannot
+        %call that base so mark it a zero
+        
+        all_channels_present = chan1_present & chan2_present & ...
+            chan3_present & chan4_present;
+        if all_channels_present
+            insitu_transcripts(p_idx,rnd_idx) = winning_base;
+        else
+            insitu_transcripts(p_idx,rnd_idx) = 0;
         end
         
-        insitu_transcripts(p_idx,rnd_idx) = winning_base;
-        
-        puncta_present(p_idx,rnd_idx) = chan1_present | chan2_present | ...
-            chan3_present | chan4_present;
+%         puncta_present(p_idx,rnd_idx) = chan1_present & chan2_present & ...
+%             chan3_present & chan4_present;
     end
     
     
@@ -119,11 +156,11 @@ end
 fprintf('Completed normalization!\n');
 
 %A puncta is incomplete if it's never missing a round
-if params.ISILLUMINA
-    puncta_complete = find(~any(puncta_present==false,2));
-else
+% if params.ISILLUMINA
+%     puncta_complete = find(~any(puncta_present==false,2));
+% else
     puncta_complete = 1:N; %keep everything, don't filter
-end
+% end
 
 fprintf('Number of puncta before filtering missing bases: %i\n',N);
 fprintf('Number of puncta after filtering missing bases: %i\n',length(puncta_complete));
@@ -132,11 +169,12 @@ N = length(puncta_complete);
 puncta_set_normalized_filtered = puncta_set_normalized;
 for rnd_idx = 1:readlength
     puncta_set_normalized_filtered{rnd_idx} = puncta_set_normalized{rnd_idx}(puncta_complete,:);
-    puncta_indices_cell_filtered{rnd_idx} = puncta_indices_cell{rnd_idx}(puncta_complete);
+    
 end
+puncta_voxels_filtered = puncta_indices_cell{1}(puncta_complete);
 
 insitu_transcripts_filtered = insitu_transcripts(puncta_complete,:);
-puncta_voxels_filtered  = puncta_indices_cell_filtered{1};
+ 
 puncta_centroids_filtered = zeros(N,3);
 for p = 1:N
     [x,y,z] = ind2sub(IMG_SIZE,puncta_voxels_filtered{p});
