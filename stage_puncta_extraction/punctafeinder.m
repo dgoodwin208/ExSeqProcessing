@@ -115,7 +115,7 @@ neg_masked_image(~stack_in) = inf;
 
 tic
 fprintf('Watershed running...');
-L = uint32(watershed(neg_masked_image));
+L = uint32(watershed(single(neg_masked_image))); %adding single() for 2020b version change
 neg_masked_image = [];
 L(~stack_in) = 0;
 stack_in = [];
