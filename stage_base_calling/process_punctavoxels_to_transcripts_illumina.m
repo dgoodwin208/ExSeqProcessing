@@ -94,6 +94,8 @@ for t = 1:size(insitu_transcripts_filtered,1)
         
         transcript = struct;
         transcript.img_transcript=img_transcript;
+        transcript.known_sequence_matched = groundtruth_codes(score_idx(1),:);
+        
         transcript.hamming =score(1);
         voxels = puncta_voxels_filtered{t};
         centroid = puncta_centroids_filtered(t,:);
@@ -109,6 +111,7 @@ for t = 1:size(insitu_transcripts_filtered,1)
         transcript.name = gtlabels{score_idx(1)};
         
         transcript.intensity_norm = squeeze(puncta_intensities_norm(t,:,:));
+        transcript.intensity_raw = squeeze(puncta_intensities_raw(t,:,:));
         
         transcript_objects{match_ctr} = transcript;
         
