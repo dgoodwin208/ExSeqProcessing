@@ -6,7 +6,7 @@ function completionReport_run(yamlfile)
 %Use a YAML file to load the parameters for a large experiment
 yamlspecs = ReadYaml(yamlfile);
 EXP_NUM = yamlspecs.expnum;
-NUM_FOVS = yamlspecs.montage_size;
+NUM_FOVS = prod(yamlspecs.montage_size);
 if isfield(yamlspecs,'reg_type')
     REG_TYPE = yamlspecs.reg_type;
 else
@@ -19,7 +19,7 @@ if isfield(yamlspecs,'maxnum_missing')
 else
     MAXNUM_MISSING = 2;
 end
-OUTPUT_DIR = strrep(yamlspecs.base_dir,'''','');
+ROOT_DIR = strrep(yamlspecs.base_dir,'''','');
 %Initialize the file
 expResults = {};
 
@@ -39,8 +39,7 @@ for F = 0:NUM_FOVS
     EXP_NAME = sprintf('htapp%i-F%.3i',EXP_NUM,F);
     
     puncta_subvol_dir = ...
-        sprintf('/mp/nas2/DG/HTAPP_20200921/HTAPP_%i/processing/F%.3i/5_puncta-extraction',...
-        EXP_NUM,F);
+        fullfile(ROOT_DIR, sprintf('F%.3i/5_puncta-extraction',F));
     filename_centroids = fullfile(puncta_subvol_dir,sprintf('%s_centroids+pixels.mat',EXP_NAME));
     if exist(filename_centroids,'file')
         matObj = matfile(filename_centroids,'Writable',false);
@@ -73,15 +72,13 @@ for F = 0:NUM_FOVS
     
     %Step two; what's the overlap of the registered volumes?
     
-    registration_dir = sprintf('/mp/nas2/DG/HTAPP_20200921/HTAPP_%i/processing/F%.3i/4_registration',...
-        EXP_NUM,F);
+    registration_dir = fullfile(ROOT_DIR, sprintf('F%.3i/4_registration',F));
     try
     for rnd = 1:NUM_ROUNDS
         img_filename = fullfile(registration_dir, sprintf('%s-downsample_round%.3i_summedNorm_%s.h5',...
             EXP_NAME,rnd,REG_TYPE));
         if rnd == REG_ROUND
-            norm_dir = sprintf('/mp/nas2/DG/HTAPP_20200921/HTAPP_%i/processing/F%.3i/3_normalization',...
-                EXP_NUM,F);
+            norm_dir = fullfile(ROOT_DIR, sprintf('F%.3i/3_normalization',F));
             img_filename = fullfile(norm_dir, sprintf('%s-downsample_round%.3i_summedNorm.h5',...
                 EXP_NAME,rnd));
         end
@@ -104,6 +101,6 @@ for F = 0:NUM_FOVS
     expResults{f_idx}.percentage_volume_usable = perc_usable_data ;
 end
 
-output_file = fullfile(OUTPUT_DIR,sprintf('compReport-%s.mat',EXP_NUM,date));
+output_file = fullfile(ROOT_DIR,sprintf('compReport-%s.mat',EXP_NUM,date));
 save(output_file,'expResults')
 
