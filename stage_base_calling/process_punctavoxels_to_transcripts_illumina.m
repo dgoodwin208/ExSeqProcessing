@@ -99,6 +99,11 @@ for t = 1:size(insitu_transcripts_filtered,1)
         centroid = puncta_centroids_filtered(t,:);
         
         transcript.pos = centroid;
+        %adjust the position by the cropped dimensions from earlier
+        %processing
+        transcript.pos(1) = transcript.pos(1) + crop_dims(1)-1;
+        transcript.pos(2) = transcript.pos(2) + crop_dims(2)-1;
+        transcript.pos(3) = transcript.pos(3) + crop_dims(3)-1;
         transcript.voxels = voxels;
         
         transcript.name = gtlabels{score_idx(1)};
