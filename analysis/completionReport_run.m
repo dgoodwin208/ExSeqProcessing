@@ -102,6 +102,6 @@ for F = 0:NUM_FOVS
     expResults{f_idx}.percentage_volume_usable = perc_usable_data ;
 end
 
-output_file = fullfile(ROOT_DIR,sprintf('compReport-%s.mat',EXP_NUM,date));
+output_file = fullfile(ROOT_DIR,sprintf('compReport-%s.mat',date));
 save(output_file,'expResults')
 

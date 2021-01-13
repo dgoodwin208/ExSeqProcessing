@@ -1,7 +1,9 @@
+%OLD script that might be useful later 
 clear all;
-load('splintr3F2_results.mat');
-output_dir = '/Users/goody/Neuro/ExSeq/splintr/3F2Morphology/';
-IMG_SIZE  = [2048 2048 100];
+
+% load('');
+%output_dir = '';
+%IMG_SIZE  = [2048 2048 100];
 
 %% First create a 3D image of all the puncta in space 
 output_img = zeros(IMG_SIZE);
