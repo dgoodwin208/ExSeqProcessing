@@ -5,7 +5,8 @@ function completionReport_run(yamlfile)
 
 %Use a YAML file to load the parameters for a large experiment
 yamlspecs = ReadYaml(yamlfile);
-EXP_NUM = yamlspecs.expnum;
+%The YAML files might have extra quotes so remove them
+EXP_NUM = str2double(strrep(yamlspecs.expnum,'''',''));
 NUM_FOVS = prod(yamlspecs.montage_size);
 if isfield(yamlspecs,'reg_type')
     REG_TYPE = yamlspecs.reg_type;
@@ -74,22 +75,22 @@ for F = 0:NUM_FOVS
     
     registration_dir = fullfile(ROOT_DIR, sprintf('F%.3i/4_registration',F));
     try
-    for rnd = 1:NUM_ROUNDS
-        img_filename = fullfile(registration_dir, sprintf('%s-downsample_round%.3i_summedNorm_%s.h5',...
-            EXP_NAME,rnd,REG_TYPE));
-        if rnd == REG_ROUND
-            norm_dir = fullfile(ROOT_DIR, sprintf('F%.3i/3_normalization',F));
-            img_filename = fullfile(norm_dir, sprintf('%s-downsample_round%.3i_summedNorm.h5',...
-                EXP_NAME,rnd));
+        for rnd = 1:NUM_ROUNDS
+            img_filename = fullfile(registration_dir, sprintf('%s-downsample_round%.3i_summedNorm_%s.h5',...
+                EXP_NAME,rnd,REG_TYPE));
+            if rnd == REG_ROUND
+                norm_dir = fullfile(ROOT_DIR, sprintf('F%.3i/3_normalization',F));
+                img_filename = fullfile(norm_dir, sprintf('%s-downsample_round%.3i_summedNorm.h5',...
+                    EXP_NAME,rnd));
+            end
+            img = load3DImage_uint16(img_filename);
+            
+            if rnd==1 %initialize the zero counter
+                zero_counter = zeros(size(img));
+            end
+            %the value zero is the mark of the outside the registration
+            zero_counter = zero_counter + (img==0);
         end
-        img = load3DImage_uint16(img_filename);
-        
-        if rnd==1 %initialize the zero counter
-            zero_counter = zeros(size(img));
-        end
-        %the value zero is the mark of the outside the registration
-        zero_counter = zero_counter + (img==0);
-    end
     catch
         fprintf('FAIL: Couldnt load file %s\n',img_filename)
         continue
