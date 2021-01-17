@@ -7,9 +7,11 @@ fprintf('Loaded Pixels.\n');
 
 %This is the size of the cropped images, corresponding to ~15um pre-ExM
 filename_punctaVol = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
-vol = load3DImage_uint16(filename_punctaVol);
-IMG_SIZE = size(vol);
-clear vol filename_punctaVol
+%image dimensions is a utility to get the size of the image without loading
+%just be careful with the XY parameter switch
+IMG_SIZE = image_dimensions(filename_punctaVol);
+IMG_SIZE = IMG_SIZE([2,1,3]);
+clear filename_punctaVol
 fprintf('Loaded PunctaMap.\n');
 
 %Can we utilize the fact that we know Red (chan1) can be high without
@@ -108,7 +110,7 @@ for t = 1:size(insitu_transcripts_filtered,1)
         transcript.pos(3) = transcript.pos(3) + crop_dims(3)-1;
         transcript.voxels = voxels;
         
-        transcript.name = gtlabels{score_idx(1)};
+        transcript.name =gtlabels{score_idx(1)};
         
         transcript.intensity_norm = squeeze(puncta_intensities_norm(t,:,:));
         transcript.intensity_raw = squeeze(puncta_intensities_raw(t,:,:));
@@ -124,7 +126,7 @@ for t = 1:size(insitu_transcripts_filtered,1)
     end
     
     %Shuffle transcripts to get a false pos rate. 
-    %Column wise shuffling, basically drawing randomly from each base
+    %Column wise shuffling, basicallyodrawing randomly from each base
     img_transcript_shuffled = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),readlength),1:readlength))';
     
     perfect_match = find(sum(groundtruth_codes == img_transcript_shuffled,2)==readlength);
@@ -140,7 +142,7 @@ for t = 1:length(transcript_objects)
 end
 insitu_genes = categorical(insitu_genes);
 figure; histogram(insitu_genes,'DisplayOrder','descend')
-title(sprintf('%i alignments',match_ctr-1));
+title(sprintf('%i alignments',length(transcript_objects)));
 
 fprintf('Of %i transcripts, %i matches\n',size(insitu_transcripts_filtered,1),length(transcript_objects));
 
@@ -150,3 +152,18 @@ funnel_numbers(4) = shuffled_hits;
 
 save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls.mat',params.FILE_BASENAME)),'insitu_transcripts_filtered','puncta_intensities_norm','puncta_intensities_raw','puncta_centroids_filtered','-v7.3');
 save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers','-v7.3');
+
+
+%% Generate bogus data - Totally random data
+insitu_transcripts_filtered = randi(4,size(insitu_transcripts,1),7);
+%How many zeros are there in the original data?
+num_zero_entries = sum(insitu_transcripts(:)==0);
+d1_indices = randperm(numel(insitu_transcripts),num_zero_entries);
+insitu_transcripts_filtered(d1_indices)=0;
+%Col random:
+
+%% Generate bogus data - Column shuffled data
+numts = size(insitu_transcripts,1);
+for col = 1:readlength
+    insitu_transcripts_filtered(:,col) = insitu_transcripts(randperm(numts),col);
+end

@@ -26,6 +26,9 @@ illumina_corrections = zeros(readlength,1);
 
 puncta_intensities_raw = zeros(N,readlength,params.NUM_CHANNELS);
 puncta_intensities_norm = zeros(N,readlength,params.NUM_CHANNELS);
+demixing_matrices = zeros(params.NUM_CHANNELS,params.NUM_CHANNELS,readlength);
+
+puncta_hasjunk_rounds = zeros(N,readlength);
 for rnd_idx = 1:readlength
     
     %this vector keeps track of where we're placing each set of voxels per
@@ -51,89 +54,110 @@ for rnd_idx = 1:readlength
     end
     
     %We have to mask out the zero values so they don't disrupt the
-    %normalization process
+    %normalization process, so we get all voxel indices for which all
+    %channels are non zero
     %Get the nonzero mask pixel indices
     nonzero_mask = all(data_cols>0,2);
+    
     fprintf('Fraction of pixels that are nonzero: %f\n',sum(nonzero_mask)/length(nonzero_mask));
     %Get the subset of data_cols that is nonzero
     data_cols_nonzero = data_cols(nonzero_mask,:);
+    
+    %Now remove puncta in which more than one of the channels is an extreme
+    %outlier
+%     excess_thresh = prctile(data_cols_nonzero,99.9);%gets each channel's thresh
+    if isfield(params,'BASECALLING_ARTIFACT_THRESH')
+        excess_thresh = params.BASECALLING_ARTIFACT_THRESH;  
+    else
+        excess_thresh = [Inf,Inf,Inf,Inf];
+    end
+    nonjunk_mask = sum(data_cols_nonzero>excess_thresh,2)<2;
+    data_cols_nonzero_nonjunk = data_cols_nonzero(nonjunk_mask,:);
+    
+    %Everything that is nonzero but junk, mark as nan
+    data_cols_nonzero(~nonjunk_mask,:) = nan;
+
+    
     %Normalize just the nonzero portion
-    data_cols_norm_nonzero = quantilenorm(data_cols_nonzero);
+    data_cols_norm_nonzero_nonjunk = quantilenorm(data_cols_nonzero_nonjunk);
+    
+    %Finally, remove covariance between the color channels
+    %EXPERIMENTAL!
+    %Note, what comes out of whiten is the transformed version of the
+    %de-meaned data. Since we are whitening the qnormed data, the means
+    %should be the same anyway, so for comparison it should be all good
+    [data_cols_norm_nonzero_nonjunk, ~, ~, demixing_matrix] = whiten(data_cols_norm_nonzero_nonjunk );
+    demixing_matrices(:,:,rnd_idx) = demixing_matrix;
+    
     %Initialize the data_cols_norm as the data_cols
+    data_cols_norm_nonzero = data_cols_nonzero; %has the NaNs
+    %place the whitened, normalized nonjunk back in
+    data_cols_norm_nonzero(nonjunk_mask,:) = data_cols_norm_nonzero_nonjunk ;
+    
+    %Finally, get the ouput
     data_cols_norm = data_cols;
     %Replace all the nonzero entries with the normed values
     data_cols_norm(nonzero_mask,:) = data_cols_norm_nonzero;
-    
+
     %
     %Unpack the normalized colors back into the original shape
     pos_cur = 1;
+    puncta_hasjunk = zeros(N,1);
     for p_idx = 1:N
         puncta_set_normalized{rnd_idx}{p_idx,1} = data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),1);
         puncta_set_normalized{rnd_idx}{p_idx,2} = data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),2);
         puncta_set_normalized{rnd_idx}{p_idx,3} = data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),3);
         puncta_set_normalized{rnd_idx}{p_idx,4} = data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),4);
+        
+        %Declare junk if there are any "junk" voxels in any of the channels
+        puncta_hasjunk(p_idx) = any(any(isnan(data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),1:4))));
+        
+        puncta_intensities_norm(p_idx,rnd_idx,:) = prctile(data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),:),params.BASECALLING_SIG_THRESH);        
+        
+        puncta_intensities_raw(p_idx,rnd_idx,:) = prctile(data_cols(pos_cur:punctaindices_vecpos(p_idx),:),params.BASECALLING_SIG_THRESH);        
+        
         %Track the 1D index as we unpack out each puncta
         pos_cur = punctaindices_vecpos(p_idx)+1;
+
     end
+    sum(puncta_hasjunk)
+    puncta_hasjunk_rounds(:,rnd_idx) = puncta_hasjunk;
     
-    color_cutoffs = zeros(params.NUM_CHANNELS,1);
-    for c_idx = 1:params.NUM_CHANNELS
-        %We create histogram cutoffs from all the puncta in a particular
-        %round. This is used for viewing later
-        histval_bottom = prctile(data_cols_norm(:,c_idx),50);
-        histval_top = prctile(data_cols_norm(:,c_idx),99);
-        
-        clims_perround(c_idx,1,rnd_idx) = histval_bottom;
-        clims_perround(c_idx,2,rnd_idx) = histval_top;
-        
-        %Set a minimum
-        color_cutoffs(c_idx) = 2*expfit(data_cols_norm(:,c_idx)); %prctile(data_cols_norm(:,c_idx),60);
-    end
     
     %Filter out puncta that have a missing round, as determined by the
     %color cutoffs
     for p_idx = 1:N
+        
+        %We skip any puncta that has a NaN in it, which is enumerated with
+        %an NaN
+        
+        if puncta_hasjunk(p_idx)
+            insitu_transcripts(p_idx,rnd_idx) = 0;
+            continue
+        end
+            
         %A channel is present if the brightest pixel in the puncta are
         %brighter than the cutoff we just defined
-        chan1_signal = prctile(puncta_set_normalized{rnd_idx}{p_idx,1},99);
-        chan2_signal = prctile(puncta_set_normalized{rnd_idx}{p_idx,2},99);
-        chan3_signal = prctile(puncta_set_normalized{rnd_idx}{p_idx,3},99);
-        chan4_signal = prctile(puncta_set_normalized{rnd_idx}{p_idx,4},99);
+        %We choose the 90th percentile because we don't want to be subject
+        %to outlier pixels that might enter a puncta, yet we also don't
+        %want to use the mean which could be dragged down by background. 
+        % However, using the background subtraction in the puncta
+        % extraction phase seems to make us be conservative with the pixels
+        % we count, so background is likely not a big factor
+
         
-
-        chan1_present = chan1_signal>0;
-        chan2_present = chan2_signal>0;
-        chan3_present = chan3_signal>0;
-        chan4_present = chan4_signal>0;
-
-
-%         chan1_present = chan1_signal>color_cutoffs(1);
-%         chan2_present = chan2_signal>color_cutoffs(2);
-%         chan3_present = chan3_signal>color_cutoffs(3);
-%         chan4_present = chan4_signal>color_cutoffs(4);
+        chan1_signal = puncta_intensities_norm(p_idx,rnd_idx,1);
+        chan2_signal = puncta_intensities_norm(p_idx,rnd_idx,2);
+        chan3_signal = puncta_intensities_norm(p_idx,rnd_idx,3);
+        chan4_signal = puncta_intensities_norm(p_idx,rnd_idx,4);
+        
+        chan1_present = ~(chan1_signal==0);
+        chan2_present = ~(chan2_signal==0);
+        chan3_present = ~(chan3_signal==0);
+        chan4_present = ~(chan4_signal==0);
         
         [signal_strength,winning_base] = max([chan1_signal,chan2_signal,chan3_signal,chan4_signal]);
-        
-        
-        puncta_intensities_norm(p_idx,rnd_idx,:) = [chan1_signal,chan2_signal,chan3_signal,chan4_signal];
-        
-        chan1_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,1},99);
-        chan2_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,2},99);
-        chan3_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,3},99);
-        chan4_signal_raw = prctile(puncta_set_cell_filtered{rnd_idx}{p_idx,4},99);
-        puncta_intensities_raw(p_idx,rnd_idx,:) = ...
-            [chan1_signal_raw,chan2_signal_raw,chan3_signal_raw,chan4_signal_raw];
-        
-        %Do a hardcoded illumina correction;
-        %Red (chan1) can be bright without magenta (chan2), but
-        %Magenta cannot be bright without red. So if chan2 is close to
-        %chan1, call it 2.
-        %IlluminaCorrectionFactor is set to -1 to make this logic never trigger by default
-%         if abs(chan2_signal-chan1_signal)/chan2_signal<ILLUMINACORRECTIONFACTOR && winning_base==1
-%             winning_base=2;
-%             illumina_corrections(rnd_idx) = illumina_corrections(rnd_idx)+1;
-%         end
-        
+
         %In the case that a signal is missing in any channel, we cannot
         %call that base so mark it a zero
         
@@ -150,17 +174,13 @@ for rnd_idx = 1:readlength
     end
     
     
-    fprintf('Color cutoffs %s\n',mat2str(round(color_cutoffs)));
+    fprintf('Color medians %s\n',mat2str(round(color_medians)));
     fprintf('Completed Round %i\n',rnd_idx);
 end
 fprintf('Completed normalization!\n');
 
-%A puncta is incomplete if it's never missing a round
-% if params.ISILLUMINA
-%     puncta_complete = find(~any(puncta_present==false,2));
-% else
-    puncta_complete = 1:N; %keep everything, don't filter
-% end
+puncta_complete = 1:N; %keep everything, don't filter
+
 
 fprintf('Number of puncta before filtering missing bases: %i\n',N);
 fprintf('Number of puncta after filtering missing bases: %i\n',length(puncta_complete));
@@ -180,3 +200,24 @@ for p = 1:N
     [x,y,z] = ind2sub(IMG_SIZE,puncta_voxels_filtered{p});
     puncta_centroids_filtered(p,:) = mean([x,y,z],1); 
 end
+
+
+%% Exploration:
+figure;
+for c_idx = 1:4
+    clamped = data_cols_nonzero(:,c_idx);
+    clamped(clamped>prctile(clamped,99)) = prctile(clamped,99);
+    histogram(clamped)
+    hold on;
+end
+title('Non-normalized and non-whitened histograms');
+
+%%
+figure;
+for c_idx = 1:4
+    clamped = data_cols_norm_nonzero(:,c_idx);
+    clamped(clamped>5) = 5;
+    histogram(clamped)
+    hold on;
+end
+title('normalized and whitened histograms');
