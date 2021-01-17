@@ -88,7 +88,7 @@ for rnd_idx = 1:readlength
     %should be the same anyway, so for comparison it should be all good
     [data_cols_norm_nonzero_nonjunk, ~, ~, demixing_matrix] = whiten(data_cols_norm_nonzero_nonjunk );
     demixing_matrices(:,:,rnd_idx) = demixing_matrix;
-    
+    scaled_demixing_matrix = demixing_matrix./repmat(max(demixing_matrix,[],1),4,1,1)
     %Initialize the data_cols_norm as the data_cols
     data_cols_norm_nonzero = data_cols_nonzero; %has the NaNs
     %place the whitened, normalized nonjunk back in
@@ -120,7 +120,7 @@ for rnd_idx = 1:readlength
         pos_cur = punctaindices_vecpos(p_idx)+1;
 
     end
-    sum(puncta_hasjunk)
+    fprintf('Discarding %i bases over the thresh limit\n',sum(puncta_hasjunk));
     puncta_hasjunk_rounds(:,rnd_idx) = puncta_hasjunk;
     
     
@@ -174,7 +174,6 @@ for rnd_idx = 1:readlength
     end
     
     
-    fprintf('Color medians %s\n',mat2str(round(color_medians)));
     fprintf('Completed Round %i\n',rnd_idx);
 end
 fprintf('Completed normalization!\n');

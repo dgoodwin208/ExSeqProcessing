@@ -150,7 +150,7 @@ fprintf('Of %i transcripts, %i matches\n',size(insitu_transcripts_filtered,1),le
 funnel_numbers(3) = length(transcript_objects); 
 funnel_numbers(4) = shuffled_hits;
 
-save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls.mat',params.FILE_BASENAME)),'insitu_transcripts_filtered','puncta_intensities_norm','puncta_intensities_raw','puncta_centroids_filtered','-v7.3');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls.mat',params.FILE_BASENAME)),'insitu_transcripts_filtered','puncta_intensities_norm','puncta_intensities_raw','puncta_centroids_filtered','demixing_matrices','-v7.3');
 save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers','-v7.3');
 
 

@@ -6,7 +6,7 @@ function stage_base_calling()
     copyfile('loadParameters.m',fullfile(params.basecallingResultsDir,...
         sprintf('loadParameters.m.log-%s',date)))
     [ret,messages] = check_files_in_base_calling();
-    if ret
+    if ret && ~params.OVERWRITE_PREV_RESULTS
         fprintf('already processed the sequences\n');
         fprintf('[DONE]\n');
         return
