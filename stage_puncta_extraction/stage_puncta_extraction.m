@@ -10,10 +10,13 @@ function stage_puncta_extraction()
     
     if ret
         %IN BRANCH: 
-        %Check the number of rounds that have been processed 
+        %Check the number of rounds that have been processed. This is a
+        %temporary fix that should not go live
         punctafile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
         load(punctafile);
-        if length(puncta_set_cell)<params.NUM_ROUNDS
+        if params.OVERWRITE_PREV_RESULTS
+            fprintf('Re-running punct-extraction\n');
+        elseif length(puncta_set_cell)<params.NUM_ROUNDS
             fprintf('Reprocessing the ROI_collect because %i/%i rounds processed\n',...
             length(puncta_set_cell),params.NUM_ROUNDS);
         else
@@ -26,7 +29,7 @@ function stage_puncta_extraction()
     %IN BRANCH: 
     %Because we need to reprocess some fields of view, try using this
     puncta_img_mask_file = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_puncta.%s',params.FILE_BASENAME,params.IMAGE_EXT));
-    if ~exist(puncta_img_mask_file,'file')
+    if ~exist(puncta_img_mask_file,'file') || params.OVERWRITE_PREV_RESULTS
         punctafeinder;
     end
     clearvars
