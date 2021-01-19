@@ -10,7 +10,7 @@ filename_punctaVol = fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSum
 %image dimensions is a utility to get the size of the image without loading
 %just be careful with the XY parameter switch
 IMG_SIZE = image_dimensions(filename_punctaVol);
-if params.IMAGE_EXT=='tif'    
+if strcmp(params.IMAGE_EXT,'tif')
     IMG_SIZE = IMG_SIZE([2,1,3]);
 end
 clear filename_punctaVol
