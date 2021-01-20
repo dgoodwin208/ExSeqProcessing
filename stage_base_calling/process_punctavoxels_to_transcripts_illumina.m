@@ -107,9 +107,9 @@ for t = 1:size(insitu_transcripts_filtered,1)
         transcript.pos = centroid;
         %adjust the position by the cropped dimensions from earlier
         %processing
-        transcript.pos(1) = transcript.pos(1) + crop_dims(1)-1;
-        transcript.pos(2) = transcript.pos(2) + crop_dims(2)-1;
-        transcript.pos(3) = transcript.pos(3) + crop_dims(3)-1;
+        transcript.pos(1) = transcript.pos(1) + crop_dims(1,1)-1;
+        transcript.pos(2) = transcript.pos(2) + crop_dims(2,1)-1;
+        transcript.pos(3) = transcript.pos(3) + crop_dims(3,1)-1;
         transcript.voxels = voxels;
         
         transcript.name =gtlabels{score_idx(1)};
@@ -153,7 +153,7 @@ funnel_numbers(3) = length(transcript_objects);
 funnel_numbers(4) = shuffled_hits;
 
 save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls.mat',params.FILE_BASENAME)),'insitu_transcripts_filtered','puncta_intensities_norm','puncta_intensities_raw','puncta_centroids_filtered','demixing_matrices','-v7.3');
-save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers','-v7.3');
+save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers','crop_dims','-v7.3');
 
 
 %% Generate bogus data - Totally random data
