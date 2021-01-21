@@ -23,8 +23,8 @@ end
 didLoadCropDims = exist('crop_dims','var');
 parfor exp_idx = run_num_list
     disp(['round=',num2str(exp_idx)])
-    pixels_per_rnd = []; pixels_per_rnd_bg = []; %Try to clear memory
-    %clear pixels_per_rnd pixels_per_rnd_bg; 
+    pixels_per_rnd = [];  %Try to clear memory
+    %clear pixels_per_rnd 
     pixels_per_rnd = cell(num_insitu_transcripts,params.NUM_CHANNELS);
     pixindices_per_rnd = cell(num_insitu_transcripts,1); 
     hasNotedIndices = false;
@@ -32,6 +32,7 @@ parfor exp_idx = run_num_list
     for c_idx = params.COLOR_VEC
         filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.SHIFT_CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
         img =  load3DImage_uint16(filename_in);
+        
         %IN BRANCH: Adding in the newly cropped feature
         if didLoadCropDims 
             img = img(...
@@ -39,6 +40,14 @@ parfor exp_idx = run_num_list
                 crop_dims(2,1):crop_dims(2,2),...
                 crop_dims(3,1):crop_dims(3,2));
         end
+        %IN BRANCH: Adding in the background subtraction
+        se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
+        img_opened = imopen(data,se);
+        %Note the value of 1 for values that have been background subtracted
+        %that would have been 0
+        img = max(img - img_opened,1); 
+        
+        
         for puncta_idx = 1:num_insitu_transcripts
            
             indices_for_puncta = puncta_voxels{puncta_idx};
