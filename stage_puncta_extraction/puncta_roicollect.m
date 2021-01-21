@@ -42,7 +42,7 @@ parfor exp_idx = run_num_list
         end
         %IN BRANCH: Adding in the background subtraction
         se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
-        img_opened = imopen(data,se);
+        img_opened = imopen(img,se);
         %Note the value of 1 for values that have been background subtracted
         %that would have been 0
         img = max(img - img_opened,1); 
