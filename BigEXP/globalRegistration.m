@@ -73,7 +73,7 @@ end
 
 
 % Process all the FOVs
-for round_mov = 1:7
+for round_mov = 1:bigparams.NUMROUNDS
     if round_mov == bigparams.REFERENCE_ROUND
         continue
     end
@@ -157,13 +157,20 @@ end
 % For each tile, we can use the fixed keypoints to find the original FOV.
 % For a minimum number of involved keypoints, we can then later require
 % that the FOV will be included when we register
-MIN_KEYPOINTS = 10; %We require a minimum set to consider it a good
+%We can set this very low because this is *not* the step that actually
+%calculates the warp, this is just testing what FOVs might be involved
+MIN_KEYPOINTS = 1; %We require a minimum set to consider it a good
 
 %Make a big holder for all the moving FOVs implicated for each FOV of the
 %fixed round. Note that the indexing has to be +1, but the entries must be
 %0-indexed
 FOVS_per_fixed_fov_total = cell(numTiles,bigparams.NUMROUNDS);
-for round_mov = 2:7
+for round_mov = 1:bigparams.NUMROUNDS
+    if round_mov == bigparams.REFERENCE_ROUND
+        continue
+    end
+    
+    
     fprintf('Processing round %i... \n',round_mov);
     for FOV_mov = 0:numTiles-1
         
@@ -195,7 +202,7 @@ for round_mov = 2:7
         %hard affine alignment
         u=unique(FOVs_fixed);
         [n,~]=histc(FOVs_fixed,u); %Get the counts 
-        FOVs_fixed_filtered=u(n>MIN_KEYPOINTS); %filter by counts
+        FOVs_fixed_filtered=u(n>=MIN_KEYPOINTS); %filter by counts
         
         %FOVs_fixed_filtered is the list of fixed FOVs that have a
         %significnt amount of overlap with FOV_mov in round_mov. So, we
@@ -223,9 +230,14 @@ end
 % if there's no good match
 
 for FOV_fixed = 0:numTiles-1
-    for round_mov = 2:7
+    for round_mov = 1:bigparams.NUMROUNDS
+        if round_mov == bigparams.REFERENCE_ROUND
+          continue
+        end
         fovmatches = FOVS_per_fixed_fov_total{FOV_fixed+1,round_mov};
         if ~ismember(FOV_fixed,fovmatches)
+            fprintf('FOV%i was missing its own FOV%i for round %i\n',...
+                FOV_fixed ,FOV_fixed ,round_mov);
             fovmatches(end+1) = FOV_fixed;
             FOVS_per_fixed_fov_total{FOV_fixed+1,round_mov}=fovmatches;
         end
@@ -237,7 +249,11 @@ end
 %across time
 for FOV_mov = 0:numTiles-1
     fprintf('fixed FOV%.3i matches the following:\n',FOV_mov);
-    for round_mov = 2:7
+    for round_mov = 1:bigparams.NUMROUNDS
+        if round_mov == bigparams.REFERENCE_ROUND
+            continue
+        end
+    
         fprintf('\tRound%.3i: %s\n',round_mov,mat2str(FOVS_per_fixed_fov_total{FOV_mov+1,round_mov}));
     end
 end
@@ -245,10 +261,12 @@ end
 
 %% To complete this test, we have to then calculate the matches and
 %the warps using *only* the moving rounds for a specific fixed FOV
-
-parfor round_mov = 2:7
-    global_warpingTEMP(round_mov,keys_fixed,pos_fixed,FOVS,FOVS_per_fixed_fov_total,bigparams)
-end
+%This visualizes everything in the dot plot, but is not strictly necessary
+%for applying to images
+% parfor round_mov = 2:7
+%     %Saves a fovtransform_fixed which has all the matching keypoints
+%     global_warpingTEMP(round_mov,keys_fixed,pos_fixed,FOVS,FOVS_per_fixed_fov_total,bigparams)
+% end
 
 %% Now apply the warps that we've calculated
 
@@ -262,21 +280,3 @@ parfor FOV_fixed = 0:numTiles-1
         performAffineTransforms_global(FOV_fixed, fovmatches,round_mov,bigparams);
     end
 end
-
-%TODO! Run through and make the shallow links to the reference round if it
-%is different between params and bigparams
-            %make the shallow link to the reference round
-% started the code here
-%             for c = 1:length(bigparams.CHANNELS)
-%                  data_channel = bigparams.CHANNELS{c};
-%                  if contains(data_channel,'ch')
-%                     inputdir = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
-%                         sprintf('F%.3i',FOV_fixed),'2_color-correction');
-%                  else
-%                     inputdir = fullfile(bigparams.EXPERIMENT_FOLDERROOT,...
-%                         sprintf('F%.3i',FOV_fixed),'3_normalization');
-%                  end
-%                 
-%                  filename = fullfile(inputdir,sprintf('%s_round%03d_%s.%s',filename_root_moving,moving_round,data_channel,bigparams.IMAGE_EXT));
-%             end
-

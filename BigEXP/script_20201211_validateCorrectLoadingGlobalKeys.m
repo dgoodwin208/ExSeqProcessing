@@ -1,5 +1,5 @@
 %% Load the data
-
+%CAN DELETE THIS FILE
 load('registration_allkeys_round001.mat')
 %%
 bigExpParams;
