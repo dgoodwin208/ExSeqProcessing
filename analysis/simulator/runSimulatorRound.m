@@ -21,7 +21,6 @@ fov_rootfolder = fullfile(rootdir,simname);
 
 if ~exist(fov_rootfolder,'dir')
     mkdir(fov_rootfolder);
-    mkdir(fullfile(fov_rootfolder,'0_raw'));
     mkdir(fullfile(fov_rootfolder,'1_deconvolution'));
     mkdir(fullfile(fov_rootfolder,'2_color-correction'));
     mkdir(fullfile(fov_rootfolder,'3_normalization'));
@@ -45,7 +44,6 @@ simparams.SIMULATION_NAME = simname;
 simparams.ROOTDIR = fov_rootfolder;
 
 
-params.INPUT_FILE_PATH = fullfile(fov_rootfolder,'1_deconvolution');
 params.deconvolutionImagesDir = fullfile(fov_rootfolder,'1_deconvolution');
 params.colorCorrectionImagesDir = fullfile(fov_rootfolder,'2_color-correction');
 params.normalizedImagesDir = fullfile(fov_rootfolder,'3_normalization');

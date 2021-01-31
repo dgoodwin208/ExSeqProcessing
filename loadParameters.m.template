@@ -1,26 +1,27 @@
 
 
-params.FILE_BASENAME = 'exseqvc1rep1-F037'
+params.FILE_BASENAME = 'simseqtest1';
 
-% Data loading a storage parameters
-params.deconvolutionImagesDir = '/yourfolder/1_deconvolution';
-params.colorCorrectionImagesDir = '/yourfolder/2_color-correction';
-params.normalizedImagesDir = '/yourfolder/3_normalization';
-params.registeredImagesDir = '/yourfolder/4_registration';
-params.punctaSubvolumeDir = '/yourfolder/5_puncta-extraction';
-params.basecallingResultsDir = '/yourfolder/6_base-calling';
-params.reportingDir = '/yourfolder/logs/imgs';
-params.logDir = '/yourfolder/logs';
+% Data loading a storage parameteres
+params.deconvolutionImagesDir = '../simseq/simseqtest1/1_deconvolution';
+params.colorCorrectionImagesDir = '../simseq/simseqtest1/2_color-correction';
+params.normalizedImagesDir = '../simseq/simseqtest1/3_normalization';
+params.registeredImagesDir = '../simseq/simseqtest1/4_registration';
+params.punctaSubvolumeDir = '../simseq/simseqtest1/5_puncta-extraction';
+params.basecallingResultsDir = '../simseq/simseqtest1/6_base-calling';
+params.reportingDir = '../simseq/simseqtest1/logs/imgs';
+params.logDir = '../simseq/simseqtest1/logs';
 
-%Microscope parameters
+% Microscope parameters
 params.XRES = .17;
 params.YRES = .17;
 params.ZRES = .4;
 
-%Experimental parameters
-params.REFERENCE_ROUND_WARP = 5;
-params.REFERENCE_ROUND_PUNCTA = 5;
-params.NUM_ROUNDS = 5;
+
+% Experimental parameters
+params.REFERENCE_ROUND_WARP = 2;
+params.REFERENCE_ROUND_PUNCTA = 2;
+params.NUM_ROUNDS = 7;
 
 % Does your experiment contain a round that contains a morphological signal
 % that you would like to be included for later analysis? If so, uncomment
@@ -29,23 +30,29 @@ params.NUM_ROUNDS = 5;
 % params.MORPHOLOGY_ROUND = 1;
 % params.MORPHOLOGY_CHAN_STR = 'ch04';
 
+% base calling parameters
+% we include groundtruth_dictionary_splintr20180621 in the analysis
+% directory as an example
+params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
+params.ISILLUMINA = true; %we used two sequencing chemistries, illumina is now the standard
+params.PUNCTARADIUS_BGESTIMATE = 5;
 
-%Used for color correction
-%Assuming beads are at the top of the stack, when do they start?
+
+
+% Used for color correction
+% Assuming beads are at the top of the stack, when do they start?
 params.BEAD_ZSTART = 1; %goes to :end
+% What is the buffer from the edge of the image we use when calculating the color shift? 
 params.COLOR_OFFSETS3D = [20,20,20];
+% To avoid errors, or if we don't expect much color drift, we can manually set a max magnitude
+params.COLOR_CORRECT_CLAMP = [4,4,4];
 
-%If the channel data come from very different distributions, applying a quantile Norm 
-%can be useful when combining channel information for the registration. However, 
-%it is highly memory and time intensive, using any other paramter but 'quantile' will
-%simply sum the channels in the normalization step, and this can reduce comptuation time
-%by 20-50%!
-params.NORMALIZE_METHOD = 'quantile';
-
-
+% What is the minimum size of a puncta (in voxels) to be considered?
 params.PUNCTA_SIZE_THRESHOLD = 30;
+% What is the maximum size?
 params.PUNCTA_SIZE_MAX = 2000;
-params.PUNCTA_SIZE = 10; %Defines the cubic region around each puncta
+% Defines the cubic region around each puncta
+params.PUNCTA_SIZE = 10; %Not a critical parameter, could be deprecated soon
 params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
 params.NUM_CHANNELS = length(params.CHAN_STRS);
 
@@ -53,35 +60,65 @@ params.SHIFT_CHAN_STRS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
 
 %What is the color channel we will load from the registration outputs?
 %TODO: Need to explain this more. I believe this is normally summedNorm
-params.PUNCTA_CHANNEL_SEG = 'ch02SHIFT'; 
+params.PUNCTA_CHANNEL_SEG = 'summedNorm'; 
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
-
 params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
+params.BASECALLING_MAXHAMMING = 2; %What is the max allowable mismatch?
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;
-params.DOWNSAMPLE_RATE = 2.;
+params.DOWNSAMPLE_RATE = 1.;
 
-%For puncta extraction:
-params.MAXNUM_MISSINGROUND=1;
+%If the channel data come from very different distributions, applying a quantile Norm 
+%can be useful when combining channel information for the registration. However, 
+%it is highly memory and time intensive, using any other paramter but 'quantile' will
+%simply sum the channels in the normalization step, and this can reduce comptuation time
+%by 20-50%!
+params.NORMALIZE_METHOD = 'quantile';% 'linear' or 'quantile';
+
+%If you re-run the same script, should it overwrite results?
+%Currently this is only implemented for the puncta-extraction and base-calling steps
+params.OVERWRITE_PREV_RESULTS = true;
+
+% For puncta extraction:
+% How many rounds do we allow there to be no data in? "missing" in this case
+% means pixel values = 0, which only happens in the case of registered image warps
+% leaving empty areas on the edges (depending on the magnitude of the translation etc.)
+params.MAXNUM_MISSINGROUND=2;
+
+% For basecalling, do we do an additional filtering step?
+% This can be helpful to define a function that removes artifacts in the data. 
+% If you define uncomment the line before the stage_base-calling will call whatever script
+% you define after the @ sign
+%params.BASECALLING_FILTERINGFUNCTION = @filter_HTAPP917;
+%Do we expect artifacts in the data? If so, set the values here
+params.BASECALLING_ARTIFACT_THRESH = [3000,4000,9000,1500];
+
+params.BASECALLING_SIG_THRESH = 90; %which percentile do we take from the puncta to call the base
 
 %use GPU CUDA or CPU
 params.USE_GPU_CUDA = false;
 
-%intermediate image format
+
+%intermediate image format, 'tif' of 'h5' are supported
 params.IMAGE_EXT = 'tif';
 
-%input image format
-params.INPUT_IMAGE_EXT = 'tif';
+%input image format, 'tif' of 'h5' are supported
+params.INPUT_IMAGE_EXT = 'tif'; 
 
 %Use intermediate tmp files in color-correction and normalization
 params.tempDir = '/mp/nvmeof0/tmp';
 
+
+%----- define registration params ----%
+% These are specific just to the regisration step
 % Define parameters for registration, titled regparams for clarity
-regparams.REGISTRATION_TYPE = 'affine';%'registered'; %or 'affine'
+% by old convention, 'registered' refers to the thin plate spline registration
+% 'affine' refers to the simpler linear transform
+regparams.REGISTRATION_TYPE = 'affine';%'registered' or 'affine'
 
 %When calculating RANSAC, do we consider all possible affine warps (true)
 %Or just translation+scale (false)
@@ -90,7 +127,7 @@ regparams.AFFINE_FULL = true;
 %Do we want to combine features from multiple channels?
 %keypoints and descriptors
 %NOTE: b
-regparams.REGISTERCHANNELS_SIFT = {'ch03SHIFT'}; %keypoints and descriptors
+regparams.REGISTERCHANNELS_SIFT = {'summedNorm'}; %keypoints and descriptors
 %keypoints only
 %Note: ShapeContext is an additional description method that can be used for 
 % tricky registrations. However, it is currently deprecated, just keep this {}
@@ -99,11 +136,10 @@ regparams.REGISTERCHANNELS_SC = {};
 
 %In the Murray et al 2015 this was {'Lectin', 'DAPI', 'Data}
 %Which channels do we warp?
-regparams.CHANNELS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT'};
-%regparams.CHANNELS = {'ch00','summedNorm'}; %for boloramis
+regparams.CHANNELS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT','summedNorm'};
 
-%Ideally this is 20, but the bare minimum to solve the affine tform is 6
-regparams.NCORRESPONDENCES_MIN = 10; 
+%Ideally this is at least 20, but the bare minimum to solve the affine tform is 6
+regparams.NCORRESPONDENCES_MIN = 20; 
 %Set a threshold for maximum displacement distance?
 %(not appropriate for all datasets. Distance in pixels, -1 for ignore this)
 regparams.DISTANCEQUANTILECUTOFF = .95;
@@ -117,7 +153,7 @@ regparams.DISTANCEQUANTILECUTOFF = .95;
 % with assumptions of the width of the Lectin vessels
 % (5-20 pixels at 2um/pix res) observed and assumption of minor scale
 % disparities (ie <20%)
-params.SCALE_PYRAMID = [1 3]; %[5];
+params.SCALE_PYRAMID = [4];
 
 % parameters for 3DSIFT
 sift_params.TwoPeak_Flag = true;  % Allow 3DSIFT to throw out points, Default: true
@@ -157,38 +193,32 @@ sift_params.stream_num = 20;
 sift_params.x_substream_stride = 256;
 sift_params.y_substream_stride = 256;
 
-%base calling parameters
-% So far have used one of: 'groundtruth_dictionary_splintr20180621.mat', 'groundtruth_dictionary_CZI20190817.mat', 'groundtruth_dictionary_HTAPP20191008.mat'
-params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
-
-params.ISILLUMINA = false;
-params.PUNCTARADIUS_BGESTIMATE = 5;
-
 %batch_processing parameters
 params.WAIT_SEC = 10;
+params.JOB_MAXTIME = 3600; %Any job should not take more than an hour
 
 params.USABLE_MEM_RATE = 0.9;
 params.MATLAB_PROC_CONTEXT = 800; %MiB
 
-%params.DOWN_SAMPLING_MAX_POOL_SIZE = 10;
+params.DOWN_SAMPLING_MAX_POOL_SIZE = 4;
 %
 %params.COLOR_CORRECTION_MAX_RUN_JOBS = 2;
 params.COLOR_CORRECTION_MAX_THREADS = 10;
 %
-%params.NORM_MAX_RUN_JOBS = 20;
-%params.NORM_DOWNSAMPLE_MAX_RUN_JOBS = 20;
+params.NORM_MAX_RUN_JOBS = 20;
+params.NORM_DOWNSAMPLE_MAX_RUN_JOBS = 20;
 %
-%params.CALC_DESC_MAX_RUN_JOBS = 30;
+params.CALC_DESC_MAX_RUN_JOBS = 30;
 params.CALC_DESC_MAX_THREADS = 4;
 %
-%params.CALC_CORR_MAX_RUN_JOBS = 1;
+params.CALC_CORR_MAX_RUN_JOBS = 1;
 params.CALC_CORR_MAX_THREADS = 10;
 %
-%params.REG_CORR_MAX_RUN_JOBS = 8;
+params.REG_CORR_MAX_RUN_JOBS = 8;
 params.REG_CORR_MAX_THREADS = 10;
 %
-%params.AFFINE_MAX_RUN_JOBS = 8;
-%params.AFFINE_MAX_POOL_SIZE = 5;
+params.AFFINE_MAX_RUN_JOBS = 8;
+params.AFFINE_MAX_POOL_SIZE = 5;
 params.AFFINE_MAX_THREADS = 10;
 %
 %params.TPS3DWARP_MAX_RUN_JOBS = 4;

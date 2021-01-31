@@ -1,22 +1,18 @@
 
 ROUNDS = 1:params.NUM_ROUNDS;
 for roundnum = ROUNDS
-    
-
     summed_norm = load3DImage_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,roundnum,params.PUNCTA_CHANNEL_SEG,regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
 
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
         
-        %IN BRANCH: The zero_mask_tracker will count 0 values, which is the
+        %The zero_mask_tracker will count 0 values, which is the
         %indicator of being outside of the registered volume
         zero_mask_tracker = zeros(size(total_summed_norm));
         zero_mask_tracker = zero_mask_tracker + (total_summed_norm==0);
     else
         total_summed_norm = total_summed_norm + summed_norm;
         zero_mask_tracker = zero_mask_tracker + (summed_norm==0);
-        %geometric meean exploration:
-        %total_summed_norm = total_summed_norm.*summed_norm;
     end
 
 end

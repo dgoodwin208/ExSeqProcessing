@@ -19,7 +19,8 @@ run_num_list = 1:params.NUM_ROUNDS;
 if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM_ROUNDS)
     run_num_list(params.MORPHOLOGY_ROUND) = [];
 end
-%IN BRANCH: Adding in the newly cropped feature 
+
+
 didLoadCropDims = exist('crop_dims','var');
 parfor exp_idx = run_num_list
     disp(['round=',num2str(exp_idx)])
@@ -33,14 +34,18 @@ parfor exp_idx = run_num_list
         filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.SHIFT_CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
         img =  load3DImage_uint16(filename_in);
         
-        %IN BRANCH: Adding in the newly cropped feature
+        %To save time by not processing empty data, we discover what data
+        %we can simply ignore after registration. 
         if didLoadCropDims 
             img = img(...
                 crop_dims(1,1):crop_dims(1,2),...
                 crop_dims(2,1):crop_dims(2,2),...
                 crop_dims(3,1):crop_dims(3,2));
         end
-        %IN BRANCH: Adding in the background subtraction
+        
+        %We do a background subtraction as we load the pixel values per
+        %sequencing channel. This step has shown to be beneficial across
+        %both SOLiD and Illumina sequencing
         se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
         img_opened = imopen(img,se);
         %Note the value of 1 for values that have been background subtracted
@@ -138,7 +143,9 @@ if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM
 end
 
 outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
-%IN BRANCH: In the interim 
+
+% This is kept in for backwards compatabilty, but can be removed in future
+% versions
 if ~didLoadCropDims 
     crop_dims = false;
 else
