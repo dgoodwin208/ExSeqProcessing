@@ -8,7 +8,7 @@ filename_transcripts = fullfile(params.basecallingResultsDir, 'transcript_object
 load(filename_transcripts);
 
 %Load ground truth:
-filename_groundtruth = fullfile(simparams.OUTPUTDIR, 'simseqtryone_groundtruth_pos+transcripts.mat');
+filename_groundtruth = fullfile(simparams.ROOTDIR, 'simseqtryone_groundtruth_pos+transcripts.mat');
 load(filename_groundtruth);
 %%
 rnd_num = params.REFERENCE_ROUND_PUNCTA;
@@ -140,7 +140,7 @@ title('Scatter plot of ground truth puncta parameters and size of detected punct
 %% How many of these transcripts are in the original data?
 %Load ground truth:
 if ~exist('puncta_transcripts','var')
-    filename_groundtruth = '/Users/Goody/Neuro/ExSeq/simulator/images/simseqtryone_groundtruth_pos+transcripts.mat';
+    filename_groundtruth = fullfile(simparams.ROOTDIR, 'simseqtryone_groundtruth_pos+transcripts.mat');
     load(filename_groundtruth);
 end
 
