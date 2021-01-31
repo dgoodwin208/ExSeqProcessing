@@ -1,5 +1,6 @@
 *.swp
 *.m~
+*.asv
 *.mat
 *.fig
 logs/

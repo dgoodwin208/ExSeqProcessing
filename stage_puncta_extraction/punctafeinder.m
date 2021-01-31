@@ -7,19 +7,52 @@ for roundnum = ROUNDS
 
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
+        
+        %IN BRANCH: The zero_mask_tracker will count 0 values, which is the
+        %indicator of being outside of the registered volume
+        zero_mask_tracker = zeros(size(total_summed_norm));
+        zero_mask_tracker = zero_mask_tracker + (total_summed_norm==0);
     else
         total_summed_norm = total_summed_norm + summed_norm;
+        zero_mask_tracker = zero_mask_tracker + (summed_norm==0);
         %geometric meean exploration:
         %total_summed_norm = total_summed_norm.*summed_norm;
     end
 
 end
 
+
 min_total = min(total_summed_norm(:));
 total_summed_norm_scaled = total_summed_norm - min_total;
 total_summed_norm_scaled = (total_summed_norm_scaled/max(total_summed_norm_scaled(:)))*double(intmax('uint16'));
 total_summed_norm = [];
 save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
+
+% Convert the zero_mask into a cropping bounds
+mask = zero_mask_tracker<=params.MAXNUM_MISSINGROUND;
+%1 = there was less than params.MAXNUM_MISSINGROUND of 0s
+crop_dims = zeros(3,2); %num_dims x min/max
+for dim = 1:3
+    %Get the dimensions to take the maximums of
+    dims_to_mip = 1:3;
+    dims_to_mip(dim) = [];
+    %Do the max twice
+    max_mip = max(mask,[],dims_to_mip(1));
+    max_mip = max(max_mip ,[],dims_to_mip(2));
+    %Max_mip should now be a vector
+    %We can get the start and end of the acceptable range
+    crop_dims(dim,1) = find(max_mip ,1,'first');
+    crop_dims(dim,2) = find(max_mip ,1,'last');
+end
+crop_dims 
+%Now crop the data that we will be applying the DOG to
+total_summed_norm_scaled = total_summed_norm_scaled(...
+    crop_dims(1,1):crop_dims(1,2),...
+    crop_dims(2,1):crop_dims(2,2),...
+    crop_dims(3,1):crop_dims(3,2));
+
+    
+save3DImage_uint16(total_summed_norm_scaled,fullfile(params.punctaSubvolumeDir,sprintf('%s_allsummedSummedNorm_cropped.%s',params.FILE_BASENAME,params.IMAGE_EXT)));
 
 %Note the original size of the data before upscaling to isotropic voxels
 data = total_summed_norm_scaled;
@@ -82,7 +115,7 @@ neg_masked_image(~stack_in) = inf;
 
 tic
 fprintf('Watershed running...');
-L = uint32(watershed(neg_masked_image));
+L = uint32(watershed(single(neg_masked_image))); %adding single() for 2020b version change
 neg_masked_image = [];
 L(~stack_in) = 0;
 stack_in = [];
@@ -101,19 +134,25 @@ for y = 1:size(data,1)
     %TODO: We could skip the vectors that are all zero from interpolation
     %like we did above.
     for x = 1:size(data,2)
-        %'Nearest' = nearest neighbor, means there should be no new values
-        %being created
-        data_interpolated(y,x,:) = interp1(query_pts_interp,squeeze(data(y,x,:)),indices_orig,'nearest');
+
+        if all(squeeze(data(y,x,:))==0)
+	    %For speed, if the whole z-column is 0, no need to interpolate!
+            data_interpolated(y,x,:)=0;
+        else
+            %'Nearest' = nearest neighbor, means there should be no new values
+            %being created
+            data_interpolated(y,x,:) = interp1(query_pts_interp,squeeze(data(y,x,:)),indices_orig,'nearest');
+        end
     end
     
     if mod(y,200)==0
         fprintf('\t%i/%i rows processed\n',y,size(data,1));
     end
 end
-data = [];
 L_origsize = uint32(data_interpolated);
 data_interpolated = [];
-
+%clear data to make space
+data = [];
 %Extract the puncta from the watershed output (no longer interpolated)
 candidate_puncta= regionprops(L_origsize,img_origsize, 'WeightedCentroid', 'PixelIdxList');
 L_origsize = [];
@@ -128,6 +167,12 @@ end
 good_indices = 1:length(candidate_puncta);
 good_indices(indices_to_remove) = [];
 
+%A commmon failure of watershed is that the threshold is too low 
+%for now, we're going to hardcode 
+max_puncta = numel(img_origsize)/(params.PUNCTA_SIZE^3);
+if length(good_indices)>max_puncta
+    error(sprintf('Way too many puncta extracted: %i puncta with a threshold of %f\n',length(good_indices),thresh))
+end
 filtered_puncta = candidate_puncta(good_indices);
 
 output_img = zeros(size(img_origsize));
@@ -162,5 +207,5 @@ output_img = [];
 %end
 
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
-save(filename_centroids, 'puncta_centroids','puncta_voxels', '-v7.3');
+save(filename_centroids, 'puncta_centroids','puncta_voxels','crop_dims', '-v7.3');
 

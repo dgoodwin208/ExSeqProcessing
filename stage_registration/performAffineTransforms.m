@@ -30,7 +30,7 @@ if isequal(params.IMAGE_EXT,'tif')
     tif_info = imfinfo(filename);
     img_total_size = [tif_info(1).Height, tif_info(1).Width, length(tif_info)];
 elseif isequal(params.IMAGE_EXT,'h5')
-    hdf5_info = h5info(filename,'/image')
+    hdf5_info = h5info(filename,'/image');
     img_total_size = hdf5_info.Dataspace.Size;
 else
     fprintf('unsupported file format.\n');

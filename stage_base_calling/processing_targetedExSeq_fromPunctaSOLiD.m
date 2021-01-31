@@ -31,7 +31,7 @@ funnel_names = {'Segmented amplicons','Present in every round',...
     'Aligned to Barcodes','Column shuffled hits'};
 
 groundtruth_dict = params.GROUND_TRUTH_DICT;
-fprintf('Using dicitonary %s \n', groundtruth_dict)
+fprintf('Using dictonary %s \n', groundtruth_dict)
 load(groundtruth_dict);
 
 readlength = size(groundtruth_codes,2);
