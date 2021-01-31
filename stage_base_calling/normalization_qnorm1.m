@@ -82,12 +82,17 @@ for rnd_idx = 1:readlength
     data_cols_norm_nonzero_nonjunk = quantilenorm(data_cols_nonzero_nonjunk);
     
     %Finally, remove covariance between the color channels
-    %EXPERIMENTAL!
+    
+    
     %Note, what comes out of whiten is the transformed version of the
     %de-meaned data. Since we are whitening the qnormed data, the means
     %should be the same anyway, so for comparison it should be all good
     [data_cols_norm_nonzero_nonjunk, ~, ~, demixing_matrix] = whiten(data_cols_norm_nonzero_nonjunk );
     demixing_matrices(:,:,rnd_idx) = demixing_matrix;
+    %If you want to to Experiment with removing the demixing:
+%       data_cols_norm_nonzero_nonjunk = data_cols_norm_nonzero_nonjunk;
+%       demixing_matrix = eye(4);
+    
     scaled_demixing_matrix = demixing_matrix./repmat(max(demixing_matrix,[],1),4,1,1)
     %Initialize the data_cols_norm as the data_cols
     data_cols_norm_nonzero = data_cols_nonzero; %has the NaNs
@@ -200,23 +205,3 @@ for p = 1:N
     puncta_centroids_filtered(p,:) = mean([x,y,z],1); 
 end
 
-
-%% Exploration:
-figure;
-for c_idx = 1:4
-    clamped = data_cols_nonzero(:,c_idx);
-    clamped(clamped>prctile(clamped,99)) = prctile(clamped,99);
-    histogram(clamped)
-    hold on;
-end
-title('Non-normalized and non-whitened histograms');
-
-%%
-figure;
-for c_idx = 1:4
-    clamped = data_cols_norm_nonzero(:,c_idx);
-    clamped(clamped>5) = 5;
-    histogram(clamped)
-    hold on;
-end
-title('normalized and whitened histograms');

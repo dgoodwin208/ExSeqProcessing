@@ -31,9 +31,6 @@ funnel_numbers = zeros(4,1);
 funnel_names = {'Segmented amplicons','Present in every round',...
     'Aligned to Barcodes','Column shuffled hits'};
 
-%This is a silly line and only refers to a deprecated line in
-%normalization_q1. Remove 
-% params.ISILLUMINA = false;
 %% Load the barcodes
 groundtruth_dict = params.GROUND_TRUTH_DICT;
 fprintf('Using dictonary %s \n', groundtruth_dict)
@@ -85,8 +82,12 @@ match_ctr=1;
 
 shuffled_hits = 0;
 not_aligned = zeros(size(insitu_transcripts_filtered,1),1);
+base_mismatch_ctr = zeros(1,params.NUM_ROUNDS);
 for t = 1:size(insitu_transcripts_filtered,1)
     img_transcript = insitu_transcripts_filtered(t,:);
+    %Shuffle transcripts to get a false pos rate. 
+    %Column wise shuffling, basicallyodrawing randomly from each base
+    img_transcript_shuffled = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),readlength),1:readlength))';
     
     match_scores = readlength - sum(groundtruth_codes == img_transcript,2);
     [score, score_idx] = sort(match_scores,'ascend');
@@ -99,6 +100,10 @@ for t = 1:size(insitu_transcripts_filtered,1)
         transcript = struct;
         transcript.img_transcript=img_transcript;
         transcript.known_sequence_matched = groundtruth_codes(score_idx(1),:);
+        
+        %monitoring
+        base_mismatch_ctr = base_mismatch_ctr + ...
+            single(img_transcript ~= groundtruth_codes(score_idx(1),:));
         
         transcript.hamming =score(1);
         voxels = puncta_voxels_filtered{t};
@@ -127,24 +132,18 @@ for t = 1:size(insitu_transcripts_filtered,1)
         not_aligned(t) = 1;
     end
     
-    %Shuffle transcripts to get a false pos rate. 
-    %Column wise shuffling, basicallyodrawing randomly from each base
-    img_transcript_shuffled = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),readlength),1:readlength))';
     
-    perfect_match = find(sum(groundtruth_codes == img_transcript_shuffled,2)==readlength);
-    if length(perfect_match)==1
+    %Now replicate to get the randomized score
+    match_scores = readlength - sum(groundtruth_codes == img_transcript_shuffled,2);
+    [score, score_idx] = sort(match_scores,'ascend');
+    
+    %If the minimum score is either above the allowable threshold or
+    %non-unique, leave it
+    numread_minscore = sum(score==score(1));
+    if score(1)<= params.BASECALLING_MAXHAMMING  && numread_minscore==1
         shuffled_hits = shuffled_hits+1;
     end
 end
-
-% Get all the gene names so we can make a (sorted!) histogram
-insitu_genes = cell(length(transcript_objects),1);
-for t = 1:length(transcript_objects)
-    insitu_genes{t} = transcript_objects{t}.name;
-end
-insitu_genes = categorical(insitu_genes);
-figure; histogram(insitu_genes,'DisplayOrder','descend')
-title(sprintf('%i alignments',length(transcript_objects)));
 
 fprintf('Of %i transcripts, %i matches\n',size(insitu_transcripts_filtered,1),length(transcript_objects));
 
