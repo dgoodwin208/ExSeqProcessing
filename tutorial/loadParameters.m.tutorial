@@ -1,26 +1,28 @@
 
 
-params.FILE_BASENAME = 'simseqtest1';
+params.FILE_BASENAME = 'exseqvc1rep1-F037'
 
-% Data loading a storage parameteres
-params.deconvolutionImagesDir = '../simseq/simseqtest1/1_deconvolution';
-params.colorCorrectionImagesDir = '../simseq/simseqtest1/2_color-correction';
-params.normalizedImagesDir = '../simseq/simseqtest1/3_normalization';
-params.registeredImagesDir = '../simseq/simseqtest1/4_registration';
-params.punctaSubvolumeDir = '../simseq/simseqtest1/5_puncta-extraction';
-params.basecallingResultsDir = '../simseq/simseqtest1/6_base-calling';
-params.reportingDir = '../simseq/simseqtest1/logs/imgs';
-params.logDir = '../simseq/simseqtest1/logs';
+% Data loading a storage parameters
+% note that calling the input directory "deconvolution" is deprecated and
+% unclear, we will rename that shortly, but for now this the folder that 
+% contains your input data
+params.deconvolutionImagesDir = '/yourfolder/0_raw';
+params.colorCorrectionImagesDir = '/yourfolder/2_color-correction';
+params.normalizedImagesDir = '/yourfolder/3_normalization';
+params.registeredImagesDir = '/yourfolder/4_registration';
+params.punctaSubvolumeDir = '/yourfolder/5_puncta-extraction';
+params.basecallingResultsDir = '/yourfolder/6_base-calling';
+params.reportingDir = '/yourfolder/logs/imgs';
+params.logDir = '/yourfolder/logs';
 
-% Microscope parameters
+%Microscope parameters
 params.XRES = .17;
 params.YRES = .17;
 params.ZRES = .4;
 
-
-% Experimental parameters
-params.REFERENCE_ROUND_WARP = 2;
-params.NUM_ROUNDS = 7;
+%Experimental parameters
+params.REFERENCE_ROUND_WARP = 1;
+params.NUM_ROUNDS = 5;
 
 % Does your experiment contain a round that contains a morphological signal
 % that you would like to be included for later analysis? If so, uncomment
@@ -30,9 +32,9 @@ params.NUM_ROUNDS = 7;
 % params.MORPHOLOGY_CHAN_STR = 'ch04';
 
 % base calling parameters
-% we include groundtruth_dictionary_splintr20180621 in the analysis
+% we include groundtruth_dictionary_CZI20190817.mat in the analysis
 % directory as an example
-params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
+params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_CZI20190817.mat';
 params.ISILLUMINA = true; %we used two sequencing chemistries, illumina is now the standard
 params.PUNCTARADIUS_BGESTIMATE = 5;
 
@@ -103,10 +105,10 @@ params.USE_GPU_CUDA = false;
 
 
 %intermediate image format, 'tif' of 'h5' are supported
-params.IMAGE_EXT = 'tif';
+params.IMAGE_EXT = 'h5';
 
 %input image format, 'tif' of 'h5' are supported
-params.INPUT_IMAGE_EXT = 'tif'; 
+params.INPUT_IMAGE_EXT = 'h5'; 
 
 %Use intermediate tmp files in color-correction and normalization
 params.tempDir = '/mp/nvmeof0/tmp';
