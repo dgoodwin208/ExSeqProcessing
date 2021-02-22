@@ -1,6 +1,6 @@
 
 
-params.FILE_BASENAME = 'exseqvc1rep1-F037'
+params.FILE_BASENAME = 'exseqvc1rep1-F037';
 
 % Data loading a storage parameters
 % note that calling the input directory "deconvolution" is deprecated and
@@ -22,23 +22,21 @@ params.ZRES = .4;
 
 %Experimental parameters
 params.REFERENCE_ROUND_WARP = 1;
-params.NUM_ROUNDS = 5;
+params.NUM_ROUNDS = 4;
 
 % Does your experiment contain a round that contains a morphological signal
 % that you would like to be included for later analysis? If so, uncomment
 % this line. If your experiment does *not* have a morphological component,
 % leave this uncommented
-% params.MORPHOLOGY_ROUND = 1;
-% params.MORPHOLOGY_CHAN_STR = 'ch04';
+params.MORPHOLOGY_ROUND = 5;
+params.MORPHOLOGY_CHAN_STR = 'ch04';
 
 % base calling parameters
-% we include groundtruth_dictionary_CZI20190817.mat in the analysis
+% we include groundtruth_visualcortex_tutorial.mat in the analysis
 % directory as an example
-params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_CZI20190817.mat';
+params.GROUND_TRUTH_DICT = 'groundtruth_visualcortex_tutorial.mat';
 params.ISILLUMINA = true; %we used two sequencing chemistries, illumina is now the standard
 params.PUNCTARADIUS_BGESTIMATE = 5;
-
-
 
 % Used for color correction
 % Assuming beads are at the top of the stack, when do they start?
@@ -46,7 +44,7 @@ params.BEAD_ZSTART = 1; %goes to :end
 % What is the buffer from the edge of the image we use when calculating the color shift? 
 params.COLOR_OFFSETS3D = [20,20,20];
 % To avoid errors, or if we don't expect much color drift, we can manually set a max magnitude
-params.COLOR_CORRECT_CLAMP = [4,4,4];
+params.COLOR_CORRECT_CLAMP = [10,10,10];
 
 % What is the minimum size of a puncta (in voxels) to be considered?
 params.PUNCTA_SIZE_THRESHOLD = 30;
@@ -65,13 +63,12 @@ params.PUNCTA_CHANNEL_SEG = 'summedNorm';
 
 %Base calling parameters
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
-params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
 params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
-params.BASECALLING_MAXHAMMING = 2; %What is the max allowable mismatch?
+params.BASECALLING_MAXHAMMING = 0; %What is the max allowable mismatch?
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;
-params.DOWNSAMPLE_RATE = 1.;
+params.DOWNSAMPLE_RATE = 2.;
 
 %If the channel data come from very different distributions, applying a quantile Norm 
 %can be useful when combining channel information for the registration. However, 
@@ -127,7 +124,7 @@ regparams.AFFINE_FULL = true;
 
 %Do we want to combine features from multiple channels?
 %keypoints and descriptors
-%NOTE: b
+%NOTE: 
 regparams.REGISTERCHANNELS_SIFT = {'summedNorm'}; %keypoints and descriptors
 %keypoints only
 %Note: ShapeContext is an additional description method that can be used for 
@@ -135,12 +132,12 @@ regparams.REGISTERCHANNELS_SIFT = {'summedNorm'}; %keypoints and descriptors
 % -Dan G. 2020-09-09
 regparams.REGISTERCHANNELS_SC = {};
 
-%In the Murray et al 2015 this was {'Lectin', 'DAPI', 'Data}
 %Which channels do we warp?
 regparams.CHANNELS = {'ch00','ch01SHIFT','ch02SHIFT','ch03SHIFT','summedNorm'};
 
 %Ideally this is at least 20, but the bare minimum to solve the affine tform is 6
 regparams.NCORRESPONDENCES_MIN = 20; 
+
 %Set a threshold for maximum displacement distance?
 %(not appropriate for all datasets. Distance in pixels, -1 for ignore this)
 regparams.DISTANCEQUANTILECUTOFF = .95;
