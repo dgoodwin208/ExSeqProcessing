@@ -68,7 +68,7 @@ params.BASECALLING_MAXHAMMING = 0; %What is the max allowable mismatch?
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;
-params.DOWNSAMPLE_RATE = 2.;
+params.DOWNSAMPLE_RATE = 4.; %For memory efficiency, 4 is chosen. 2 is the safet, but 4 has performed reliably
 
 %If the channel data come from very different distributions, applying a quantile Norm 
 %can be useful when combining channel information for the registration. However, 

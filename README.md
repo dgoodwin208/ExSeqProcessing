@@ -6,7 +6,9 @@ This is the software library for processing Expansion Sequencing, ExSeq, experim
 
 For the fastest path to exploring the steps of the ExSeqProcessing pipeline, we included a script which will simulate ExSeq data and then process that data. You can find that script in `analysis/simulator/runSimulatorRound.m`. That script should take about 10 minutes to run end-to-end on an modern laptop and should be a good introduction to the file format structure. 
 
-Please refer to the [Wiki](https://github.com/dgoodwin208/ExSeqProcessing/wiki) for information and a tutorial, complete with a sample ExSeq dataset. 
+Please refer to the [Wiki](https://github.com/dgoodwin208/ExSeqProcessing/wiki) for information and a tutorial, complete with a sample ExSeq dataset. [Update,  March 08, 2021: That Wiki page is undergoing a refactoring with simpler instructions].
+
+The easiest way to get started with real data is to explore the `tutorial` folder in the root of the ExSeqProcessing repository. `tutorial/ExSeqProcessing_tutorial.m` walks through the simplest script of running all the necessary step. For larger-scale processing, we recommend using the `runPipeline.sh` bash script, with the necessary disclaimer that the tradeoff for its power is the learning curve of getting running with it. We also include `wrapper_batchexperiment.py` to illustrate how we have used the `runPipeline.sh` tool.
 
 We are grateful for all requests and questions - there will surely be bugs and we want to fix them. It is important to us that this software is a useful contribution to the community!
 
