@@ -22,7 +22,10 @@ params.ZRES = .4;
 
 %Experimental parameters
 params.REFERENCE_ROUND_WARP = 1;
-params.NUM_ROUNDS = 4;
+params.NUM_ROUNDS = 4; %How many rounds of images need to be processed?
+%When aligning against a library, which rounds in the ground truth are we
+%matching to?
+params.ALIGNMENT_ROUNDS = 1:params.NUM_ROUNDS;
 
 % Does your experiment contain a round that contains a morphological signal
 % that you would like to be included for later analysis? If so, uncomment
@@ -65,6 +68,7 @@ params.PUNCTA_CHANNEL_SEG = 'summedNorm';
 params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empty chan)
 params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
 params.BASECALLING_MAXHAMMING = 0; %What is the max allowable mismatch?
+params.BASECALLING_PERFORMWHITENING = false; %Do we attempt to remove correlation in channels?
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;

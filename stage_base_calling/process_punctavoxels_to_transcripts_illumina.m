@@ -74,7 +74,9 @@ funnel_numbers(2) = N;
 
 %% Basecalling - simply comparing the normalized intensities
 % 
-readlength = size(groundtruth_codes,2);
+
+groundtruth_codes_align = groundtruth_codes(:,params.ALIGNMENT_ROUNDS);
+readlength = length(params.ALIGNMENT_ROUNDS);
 
 transcript_objects = {};
 insitu_transcripts_aligned = [];
@@ -84,12 +86,12 @@ shuffled_hits = 0;
 not_aligned = zeros(size(insitu_transcripts_filtered,1),1);
 base_mismatch_ctr = zeros(1,params.NUM_ROUNDS);
 for t = 1:size(insitu_transcripts_filtered,1)
-    img_transcript = insitu_transcripts_filtered(t,:);
+    img_transcript = insitu_transcripts_filtered(t,params.ALIGNMENT_ROUNDS);
     %Shuffle transcripts to get a false pos rate. 
     %Column wise shuffling, basicallyodrawing randomly from each base
-    img_transcript_shuffled = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),readlength),1:readlength))';
+    img_transcript_shuffled = diag(insitu_transcripts_filtered(randperm(size(insitu_transcripts_filtered,1),readlength),params.ALIGNMENT_ROUNDS))';
     
-    match_scores = readlength - sum(groundtruth_codes == img_transcript,2);
+    match_scores = readlength - sum(groundtruth_codes_align == img_transcript,2);
     [score, score_idx] = sort(match_scores,'ascend');
     
     %If the minimum score is either above the allowable threshold or
@@ -98,12 +100,13 @@ for t = 1:size(insitu_transcripts_filtered,1)
     if score(1)<= params.BASECALLING_MAXHAMMING  && numread_minscore==1
         
         transcript = struct;
-        transcript.img_transcript=img_transcript;
+        transcript.alignment_bases = params.ALIGNMENT_ROUNDS;
+        transcript.img_transcript = insitu_transcripts_filtered(t,:);
         transcript.known_sequence_matched = groundtruth_codes(score_idx(1),:);
         
         %monitoring
         base_mismatch_ctr = base_mismatch_ctr + ...
-            single(img_transcript ~= groundtruth_codes(score_idx(1),:));
+            single(img_transcript ~= groundtruth_codes_align(score_idx(1),:));
         
         transcript.hamming =score(1);
         voxels = puncta_voxels_filtered{t};
@@ -134,7 +137,7 @@ for t = 1:size(insitu_transcripts_filtered,1)
     
     
     %Now replicate to get the randomized score
-    match_scores = readlength - sum(groundtruth_codes == img_transcript_shuffled,2);
+    match_scores = readlength - sum(groundtruth_codes_align == img_transcript_shuffled,2);
     [score, score_idx] = sort(match_scores,'ascend');
     
     %If the minimum score is either above the allowable threshold or
@@ -147,24 +150,9 @@ end
 
 fprintf('Of %i transcripts, %i matches\n',size(insitu_transcripts_filtered,1),length(transcript_objects));
 
-% Note the 
+% Note the number of transcripts and the number of shuffled its
 funnel_numbers(3) = length(transcript_objects); 
 funnel_numbers(4) = shuffled_hits;
 
 save(fullfile(params.basecallingResultsDir,sprintf('%s_basecalls.mat',params.FILE_BASENAME)),'insitu_transcripts_filtered','puncta_intensities_norm','puncta_intensities_raw','puncta_centroids_filtered','demixing_matrices','-v7.3');
 save(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)),'transcript_objects','funnel_numbers','crop_dims','-v7.3');
-
-
-%% Generate bogus data - Totally random data
-insitu_transcripts_filtered = randi(4,size(insitu_transcripts,1),7);
-%How many zeros are there in the original data?
-num_zero_entries = sum(insitu_transcripts(:)==0);
-d1_indices = randperm(numel(insitu_transcripts),num_zero_entries);
-insitu_transcripts_filtered(d1_indices)=0;
-%Col random:
-
-%% Generate bogus data - Column shuffled data
-numts = size(insitu_transcripts,1);
-for col = 1:readlength
-    insitu_transcripts_filtered(:,col) = insitu_transcripts(randperm(numts),col);
-end

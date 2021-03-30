@@ -20,7 +20,10 @@ params.ZRES = .4;
 
 % Experimental parameters
 params.REFERENCE_ROUND_WARP = 2;
-params.NUM_ROUNDS = 7;
+params.NUM_ROUNDS = 4; %How many rounds of images need to be processed?
+%When aligning against a library, which rounds in the ground truth are we
+%matching to?
+params.ALIGNMENT_ROUNDS = 1:params.NUM_ROUNDS;
 
 % Does your experiment contain a round that contains a morphological signal
 % that you would like to be included for later analysis? If so, uncomment
@@ -30,9 +33,10 @@ params.NUM_ROUNDS = 7;
 % params.MORPHOLOGY_CHAN_STR = 'ch04';
 
 % base calling parameters
-% we include groundtruth_dictionary_splintr20180621 in the analysis
+% we include groundtruth_visualcortex_tutorial.mat in the tutorial
 % directory as an example
-params.GROUND_TRUTH_DICT = 'groundtruth_dictionary_splintr20180621.mat';
+
+params.GROUND_TRUTH_DICT = 'groundtruth_visualcortex_tutorial.mat';
 params.ISILLUMINA = true; %we used two sequencing chemistries, illumina is now the standard
 params.PUNCTARADIUS_BGESTIMATE = 5;
 
@@ -66,6 +70,7 @@ params.COLOR_VEC = [1,2,3,4]; %Which channels are we comparing? (in case of empt
 params.DISTANCE_FROM_CENTER = 2.5; %how far from the center of the puncta subvol?
 params.THRESHOLD_EXPRESSION = 15; %If a transcript shows up fewer than this it's probably noise
 params.BASECALLING_MAXHAMMING = 2; %What is the max allowable mismatch?
+params.BASECALLING_PERFORMWHITENING = false; %Do we attempt to remove correlation in channels?
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;
@@ -93,8 +98,8 @@ params.MAXNUM_MISSINGROUND=2;
 % If you define uncomment the line before the stage_base-calling will call whatever script
 % you define after the @ sign
 %params.BASECALLING_FILTERINGFUNCTION = @filter_HTAPP917;
-%Do we expect artifacts in the data? If so, set the values here
-params.BASECALLING_ARTIFACT_THRESH = [3000,4000,9000,1500];
+%Do we expect artifacts in the data? If so, uncomment and set the values here
+%params.BASECALLING_ARTIFACT_THRESH = [3000,4000,9000,1500];
 
 params.BASECALLING_SIG_THRESH = 90; %which percentile do we take from the puncta to call the base
 

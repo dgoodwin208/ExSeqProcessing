@@ -65,9 +65,9 @@ for rnd_idx = 1:readlength
     
     %Now remove puncta in which more than one of the channels is an extreme
     %outlier
-%     excess_thresh = prctile(data_cols_nonzero,99.9);%gets each channel's thresh
+    %     excess_thresh = prctile(data_cols_nonzero,99.9);%gets each channel's thresh
     if isfield(params,'BASECALLING_ARTIFACT_THRESH')
-        excess_thresh = params.BASECALLING_ARTIFACT_THRESH;  
+        excess_thresh = params.BASECALLING_ARTIFACT_THRESH;
     else
         excess_thresh = [Inf,Inf,Inf,Inf];
     end
@@ -76,24 +76,29 @@ for rnd_idx = 1:readlength
     
     %Everything that is nonzero but junk, mark as nan
     data_cols_nonzero(~nonjunk_mask,:) = nan;
-
+    
     
     %Normalize just the nonzero portion
     data_cols_norm_nonzero_nonjunk = quantilenorm(data_cols_nonzero_nonjunk);
     
-    %Finally, remove covariance between the color channels
-    
-    
-    %Note, what comes out of whiten is the transformed version of the
-    %de-meaned data. Since we are whitening the qnormed data, the means
-    %should be the same anyway, so for comparison it should be all good
-    [data_cols_norm_nonzero_nonjunk, ~, ~, demixing_matrix] = whiten(data_cols_norm_nonzero_nonjunk );
+    %Finally, do we want to attempt to remove covariance between channels?
+    if params.BASECALLING_PERFORMWHITENING
+        fprintf('Performing whitening\n');
+        %Note, what comes out of whiten is the transformed version of the
+        %de-meaned data. Since we are whitening the qnormed data, the means
+        %should be the same anyway, so for comparison it should be all good
+        [data_cols_norm_nonzero_nonjunk, ~, ~, demixing_matrix] = whiten(data_cols_norm_nonzero_nonjunk );
+        
+    else
+        %If you want to to Experiment with removing the demixing:
+        data_cols_norm_nonzero_nonjunk = data_cols_norm_nonzero_nonjunk;
+        demixing_matrix = eye(4);
+    end
     demixing_matrices(:,:,rnd_idx) = demixing_matrix;
-    %If you want to to Experiment with removing the demixing:
-%       data_cols_norm_nonzero_nonjunk = data_cols_norm_nonzero_nonjunk;
-%       demixing_matrix = eye(4);
     
-    scaled_demixing_matrix = demixing_matrix./repmat(max(demixing_matrix,[],1),4,1,1)
+    %Apply the demixing (either identity or calculated via whitening)
+    scaled_demixing_matrix = demixing_matrix./repmat(max(demixing_matrix,[],1),4,1,1);
+    
     %Initialize the data_cols_norm as the data_cols
     data_cols_norm_nonzero = data_cols_nonzero; %has the NaNs
     %place the whitened, normalized nonjunk back in
@@ -103,7 +108,7 @@ for rnd_idx = 1:readlength
     data_cols_norm = data_cols;
     %Replace all the nonzero entries with the normed values
     data_cols_norm(nonzero_mask,:) = data_cols_norm_nonzero;
-
+    
     %
     %Unpack the normalized colors back into the original shape
     pos_cur = 1;
@@ -117,13 +122,13 @@ for rnd_idx = 1:readlength
         %Declare junk if there are any "junk" voxels in any of the channels
         puncta_hasjunk(p_idx) = any(any(isnan(data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),1:4))));
         
-        puncta_intensities_norm(p_idx,rnd_idx,:) = prctile(data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),:),params.BASECALLING_SIG_THRESH);        
+        puncta_intensities_norm(p_idx,rnd_idx,:) = prctile(data_cols_norm(pos_cur:punctaindices_vecpos(p_idx),:),params.BASECALLING_SIG_THRESH);
         
-        puncta_intensities_raw(p_idx,rnd_idx,:) = prctile(data_cols(pos_cur:punctaindices_vecpos(p_idx),:),params.BASECALLING_SIG_THRESH);        
+        puncta_intensities_raw(p_idx,rnd_idx,:) = prctile(data_cols(pos_cur:punctaindices_vecpos(p_idx),:),params.BASECALLING_SIG_THRESH);
         
         %Track the 1D index as we unpack out each puncta
         pos_cur = punctaindices_vecpos(p_idx)+1;
-
+        
     end
     fprintf('Discarding %i bases over the thresh limit\n',sum(puncta_hasjunk));
     puncta_hasjunk_rounds(:,rnd_idx) = puncta_hasjunk;
@@ -140,16 +145,16 @@ for rnd_idx = 1:readlength
             insitu_transcripts(p_idx,rnd_idx) = 0;
             continue
         end
-            
+        
         %A channel is present if the brightest pixel in the puncta are
         %brighter than the cutoff we just defined
         %We choose the 90th percentile because we don't want to be subject
         %to outlier pixels that might enter a puncta, yet we also don't
-        %want to use the mean which could be dragged down by background. 
+        %want to use the mean which could be dragged down by background.
         % However, using the background subtraction in the puncta
         % extraction phase seems to make us be conservative with the pixels
         % we count, so background is likely not a big factor
-
+        
         
         chan1_signal = puncta_intensities_norm(p_idx,rnd_idx,1);
         chan2_signal = puncta_intensities_norm(p_idx,rnd_idx,2);
@@ -162,7 +167,7 @@ for rnd_idx = 1:readlength
         chan4_present = ~(chan4_signal==0);
         
         [signal_strength,winning_base] = max([chan1_signal,chan2_signal,chan3_signal,chan4_signal]);
-
+        
         %In the case that a signal is missing in any channel, we cannot
         %call that base so mark it a zero
         
@@ -174,8 +179,8 @@ for rnd_idx = 1:readlength
             insitu_transcripts(p_idx,rnd_idx) = 0;
         end
         
-%         puncta_present(p_idx,rnd_idx) = chan1_present & chan2_present & ...
-%             chan3_present & chan4_present;
+        %         puncta_present(p_idx,rnd_idx) = chan1_present & chan2_present & ...
+        %             chan3_present & chan4_present;
     end
     
     
@@ -198,10 +203,10 @@ end
 puncta_voxels_filtered = puncta_indices_cell{1}(puncta_complete);
 
 insitu_transcripts_filtered = insitu_transcripts(puncta_complete,:);
- 
+
 puncta_centroids_filtered = zeros(N,3);
 for p = 1:N
     [x,y,z] = ind2sub(IMG_SIZE,puncta_voxels_filtered{p});
-    puncta_centroids_filtered(p,:) = mean([x,y,z],1); 
+    puncta_centroids_filtered(p,:) = mean([x,y,z],1);
 end
 
