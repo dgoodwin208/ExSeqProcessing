@@ -39,8 +39,8 @@ if __name__ == '__main__':
 
 
 
-    base_dir = config['base_dir'] #/mp/nas2/DG/HTAPP_20200921/HTAPP_514/processing
-    base_filename = f"htapp{config['expnum']}"#htapp514
+    base_dir = config['base_dir'] 
+    base_filename = f"{config['basename']}"
     skipsteps = config['skipsteps']
 
     # Loop over the specified FOVs
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         # to a file as well as to the screen.
         runPipelineLogFile = os.path.join(log_dir, "runPipeline.log")
         if skipsteps is None:
-            commandStr = "./runPipeline.sh " + \
+            commandStr = "./runPipeline.sh -F hdf5" + \
                          " -I " + input_dir  + \
                          " -O " + output_dir + \
                          " -b " + final_base + \
@@ -86,7 +86,7 @@ if __name__ == '__main__':
                          " -y "              + \
                          " 2>&1 | tee " + runPipelineLogFile
         else:
-            commandStr = "./runPipeline.sh " + \
+            commandStr = "./runPipeline.sh -F hdf5" + \
                      " -I " + input_dir  + \
                      " -O " + output_dir + \
                      " -b " + final_base + \
