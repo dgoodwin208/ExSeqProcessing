@@ -6,7 +6,7 @@ function completionReport_run(yamlfile)
 %Use a YAML file to load the parameters for a large experiment
 yamlspecs = ReadYaml(yamlfile);
 %The YAML files might have extra quotes so remove them
-EXP_NUM = str2double(strrep(yamlspecs.expnum,'''',''));
+BASENAME = strrep(yamlspecs.basename,'''','');
 NUM_FOVS = prod(yamlspecs.montage_size);
 if isfield(yamlspecs,'reg_type')
     REG_TYPE = yamlspecs.reg_type;
@@ -21,6 +21,7 @@ else
     MAXNUM_MISSING = 2;
 end
 ROOT_DIR = strrep(yamlspecs.base_dir,'''','');
+
 %Initialize the file
 expResults = {};
 
@@ -37,7 +38,7 @@ end
 
 for F = 0:NUM_FOVS
     f_idx = F+1; %because 0/1 indexing
-    EXP_NAME = sprintf('htapp%i-F%.3i',EXP_NUM,F);
+    EXP_NAME = sprintf('%s-F%.3i',BASENAME,F);
     
     puncta_subvol_dir = ...
         fullfile(ROOT_DIR, sprintf('F%.3i/5_puncta-extraction',F));
