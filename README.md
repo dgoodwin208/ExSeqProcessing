@@ -8,7 +8,7 @@ For the fastest path to exploring the steps of the ExSeqProcessing pipeline, we 
 
 Please refer to the [Wiki](https://github.com/dgoodwin208/ExSeqProcessing/wiki) for information and a tutorial, complete with a sample ExSeq dataset. [Update,  March 08, 2021: That Wiki page is undergoing a refactoring with simpler instructions].
 
-The easiest way to get started with real data is to explore the `tutorial` folder in the root of the ExSeqProcessing repository. `tutorial/ExSeqProcessing_tutorial.m` walks through the simplest script of running all the necessary step. For larger-scale processing, we recommend using the `runPipeline.sh` bash script, with the necessary disclaimer that the tradeoff for its power is the learning curve of getting running with it. We also include `wrapper_batchexperiment.py` to illustrate how we have used the `runPipeline.sh` tool.
+The easiest way to get started with real data is to explore the `tutorial` folder in the root of the ExSeqProcessing repository. `tutorial/ExSeqProcessing_tutorial.m` walks through the simplest script of running all the necessary step. For larger-scale processing, we recommend using the `runPipeline.sh` bash script, with the necessary disclaimer that the tradeoff for its power and flexibility is an initial learning curve. To help new users get working with `runPipeline.sh`, we also include `wrapper_batchexperiment.py` to illustrate how we have utilized the `runPipeline.sh` tool.
 
 We are grateful for all requests and questions - there will surely be bugs and we want to fix them. It is important to us that this software is a useful contribution to the community!
 
@@ -23,8 +23,8 @@ This software pipeline has been a successful multi-year, multi-team collaboratio
 
 We thank all the people that have contributed to this codebase:
 
-From Kioxia: Yosuke Bando, Shintaro Sano and Seiji Maeda.  
+From [Kioxia](https://www.kioxia.com/en-us/top.html): Yosuke Bando, Shintaro Sano and Seiji Maeda.  
 
-From FixStars: Atsushi Kajita, Karl Marrett, Ramdas Pillai, Robert Prior
+From [Fixstars](https://us.fixstars.com): Atsushi Kajita, Karl Marrett, Ramdas Pillai, Robert Prior
 
 From MIT: Dan Goodwin, Shahar Alon, Andrew Xue, Adam Marblestone, Anu Sinha, Oz Wassie
