@@ -76,6 +76,9 @@ if __name__ == '__main__':
         # The last line here redirects all output (standard and error)
         # to a file as well as to the screen.
         runPipelineLogFile = os.path.join(log_dir, "runPipeline.log")
+        
+        #TODO: There was a very strange issue with some whitespace that 
+        #necessitated the hardocded '-F hdf5'. That must be changed in the future
         if skipsteps is None:
             commandStr = "./runPipeline.sh -F hdf5" + \
                          " -I " + input_dir  + \
@@ -84,6 +87,7 @@ if __name__ == '__main__':
                          " -L " + log_dir    + \
                          " -i " + report_dir + \
                          " -y "              + \
+                         f" -B {config['ref_round']}" + \
                          " 2>&1 | tee " + runPipelineLogFile
         else:
             commandStr = "./runPipeline.sh -F hdf5" + \
@@ -94,6 +98,7 @@ if __name__ == '__main__':
                      " -i " + report_dir + \
                      f' -s "{skipsteps}"' + \
                      " -y "              + \
+                     f" -B {config['ref_round']}" + \                     
                      " 2>&1 | tee " + runPipelineLogFile
 
         # Run the pipeline waiting for return
