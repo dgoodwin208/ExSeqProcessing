@@ -84,7 +84,7 @@ match_ctr=1;
 
 shuffled_hits = 0;
 not_aligned = zeros(size(insitu_transcripts_filtered,1),1);
-base_mismatch_ctr = zeros(1,params.NUM_ROUNDS);
+base_mismatch_ctr = zeros(1,length(params.ALIGNMENT_ROUNDS));
 for t = 1:size(insitu_transcripts_filtered,1)
     img_transcript = insitu_transcripts_filtered(t,params.ALIGNMENT_ROUNDS);
     %Shuffle transcripts to get a false pos rate. 

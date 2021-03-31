@@ -18,9 +18,11 @@ params.YRES = .17;
 params.ZRES = .4;
 
 
-% Experimental parameters
+% Which round will be the reference for the warping?
 params.REFERENCE_ROUND_WARP = 2;
-params.NUM_ROUNDS = 4; %How many rounds of images need to be processed?
+
+%How many rounds of images need to be processed?
+params.NUM_ROUNDS = 4; 
 %When aligning against a library, which rounds in the ground truth are we
 %matching to?
 params.ALIGNMENT_ROUNDS = 1:params.NUM_ROUNDS;
@@ -35,10 +37,9 @@ params.ALIGNMENT_ROUNDS = 1:params.NUM_ROUNDS;
 % base calling parameters
 % we include groundtruth_visualcortex_tutorial.mat in the tutorial
 % directory as an example
-
 params.GROUND_TRUTH_DICT = 'groundtruth_visualcortex_tutorial.mat';
 params.ISILLUMINA = true; %we used two sequencing chemistries, illumina is now the standard
-params.PUNCTARADIUS_BGESTIMATE = 5;
+
 
 
 
@@ -54,6 +55,9 @@ params.COLOR_CORRECT_CLAMP = [4,4,4];
 params.PUNCTA_SIZE_THRESHOLD = 30;
 % What is the maximum size?
 params.PUNCTA_SIZE_MAX = 2000;
+
+params.PUNCTARADIUS_BGESTIMATE = 5;
+
 % Defines the cubic region around each puncta
 params.PUNCTA_SIZE = 10; %Not a critical parameter, could be deprecated soon
 params.CHAN_STRS = {'ch00','ch01','ch02','ch03'};
@@ -108,10 +112,10 @@ params.USE_GPU_CUDA = false;
 
 
 %intermediate image format, 'tif' of 'h5' are supported
-params.IMAGE_EXT = 'tif';
+params.IMAGE_EXT = 'h5';
 
 %input image format, 'tif' of 'h5' are supported
-params.INPUT_IMAGE_EXT = 'tif'; 
+params.INPUT_IMAGE_EXT = 'h5'; 
 
 %Use intermediate tmp files in color-correction and normalization
 params.tempDir = '/mp/nvmeof0/tmp';

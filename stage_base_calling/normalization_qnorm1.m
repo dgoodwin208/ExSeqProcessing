@@ -205,8 +205,11 @@ puncta_voxels_filtered = puncta_indices_cell{1}(puncta_complete);
 insitu_transcripts_filtered = insitu_transcripts(puncta_complete,:);
 
 puncta_centroids_filtered = zeros(N,3);
+IMG_SIZE_CROPPED = [length(crop_dims(1,1):crop_dims(1,2)),...
+    length(crop_dims(2,1):crop_dims(2,2)),...
+    length(crop_dims(3,1):crop_dims(3,2))];
 for p = 1:N
-    [x,y,z] = ind2sub(IMG_SIZE,puncta_voxels_filtered{p});
+    [x,y,z] = ind2sub(IMG_SIZE_CROPPED,puncta_voxels_filtered{p});
     puncta_centroids_filtered(p,:) = mean([x,y,z],1);
 end
 
