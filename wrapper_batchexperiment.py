@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--nsplit', type=int, default=1)
-    parser.add_argument('--splitid', type=int, default=1)
+    parser.add_argument('--splitid', type=int, default=0)
     parser.add_argument('--skipsteps', type=str, default=None)
     parser.set_defaults(exec=False)
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         #TODO: There was a very strange issue with some whitespace that 
         #necessitated the hardocded '-F hdf5'. That must be changed in the future
         if skipsteps is None:
-            commandStr = "./runPipeline.sh -F hdf5" + \
+            commandStr = "./runPipeline.sh" + \
                          " -I " + input_dir  + \
                          " -O " + output_dir + \
                          " -b " + final_base + \
@@ -90,7 +90,7 @@ if __name__ == '__main__':
                          f" -B {config['ref_round']}" + \
                          " 2>&1 | tee " + runPipelineLogFile
         else:
-            commandStr = "./runPipeline.sh -F hdf5" + \
+            commandStr = "./runPipeline.sh " + \
                      " -I " + input_dir  + \
                      " -O " + output_dir + \
                      " -b " + final_base + \
@@ -98,7 +98,7 @@ if __name__ == '__main__':
                      " -i " + report_dir + \
                      f' -s "{skipsteps}"' + \
                      " -y "              + \
-                     f" -B {config['ref_round']}" + \                     
+                     f" -B {config['ref_round']}" + \
                      " 2>&1 | tee " + runPipelineLogFile
 
         # Run the pipeline waiting for return

@@ -78,7 +78,7 @@ params.BASECALLING_PERFORMWHITENING = false; %Do we attempt to remove correlatio
 
 %Do we need to downsample the first few steps of the pipeline?
 params.DO_DOWNSAMPLE = true;
-params.DOWNSAMPLE_RATE = 1.;
+params.DOWNSAMPLE_RATE = 4.;
 
 %If the channel data come from very different distributions, applying a quantile Norm 
 %can be useful when combining channel information for the registration. However, 
