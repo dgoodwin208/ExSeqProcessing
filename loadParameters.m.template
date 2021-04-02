@@ -85,7 +85,7 @@ params.DOWNSAMPLE_RATE = 4.;
 %it is highly memory and time intensive, using any other paramter but 'quantile' will
 %simply sum the channels in the normalization step, and this can reduce comptuation time
 %by 20-50%!
-params.NORMALIZE_METHOD = 'quantile';% 'linear' or 'quantile';
+params.NORMALIZE_METHOD = 'linear';% 'linear' or 'quantile';
 
 %If you re-run the same script, should it overwrite results?
 %Currently this is only implemented for the puncta-extraction and base-calling steps
