@@ -11,7 +11,11 @@ function stage_base_calling()
         fprintf('[DONE]\n');
         return
     end
-
+    
+    if params.OVERWRITE_PREV_RESULTS && exist(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME),'file')
+	fprintf('Deleting the previous basecalls.\n');
+	delete(fullfile(params.basecallingResultsDir,sprintf('%s_transcriptobjects.mat',params.FILE_BASENAME)) );
+    end
     %TODO: include base calling confidence etc. into this function
     %    currently this minimal
     if params.ISILLUMINA
