@@ -47,7 +47,7 @@ for ROUND = 1:NUM_ROUNDS
                 tic
                 fov_inputnum = tileMap_indices_reference(row,col);
                 
-                fov_rootfolder = fullfile(OUTPUTROOTFOLDER,'processing');
+                fov_rootfolder = OUTPUTROOTFOLDER;
                 try
                     filename_morphology = fullfile(fov_rootfolder,...
                         sprintf('F%.3i',fov_inputnum),...
