@@ -32,7 +32,12 @@ parfor exp_idx = run_num_list
 
     for c_idx = params.COLOR_VEC
         filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.SHIFT_CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
-        img =  load3DImage_uint16(filename_in);
+        if exist(filename_in,'file')
+            img =  load3DImage_uint16(filename_in);
+        else   
+            fprintf('Missing file %s, substituting in zeros\n',filename_in);
+            img = zeros(crop_dims(1,2),crop_dims(2,2),crop_dims(3,2));
+        end
         
         %To save time by not processing empty data, we discover what data
         %we can simply ignore after registration. 

@@ -65,13 +65,13 @@ for rnd_idx = 1:readlength
     
     %Now remove puncta in which more than one of the channels is an extreme
     %outlier
-    %     excess_thresh = prctile(data_cols_nonzero,99.9);%gets each channel's thresh
     if isfield(params,'BASECALLING_ARTIFACT_THRESH')
         excess_thresh = params.BASECALLING_ARTIFACT_THRESH;
     else
         excess_thresh = [Inf,Inf,Inf,Inf];
     end
-    nonjunk_mask = sum(data_cols_nonzero>excess_thresh,2)<2;
+    
+    nonjunk_mask = sum(data_cols_nonzero>excess_thresh,2)<params.MAXNUM_MISSINGROUND;
     data_cols_nonzero_nonjunk = data_cols_nonzero(nonjunk_mask,:);
     
     %Everything that is nonzero but junk, mark as nan
@@ -160,19 +160,26 @@ for rnd_idx = 1:readlength
         chan2_signal = puncta_intensities_norm(p_idx,rnd_idx,2);
         chan3_signal = puncta_intensities_norm(p_idx,rnd_idx,3);
         chan4_signal = puncta_intensities_norm(p_idx,rnd_idx,4);
-        
+                
         chan1_present = ~(chan1_signal==0);
         chan2_present = ~(chan2_signal==0);
         chan3_present = ~(chan3_signal==0);
         chan4_present = ~(chan4_signal==0);
         
+        %When we do puncta extraction, if all the signal is removed 
+        %(ie, less than zero value remaining), we set the value to 1, rather
+        %than zero. If a puncta is all 1s, then it was no signal and will 
+        %be caught in this check. This logic does not explicitly check for
+        %1s but that's the only way four floats would be the same number.
+        all_channels_same = all(puncta_intensities_norm(p_idx,rnd_idx,1) == ...
+            squeeze(puncta_intensities_norm(p_idx,rnd_idx,:)) );
+        
         [signal_strength,winning_base] = max([chan1_signal,chan2_signal,chan3_signal,chan4_signal]);
         
         %In the case that a signal is missing in any channel, we cannot
-        %call that base so mark it a zero
-        
+        %call that base so mark it a zero  
         all_channels_present = chan1_present & chan2_present & ...
-            chan3_present & chan4_present;
+            chan3_present & chan4_present & ~all_channels_same;
         if all_channels_present
             insitu_transcripts(p_idx,rnd_idx) = winning_base;
         else
