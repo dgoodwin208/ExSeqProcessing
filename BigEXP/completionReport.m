@@ -1,7 +1,4 @@
-% Step one: Have puncta been extracted? If so, how many puncta?
-% F = 40;
-function completionReport_run(yamlfile)
-
+function completionReport(yamlfile)
 
 %Use a YAML file to load the parameters for a large experiment
 yamlspecs = ReadYaml(yamlfile);
