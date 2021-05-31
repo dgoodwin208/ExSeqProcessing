@@ -1,9 +1,8 @@
 % loadParameters;
-bigExpParams;
+%set a yamlfile variable then run this script. 
+bigparams = bigExpParams(yamlfile);
 
-if ~exist(bigparams.REGISTRATION_WORKINGDIR,'dir')
-    mkdir(bigparams.REGISTRATION_WORKINGDIR)
-end
+
 %% For all fields of view and all rounds, load the keypoints, make global
 % Load the reference round
 
