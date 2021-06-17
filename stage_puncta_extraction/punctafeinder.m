@@ -3,6 +3,8 @@ ROUNDS = 1:params.NUM_ROUNDS;
 for roundnum = ROUNDS
     summed_norm = load3DImage_uint16(fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,roundnum,params.PUNCTA_CHANNEL_SEG,regparams.REGISTRATION_TYPE,params.IMAGE_EXT)));
 
+    %Add a clamping step 
+    summed_norm(summed_norm>prctile(summed_norm(:),99.9)) = prctile(summed_norm(:),99.9);
     if ~exist('total_summed_norm','var')
         total_summed_norm = summed_norm;
         

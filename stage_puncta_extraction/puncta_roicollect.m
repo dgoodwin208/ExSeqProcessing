@@ -51,12 +51,13 @@ parfor exp_idx = run_num_list
         %We do a background subtraction as we load the pixel values per
         %sequencing channel. This step has shown to be beneficial across
         %both SOLiD and Illumina sequencing
-        se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
-        img_opened = imopen(img,se);
-        %Note the value of 1 for values that have been background subtracted
-        %that would have been 0
-        img = max(img - img_opened,1); 
-        
+        if params.PUNCTAEXTRACT_DOBGSUBTRACT
+            se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
+            img_opened = imopen(img,se);
+            %Note the value of 1 for values that have been background subtracted
+            %that would have been 0
+            img = max(img - img_opened,1); 
+        end
         
         for puncta_idx = 1:num_insitu_transcripts
            
@@ -134,7 +135,7 @@ num_roundsmissing_per_puncta = squeeze(sum(channels_notpresent>3,1));
 %Working to keep puncta even when missing up to one round
 signal_complete = num_roundsmissing_per_puncta<=params.MAXNUM_MISSINGROUND;
 
-fprintf('Number of complete puncta: %i \n',sum(signal_complete));
+fprintf('Number of complete puncta that would have been removed: %i/%i \n',sum(signal_complete),length(signal_complete));
 
 %Apply the signal complete filter before saving the raw data
 for exp_idx = run_num_list
