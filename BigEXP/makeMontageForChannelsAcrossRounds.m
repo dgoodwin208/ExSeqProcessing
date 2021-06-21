@@ -15,7 +15,7 @@ OUTPUTROOTFOLDER = strrep(yamlspecs.base_dir,'''','');
 
 % TODO: Not including the overlap was a mistake we made for the HTAPP
 % samples but this needs to be included in future samples
-overlap = .02; 
+overlap = yamlspecs.fov_overlap; 
 % Define all other image parameters
 imgSizeXY = [2048, 2048];
 numTiles = prod(outputTileSize);
@@ -39,8 +39,9 @@ for ROUND = 1:NUM_ROUNDS
         end
         
         % Make the complete image, ignoring overlap for now
-        complete_stitch = zeros(imgSizeXY(1)*size(tileMap_indices_reference,1),...
-            imgSizeXY(2)*size(tileMap_indices_reference,2));
+        complete_stitch = zeros(...
+            floor(imgSizeXY(1)*size(tileMap_indices_reference,1)*(1-overlap)),...
+            floor(imgSizeXY(2)*size(tileMap_indices_reference,2)*(1-overlap)));
         
         for row = 1:size(tileMap_indices_reference,1)
             for col = 1:size(tileMap_indices_reference,2)
@@ -66,8 +67,11 @@ for ROUND = 1:NUM_ROUNDS
                 %flip. It is corrected with this flipud(mip') operations
                 mip = flipud(transpose(squeeze(mip)));
                 
-                complete_stitch(1+imgSizeXY(1)*(row-1):imgSizeXY(1)*row,...
-                    1+imgSizeXY(2)*(col-1):imgSizeXY(2)*col) = mip;
+                start_y = 1+floor(imgSizeXY(1)*(row-1)*(1-overlap))
+                start_x = 1+floor(imgSizeXY(2)*(col-1)*(1-overlap))
+                
+                complete_stitch(start_y:start_y+imgSizeXY(1)-1,...
+                                start_x:start_x+imgSizeXY(2)-1 ) = mip;
                 
                 fprintf('Loaded file F%.3i, placing mip in\trow=%.2i\tcol=%.2i\n',...
                     fov_inputnum,row,col);

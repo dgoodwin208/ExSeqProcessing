@@ -1,6 +1,6 @@
 % loadParameters;
 %set a yamlfile variable then run this script. 
-bigparams = bigExpParams(yamlfile);
+bigparams = loadBigExpParams(yamlfile);
 
 
 %% For all fields of view and all rounds, load the keypoints, make global
