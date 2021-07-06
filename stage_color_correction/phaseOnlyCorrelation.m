@@ -38,7 +38,7 @@ function shift = phaseOnlyCorrelation(baseImg,moveImg,offsets)
 
     [x,y,z] = ind2sub(size(baseImg),find(abs(ir)==max(abs(ir(:)))));
     clear ir
-    disp([x,y,z]);
+    %disp([x,y,z]);
 
     shift = [x y z]-1;
     shift = shift-(shift>size(baseImg)*0.5).*size(baseImg);

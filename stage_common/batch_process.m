@@ -6,6 +6,8 @@ function [success_code, outputs] = batch_process(prefix, func, run_num_list, arg
 
     disp('set up cluster')
     tic;
+    %Note that 'local_logical_cores' is established in the
+    %setup_cluster_profile() 
     cluster = parcluster('local_logical_cores');
     toc;
 

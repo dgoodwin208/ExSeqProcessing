@@ -73,6 +73,10 @@ keyM_total_affine = [keyM_total_switch, ones(size(keyM_total_switch,1),1)]*affin
 %keyM_total is now switched
 keyM_total=keyM_total_affine(:,1:3);
 
+%Save the transform for use later
+output_transform_filename = fullfile(params.registeredImagesDir,sprintf('affineTForm_%s_round%03d.mat',filename_root,moving_run));
+save(output_transform_filename,'affine_tform');
+
 %Remove any keypoints which are now outside the bounds of the image
 filtered_correspondence_indices = (keyM_total(:,1) <1 | keyM_total(:,2)<1 | keyM_total(:,3)<1 | ...
     keyM_total(:,1) > size(imgFixed_total,2) | ...

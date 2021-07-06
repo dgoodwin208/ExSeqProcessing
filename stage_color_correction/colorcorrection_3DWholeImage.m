@@ -34,7 +34,19 @@ chan_offsets = zeros(num_channels,3);
 for c = 2:num_channels
 	imgM = load3DImage_uint16(fullfile(DIRECTORY,sprintf('%s_round%.03i_%s.%s',FILEROOT_NAME,roundnum,chan_strs{c},params.IMAGE_EXT)));
 
-	offsets = phaseOnlyCorrelation(imgR,imgM,[20 20 20]);
+	offsets = phaseOnlyCorrelation(imgR,imgM,params.COLOR_OFFSETS3D);
+
+        %Apply a clamp to avoid erroneously high values
+        for dim_idx = 1:3 % for each x y z dimension
+            if abs(offsets(dim_idx))>params.COLOR_CORRECT_CLAMP(dim_idx)
+        	if offsets(dim_idx)>0
+                    offsets(dim_idx)=params.COLOR_CORRECT_CLAMP(dim_idx)
+                else	
+                    offsets(dim_idx)=-1*params.COLOR_CORRECT_CLAMP(dim_idx)
+		end
+	    end
+        end
+
 
 	imgM_shift = imtranslate3D(imgM,offsets);
 	chan_offsets(c,:) = offsets;

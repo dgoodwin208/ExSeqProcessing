@@ -1,6 +1,6 @@
 loadParameters;
 filename_centroids = fullfile(params.punctaSubvolumeDir,sprintf('%s_centroids+pixels.mat',params.FILE_BASENAME));
-load(filename_centroids,'puncta_centroids','puncta_voxels')
+load(filename_centroids,'puncta_centroids','puncta_voxels','crop_dims')
 %% Collect the subvolumes we started this with, but now only with the pixels from the puncta!
 
 num_insitu_transcripts = size(puncta_voxels,1);
@@ -19,18 +19,45 @@ run_num_list = 1:params.NUM_ROUNDS;
 if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM_ROUNDS)
     run_num_list(params.MORPHOLOGY_ROUND) = [];
 end
- 
+
+
+didLoadCropDims = exist('crop_dims','var');
 parfor exp_idx = run_num_list
     disp(['round=',num2str(exp_idx)])
-    pixels_per_rnd = []; pixels_per_rnd_bg = []; %Try to clear memory
-    %clear pixels_per_rnd pixels_per_rnd_bg; 
+    pixels_per_rnd = [];  %Try to clear memory
+    %clear pixels_per_rnd 
     pixels_per_rnd = cell(num_insitu_transcripts,params.NUM_CHANNELS);
     pixindices_per_rnd = cell(num_insitu_transcripts,1); 
     hasNotedIndices = false;
 
     for c_idx = params.COLOR_VEC
         filename_in = fullfile(params.registeredImagesDir,sprintf('%s_round%.03i_%s_%s.%s',params.FILE_BASENAME,exp_idx,params.SHIFT_CHAN_STRS{c_idx},regparams.REGISTRATION_TYPE,params.IMAGE_EXT));
-        img =  load3DImage_uint16(filename_in);
+        if exist(filename_in,'file')
+            img =  load3DImage_uint16(filename_in);
+        else   
+            fprintf('Missing file %s, substituting in zeros\n',filename_in);
+            img = zeros(crop_dims(1,2),crop_dims(2,2),crop_dims(3,2));
+        end
+        
+        %To save time by not processing empty data, we discover what data
+        %we can simply ignore after registration. 
+        if didLoadCropDims 
+            img = img(...
+                crop_dims(1,1):crop_dims(1,2),...
+                crop_dims(2,1):crop_dims(2,2),...
+                crop_dims(3,1):crop_dims(3,2));
+        end
+        
+        %We do a background subtraction as we load the pixel values per
+        %sequencing channel. This step has shown to be beneficial across
+        %both SOLiD and Illumina sequencing
+        if params.PUNCTAEXTRACT_DOBGSUBTRACT
+            se = strel('sphere',params.PUNCTARADIUS_BGESTIMATE);
+            img_opened = imopen(img,se);
+            %Note the value of 1 for values that have been background subtracted
+            %that would have been 0
+            img = max(img - img_opened,1); 
+        end
         
         for puncta_idx = 1:num_insitu_transcripts
            
@@ -108,7 +135,7 @@ num_roundsmissing_per_puncta = squeeze(sum(channels_notpresent>3,1));
 %Working to keep puncta even when missing up to one round
 signal_complete = num_roundsmissing_per_puncta<=params.MAXNUM_MISSINGROUND;
 
-fprintf('Number of complete puncta: %i \n',sum(signal_complete));
+fprintf('Number of complete puncta that would have been removed: %i/%i \n',sum(signal_complete),length(signal_complete));
 
 %Apply the signal complete filter before saving the raw data
 for exp_idx = run_num_list
@@ -122,5 +149,13 @@ if isfield(params, 'MORPHOLOGY_ROUND') && (params.MORPHOLOGY_ROUND <= params.NUM
 end
 
 outputfile = fullfile(params.punctaSubvolumeDir,sprintf('%s_punctavoxels.mat',params.FILE_BASENAME));
-save(outputfile,'puncta_set_cell','puncta_indices_cell','-v7.3');
+
+% This is kept in for backwards compatabilty, but can be removed in future
+% versions
+if ~didLoadCropDims 
+    crop_dims = false;
+else
+    save(outputfile,'puncta_set_cell','puncta_indices_cell','crop_dims','-v7.3');
+end
+
 

@@ -95,19 +95,23 @@ clear DF_SIFT;
 size(DF_SIFT_norm)
 toc;
 
-fprintf('calculating ShapeContext descriptors...\n');
-tic;
+
+% 2020-09-09 removed the ShapeContext features. These are not being used currently
+% can be reintroduced easily for the case of challenging registrations. -Dan G
+%fprintf('calculating ShapeContext descriptors (removed)...\n');
+%tic;
 %We create a shape context descriptor for the same keypoint
 %that has the SIFT descriptor.
 %So we calculate the SIFT descriptor on the normed channel
 %(summedNorm), and we calculate the Shape Context descriptor
 %using keypoints from all other channels
-DF_SC=ShapeContext(LF_SIFT,LF_SC);
-toc;
+%DF_SC=ShapeContext(LF_SIFT,LF_SC);
+
+%toc;
 
 tic;
 lf_sift_filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift.mat',...
     filename_root,fixed_run));
-save(lf_sift_filename,'LF_SIFT','DF_SIFT_norm','DF_SC','img_total_size','num_keys_fixed');
+save(lf_sift_filename,'LF_SIFT','DF_SIFT_norm','img_total_size','num_keys_fixed');
 %save(lf_sift_filename,'LF_SIFT','img_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');
 

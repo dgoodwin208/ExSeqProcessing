@@ -47,8 +47,9 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     descriptor_output_dir_moving = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         moving_run,register_channel{1}));
 
+    
     filename = fullfile(descriptor_output_dir_moving, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     for idx=1:length(data.keys)
@@ -67,9 +68,13 @@ for register_channel = unique([regparams.REGISTERCHANNELS_SIFT,regparams.REGISTE
     descriptor_output_dir_fixed = fullfile(params.registeredImagesDir,sprintf('%sround%03d_%s/',filename_root, ...
         params.REFERENCE_ROUND_WARP,register_channel{1}));
 
-    filename = fullfile(descriptor_output_dir_fixed, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
-
+     
+    %Fixed old code: since we only save one file for the descriptors in a given round
+    %We can simply load that one file here. In an old version of the code, we would subsegment
+    %the descriptor calculation, which is why we had coordinates in the .mat file. -DG 20200601
+    files = dir(fullfile(descriptor_output_dir_fixed,'*.mat'));
+    filename = fullfile(files(1).folder,files(1).name);
+    
     data = load(filename);
     for idx=1:length(data.keys)
         %copy all the keys into one large vector of cells
@@ -154,9 +159,9 @@ if ~exist(output_keys_filename,'file')
     %So we calculate the SIFT descriptor on the normed channel
     %(summedNorm), and we calculate the Shape Context descriptor
     %using keypoints from all other channels
-
-    DM_SC=ShapeContext(LM_SIFT,LM_SC);
-    DF_SC=ShapeContext(LF_SIFT,LF_SC);
+    % NOTE: ShapeContext has been deprecated for now, -DG 2020-09-09
+    %DM_SC=ShapeContext(LM_SIFT,LM_SC);
+    %DF_SC=ShapeContext(LF_SIFT,LF_SC);
 
     correspondences=correspondences_sift;
     %Check for duplicate matches- ie, keypoint A matching to both
@@ -172,7 +177,8 @@ if ~exist(output_keys_filename,'file')
     end
     fprintf('There are %i matches when combining the features evenly (removed %i double matches)\n', size(correspondences,2),num_double_matches);
 
-    if length(correspondences)<20
+    
+    if length(correspondences)<regparams.NCORRESPONDENCES_MIN
         disp(['We only see ' num2str(length(correspondences)) ' which is insufficient to calculate a reliable transform. Skipping']);
         error('Insufficient points after filtering. Try increasing the inlier parameters in calc_affine');
         return;
