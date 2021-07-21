@@ -3,6 +3,7 @@
 % The original code can be accessed here: 
 % https://github.com/zchiang/in_situ_genome_sequencing_processing
 
+loadParameters;
 % The core idea is instead of amplifying punctate signals and then
 % thresholding and watershedding, we instead look for intensity peaks and
 % then threshold on correlated nearby pixels
@@ -20,6 +21,12 @@ parpool(max(SPLIT_IMG_CORR,SPLIT_IMG_MAXIMA));
 %offset is 100.
 noise_floor = params.NUM_CHANNELS*100*params.NUM_ROUNDS;
 thresh = 1.25*noise_floor;
+%Set an upper bound of how many puncta we can extract by determining the
+%average size of amplicons discovered in the data. Using the maximum size
+%of puncta (set at 2000voxels at this writing), we want to make sure that
+%we are not getting so many possible reads that we're getting less than
+%2000px average vol size
+MINAVERAGE_PUNCTAVOL = params.PUNCTA_SIZE_MAX;
 
 %These are the parameters taken directly from Zachary Chiang's code, which
 %worked well straight out of the box.
@@ -92,6 +99,7 @@ for y_idx = 1:SPLIT_IMG_MAXIMA
     end
 end
 
+
 %Then we parallelize the maxima finding 
 cell_total_maxima = cell(SPLIT_IMG_MAXIMA,SPLIT_IMG_MAXIMA);
 parfor y_idx = 1:SPLIT_IMG_MAXIMA
@@ -107,8 +115,19 @@ parfor y_idx = 1:SPLIT_IMG_MAXIMA
         [Maxima,MaxPos,Minima,MinPos]=MinimaMaxima3D(subimg,1,0);
         elapsed = toc;
         %Only keep the peaks that are above a parameterized value
-        pos = MaxPos(Maxima>thresh,:);
-        
+        %However, due to the variability of the data, we have to
+        %additionally check if we are getting too many putative amplicons.
+        %In the If clause below, if we get too many puncta, re-adjust the
+        %threshold to give us only the N brightest, chosen to give each
+        %puncta the desired average volume. 
+        if numel(subimg)/sum(Maxima>thresh) < MINAVERAGE_PUNCTAVOL
+            numPuncta = floor(numel(subimg)/MINAVERAGE_PUNCTAVOL);
+            sortedMaxima = sort(Maxima,'descend');
+            newthresh = sortedMaxima(numPuncta); %Get the Nth brightness 
+            pos = MaxPos(Maxima>newthresh,:);
+        else 
+            pos = MaxPos(Maxima>thresh,:);
+        end
         cell_total_maxima{y_idx,x_idx} = pos+ offsets;
         
         fprintf('(%i, %i): Total number of peaks for subsection %i. Time: %f \n',...
