@@ -12,7 +12,7 @@ function stage_normalization()
         return
     end
 
-    if params.USE_GPU_CUDA
+    if strcmp(params.NORMALIZE_METHOD,'quantile') && params.USE_GPU_CUDA
         normalization_cuda();
     else
         normalization();

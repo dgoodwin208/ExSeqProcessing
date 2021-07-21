@@ -37,9 +37,9 @@ filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
 
 img_total_size = image_dimensions(filename);
 ymin = 1;
-ymax = img_total_size(2);
+ymax = img_total_size(1);
 xmin = 1;
-xmax = img_total_size(1);
+xmax = img_total_size(2);
 
 
 %------------------------------Load Descriptors -------------------------%
@@ -52,7 +52,7 @@ for register_channel = [regparams.REGISTERCHANNELS_SIFT]
         moving_run,register_channel{1}));
 
     filename = fullfile(descriptor_output_dir_moving, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     keys = vertcat(data.keys{:});
@@ -71,7 +71,7 @@ for register_channel = [regparams.REGISTERCHANNELS_SC]
         moving_run,register_channel{1}));
 
     filename = fullfile(descriptor_output_dir_moving, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     keys = vertcat(data.keys{:});
@@ -100,11 +100,11 @@ if ~exist(output_keys_filename,'file')
     filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift.mat',...
         filename_root,params.REFERENCE_ROUND_WARP));
     if (~exist(filename))
-        fprintf('ShapeContext of fixed image is not calculated.\n');
+        fprintf('SIFT descriptors of fixed image are not calculated.\n');
         exit
     end
     load(filename);
-    % 'LF_SIFT','DF_SIFT_norm','DF_SC','imgFixed_total_size','num_keys_fixed'
+    % 'LF_SIFT','DF_SIFT_norm','imgFixed_total_size','num_keys_fixed'
 
 
     num_keys_moving = length(keys_moving_sift)+length(keys_moving_sc);
@@ -141,7 +141,7 @@ if ~exist(output_keys_filename,'file')
     %So we calculate the SIFT descriptor on the normed channel
     %(summedNorm), and we calculate the Shape Context descriptor
     %using keypoints from all other channels
-    DM_SC=ShapeContext(LM_SIFT,LM_SC);
+    %DM_SC=ShapeContext(LM_SIFT,LM_SC);
 
     correspondences=correspondences_sift;
 
@@ -158,7 +158,7 @@ if ~exist(output_keys_filename,'file')
     end
     fprintf('There are %i matches when combining the features evenly (removed %i double matches)\n', size(correspondences,2),num_double_matches);
 
-    if length(correspondences)<20
+    if length(correspondences)<regparams.NCORRESPONDENCES_MIN
         disp(['We only see ' num2str(length(correspondences)) ' which is insufficient to calculate a reliable transform. Skipping']);
         error('Insufficient points after filtering. Try increasing the inlier parameters in calc_affine');
         return;

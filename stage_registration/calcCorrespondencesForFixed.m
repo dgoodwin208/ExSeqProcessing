@@ -23,9 +23,9 @@ filename = fullfile(params.normalizedImagesDir,sprintf('%sround%03d_%s.%s',...
 
 img_total_size = image_dimensions(filename);
 ymin = 1;
-ymax = img_total_size(2);
+ymax = img_total_size(1);
 xmin = 1;
-xmax = img_total_size(1);
+xmax = img_total_size(2);
 
 
 %------------------------------Load Descriptors -------------------------%
@@ -38,7 +38,7 @@ for register_channel = [regparams.REGISTERCHANNELS_SIFT]
         fixed_run,register_channel{1}));
 
     filename = fullfile(descriptor_output_dir_fixed, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     keys = vertcat(data.keys{:});
@@ -57,7 +57,7 @@ for register_channel = [regparams.REGISTERCHANNELS_SC]
         fixed_run,register_channel{1}));
 
     filename = fullfile(descriptor_output_dir_fixed, ...
-        [num2str(ymin) '-' num2str(ymax) '_' num2str(xmin) '-' num2str(xmax) '.mat']);
+        [num2str(xmin) '-' num2str(xmax) '_' num2str(ymin) '-' num2str(ymax) '.mat']);
 
     data = load(filename);
     keys = vertcat(data.keys{:});
@@ -112,6 +112,5 @@ toc;
 tic;
 lf_sift_filename = fullfile(params.registeredImagesDir,sprintf('%sround%03d_lf_sift.mat',...
     filename_root,fixed_run));
-save(lf_sift_filename,'LF_SIFT','DF_SIFT_norm','img_total_size','num_keys_fixed');
-%save(lf_sift_filename,'LF_SIFT','img_total_size','num_keys_fixed','ymin_fixed','xmin_fixed');
+save(lf_sift_filename,'LF_SIFT','DF_SIFT_norm','img_total_size','num_keys_fixed','-v7.3');
 

@@ -3,9 +3,9 @@
 trap 'kill 0' EXIT
 
 if [ $# -ge 1 ]; then
-    WAIT_PID=$1
+    CMD="$@"
 else
-    WAIT_PID=
+    CMD=
 fi
 
 INTERVAL=5
@@ -14,7 +14,15 @@ COUNT=12
 LOGDIR=logs
 if [ ! -d $LOGDIR ]; then
   mkdir $LOGDIR
+else
+  echo "WARNING: logs dir exists. OK? (y/n)"
+  read -sn1 ANSW
+  if [ "$ANSW" = "n" -o "$ANSW" = "N" ]; then
+    echo "Canceled."
+    exit 1
+  fi
 fi
+echo "Starting.."
 
 if [ -z "$(type lsblk 2>&1 | grep 'not found')" ]; then
     lsblk > $LOGDIR/lsblk.txt
@@ -29,9 +37,13 @@ GPULOG=$LOGDIR/gpu-$(date '+%Y%m%d').log
 export COLUMNS=200
 
 echo "datetime: $(date '+%Y/%m/%d %H:%M:%S')" > $TOPLOG
-top -bc -d $INTERVAL >> $TOPLOG &
+# NOTE: -c option works as toggle
+#top -bc -d $INTERVAL >> $TOPLOG &
+top -b -d $INTERVAL >> $TOPLOG &
 
 vmstat -wt -n $INTERVAL > $VMLOG &
+
+#python -u schedule_cmd.py 1m sensors > $SENSORSLOG &
 
 if [ -z "$(type iostat 2>&1 | grep 'not found')" ]; then
     iostat -xdt $INTERVAL > $IOLOG &
@@ -61,10 +73,19 @@ if [ $TOPCOLS -le 130 ]; then
     exit 1
 fi
 
-echo "now recording..."
+echo "Now recording..."
+echo
 
-if [ -n "${WAIT_PID}" ]; then
-    tail --pid=${WAIT_PID} -f /dev/null
+if [ -n "$CMD" ]; then
+    sleep 1
+    echo "Command: $CMD"
+    bash -c "$CMD" &
+    WAIT_PID=$!
+    echo "Waiting for PID=$WAIT_PID..."
+    wait $WAIT_PID
+    echo "Command is done."
+    sleep 10
+    echo "Recording is done."
 else
     wait
 fi
