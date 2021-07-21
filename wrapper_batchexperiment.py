@@ -80,7 +80,7 @@ if __name__ == '__main__':
         #TODO: There was a very strange issue with some whitespace that 
         #necessitated the hardocded '-F hdf5'. That must be changed in the future
         if skipsteps is None:
-            commandStr = "./runPipeline.sh" + \
+            commandStr = "./runPipeline.sh -F hdf5" + \
                          " -I " + input_dir  + \
                          " -O " + output_dir + \
                          " -b " + final_base + \
@@ -90,7 +90,7 @@ if __name__ == '__main__':
                          f" -B {config['ref_round']}" + \
                          " 2>&1 | tee " + runPipelineLogFile
         else:
-            commandStr = "./runPipeline.sh " + \
+            commandStr = "./runPipeline.sh -F hdf5" + \
                      " -I " + input_dir  + \
                      " -O " + output_dir + \
                      " -b " + final_base + \

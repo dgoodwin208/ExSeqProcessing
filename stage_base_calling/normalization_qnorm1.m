@@ -79,7 +79,11 @@ for rnd_idx = 1:readlength
     
     
     %Normalize just the nonzero portion
-    data_cols_norm_nonzero_nonjunk = quantilenorm(data_cols_nonzero_nonjunk);
+    if size(data_cols_nonzero_nonjunk,1)>1
+        data_cols_norm_nonzero_nonjunk = quantilenorm(data_cols_nonzero_nonjunk);
+    else
+        data_cols_norm_nonzero_nonjunk = data_cols_nonzero_nonjunk;
+    end
     
     %Finally, do we want to attempt to remove covariance between channels?
     if params.BASECALLING_PERFORMWHITENING
