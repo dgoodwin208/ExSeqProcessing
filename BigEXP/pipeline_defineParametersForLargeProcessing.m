@@ -1,26 +1,45 @@
 %% Note all the relevant filepaths
-%Set these variables
 
-DATESTRING = '20210510'; %Can be used as a ID of processes results
+%A few manual parameters to set upfront
+% There is a yaml file with all the major parameters of the experiment. We
+% will use the name of that yaml file as the experiment_name throughout 
+% EXPERIMENT_NAME = 'cruk'; 
+%Where do load/save the files for this experiment?
+ROOTDIR = '/Users/goody/Neuro/ExSeq/CRUK/';
+YAMLNAME = 'cruk.yaml';
+DATESTRING = '20210619'; %Can be used as a ID of processes results
+
+
+global N_READS_MINIMUM N_NOISE_FLOOR SIZE_THRESH CC_CONNECTIVITY
+global DOWNSAMPLE_RATE;
+%When making the large sample-wide maps, what downsample did we use?
+DOWNSAMPLE_RATE = 3; 
+N_READS_MINIMUM = 50;
+N_NOISE_FLOOR = 0; % All counts per cell at this level or below are set to zero
+SIZE_THRESH = 50;%What is the minimum size threshold for a segmented cell?
+%Define the more rigorous connectivity to avoid accidental merging of cells
+CC_CONNECTIVITY = 4;  % Either 4 or 8
+
 
 %Define the montage of DAPI? ExSeq reads can be 
-imgfile_ds_dapi = '/Users/goody/Neuro/ExSeq/HTAPP_917/htapp917_ds4_round002_ch04.tif';
+imgfile_ds_dapi = fullfile(ROOTDIR,'cruk210226_ds5_round001_ch04.tif');
 %Is there a mask of segmented cells? If not, just comment out
-%imgfile_ds_seg = '/Users/goody/Neuro/ExSeq/HTAPP_917/HTAPP_917.vsseg_export_s0.tif';
+imgfile_ds_seg = fullfile(ROOTDIR,'cruk210226_ds5_round001_ch04.vsv.vsseg_export_s0.tif');
 
-yamlfile = '/Users/goody/Neuro/ExSeq/HTAPP Common/htapp_upload/htapp_%i.yaml';
+yamlfile = fullfile(ROOTDIR,YAMLNAME);
 yamlspecs = ReadYaml(yamlfile);
 
 %The YAML files might have extra quotes so remove them
 experiment_name = strrep(yamlspecs.basename,'''','');
 
 % Then load these variables into memory
-DOWNSAMPLE_RATE = 4; %This is what's been used for HTAPP sampes
 
-save_dir = sprintf('/Users/goody/Neuro/ExSeq/HTAPP_%i/allreads_%s',EXP_NUM,DATESTRING);
-combined_transcriptsfile = fullfile(save_dir,sprintf('htapp%i-alltranscripts.mat',EXP_NUM));
-%Note the total maps are downampled by a factor of 2!
-OUTDIR = sprintf('/Users/goody/Neuro/ExSeq/HTAPP_%i/',EXP_NUM);
+save_dir = sprintf('/Users/goody/Neuro/ExSeq/CRUK/allreads_%s',DATESTRING);
+combined_transcriptsfile = fullfile(save_dir,'alltranscripts.mat');
+USABLE_HAMMING = 2;
+
+
+segged_outfile = fullfile(ROOTDIR,sprintf('%s-%s-Manual+TranscriptSeg.mat',experiment_name,DATESTRING) );
 
 %% Run the common code block then
 pipeline_downloadAndConsolidateResults;
