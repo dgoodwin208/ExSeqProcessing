@@ -137,25 +137,25 @@ done
 
 PARAMETERS_FILE=./loadParameters.m
 
-INPUT_FILE_PATH=$(sed -ne "s#params.INPUT_FILE_PATH *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-DECONVOLUTION_DIR=$(sed -ne "s#params.deconvolutionImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-COLOR_CORRECTION_DIR=$(sed -ne "s#params.colorCorrectionImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-NORMALIZATION_DIR=$(sed -ne "s#params.normalizedImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-REGISTRATION_DIR=$(sed -ne "s#params.registeredImagesDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-PUNCTA_DIR=$(sed -ne "s#params.punctaSubvolumeDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-BASE_CALLING_DIR=$(sed -ne "s#params.basecallingResultsDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-REPORTING_DIR=$(sed -ne "s#params.reportingDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-LOG_DIR=$(sed -ne "s#params.logDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+INPUT_FILE_PATH=$(sed -ne "s#params.INPUT_FILE_PATH *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+DECONVOLUTION_DIR=$(sed -ne "s#params.deconvolutionImagesDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+COLOR_CORRECTION_DIR=$(sed -ne "s#params.colorCorrectionImagesDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+NORMALIZATION_DIR=$(sed -ne "s#params.normalizedImagesDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+REGISTRATION_DIR=$(sed -ne "s#params.registeredImagesDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+PUNCTA_DIR=$(sed -ne "s#params.punctaSubvolumeDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+BASE_CALLING_DIR=$(sed -ne "s#params.basecallingResultsDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+REPORTING_DIR=$(sed -ne "s#params.reportingDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+LOG_DIR=$(sed -ne "s#params.logDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+TEMP_DIR=$(sed -ne "s#params.tempDir *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
 LOCK_DIR=/tmp/.exseqproc
 
-FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-ROUND_NUM=$(sed -ne "s#params.NUM_ROUNDS *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
-REFERENCE_ROUND=$(sed -ne "s#params.REFERENCE_ROUND_WARP *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
-CHAN_STRS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};#\1#p" ${PARAMETERS_FILE})
-USE_GPU_CUDA=$(sed -ne "s#params.USE_GPU_CUDA *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
-#IMAGE_EXT=$(sed -ne "s#params.IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
-INPUT_IMAGE_EXT=$(sed -ne "s#params.INPUT_IMAGE_EXT *= *'\(.*\)';#\1#p" ${PARAMETERS_FILE})
+FILE_BASENAME=$(sed -ne "s#params.FILE_BASENAME *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+ROUND_NUM=$(sed -ne "s#params.NUM_ROUNDS *= *\(.*\);.*#\1#p" ${PARAMETERS_FILE})
+REFERENCE_ROUND=$(sed -ne "s#params.REFERENCE_ROUND_WARP *= *\(.*\);.*#\1#p" ${PARAMETERS_FILE})
+CHAN_STRS=$(sed -ne "s#params.CHAN_STRS *= *{\(.*\)};.*#\1#p" ${PARAMETERS_FILE})
+USE_GPU_CUDA=$(sed -ne "s#params.USE_GPU_CUDA *= *\(.*\);.*#\1#p" ${PARAMETERS_FILE})
+#IMAGE_EXT=$(sed -ne "s#params.IMAGE_EXT *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
+INPUT_IMAGE_EXT=$(sed -ne "s#params.INPUT_IMAGE_EXT *= *'\(.*\)';.*#\1#p" ${PARAMETERS_FILE})
 
 CHAN_ARRAY=($(echo ${CHAN_STRS//\'/} | tr ',' ' '))
 
@@ -391,7 +391,7 @@ TEMP_DIR=$(cd "${TEMP_DIR}" && pwd)
 
 
 # prepare symbolic links for input files
-if [ -z "$(find ${INPUT_FILE_PATH} -name \*.${INPUT_IMAGE_EXT})" ]; then
+if [ -z "$(find ${INPUT_FILE_PATH}/ -name \*.${INPUT_IMAGE_EXT})" ]; then
     echo "[ERROR] No input ${INPUT_IMAGE_EXT} files"
     exit
 fi
@@ -469,7 +469,7 @@ echo
 echo "Additional parameter changes"
 for((i=0; i<${#PARAM_KEYS[*]}; i++))
 do
-    param=$(sed -ne "s#.*${PARAM_KEYS[i]} *= *\(.*\);#\1#p" ${PARAMETERS_FILE})
+    param=$(sed -ne "s#.*${PARAM_KEYS[i]} *= *\(.*\);.*#\1#p" ${PARAMETERS_FILE})
     if [ -n "${param}" ]; then
         echo -n "${PARAM_KEYS[i]} : ${param} --> ${PARAM_VALS[i]}"
         if [ "${param}" = "${PARAM_VALS[i]}" ]; then
@@ -550,7 +550,7 @@ sed -e "s#\(params.INPUT_FILE_PATH\) *= *.*;#\1 = '${INPUT_FILE_PATH}';#" \
 for((i=0; i<${#PARAM_KEYS[*]}; i++))
 do
     if [ -n "${PARAM_KEYS[i]}" ]; then
-        sed -e "s#\(${PARAM_KEYS[i]}\) *= *[^;]*;#\1 = ${PARAM_VALS[i]};#" -i ./loadParameters.m
+        sed -e "s#\(${PARAM_KEYS[i]}\) *= *[^;]*;.*#\1 = ${PARAM_VALS[i]};#" -i ./loadParameters.m
     fi
 done
 
