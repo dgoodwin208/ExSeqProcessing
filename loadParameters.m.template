@@ -115,7 +115,7 @@ params.USE_GPU_CUDA = false;
 params.IMAGE_EXT = 'h5';
 
 %input image format, 'tif' of 'h5' are supported
-params.INPUT_IMAGE_EXT = 'h5'; 
+params.INPUT_IMAGE_EXT = 'h5';
 
 %Use intermediate tmp files in color-correction and normalization
 params.tempDir = '/mp/nvmeof0/tmp';
