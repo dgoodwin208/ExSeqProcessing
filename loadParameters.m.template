@@ -120,6 +120,9 @@ params.INPUT_IMAGE_EXT = 'h5';
 %Use intermediate tmp files in color-correction and normalization
 params.tempDir = '/mp/nvmeof0/tmp';
 
+%If the background is high for the particular sample, this will perform a background substraction step to discover the puncta and extract pixel values
+params.PUNCTAEXTRACT_DOBGSUBTRACT = false;
+
 
 %----- define registration params ----%
 % These are specific just to the regisration step
