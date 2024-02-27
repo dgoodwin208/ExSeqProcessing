@@ -414,6 +414,7 @@ void trim_pad_1GPU(int trim_idxs00, int trim_idxs01, int trim_idxs10,
                 j - trim_idxs10, k - trim_idxs20, size0, size1, size2, column_order);
         // data always processed, stored in c-order, see initialize_inputs()
         pad_idx = cufftutils::convert_idx_gpu(i, j, k, pad_size0, pad_size1, pad_size2, false);
+        //printf("idx=%d, pad_idx=%d\n", idx, pad_idx);
 
         dst[idx] = src[pad_idx].x;
         /*if (benchmark) {*/

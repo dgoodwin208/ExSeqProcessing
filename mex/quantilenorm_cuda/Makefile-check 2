@@ -1,0 +1,30 @@
+TARGET=check_mexutils.mexa64
+
+SRCS := $(wildcard check_mexutils.cpp)
+OBJS := $(SRCS:.cpp=.o)
+
+MATLAB_GPU_INC=/usr/local/MATLAB/R2018a/toolbox/distcomp/gpu/extern/include
+
+SPDLOG_DIR=../include
+MEX_UTILS_DIR=mex-utils
+
+CPPFLAGS+=-DNDEBUG -I$(SPDLOG_DIR)
+CXXFLAGS+=-std=c++11 -Wall -Wextra -pthread
+NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
+
+all: $(TARGET)
+
+check_mexutils.mexa64: $(OBJS) $(MEX_UTILS_DIR)/libmexutils.a
+	mex -output $@ $^ -lmwgpu -lpthread
+	@cp -a check_mexutils.mexa64 ../
+
+%.o: %.cpp $(SRCS)
+	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC)
+
+$(MEX_UTILS_DIR)/libmexutils.a: $(MEX_UTILS_DIR)/*.cpp $(MEX_UTILS_DIR)/*.h
+	make -C $(MEX_UTILS_DIR)
+
+clean:
+	rm -f check_mexutils.mexa64 check_mexutils.o
+	@make -C $(MEX_UTILS_DIR) clean
+

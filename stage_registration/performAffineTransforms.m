@@ -69,6 +69,11 @@ keyF_total_switch = keyF_total(:,[2 1 3]);
 %The old way was calculating the affine tform
 warning('off','all'); 
 affine_tform = findAffineModel(keyM_total_switch, keyF_total_switch,regparams.AFFINE_FULL);
+
+%Save the transform for use later - added by MES on 6/27/22
+output_transform_filename = fullfile(params.registeredImagesDir,sprintf('affineTForm_%s_round%03d.mat',filename_root,moving_run));
+save(output_transform_filename,'affine_tform');
+
 keyF_total_switch = [];
 warning('on','all')
 

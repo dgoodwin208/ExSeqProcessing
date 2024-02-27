@@ -6,7 +6,8 @@
 
 .SUFFIXES: .cu
 
-GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
+#GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
+GTEST_DIR=/home/kajita
 
 CPPFLAGS+=-isystem $(GTEST_DIR)/include
 CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread -Wno-unused-function
@@ -22,7 +23,8 @@ TESTS=gtest_sift
 
 GTEST_HEADERS=$(GTEST_DIR)/include/gtest/*.h \
               $(GTEST_DIR)/include/gtest/internal/*.h
-GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
+#GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
+GTEST_LIBS=$(GTEST_DIR)/lib64/libgtest_main.a $(GTEST_DIR)/lib64/libgtest.a
 
 
 all: $(TESTS)
