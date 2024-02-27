@@ -6,7 +6,8 @@
 
 .SUFFIXES: .cu
 
-GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
+#GTEST_DIR=/mp/nas1/share/lib/googletest/googletest
+GTEST_DIR=/home/kajita
 
 CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64
@@ -23,10 +24,11 @@ TESTS=gtest_utils gtest_cudautils gtest_quantilenorm_cuda_impl gtest_radixsort_g
 
 GTEST_HEADERS=$(GTEST_DIR)/include/gtest/*.h \
               $(GTEST_DIR)/include/gtest/internal/*.h
-GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
+#GTEST_LIBS=$(GTEST_DIR)/libgtest_main.a $(GTEST_DIR)/libgtest.a
+GTEST_LIBS=$(GTEST_DIR)/lib64/libgtest_main.a $(GTEST_DIR)/lib64/libgtest.a
 
 CPPFLAGS+=-isystem $(GTEST_DIR)/include -I$(UTILS_DIR) -I$(CUDA_UTILS_DIR) -I$(GLOBAL_UTILS_DIR) -I$(SPDLOG_DIR) -I..
-CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread
+CXXFLAGS+=-g -std=c++11 -Wall -Wextra -pthread -no-pie
 NVCCFLAGS=-g -std=c++11 --gpu-architecture=sm_61
 
 

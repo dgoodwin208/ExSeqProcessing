@@ -8,7 +8,7 @@ CU_SRCS := $(wildcard *.cu)
 CU_OBJS := $(CU_SRCS:.cu=.o)
 HEADERS := $(wildcard *.h)
 
-MATLAB_GPU_INC=/usr/local/MATLAB/R2018a/toolbox/distcomp/gpu/extern/include
+MATLAB_GPU_INC=/usr/local/MATLAB/R2020b/toolbox/distcomp/gpu/extern/include
 CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64
 

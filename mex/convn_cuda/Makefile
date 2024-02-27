@@ -3,7 +3,7 @@ TARGET=lib-cufft-utils lib-utils convn_cuda.o convn_cuda.mexa64 cmd_convn_cuda  
 SOURCES := $(wildcard convn_cuda.cpp fft3_cuda.cpp)
 OBJS := $(SOURCES:.cpp=.o)
 
-MATLAB_GPU_INC=/usr/local/MATLAB/R2017a/toolbox/distcomp/gpu/extern/include
+MATLAB_GPU_INC=/usr/local/MATLAB/R2020b/toolbox/distcomp/gpu/extern/include
 CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64
 CUDNN_DIR=cudnn-utils

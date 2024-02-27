@@ -7,7 +7,7 @@ OBJS := $(SRCS:.cpp=.o)
 CU_SRCS := $(wildcard *.cu)
 CU_OBJS := $(CU_SRCS:.cu=.o)
 
-MATLAB_GPU_INC=/usr/local/MATLAB/R2018a/toolbox/distcomp/gpu/extern/include
+MATLAB_GPU_INC=/usr/local/MATLAB/R2020b/toolbox/distcomp/gpu/extern/include
 CUDA_INC=/usr/local/cuda/include
 CUDA_LIB=/usr/local/cuda/lib64
 
@@ -24,11 +24,11 @@ NVCCFLAGS=-std=c++11 --gpu-architecture=sm_61
 all: $(TARGET)
 
 quantilenorm_cuda.mexa64: $(OBJS) $(CU_OBJS) $(CUDA_UTILS_DIR)/libcudautils.a $(MEX_UTILS_DIR)/libmexutils.a $(UTILS_DIR)/libutils.a
-	mex -R2018a -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread -ltbb
+	mex -output $@ $^ -lmwgpu -L$(CUDA_LIB) -lcudart -lpthread -ltbb
 	@cp -a quantilenorm_cuda.mexa64 ../bin/
 
 %.o: %.cpp $(SRCS)
-	mex -R2018a -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
+	mex -c $< $(CPPFLAGS) -I$(MATLAB_GPU_INC) -I$(CUDA_INC)
 
 $(CUDA_UTILS_DIR)/libcudautils.a: $(CUDA_UTILS_DIR)/*.cu $(CUDA_UTILS_DIR)/*.h
 	make -C $(CUDA_UTILS_DIR)
